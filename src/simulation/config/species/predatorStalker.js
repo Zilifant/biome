@@ -23,5 +23,9 @@ export const predatorStalker = Object.freeze({
   maxHydration: 100,
   maxStamina: 100, // sprint budget; see systems/HuntingSystem.js
   perceptionRadius: 12, // hunts by detection, so it senses further than its prey
+  // Bigger and better insulated than its prey, so it tolerates the cold
+  // better and the heat worse (Step 19), °C.
+  comfortMin: -3,
+  comfortMax: 24,
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

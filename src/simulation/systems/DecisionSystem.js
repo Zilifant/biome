@@ -13,6 +13,7 @@
  *   - seekFood     — food perceived nearby; head toward it (subsumes "approach")
  *   - recallFood   — nothing in sight, but it remembers eating somewhere
  *   - recallWater  — nothing in sight, but it remembers drinking somewhere
+ *   - shelter      — the weather is biting; head for cover
  *   - followParent — a dependent juvenile keeping up with its guardian
  *   - rest         — stay put (attractive when satiated, never near danger)
  *   - wander       — undirected exploration with a committed heading
@@ -28,6 +29,7 @@ import { SimulationSystem } from './SimulationSystem.js';
 import { isReproductivelyReady } from './ReproductionSystem.js';
 import { SPECIES } from '../config/species/index.js';
 import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js';
+import { thermalStress } from '../world/Environment.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -54,6 +56,10 @@ export class DecisionSystem extends SimulationSystem {
    * @param {number} [options.recallRange] furthest a remembered place is worth walking to
    * @param {number} [options.recallDistanceWeight] how sharply distance discounts a memory
    * @param {number} [options.dangerRadius] how wide a berth to give remembered danger
+   * @param {number} [options.shelterWeight] pull toward cover when the weather bites
+   * @param {number} [options.shelterStressThreshold] °C of stress before it is worth moving
+   * @param {number} [options.shelterStressSpan] °C at which that pull is at full strength
+   * @param {number} [options.shelterRelief] fraction of stress cover removes (matches metabolism)
    * @param {number} [options.fleeWeight] urgency of escaping a perceived predator
    * @param {number} [options.huntWeight] how strongly hunger drives a predator to hunt
    * @param {number} [options.stalkDiscount] stalking's utility relative to chasing
@@ -87,6 +93,10 @@ export class DecisionSystem extends SimulationSystem {
     minHuntStamina = 15,
     huntCooldownTicks = 60,
     carcassRange = 1.5,
+    shelterWeight = 0.9,
+    shelterStressThreshold = 2,
+    shelterStressSpan = 10,
+    shelterRelief = 0.55,
     recallWeight = 0.8,
     recallRange = 60,
     recallDistanceWeight = 0.15,
@@ -118,6 +128,10 @@ export class DecisionSystem extends SimulationSystem {
     this.minHuntStamina = minHuntStamina;
     this.huntCooldownTicks = huntCooldownTicks;
     this.carcassRange = carcassRange;
+    this.shelterWeight = shelterWeight;
+    this.shelterStressThreshold = shelterStressThreshold;
+    this.shelterStressSpan = shelterStressSpan;
+    this.shelterRelief = shelterRelief;
     this.recallWeight = recallWeight;
     this.recallRange = recallRange;
     this.recallDistanceWeight = recallDistanceWeight;
@@ -182,6 +196,13 @@ export class DecisionSystem extends SimulationSystem {
       // Somewhere it remembers as dangerous is no place to settle down.
       const nearDanger = this.dangerRadius > 0 && isNearDanger(entity, entity.x, entity.y, this.dangerRadius);
 
+      // Weather (Step 19). An animal paying to hold its body temperature has a
+      // reason to walk to cover — and none at all once it is already there, so
+      // the pull is gated on actually being out in it.
+      const stress = thermalStress(world, entity, this.shelterRelief);
+      const cover = perceived?.nearestCover ?? null;
+      const wantsShelter = stress >= this.shelterStressThreshold && cover !== null && !world.isShelteredAt(entity.x, entity.y);
+
       // Predation (Step 16). Fleeing overrides everything — a grazing animal
       // that notices a predator stops grazing — and gets more urgent the
       // closer the threat is. Hunting is gated on the predator actually being
@@ -223,6 +244,7 @@ export class DecisionSystem extends SimulationSystem {
         seekFood: nearestFood && !onFood && !nursing ? hungerDrive : 0,
         recallWater: recalledWater ? thirstDrive * this.recallWeight : 0,
         recallFood: recalledFood ? hungerDrive * this.recallWeight : 0,
+        shelter: wantsShelter ? this.shelterWeight * clamp01(stress / this.shelterStressSpan) : 0,
         followParent: followPull,
         seekMate: mateCandidate ? this.mateWeight : 0,
         rest: nearDanger ? 0 : this.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
@@ -258,7 +280,9 @@ export class DecisionSystem extends SimulationSystem {
               ? recalledFood.memory
               : action === 'recallWater'
                 ? recalledWater.memory
-                : null;
+                : action === 'shelter'
+                  ? cover
+                  : null;
       entity.actionTarget = target ? { cellX: target.cellX, cellY: target.cellY } : null;
       entity.moveIntent = this.#intentFor(action, entity, target, roll, candidateHeading, threat);
     }
@@ -314,6 +338,7 @@ export class DecisionSystem extends SimulationSystem {
       case 'followParent':
       case 'recallFood':
       case 'recallWater':
+      case 'shelter':
       case 'stalk': {
         // Cell targets aim at the cell centre; a mate target carries an exact
         // position.
@@ -361,6 +386,9 @@ function argmaxUtility(utilities) {
     // ranks below the senses and above everything discretionary.
     'recallWater',
     'recallFood',
+    // Getting out of the weather beats discretionary activity, but never beats
+    // hunger, thirst, or a predator.
+    'shelter',
     'stalk',
     'followParent',
     'seekMate',

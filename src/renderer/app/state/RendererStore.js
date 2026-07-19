@@ -16,7 +16,7 @@
 import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 17;
+export const SUPPORTED_PROTOCOL_VERSION = 18;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {
@@ -154,6 +154,12 @@ export class RendererStore {
    *         levels: Uint8Array} | null}
    */
   vegetation = null;
+  /**
+   * Season and weather (protocol v18), or null before a snapshot supplies it.
+   * A handful of scalars carried whole by both snapshots and deltas.
+   * @type {{season: string, weather: string, temperature: number} | null}
+   */
+  environment = null;
   connection = { state: 'disconnected', detail: '' };
   /** 'live' | 'fixture' */
   mode = 'live';
@@ -239,6 +245,7 @@ export class RendererStore {
     this.terrain = snapshot.terrain ? decodeTerrain(snapshot.terrain) : null;
     // Vegetation is carried in full by full snapshots and patched by deltas.
     this.vegetation = snapshot.vegetation ? decodeVegetation(snapshot.vegetation) : null;
+    this.environment = snapshot.environment ? { ...snapshot.environment } : null;
     // A snapshot may jump the event stream forward (recovery); events skipped
     // over are gone — never invent them, just move the dedupe watermark.
     this.#lastBufferedEventSeq = Math.max(this.#lastBufferedEventSeq, 0);
@@ -306,6 +313,7 @@ export class RendererStore {
     }
     const counts = applyDeltaToEntities(this.entities, delta);
     this.#applyVegetationChanges(delta.vegetation);
+    if (delta.environment) this.environment = { ...delta.environment };
     this.tick = delta.tick;
     this.lastEventSeq = delta.lastEventSeq ?? this.lastEventSeq;
     if (Array.isArray(delta.events)) {
@@ -373,6 +381,7 @@ export class RendererStore {
     this.world = null;
     this.terrain = null;
     this.vegetation = null;
+    this.environment = null;
     this.selection = null;
     this.followedEntityId = null;
     this.#emit('reset');

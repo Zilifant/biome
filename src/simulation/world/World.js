@@ -1,7 +1,8 @@
 import { EntityManager } from './EntityManager.js';
 import { SpatialGrid } from './SpatialGrid.js';
-import { TerrainGrid } from './TerrainGrid.js';
+import { TerrainGrid, TerrainType } from './TerrainGrid.js';
 import { VegetationGrid } from './VegetationGrid.js';
+import { initialEnvironment } from './Environment.js';
 
 /**
  * The world aggregates entity storage, the spatial index, the static terrain
@@ -53,6 +54,11 @@ export class World {
     // and what "forgotten" means. Insertion-ordered, so eviction is FIFO.
     /** @type {Map<number, object>} */
     this.tombstones = new Map();
+    // Season and weather (Step 19) — the only genuinely global state in the
+    // world. Owned by the weather system; everything else reads it. Derived
+    // from the tick + one stochastic weather state, so it is restored by
+    // replaying the weather stream rather than stored piecemeal.
+    this.environment = initialEnvironment(config.environment ?? { ticksPerYear: 8000, meanTemperature: 14, temperatureAmplitude: 14 });
   }
 
   /** Cell coordinates containing a continuous position, clamped to the grid. */
@@ -93,6 +99,18 @@ export class World {
     const cellX = Math.min(Math.max(Math.floor(x), 0), this.terrain.width - 1);
     const cellY = Math.min(Math.max(Math.floor(y), 0), this.terrain.height - 1);
     return this.terrain.isPassable(cellX, cellY);
+  }
+
+  /**
+   * Whether the cell at a continuous position gives shelter from the weather
+   * (Step 19). Cover is the only sheltering terrain today; keeping the test
+   * here rather than in a system means "what counts as shelter" has one home.
+   * @param {number} x @param {number} y
+   * @returns {boolean}
+   */
+  isShelteredAt(x, y) {
+    const { cellX, cellY } = this.cellOf(x, y);
+    return this.terrain.codeAt(cellX, cellY) === TerrainType.COVER;
   }
 
   /** @param {number} x */

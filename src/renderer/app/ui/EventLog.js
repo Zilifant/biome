@@ -43,6 +43,8 @@ function formatEvent(event) {
       return `+ recovered #${event.entityId}${event.injury ? ` (${event.injury})` : ''}`;
     case 'entity.decayed':
       return `~ decayed #${event.entityId} → ${event.stageName ?? event.stage}${event.edibleMass !== undefined ? ` (${event.edibleMass.toFixed(1)}kg left)` : ''}`;
+    case 'environment.changed':
+      return `@ ${event.season} · ${event.weather}${event.temperature !== undefined ? ` · ${event.temperature.toFixed(1)}°C` : ''}`;
     case 'entity.lifeEvent':
       return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}`;
     default: {
@@ -66,6 +68,7 @@ function eventClass(event) {
   if (event.type === 'entity.injured') return 'event-died';
   if (event.type === 'entity.recovered') return 'event-created';
   if (event.type === 'entity.decayed') return 'event-removed';
+  if (event.type === 'environment.changed') return 'event-created';
   if (event.type === 'entity.mated' || event.type === 'entity.born' || event.type === 'entity.lifeEvent') {
     return 'event-birth';
   }

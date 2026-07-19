@@ -217,6 +217,7 @@ export class SimulationEngine {
       entities,
       terrain: this.getTerrainData(),
       vegetation: this.getVegetationData(),
+      environment: { ...this.world.environment },
     };
   }
 

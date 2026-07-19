@@ -1,8 +1,11 @@
 /**
  * Top status bar: connection state, mode, simulation identity, tick, entity
- * count, camera position, and zoom. Plain DOM, text-first (connection state
- * is announced via aria-live).
+ * count, season/weather, camera position, and zoom. Plain DOM, text-first
+ * (connection state is announced via aria-live).
  */
+
+/** Renderer-owned tone per weather state; unknown states get no emphasis. */
+const WEATHER_TONE = Object.freeze({ drought: 'warn', snow: 'ok', rain: '', clear: '' });
 export class StatusPanel {
   #els;
 
@@ -14,6 +17,7 @@ export class StatusPanel {
       <span class="status-item"><span class="status-label">sim</span> <span id="status-sim">–</span></span>
       <span class="status-item"><span class="status-label">tick</span> <span id="status-tick">–</span></span>
       <span class="status-item"><span class="status-label">entities</span> <span id="status-entities">–</span></span>
+      <span class="status-item"><span class="status-label">season</span> <span id="status-season">–</span></span>
       <span class="status-item"><span class="status-label">cam</span> <span id="status-camera">–</span></span>
       <span class="status-item"><span class="status-label">cell</span> <span id="status-zoom">–</span></span>
     `;
@@ -23,6 +27,7 @@ export class StatusPanel {
       sim: container.querySelector('#status-sim'),
       tick: container.querySelector('#status-tick'),
       entities: container.querySelector('#status-entities'),
+      season: container.querySelector('#status-season'),
       camera: container.querySelector('#status-camera'),
       zoom: container.querySelector('#status-zoom'),
     };
@@ -42,6 +47,13 @@ export class StatusPanel {
     this.#els.sim.textContent = store.simulationId ?? '–';
     this.#els.tick.textContent = store.tick >= 0 ? String(store.tick) : '–';
     this.#els.entities.textContent = String(store.entityCount);
+    // Season, weather, and temperature (protocol v18). Renderer-owned wording;
+    // the protocol sends bare names and a number.
+    const environment = store.environment;
+    this.#els.season.textContent = environment
+      ? `${environment.season} · ${environment.weather} · ${environment.temperature.toFixed(1)}°C`
+      : '–';
+    this.#els.season.className = environment ? WEATHER_TONE[environment.weather] ?? '' : '';
     this.#els.camera.textContent = `${Math.floor(camera.centerX)},${Math.floor(camera.centerY)}`;
     this.#els.zoom.textContent = `${camera.cellSize}px`;
   }

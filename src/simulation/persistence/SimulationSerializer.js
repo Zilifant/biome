@@ -72,10 +72,15 @@
  *       *removed* from the world, so the tombstone registry is part of the
  *       saved state — without it a restored run would forget different animals
  *       than the original. v15 saves are invalidated.
+ *  17 — season and weather added (Step 19): a top-level `environment` block and
+ *       the new `WeatherSystem` descriptor. The season is a pure function of
+ *       the tick, but the *weather* is a held stochastic state, so it must be
+ *       stored — recomputing it would need the whole roll history. v16 saves
+ *       are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 16;
+export const SAVE_FORMAT_VERSION = 17;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -92,6 +97,7 @@ export function captureSimulationState(engine) {
     randomStreams: engine.serializeRandomStreams(),
     entities: engine.world.entities.serialize(),
     tombstones: engine.world.serializeTombstones(),
+    environment: { ...engine.world.environment },
     vegetation: engine.world.vegetation.serialize(),
     events: engine.events.serialize(),
     pendingCommands: engine.commands.serialize(),
@@ -122,6 +128,7 @@ export function restoreSimulationState(engine, saved) {
   engine.restoreRandomStreams(saved.randomStreams);
   engine.world.entities.restore(saved.entities);
   engine.world.restoreTombstones(saved.tombstones);
+  if (saved.environment) engine.world.environment = { ...saved.environment };
   engine.world.rebuildSpatialIndex();
   engine.world.vegetation.restore(saved.vegetation);
   engine.events.restore(saved.events);

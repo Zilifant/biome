@@ -142,19 +142,37 @@ export class VegetationGrid {
   }
 
   /**
-   * Logistic regrowth toward each cell's carrying capacity. Monotonic
-   * non-decreasing (no grazing), so biomass only rises here. Called by
-   * `VegetationSystem`, staggered by its update interval.
+   * Logistic growth toward each cell's carrying capacity, called by
+   * `VegetationSystem` and staggered by its update interval.
+   *
+   * `capacityScale` is the seasonal lever (Step 19). Scaling the growth *rate*
+   * alone cannot make winter look like winter: a field already sitting at
+   * capacity simply stops growing and stays green. Scaling the *target* is what
+   * produces real dieback — biomass above the seasonal ceiling decays back down
+   * toward it, so the map browns off in autumn and greens up in spring.
+   *
+   * At the default `capacityScale: 1` this is monotonic non-decreasing without
+   * grazing, exactly as before.
+   *
    * @param {object} params
    * @param {number} params.growthRate
    * @param {number} params.seedFloor
+   * @param {number} [params.capacityScale] seasonal fraction of full capacity
+   * @param {number} [params.diebackRate] how fast biomass above the ceiling falls
    */
-  grow({ growthRate, seedFloor }) {
+  grow({ growthRate, seedFloor, capacityScale = 1, diebackRate = 0.04 }) {
     for (let i = 0; i < this.#biomass.length; i += 1) {
-      const capacity = this.#capacityPerCell[i];
-      if (capacity <= 0) continue;
+      const fullCapacity = this.#capacityPerCell[i];
+      if (fullCapacity <= 0) continue;
+      const capacity = fullCapacity * capacityScale;
       const biomass = this.#biomass[i];
-      if (biomass >= capacity) continue;
+      if (biomass > capacity) {
+        // Above the season's ceiling: decay toward it rather than snapping, so
+        // the change reads as a fade rather than a step.
+        this.#biomass[i] = Math.max(capacity, biomass - diebackRate * (biomass - capacity));
+        continue;
+      }
+      if (capacity <= 0 || biomass >= capacity) continue;
       const next = biomass + growthRate * (biomass + seedFloor) * (1 - biomass / capacity);
       this.#biomass[i] = Math.min(capacity, next);
     }

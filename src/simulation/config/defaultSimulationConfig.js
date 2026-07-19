@@ -40,6 +40,9 @@ export const defaultSimulationConfig = Object.freeze({
     minFertility: 0.55,
     coverSuitability: 1.35,
     quantizeLevels: 4,
+    // How fast biomass above the season's ceiling falls back to it (Step 19).
+    // Scaling growth alone cannot brown off a field already at capacity.
+    diebackRate: 0.04,
     updateInterval: 5, // regrowth runs every N ticks (staggered)
   }),
   events: Object.freeze({
@@ -84,6 +87,23 @@ export const defaultSimulationConfig = Object.freeze({
     offspringEnergyFraction: 0.6, // newborn energy as a fraction of its max
     cooldownTicks: 1800, // ticks before an animal may mate again
     birthOffset: 1.0, // how far behind the parent the newborn appears
+  }),
+  // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
+  // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,
+  // so a literal year would be 525,600 ticks and no demo run would ever reach
+  // winter. At 8000 ticks a year, each season is 2000 ticks and an animal lives
+  // roughly 1.5 years against the compressed `aging.maxAge`.
+  environment: Object.freeze({
+    ticksPerYear: 8000,
+    spellTicks: 400, // how long one weather state holds before re-rolling
+    meanTemperature: 14, // °C, annual mean
+    // °C: summer peaks ~25, winter troughs ~3. Measured — at an amplitude of 14
+    // the bare seasons alone pushed animals outside their comfort band all
+    // winter and predators died out in 3 of 5 seeds; at 11 both species survive
+    // in 4 of 5. It also models better: the *weather* is what bites (snow at
+    // −6, drought at +5 on top of the season), rather than winter being
+    // uniformly lethal.
+    temperatureAmplitude: 11,
   }),
   // Carcasses and decay (see systems/CarcassSystem.js). A body is a resource on
   // a clock: it passes through decay stages, its flesh is worth less at each
@@ -149,6 +169,14 @@ export const defaultSimulationConfig = Object.freeze({
     sprintMultiplier: 1.6, // speed while sprinting
     sprintStaminaCost: 2.5, // stamina per sprinting tick (~40 ticks from full)
     staminaRecoveryPerTick: 0.6, // regained per non-sprinting tick (~165 to refill)
+    // Thermoregulation (Step 19). Charged as energy, so a cold snap kills by
+    // burning an animal out — which is what hypothermia is. Cover halves it.
+    thermalCostFactor: 0.06, // energy per °C outside the species' comfort band
+    shelterRelief: 0.55, // fraction of that stress cover removes
+    exposureStressThreshold: 0.35, // stress at which an energy death reads as `exposure`
+    shelterWeight: 0.9, // how strongly the weather pulls an animal toward cover
+    shelterStressThreshold: 2, // °C of stress before moving is worth it
+    shelterStressSpan: 10, // °C at which that pull is at full strength
   }),
   // Bounded, decaying spatial memory (see memory/memories.js and
   // systems/MemorySystem.js). Animals remember where they ate, drank, searched

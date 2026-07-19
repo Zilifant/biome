@@ -81,6 +81,11 @@ export function buildFullSnapshot(data) {
   if (data.vegetation) {
     snapshot.vegetation = structuredClone(data.vegetation);
   }
+  // Season and weather (Step 19): a handful of scalars, so both full snapshots
+  // and deltas carry it whole rather than diffing it.
+  if (data.environment) {
+    snapshot.environment = { ...data.environment };
+  }
   return snapshot;
 }
 
@@ -187,6 +192,9 @@ export function buildDeltaSnapshot(previous, next, events = []) {
   if (vegetation) {
     delta.vegetation = vegetation;
   }
+  if (next.environment) {
+    delta.environment = { ...next.environment };
+  }
   return delta;
 }
 
@@ -224,6 +232,11 @@ export function applyDeltaSnapshot(fullSnapshot, delta) {
     world: { ...fullSnapshot.world },
     entities,
   };
+  // Season and weather ride whole on the delta, so the reconstruction simply
+  // takes the newer one (falling back to the base when a delta omits it).
+  if (delta.environment || fullSnapshot.environment) {
+    reconstructed.environment = { ...(delta.environment ?? fullSnapshot.environment) };
+  }
   // Terrain is static and not carried by deltas, so it persists from the base
   // snapshot unchanged. Carrying it forward makes applying a delta reproduce
   // the next full snapshot exactly.

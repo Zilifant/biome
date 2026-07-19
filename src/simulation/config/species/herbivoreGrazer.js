@@ -20,5 +20,9 @@ export const herbivoreGrazer = Object.freeze({
   maxHydration: 100, // hydration units
   maxStamina: 100, // sprint budget, spent fleeing (Step 16)
   perceptionRadius: 6, // world units the animal can sense around itself
+  // Thermal comfort band (Step 19), °C. Outside it the animal pays energy to
+  // hold its body temperature; cover takes the edge off.
+  comfortMin: 2,
+  comfortMax: 27,
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

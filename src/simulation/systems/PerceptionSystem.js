@@ -114,6 +114,7 @@ export class PerceptionSystem extends SimulationSystem {
     let nearestFood = null;
     let nearestWater = null;
     let nearestObstacle = null;
+    let nearestCover = null;
     for (let dy = -r; dy <= r; dy += 1) {
       for (let dx = -r; dx <= r; dx += 1) {
         const cx = cellX + dx;
@@ -134,6 +135,10 @@ export class PerceptionSystem extends SimulationSystem {
         if (!world.terrain.isPassable(cx, cy) && (nearestObstacle === null || distSquared < nearestObstacle.distSquared)) {
           nearestObstacle = { cellX: cx, cellY: cy, distSquared };
         }
+        // Shelter from the weather (Step 19) — the same scan, one more test.
+        if (code === TerrainType.COVER && (nearestCover === null || distSquared < nearestCover.distSquared)) {
+          nearestCover = { cellX: cx, cellY: cy, distSquared };
+        }
       }
     }
 
@@ -148,6 +153,7 @@ export class PerceptionSystem extends SimulationSystem {
       nearestFood: finalizeCell(nearestFood),
       nearestWater: finalizeCell(nearestWater),
       nearestObstacle: finalizeCell(nearestObstacle),
+      nearestCover: finalizeCell(nearestCover),
     };
   }
 }

@@ -177,6 +177,12 @@ a renderer exists.
   remains reserved for future individual plants.
 - Inspector's absolute energy is fetched once per selection (live mode) and
   labeled with its tick; the percentage updates live from deltas.
+- Season and weather (protocol v18) ride whole on both full snapshots and
+  deltas — a handful of scalars, so no diffing. The status bar shows
+  `season · weather · temperature`, with a renderer-owned tone per weather
+  state (`WEATHER_TONE`), and the event log formats `environment.changed`, the
+  first world-level rather than per-entity event. The engine sends bare names
+  and a number; all the wording is the renderer's.
 - Carcasses rot visibly (protocol v17): `decayStage` rides in bulk snapshots,
   and `CARCASS_DECAY_APPEARANCE` ramps a fresh orange `%` down to faint
   `;` and `.` remains. The appearance cache is keyed on the stage as well, so

@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–18)
+## 1.4 Carried-forward deviations and open issues (Steps 1–19)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -136,6 +136,8 @@ correctness bug in shipped code unless marked ⚠.
 | A19 | 17 | Hazards and fights are not injury sources — failed captures are the only writer, because nothing else in the world is dangerous | **Step 19** (weather) / **Step 23** (fights) |
 | A21 | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Step 29** (species schema) |
 | A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | **Step 21** (observation/metrics), which is the natural consumer |
+| A23 | 19 | Snow is a weather state, not an accumulating snowpack layer | — (settled; a layer needs a reason to exist) |
+| A24 | 19 | No per-cell microclimate — temperature is global and cover is the only spatial modifier | needs terrain elevation, which does not exist |
 | ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
 
 ### B. Configuration / structural debt
@@ -3229,7 +3231,7 @@ questions need to reach further back.
 
 ## Step 19 — Weather and seasons
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -3293,12 +3295,12 @@ Global scalars + vegetation modulation (already staggered). Cheap.
 
 ### Acceptance criteria
 
-- [ ] Seasons/weather with visible vegetation + behavior effects
-- [ ] Environment inspectable in status
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Seasons/weather with visible vegetation + behavior effects
+- [x] Environment inspectable in status
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -3306,7 +3308,112 @@ Atmospheric simulation, wind fields, precise climate.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) The world now has a turning
+year — the first genuinely *global* state in the engine.
+
+**What shipped.**
+
+- **Two clocks, deliberately separated.** The **season** and baseline
+  temperature are pure functions of the tick: given a tick and a year length
+  you can compute them with no history, which is what makes the cycle
+  reproduce exactly across a save, a restore, or a fresh run. The **weather** is
+  stochastic and stateful — drawn from the `weather` stream, held for a spell,
+  then re-rolled on a fixed cadence with season-dependent odds (snow only in
+  winter, drought only in summer, rain mostly at the shoulders). Because the
+  re-roll is on a clock rather than a reaction, the stream advances predictably.
+- **`WeatherSystem`** (`environment`, priority −10, ahead of vegetation) writes
+  one small record; everything downstream reads it. Emits
+  `environment.changed` only on a turn, never on temperature drift, which would
+  flood the log.
+- **The year is compressed** exactly as lifespan is (PLAN §3): a literal year
+  would be 525,600 ticks and no demo run would ever reach winter.
+  `ticksPerYear: 8000` puts four 2000-tick seasons inside a run, against a
+  compressed `maxAge` of 12,000 — so an animal lives about a year and a half.
+- **Thermoregulation** is charged as energy in `MetabolismSystem`, so a cold
+  snap kills by burning an animal out — which is what hypothermia is. No new
+  death path was needed; an animal that empties while under stress simply dies
+  of `exposure` rather than `starvation`. Same mechanism, accurate label.
+- **Shelter is a real mechanic, not decoration.** Cover removes ~55% of thermal
+  stress, which is exactly why the new `shelter` action is worth taking.
+  Perception finds the nearest cover in the cell scan it already ran.
+  `thermalStress` lives in `world/Environment.js` and is shared by the system
+  that *charges* for it and the system that *decides to walk out of it*, so the
+  two cannot drift.
+- **Protocol (v17 → v18):** an `environment` block on full snapshots *and*
+  deltas (a handful of scalars, so carried whole rather than diffed —
+  `applyDeltaSnapshot` reproduces it exactly), plus the `environment.changed`
+  event. Status bar shows `season · weather · temperature`.
+- **Persistence (save v16 → v17):** the environment block is saved. The season
+  could be recomputed from the tick, but the *held weather spell* could not
+  without replaying every roll, so it must persist.
+
+**A modelling bug the first run exposed: seasons that did nothing.** Scaling
+the vegetation *growth rate* by season looked correct and changed almost
+nothing — biomass moved 91k↔96k across the whole year. The reason is that
+logistic growth toward a fixed capacity means a field already *at* capacity
+simply stops growing; a slower rate cannot brown it off. Winter has to shrink
+the **ceiling**, not the rate. `VegetationGrid.grow` gained a `capacityScale`
+and a dieback term, and the seasonal swing became real: **85.8k in summer
+against 30.4k in winter**. A test pins the distinction directly — growth rate
+alone leaves a settled field unchanged, lowering the ceiling shrinks it.
+(A second bug: the temperature sinusoid was phase-shifted wrong, putting the
+peak in mid-autumn. Caught by asserting the peak falls in the season actually
+named `summer`.)
+
+**A third ecological re-tune, and the pattern is now clear.** Seasons are a
+large new pressure and the Step 18 balance did not survive them: at the first
+amplitude (±14 °C) predators died out in 3 of 5 seeds. Measured sweep — ±14 →
+2/5 both species surviving, ±11 → 4/5, ±9 → 4/5. Settled on **±11**, which is
+also the better *model*: at ±14 the bare season pushed animals outside their
+comfort band all winter, whereas at ±11 the season alone is survivable and it
+is the **weather** that bites (snow −6, drought +5 on top). This is the third
+consecutive step to invalidate the previous step's tuning; §1.4 now records
+that as a standing expectation rather than a surprise.
+
+**Tests:** `npm test` → **331 passing / 0 failing** (was 312; +19). New
+`test/weather.test.js`: the cycle (four seasons in order, wraps, pure function
+of the tick, peak in midsummer and trough in midwinter *in the seasons so
+named*), spells (season-appropriate weather and only that, one draw per roll,
+a spell holds then re-rolls, turns announced but not drift), vegetation (browns
+off and greens up; **the ceiling is the lever, not the rate**; still monotonic
+at full capacity as it always was), thermal stress and shelter (zero inside the
+band, cover takes the edge off, the cold costs energy and kills as `exposure`,
+an exposed animal heads for cover and a comfortable one does not), and
+protocol/persistence/determinism including delta round-tripping.
+
+**Deterministic demonstration scenario.** A full compressed year of the demo,
+bucketing total biomass by season: summer > winter by a wide margin and every
+season is visited. The paired stress test runs *two* years and asserts animals
+were pushed outside their comfort band and took cover — deliberately **not**
+that anyone died of it, since whether a well-fed animal ever burns out is a
+population outcome that shifts with tuning (§1.4 D1). The lethal path is
+asserted directly in a controlled sandbox instead.
+
+**Visible result verified.** Against a live server (protocol v18), watching the
+year turn: winter snow at −2.2 °C with growth ×0.00, capacity ×0.30 and **16
+animals sheltering**; winter clear at 3.1 °C, nobody sheltering; spring rain at
+4.5 °C with growth ×2.16; summer drought at 27.1 °C cutting capacity to ×0.60;
+autumn rain at 19.2 °C.
+
+**Performance.** large-5k **42.57 → 46.11 ms/tick** (+3.5). The weather system
+is free; the cost is the two per-animal reads (thermoregulation in metabolism,
+shelter utility in decision). Vegetation pays one extra multiply inside a loop
+it already ran.
+
+**Deviations from the step spec (documented):** (1) snow is a weather state
+that halts growth and chills, not a separate accumulating snowpack layer.
+(2) There is no per-cell microclimate — temperature is global, and cover is the
+only spatial modifier. A real thermal field belongs with terrain elevation,
+which does not exist.
+
+**Follow-on notes for later steps:** seasonal scarcity is the selection
+pressure Step 20 (genetics) and Step 21 (evolutionary metrics) were waiting
+for — `metabolicEfficiency` and `size` now have a season in which they
+genuinely matter. Migration (Step 26) has its driver too. §1.4 A19 (hazards as
+an injury source) is still open: weather is now harsh enough that cold snaps
+are a plausible writer, but exposure currently kills through energy rather than
+injury, which is the simpler model and worth keeping until something needs
+otherwise.
 
 ---
 
@@ -4428,7 +4535,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–18
+### Observed status after Steps 1–19
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
@@ -4436,13 +4543,13 @@ prediction:
 | Risk | Observed? | Evidence and outcome |
 | --- | --- | --- |
 | Population explosion | **Yes (three times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. |
-| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~43 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
-| Unstable parameter tuning | **Yes (repeatedly)** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. Step 13's follow utility needed reshaping twice. Step 15 re-tuned hydration from a recorded five-seed sweep — the better pattern to copy. **Step 18 is the cautionary case:** Step 16's predator/prey balance turned out to depend on a *defect* (carcasses accumulating forever as a free larder), and fixing the defect collapsed it. A balance that rests on unfinished behaviour is not a balance; re-measure after any step that changes an energy source. |
+| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
+| Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. |
 | Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. |
 | Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal and Step 17's injuries at 4, both enforced in their insert helpers so no future writer can bypass them. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 17 protocol and 16 save-format bumps, each with fixtures regenerated and invalidation notes. |
+| Protocol/save incompatibility | **No (by discipline)** | 18 protocol and 17 save-format bumps, each with fixtures regenerated and invalidation notes. |
 | Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
 | AI-generated duplication | **No (actively countered)** | Shared `killAnimal` (Step 10), `isReproductivelyReady` (Step 12), `recordLifeEvent` (Step 13), `recordMemory` (Step 15), and `applyInjury` (Step 17) helpers extracted instead of duplicating. Step 13 put `followParent` in the decision system rather than building a second action-selection path, and Step 16 did the same for `flee`/`stalk`/`chase`. Step 17 reused the existing `health <= 0` death path and the already-projected `healthFraction` rather than adding either. |
 | Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads. |

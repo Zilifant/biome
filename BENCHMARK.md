@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-18)
+## Results (post-Step-19)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→171 | 0.631 | ~1,590 |
-| small-100 | 256×256 | 107→143 | 0.492 | ~2,030 |
-| medium-1k | 512×512 | 1067→1407 | 5.68 | ~176 |
-| large-5k | 1024×1024 | 5333→7044 | 42.57 | ~23 |
+| demo-default | 128×128 | 128→166 | 0.651 | ~1,540 |
+| small-100 | 256×256 | 107→144 | 0.526 | ~1,900 |
+| medium-1k | 512×512 | 1067→1401 | 6.38 | ~157 |
+| large-5k | 1024×1024 | 5333→7067 | 46.11 | ~22 |
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -152,6 +152,14 @@ authoritative tick budget.
   system paid to skip them. The `demo-default` row rose to 0.63 ms/tick because
   the demo cohorts doubled to 120 prey / 8 predators — see PLAN.md Step 18 for
   why that re-tune was needed.
+- **Step 19** (weather and seasons): large-5k **42.57 → 46.11 ms/tick** (+3.5).
+  The weather system itself is a handful of global scalars and one RNG draw per
+  spell — free. The cost is in the two places the environment is *read* per
+  animal per tick: the thermoregulation term in metabolism, and the shelter
+  utility in decision. Vegetation pays nothing extra: the seasonal ceiling is
+  one more multiply inside the cell loop it already ran, still staggered every
+  5 ticks. The `environment` block adds ~7 scalars to each snapshot and delta,
+  which is negligible beside the entity array.
 
 ## Step 1 remediation recorded here
 

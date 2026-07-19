@@ -23,6 +23,7 @@ import { MemorySystem } from '../simulation/systems/MemorySystem.js';
 import { HuntingSystem } from '../simulation/systems/HuntingSystem.js';
 import { InjurySystem } from '../simulation/systems/InjurySystem.js';
 import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
+import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleTraits } from '../simulation/traits/traits.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
@@ -36,14 +37,19 @@ const TWO_PI = Math.PI * 2;
  * @param {SimulationEngine} engine
  */
 export function registerDemoSystems(engine) {
-  const { growthRate, seedFloor, updateInterval } = engine.config.vegetation;
-  engine.registerSystem(new VegetationSystem({ growthRate, seedFloor, updateInterval }));
+  const { growthRate, seedFloor, diebackRate, updateInterval } = engine.config.vegetation;
+  engine.registerSystem(new WeatherSystem(engine.config.environment));
+  engine.registerSystem(new VegetationSystem({ growthRate, seedFloor, diebackRate, updateInterval }));
   engine.registerSystem(new PerceptionSystem(engine.config.perception));
   engine.registerSystem(new MemorySystem(engine.config.memory));
   engine.registerSystem(
     new DecisionSystem({
       ...engine.config.decision,
       foodMinLevel: engine.config.perception.foodMinLevel,
+      shelterWeight: engine.config.locomotion.shelterWeight,
+      shelterStressThreshold: engine.config.locomotion.shelterStressThreshold,
+      shelterStressSpan: engine.config.locomotion.shelterStressSpan,
+      shelterRelief: engine.config.locomotion.shelterRelief,
       reproduction: {
         minEnergyFraction: engine.config.reproduction.minEnergyFraction,
         cooldownTicks: engine.config.reproduction.cooldownTicks,
@@ -80,7 +86,13 @@ export function registerDemoSystems(engine) {
   );
   engine.registerSystem(new ParentingSystem(engine.config.parenting));
   engine.registerSystem(
-    new MetabolismSystem({ ...engine.config.metabolism, staminaRecoveryPerTick: engine.config.locomotion.staminaRecoveryPerTick }),
+    new MetabolismSystem({
+      ...engine.config.metabolism,
+      staminaRecoveryPerTick: engine.config.locomotion.staminaRecoveryPerTick,
+      thermalCostFactor: engine.config.locomotion.thermalCostFactor,
+      shelterRelief: engine.config.locomotion.shelterRelief,
+      exposureStressThreshold: engine.config.locomotion.exposureStressThreshold,
+    }),
   );
   engine.registerSystem(new HydrationSystem({ ...engine.config.hydration, maxMemories: engine.config.memory.maxMemories }));
   engine.registerSystem(new InjurySystem(engine.config.injury));

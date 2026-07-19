@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–18 are done; Step 19 is next.
+protocol for continuing the work. Steps 1–19 are done; Step 20 is next.
 
 ## Install and run
 
@@ -62,9 +62,10 @@ Headless Simulation Engine           src/simulation
    ├── Scheduler        (phase + priority ordered systems)
    ├── World State      (entities, terrain, vegetation)
    ├── Spatial Grid     (uniform grid for local queries)
-   ├── Systems          (vegetation, perception, memory, decision, movement,
-   │                     feeding, hunting, reproduction, parenting,
+   ├── Systems          (weather, vegetation, perception, memory, decision,
+   │                     movement, feeding, hunting, reproduction, parenting,
    │                     metabolism, hydration, injury, carcass, aging)
+   ├── Environment      (season, weather, temperature — the one global state)
    ├── Traits           (per-individual variation, fixed at birth)
    ├── Memory           (bounded, decaying places each animal has learned)
    ├── Deterministic Randomness (seeded named streams)
@@ -155,7 +156,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `17`) and is
+Everything a client sees carries `protocolVersion` (currently `18`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -185,14 +186,16 @@ built by `src/protocol/`:
   level]] }` list, gated by the revision so unchanged ticks cost nothing.
 - **Events** (`events.js`): `entity.created`, `entity.moved`,
   `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`,
-  `predation`, `injury`),
+  `predation`, `injury`, `exposure`),
   `entity.removed`, `entity.fed` (`{ entityId, cell, amount }`),
   `entity.mated` (`{ entityId, partnerId }`), `entity.born`
   (`{ entityId, parents }`), `entity.hunted`
   (`{ entityId, targetId, chance, captured }` — the odds are reported, not
   hidden), `entity.killed`, `entity.escaped`, `entity.injured`
   (`{ entityId, injury, severity, sourceId }`), `entity.recovered`,
-  `entity.provisioned`
+  `entity.decayed`, `environment.changed`
+  (`{ season, weather, temperature, … }` — the one world-level event, emitted
+  on a turn rather than every tick), `entity.provisioned`
   (`{ entityId, guardianId, amount }`), and `entity.lifeEvent`
   (`{ entityId, event, guardianId }` — `weaned` | `dispersed` | `orphaned`)
   — facts with `{ seq, tick }`, never presentation instructions. A dead animal (whatever the cause) becomes
@@ -207,7 +210,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `16`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `17`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
@@ -248,11 +251,12 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 312 tests.
+ASCII renderer, committed fixtures, and 331 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
-per-type traversal costs) and a cell-level vegetation biomass field that grows
-logistically toward a terrain-derived capacity.
+per-type traversal costs), a cell-level vegetation biomass field that grows
+logistically toward a terrain-derived capacity, and a turning year — season,
+temperature, and weather spells that modulate both.
 
 **Two species.** Animals come from configured species definitions
 (`config/species/*` — biology only, never glyphs or colors; looked up by id,
@@ -270,7 +274,8 @@ implemented:
 
 | System | Phase | What it does |
 | --- | --- | --- |
-| `VegetationSystem` | environment | Logistic regrowth toward per-cell capacity (staggered) |
+| `WeatherSystem` | environment | Turns the year: season and temperature from the tick, weather drawn in spells |
+| `VegetationSystem` | environment | Logistic growth toward a *seasonally scaled* capacity, so the land browns off in winter and greens up in spring (staggered) |
 | `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
 | `MemorySystem` | perception | Fades each remembered place on its own schedule and forgets it once too faint (staggered) |
 | `HuntingSystem` | interaction | Resolves a capture attempt from the two animals' relative speed, stamina, and condition; a kill leaves a carcass, a miss costs energy and teaches the prey the place is dangerous |
@@ -279,7 +284,7 @@ implemented:
 | `FeedingSystem` | interaction | Converts what the species' diet allows into energy — grass from the cell for herbivores, edible mass from a carcass for carnivores — remembering where it ate (or found nothing) |
 | `ReproductionSystem` | interaction | Pairs well-fed adults in range, gestates, births a juvenile carrying both parent ids |
 | `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
-| `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost, divided by individual efficiency; recovers stamina when not sprinting; starvation → carcass |
+| `MetabolismSystem` | physiology | Mass-scaled basal + movement + thermoregulation energy cost, divided by individual efficiency; recovers stamina when not sprinting; starvation or exposure → carcass |
 | `HydrationSystem` | physiology | Dehydration, drinking at water (remembering where), health damage → carcass |
 | `InjurySystem` | physiology | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass |
 | `CarcassSystem` | physiology | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass |
@@ -319,6 +324,20 @@ balance — measured over 20k ticks on five seeds, roughly 24–111 grazers agai
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
 `config.demo` for the measured sweep behind the founding counts).
 
+**The year turns.** Season and baseline temperature are pure functions of the
+tick — no stored history, so they reproduce exactly across a save or a fresh
+run — while the weather is a stochastic spell that holds for a while and then
+re-rolls with season-dependent odds: snow only in winter, drought only in
+summer, rain mostly at the shoulders. Both feed one small record that
+everything downstream reads. Crucially, the season scales what the land can
+*hold*, not just how fast it grows: scaling the growth rate alone leaves a
+field already at capacity stubbornly green, so winter shrinks the ceiling and
+biomass dies back toward it. Animals pay energy to hold their body temperature
+outside their species' comfort band, cover takes roughly half the edge off
+(which is why they walk to it), and an animal that burns out fighting the cold
+dies of `exposure` rather than `starvation` — the same mechanism, an accurate
+label.
+
 **Death feeds the world.** A body is a resource on a clock: it passes through
 decay stages, its flesh is worth progressively less at each one, and it leaves
 the world when it is either eaten clean or fully rotted — returning whatever is
@@ -352,12 +371,12 @@ writes one until predators arrive in Step 16.
 
 ## Not built yet
 
-Weather and seasons, genetics and inheritance, evolutionary metrics, mate
+Genetics and inheritance, evolutionary metrics, mate
 choice, social groups, territory, disease, migration, disturbances, ecosystem
 engineering, multiple species, and profile-driven optimization toward tens of
 thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 19–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 20–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)
