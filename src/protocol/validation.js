@@ -1,0 +1,151 @@
+/**
+ * Structural validation for protocol messages arriving from the outside
+ * world. Every transport and the engine's command processor validate through
+ * these functions before anything touches simulation state.
+ *
+ * Validation results are { ok, errors } where errors is a list of
+ * { path, message } objects.
+ */
+import {
+  CommandTypes,
+  ENTITY_KINDS,
+  MAX_MANUAL_STEP_TICKS,
+  MAX_SPEED_MULTIPLIER,
+} from './commands.js';
+
+/**
+ * @typedef {{path: string, message: string}} ValidationError
+ * @typedef {{ok: boolean, errors: ValidationError[]}} ValidationResult
+ */
+
+/** @returns {ValidationResult} */
+function result(errors) {
+  return { ok: errors.length === 0, errors };
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function requireFiniteNumber(value, path, errors) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    errors.push({ path, message: 'must be a finite number' });
+    return false;
+  }
+  return true;
+}
+
+function validateSpawnEntity(entity, errors) {
+  if (!isPlainObject(entity)) {
+    errors.push({ path: 'entity', message: 'must be an object' });
+    return;
+  }
+  if (!ENTITY_KINDS.includes(entity.kind)) {
+    errors.push({ path: 'entity.kind', message: `must be one of: ${ENTITY_KINDS.join(', ')}` });
+  }
+  if (typeof entity.speciesId !== 'string' || entity.speciesId.length === 0) {
+    errors.push({ path: 'entity.speciesId', message: 'must be a non-empty string' });
+  }
+  requireFiniteNumber(entity.x, 'entity.x', errors);
+  requireFiniteNumber(entity.y, 'entity.y', errors);
+  if (entity.heading !== undefined) requireFiniteNumber(entity.heading, 'entity.heading', errors);
+  if (entity.energy !== undefined && requireFiniteNumber(entity.energy, 'entity.energy', errors) && entity.energy < 0) {
+    errors.push({ path: 'entity.energy', message: 'must be >= 0' });
+  }
+  if (entity.maxEnergy !== undefined && requireFiniteNumber(entity.maxEnergy, 'entity.maxEnergy', errors) && entity.maxEnergy <= 0) {
+    errors.push({ path: 'entity.maxEnergy', message: 'must be > 0' });
+  }
+  if (entity.bodyMass !== undefined && requireFiniteNumber(entity.bodyMass, 'entity.bodyMass', errors) && entity.bodyMass <= 0) {
+    errors.push({ path: 'entity.bodyMass', message: 'must be > 0' });
+  }
+  if (entity.speed !== undefined && requireFiniteNumber(entity.speed, 'entity.speed', errors) && entity.speed < 0) {
+    errors.push({ path: 'entity.speed', message: 'must be >= 0' });
+  }
+  if (entity.health !== undefined && requireFiniteNumber(entity.health, 'entity.health', errors) && entity.health < 0) {
+    errors.push({ path: 'entity.health', message: 'must be >= 0' });
+  }
+  if (entity.maxHealth !== undefined && requireFiniteNumber(entity.maxHealth, 'entity.maxHealth', errors) && entity.maxHealth <= 0) {
+    errors.push({ path: 'entity.maxHealth', message: 'must be > 0' });
+  }
+  if (entity.hydration !== undefined && requireFiniteNumber(entity.hydration, 'entity.hydration', errors) && entity.hydration < 0) {
+    errors.push({ path: 'entity.hydration', message: 'must be >= 0' });
+  }
+  if (entity.maxHydration !== undefined && requireFiniteNumber(entity.maxHydration, 'entity.maxHydration', errors) && entity.maxHydration <= 0) {
+    errors.push({ path: 'entity.maxHydration', message: 'must be > 0' });
+  }
+}
+
+/**
+ * Validate any protocol command.
+ * @param {unknown} command
+ * @returns {ValidationResult}
+ */
+export function validateCommand(command) {
+  /** @type {ValidationError[]} */
+  const errors = [];
+  if (!isPlainObject(command)) {
+    return result([{ path: '', message: 'command must be an object' }]);
+  }
+  if (typeof command.type !== 'string') {
+    return result([{ path: 'type', message: 'command type must be a string' }]);
+  }
+  switch (command.type) {
+    case CommandTypes.SIMULATION_PAUSE:
+    case CommandTypes.SIMULATION_RESUME:
+      break;
+    case CommandTypes.SIMULATION_SET_SPEED:
+      if (requireFiniteNumber(command.multiplier, 'multiplier', errors)) {
+        if (command.multiplier <= 0 || command.multiplier > MAX_SPEED_MULTIPLIER) {
+          errors.push({ path: 'multiplier', message: `must be in (0, ${MAX_SPEED_MULTIPLIER}]` });
+        }
+      }
+      break;
+    case CommandTypes.SIMULATION_STEP:
+      if (command.ticks !== undefined) {
+        if (!Number.isInteger(command.ticks) || command.ticks < 1 || command.ticks > MAX_MANUAL_STEP_TICKS) {
+          errors.push({ path: 'ticks', message: `must be an integer in [1, ${MAX_MANUAL_STEP_TICKS}]` });
+        }
+      }
+      break;
+    case CommandTypes.ENTITY_SPAWN:
+      validateSpawnEntity(command.entity, errors);
+      break;
+    case CommandTypes.ENTITY_REMOVE:
+      if (!Number.isInteger(command.entityId) || command.entityId < 1) {
+        errors.push({ path: 'entityId', message: 'must be a positive integer' });
+      }
+      break;
+    default:
+      errors.push({ path: 'type', message: `unknown command type "${command.type}"` });
+  }
+  return result(errors);
+}
+
+/**
+ * Validate a rectangular world-space bounds object.
+ * @param {unknown} bounds
+ * @returns {ValidationResult}
+ */
+export function validateBounds(bounds) {
+  /** @type {ValidationError[]} */
+  const errors = [];
+  if (!isPlainObject(bounds)) {
+    return result([{ path: 'bounds', message: 'must be an object' }]);
+  }
+  for (const key of ['minX', 'minY', 'maxX', 'maxY']) {
+    requireFiniteNumber(bounds[key], `bounds.${key}`, errors);
+  }
+  if (errors.length === 0) {
+    if (bounds.minX > bounds.maxX) errors.push({ path: 'bounds.minX', message: 'minX must be <= maxX' });
+    if (bounds.minY > bounds.maxY) errors.push({ path: 'bounds.minY', message: 'minY must be <= maxY' });
+  }
+  return result(errors);
+}
+
+/**
+ * Join validation errors into a single human-readable message.
+ * @param {ValidationError[]} errors
+ */
+export function formatErrors(errors) {
+  return errors.map(({ path, message }) => (path ? `${path}: ${message}` : message)).join('; ');
+}

@@ -1,0 +1,137 @@
+import { EntityManager } from './EntityManager.js';
+import { SpatialGrid } from './SpatialGrid.js';
+import { TerrainGrid } from './TerrainGrid.js';
+import { VegetationGrid } from './VegetationGrid.js';
+
+/**
+ * The world aggregates entity storage, the spatial index, the static terrain
+ * layer, the vegetation biomass layer, and the world's static configuration
+ * (dimensions). Positions are continuous coordinates in [0, width] x
+ * [0, height]; movement is clamped at the borders.
+ *
+ * World knows nothing about ticks, systems, commands, or the protocol.
+ */
+export class World {
+  /**
+   * @param {object} config
+   * @param {number} config.width
+   * @param {number} config.height
+   * @param {number} [config.cellSize]
+   * @param {number} [config.terrainSeed] deterministic terrain seed (from the engine)
+   * @param {object} [config.terrain] terrain generation parameters
+   * @param {number} [config.vegetationSeed] deterministic vegetation seed
+   * @param {object} [config.vegetation] vegetation parameters
+   */
+  constructor(config) {
+    if (!Number.isFinite(config?.width) || config.width <= 0 || !Number.isFinite(config?.height) || config.height <= 0) {
+      throw new RangeError('world config requires positive width and height');
+    }
+    this.config = Object.freeze({ ...config });
+    this.entities = new EntityManager();
+    this.grid = new SpatialGrid(config.cellSize ?? 8);
+    // Terrain uses integer cell dimensions; world width/height are already
+    // whole numbers for the demo, but floor defensively.
+    this.terrain = new TerrainGrid({
+      width: Math.floor(config.width),
+      height: Math.floor(config.height),
+      seed: (config.terrainSeed ?? 0) >>> 0,
+      params: config.terrain ?? {},
+    });
+    // Vegetation suitability is derived from terrain, so terrain comes first.
+    this.vegetation = new VegetationGrid({
+      terrain: this.terrain,
+      seed: (config.vegetationSeed ?? 0) >>> 0,
+      params: config.vegetation ?? {},
+    });
+    // Transient per-entity perception summaries, rebuilt each tick by the
+    // perception system. Derived state — never serialized (like the spatial
+    // grid); empty until the first perception tick after construction/load.
+    /** @type {Map<number, object>} */
+    this.perception = new Map();
+  }
+
+  /** Cell coordinates containing a continuous position, clamped to the grid. */
+  cellOf(x, y) {
+    return {
+      cellX: Math.min(Math.max(Math.floor(x), 0), this.terrain.width - 1),
+      cellY: Math.min(Math.max(Math.floor(y), 0), this.terrain.height - 1),
+    };
+  }
+
+  /**
+   * Terrain traversal speed multiplier at a continuous position (1 =
+   * unimpeded, lower = slower). Authoritative movement cost.
+   * @param {number} x @param {number} y
+   * @returns {number}
+   */
+  speedModifierAt(x, y) {
+    const { cellX, cellY } = this.cellOf(x, y);
+    return this.terrain.speedModifierAt(cellX, cellY);
+  }
+
+  get width() {
+    return this.config.width;
+  }
+
+  get height() {
+    return this.config.height;
+  }
+
+  /**
+   * Whether an entity may occupy the cell containing a continuous position.
+   * The authoritative movement-validity check (terrain ownership stays here,
+   * never in the renderer).
+   * @param {number} x @param {number} y
+   * @returns {boolean}
+   */
+  isPassableAt(x, y) {
+    const cellX = Math.min(Math.max(Math.floor(x), 0), this.terrain.width - 1);
+    const cellY = Math.min(Math.max(Math.floor(y), 0), this.terrain.height - 1);
+    return this.terrain.isPassable(cellX, cellY);
+  }
+
+  /** @param {number} x */
+  clampX(x) {
+    return Math.min(Math.max(x, 0), this.width);
+  }
+
+  /** @param {number} y */
+  clampY(y) {
+    return Math.min(Math.max(y, 0), this.height);
+  }
+
+  /**
+   * Move an entity, keeping the spatial index in sync. The only sanctioned
+   * way to change an entity's position after creation.
+   * @param {import('./EntityManager.js').Entity} entity
+   * @param {number} x
+   * @param {number} y
+   * @param {number} [heading]
+   */
+  moveEntity(entity, x, y, heading = entity.heading) {
+    const newX = this.clampX(x);
+    const newY = this.clampY(y);
+    this.grid.move(entity.id, entity.x, entity.y, newX, newY);
+    entity.x = newX;
+    entity.y = newY;
+    entity.heading = heading;
+  }
+
+  /** @param {import('./EntityManager.js').Entity} entity */
+  insertIntoGrid(entity) {
+    this.grid.insert(entity.id, entity.x, entity.y);
+  }
+
+  /** @param {import('./EntityManager.js').Entity} entity */
+  removeFromGrid(entity) {
+    this.grid.remove(entity.id);
+  }
+
+  /** Rebuild the spatial index from entity positions (after a load). */
+  rebuildSpatialIndex() {
+    this.grid.clear();
+    for (const entity of this.entities.all()) {
+      this.grid.insert(entity.id, entity.x, entity.y);
+    }
+  }
+}

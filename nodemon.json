@@ -1,0 +1,11 @@
+{
+  "watch": [
+    "src/server",
+    "src/simulation",
+    "src/protocol",
+    "src/fixtures",
+    "public"
+  ],
+  "ext": "js,json,html",
+  "delay": 300
+}

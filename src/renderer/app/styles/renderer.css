@@ -1,0 +1,241 @@
+/* Renderer layout and panel styling. Information-dense, minimal decoration,
+   monospace everywhere, Dracula tokens only. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--dracula-background-darker);
+  color: var(--dracula-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
+
+#app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  gap: 4px;
+  padding: 4px;
+}
+
+/* ---- status bar ---- */
+#status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 4px 8px;
+  background: var(--dracula-background-dark);
+  border: 1px solid var(--dracula-selection);
+}
+
+.status-label {
+  color: var(--dracula-comment);
+}
+
+.mode-badge {
+  padding: 0 6px;
+  background: var(--dracula-green);
+  color: var(--dracula-background-darker);
+  font-weight: bold;
+}
+
+.mode-badge.mode-fixture {
+  background: var(--dracula-orange);
+}
+
+.ok { color: var(--dracula-green); }
+.warn { color: var(--dracula-orange); }
+.bad { color: var(--dracula-red); }
+.dim { color: var(--dracula-comment); }
+
+/* ---- main area ---- */
+#main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 4px;
+  min-height: 0;
+}
+
+#viewport-wrap {
+  position: relative;
+  background: var(--dracula-background);
+  border: 1px solid var(--dracula-selection);
+  overflow: hidden;
+  min-height: 0;
+}
+
+#biome-canvas {
+  display: block;
+}
+
+#biome-canvas:focus-visible {
+  outline: 2px solid var(--dracula-purple);
+  outline-offset: -2px;
+}
+
+/* ---- sidebar ---- */
+#sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#sidebar section {
+  background: var(--dracula-background-dark);
+  border: 1px solid var(--dracula-selection);
+  padding: 6px 8px;
+}
+
+#sidebar h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dracula-purple);
+}
+
+#sidebar h3 {
+  margin: 8px 0 4px;
+  font-size: 11px;
+  color: var(--dracula-comment);
+}
+
+.hint {
+  color: var(--dracula-comment);
+  margin: 0;
+}
+
+/* ---- controls ---- */
+.control-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--dracula-foreground);
+  background: var(--dracula-background-light);
+  border: 1px solid var(--dracula-selection);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--dracula-current-line);
+  background: var(--dracula-background-lighter);
+}
+
+button:disabled,
+select:disabled {
+  color: var(--dracula-comment);
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--dracula-purple);
+  outline-offset: 1px;
+}
+
+.command-status {
+  margin: 4px 0 0;
+  min-height: 1.4em;
+}
+
+/* ---- inspector ---- */
+.field {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--dracula-background-light);
+  padding: 1px 0;
+}
+
+.field > span:first-child {
+  color: var(--dracula-comment);
+}
+
+.occupants {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+}
+
+.occupants li.active {
+  background: var(--dracula-selection);
+  color: var(--dracula-bright-yellow);
+}
+
+.inspector-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.entity-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- event log ---- */
+#event-log-panel {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-filter {
+  color: var(--dracula-comment);
+  display: block;
+  margin-bottom: 4px;
+}
+
+#event-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#event-log-list li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-died { color: var(--dracula-red); }
+.event-created { color: var(--dracula-green); }
+.event-removed { color: var(--dracula-orange); }
+.event-moved { color: var(--dracula-comment); }
+.event-fed { color: var(--dracula-cyan); }
+.event-birth { color: var(--dracula-pink); }
+.event-other { color: var(--dracula-purple); }
+
+/* ---- help bar ---- */
+#help-bar {
+  padding: 2px 8px;
+  color: var(--dracula-comment);
+  background: var(--dracula-background-dark);
+  border: 1px solid var(--dracula-selection);
+}

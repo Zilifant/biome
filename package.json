@@ -1,0 +1,26 @@
+{
+  "name": "biome",
+  "version": "0.1.0",
+  "description": "Deterministic, headless animal ecosystem simulation engine with a versioned renderer protocol",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server/createServer.js",
+    "dev": "nodemon src/server/createServer.js",
+    "headless": "node src/scripts/runHeadless.js",
+    "benchmark": "node src/scripts/benchmark.js",
+    "fixtures:renderer": "node src/scripts/generateRendererFixtures.js",
+    "test": "node --test",
+    "test:watch": "node --test --watch"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

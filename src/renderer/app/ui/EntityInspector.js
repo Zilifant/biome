@@ -1,0 +1,160 @@
+/**
+ * Entity inspector panel. Shows every occupant of the selected cell, the
+ * active occupant's protocol-visible fields, optional live inspection
+ * detail (absolute energy from the entity.inspection endpoint), and recent
+ * domain events involving the entity. Only fields the protocol actually
+ * provides are shown — no invented biology.
+ */
+import { resolveAppearance } from '../rendering/EntityAppearance.js';
+
+function formatHeading(radians) {
+  if (typeof radians !== 'number') return '–';
+  const degrees = Math.round((radians * 180) / Math.PI) % 360;
+  return `${radians.toFixed(2)} rad (${degrees}°)`;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Render the scored action utilities (protocol v7 inspection), or nothing. */
+function formatUtilities(utilityBreakdown, chosen, actionTarget) {
+  if (!utilityBreakdown) return '';
+  const rows = Object.entries(utilityBreakdown)
+    .sort((a, b) => b[1] - a[1])
+    .map(
+      ([name, value]) =>
+        `<div class="field"><span class="${name === chosen ? 'ok' : 'dim'}">${name === chosen ? '▸ ' : ''}${escapeHtml(name)}</span><span>${value.toFixed(2)}</span></div>`,
+    )
+    .join('');
+  const target = actionTarget ? ` <span class="dim">→ (${actionTarget.cellX},${actionTarget.cellY})</span>` : '';
+  return `<h3>Decides <span class="dim">${escapeHtml(chosen ?? '')}</span>${target}</h3>${rows}`;
+}
+
+/** Render the transient perception summary (protocol v6), or nothing. */
+function formatPerception(perception) {
+  if (!perception) return '';
+  const cell = (c, label) =>
+    c
+      ? `<div class="field"><span>${label}</span><span>(${c.cellX},${c.cellY}) <span class="dim">d${c.distance.toFixed(1)}${c.level !== undefined ? ` lvl${c.level}` : ''}</span></span></div>`
+      : `<div class="field"><span>${label}</span><span class="dim">none in range</span></div>`;
+  const nearest = perception.nearestAnimal
+    ? `#${perception.nearestAnimal.id} <span class="dim">d${perception.nearestAnimal.distance.toFixed(1)}</span>`
+    : '<span class="dim">none</span>';
+  return `
+    <h3>Perceives <span class="dim">(r${perception.radius})</span></h3>
+    <div class="field"><span>animals</span><span>${perception.animalCount} <span class="dim">nearest ${nearest}</span></span></div>
+    ${cell(perception.nearestFood, 'food')}
+    ${cell(perception.nearestWater, 'water')}
+    ${cell(perception.nearestObstacle, 'obstacle')}`;
+}
+
+export class EntityInspector {
+  #container;
+  #callbacks;
+
+  /**
+   * @param {HTMLElement} container
+   * @param {{onCycle: () => void, onFollowToggle: () => void}} callbacks
+   */
+  constructor(container, callbacks) {
+    this.#container = container;
+    this.#callbacks = callbacks;
+    container.addEventListener('click', (event) => {
+      const action = event.target?.dataset?.action;
+      if (action === 'cycle') this.#callbacks.onCycle();
+      if (action === 'follow') this.#callbacks.onFollowToggle();
+    });
+  }
+
+  /**
+   * @param {import('../state/RendererStore.js').RendererStore} store
+   * @param {{entityId: number, tick: number, entity: object} | null} inspectionDetail
+   *        last fetched entity.inspection payload, if any
+   */
+  render(store, inspectionDetail) {
+    const selection = store.selection;
+    if (!selection) {
+      this.#container.innerHTML = `
+        <h2>Inspector</h2>
+        <p class="hint">Click a cell to select an entity.<br />Tab cycles occupants, F follows, Esc clears.</p>`;
+      return;
+    }
+    const occupants = selection.entityIds
+      .map((entityId) => ({ entityId, entity: store.getEntity(entityId) }))
+      .filter(({ entity }) => entity !== null || selection.entityIds.includes(selection.activeId));
+    const active = store.getEntity(selection.activeId);
+    const activeIndex = selection.entityIds.indexOf(selection.activeId);
+    const following = store.followedEntityId === selection.activeId;
+
+    const occupantList = occupants
+      .map(({ entityId, entity }) => {
+        const appearance = entity ? resolveAppearance(entity) : null;
+        const marker = entityId === selection.activeId ? '&gt;' : '&nbsp;';
+        const label = entity
+          ? `${escapeHtml(appearance.glyph)} #${entityId} ${escapeHtml(appearance.label)}`
+          : `#${entityId} (gone)`;
+        return `<li class="${entityId === selection.activeId ? 'active' : ''}">${marker} ${label}</li>`;
+      })
+      .join('');
+
+    let fields = '<p class="hint">This entity no longer exists.</p>';
+    if (active) {
+      const appearance = resolveAppearance(active);
+      const live = inspectionDetail && inspectionDetail.entity?.id === active.id ? inspectionDetail.entity : null;
+      const detail = live
+        ? `<div class="field"><span>energy</span><span>${live.energy.toFixed(1)} / ${live.maxEnergy} <span class="dim">(tick ${inspectionDetail.tick})</span></span></div>` +
+          (live.lowEnergy ? '<div class="field"><span>state</span><span class="warn">low energy</span></div>' : '') +
+          `<div class="field"><span>health</span><span>${live.health.toFixed(1)} / ${live.maxHealth}</span></div>` +
+          `<div class="field"><span>speed</span><span>${live.speed.toFixed(2)} u/tick</span></div>` +
+          (live.edibleMass > 0 ? `<div class="field"><span>edible mass</span><span>${live.edibleMass.toFixed(1)} kg</span></div>` : '') +
+          (live.parents?.length ? `<div class="field"><span>parents</span><span>${live.parents.map((id) => `#${id}`).join(' + ')}</span></div>` : '') +
+          (live.reproState?.gestating
+            ? `<div class="field"><span>gestating</span><span class="ok">until t${live.reproState.gestationUntil}</span></div>`
+            : live.reproState?.lastMatedTick !== null && live.reproState?.lastMatedTick !== undefined
+              ? `<div class="field"><span>last mated</span><span class="dim">t${live.reproState.lastMatedTick}</span></div>`
+              : '')
+        : '';
+      fields = `
+        <div class="field"><span>id</span><span>#${active.id}</span></div>
+        <div class="field"><span>kind</span><span>${escapeHtml(active.kind)}</span></div>
+        <div class="field"><span>species</span><span>${escapeHtml(active.speciesId)} <span class="dim">(${escapeHtml(appearance.label)})</span></span></div>
+        ${active.lifeStage ? `<div class="field"><span>life stage</span><span>${escapeHtml(active.lifeStage)}</span></div>` : ''}
+        ${active.action ? `<div class="field"><span>action</span><span>${escapeHtml(active.action)}</span></div>` : ''}
+        <div class="field"><span>position</span><span>${active.x.toFixed(2)}, ${active.y.toFixed(2)}</span></div>
+        <div class="field"><span>heading</span><span>${formatHeading(active.heading)}</span></div>
+        <div class="field"><span>age</span><span>${active.age} ticks</span></div>
+        <div class="field"><span>body mass</span><span>${active.bodyMass} kg</span></div>
+        <div class="field"><span>energy %</span><span>${Math.round(active.energyFraction * 100)}%</span></div>
+        ${active.hydrationFraction !== undefined ? `<div class="field"><span>hydration %</span><span class="${active.hydrationFraction < 0.25 ? 'warn' : ''}">${Math.round(active.hydrationFraction * 100)}%</span></div>` : ''}
+        <div class="field"><span>health %</span><span>${Math.round(active.healthFraction * 100)}%</span></div>
+        ${detail}
+        <div class="field"><span>alive</span><span class="${active.alive ? 'ok' : 'bad'}">${active.alive ? 'yes' : 'no'}</span></div>`;
+    }
+
+    const liveDetail = active && inspectionDetail?.entity?.id === active.id ? inspectionDetail.entity : null;
+    const utilitiesBlock = liveDetail
+      ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
+      : '';
+    const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
+
+    const events = active
+      ? store
+          .eventsForEntity(active.id, 8)
+          .map((event) => `<li><span class="dim">t${event.tick}</span> ${escapeHtml(event.type)}</li>`)
+          .join('')
+      : '';
+
+    this.#container.innerHTML = `
+      <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
+      ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
+      ${fields}
+      ${utilitiesBlock}
+      ${perceptionBlock}
+      <div class="inspector-actions">
+        ${occupants.length > 1 ? '<button type="button" data-action="cycle">Cycle (Tab)</button>' : ''}
+        <button type="button" data-action="follow">${following ? 'Unfollow (F)' : 'Follow (F)'}</button>
+      </div>
+      ${events ? `<h3>Recent events</h3><ul class="entity-events">${events}</ul>` : ''}`;
+  }
+}
