@@ -114,6 +114,29 @@ export function resolveVegetationAppearance(level) {
   return VEGETATION_APPEARANCE[level] ?? (level > 0 ? VEGETATION_APPEARANCE.at(-1) : null);
 }
 
+/**
+ * Marks for the places an animal remembers (protocol v14). These are drawn
+ * only for the selected entity — one animal's private map of the world, not
+ * world state — and faded by the memory's strength. Renderer-owned: the
+ * protocol sends only a kind, a cell, and a strength.
+ */
+export const MEMORY_APPEARANCE = Object.freeze({
+  food: Object.freeze({ glyph: '"', colorToken: 'bright-green' }),
+  water: Object.freeze({ glyph: '~', colorToken: 'bright-cyan' }),
+  barren: Object.freeze({ glyph: 'x', colorToken: 'comment' }),
+  danger: Object.freeze({ glyph: '!', colorToken: 'red' }),
+});
+
+/**
+ * Marker for a remembered place, or null for a kind this renderer does not
+ * map yet (a newer engine may send kinds this build has never heard of).
+ * @param {string} kind
+ * @returns {{glyph: string, colorToken: string} | null}
+ */
+export function resolveMemoryAppearance(kind) {
+  return MEMORY_APPEARANCE[kind] ?? null;
+}
+
 const cache = new Map();
 
 /**

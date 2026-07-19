@@ -12,11 +12,13 @@
  * biomass remains.
  *
  * Ownership: writes `energy` (gain, clamped to `maxEnergy`) and vegetation
- * biomass (decrement via `VegetationGrid.consumeAt`); emits `entity.fed`. No
- * randomness, no global scans.
+ * biomass (decrement via `VegetationGrid.consumeAt`), and records where the
+ * animal ate — or failed to (Step 15); emits `entity.fed`. No randomness, no
+ * global scans.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
+import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 
 export class FeedingSystem extends SimulationSystem {
   /**
@@ -24,13 +26,15 @@ export class FeedingSystem extends SimulationSystem {
    * @param {number} [options.intakeRate] biomass eaten per tick per animal
    * @param {number} [options.energyPerBiomass] energy per biomass unit
    * @param {number} [options.efficiency] assimilation fraction (≤ 1)
+   * @param {number} [options.maxMemories] cap on remembered places per animal
    * @param {number} [options.updateInterval]
    */
-  constructor({ intakeRate = 0.6, energyPerBiomass = 10, efficiency = 0.6, updateInterval = 1 } = {}) {
+  constructor({ intakeRate = 0.6, energyPerBiomass = 10, efficiency = 0.6, maxMemories = MAX_MEMORIES, updateInterval = 1 } = {}) {
     super({ id: 'feeding', phase: 'interaction', priority: 0, updateInterval });
     this.intakeRate = intakeRate;
     this.energyPerBiomass = energyPerBiomass;
     this.efficiency = efficiency;
+    this.maxMemories = maxMemories;
   }
 
   update(world, context) {
@@ -49,10 +53,19 @@ export class FeedingSystem extends SimulationSystem {
       if (desired <= 0) continue;
 
       const removed = world.vegetation.consumeAt(cellX, cellY, desired);
-      if (removed <= 0) continue;
+      if (removed <= 0) {
+        // Came here to eat and found nothing (Step 15): remember the cell as
+        // barren and stop believing it is a food patch, so the animal does not
+        // walk straight back to it.
+        forgetMemory(entity, MemoryKinds.FOOD, cellX, cellY);
+        recordMemory(entity, MemoryKinds.BARREN, cellX, cellY, context.tick, this.maxMemories);
+        continue;
+      }
 
       const gain = removed * this.energyPerBiomass * this.efficiency;
       entity.energy = Math.min(entity.maxEnergy, entity.energy + gain);
+      // Ate well here — worth coming back to (Step 15).
+      recordMemory(entity, MemoryKinds.FOOD, cellX, cellY, context.tick, this.maxMemories);
       context.emit(EventTypes.ENTITY_FED, {
         entityId: entity.id,
         cell: { cellX, cellY },

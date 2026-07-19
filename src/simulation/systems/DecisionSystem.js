@@ -8,19 +8,22 @@
  * it. Actions:
  *   - eat          — standing on a food cell (consumption itself is Step 9)
  *   - seekFood     — food perceived nearby; head toward it (subsumes "approach")
+ *   - recallFood   — nothing in sight, but it remembers eating somewhere
+ *   - recallWater  — nothing in sight, but it remembers drinking somewhere
  *   - followParent — a dependent juvenile keeping up with its guardian
- *   - rest         — stay put (attractive when satiated)
+ *   - rest         — stay put (attractive when satiated, never near danger)
  *   - wander       — undirected exploration with a committed heading
  *
  * Runs in the `decision` phase (after perception, before movement). Ownership:
  * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
- * `world.perception`, physiology, vegetation, and the `boldness` / `caution` /
- * `exploration` traits. Determinism: exactly two
+ * `world.perception`, physiology, vegetation, bounded `memories` (Step 15),
+ * and the `boldness` / `caution` / `exploration` traits. Determinism: exactly two
  * draws per animal per tick on the `decision` stream (an exploration/tiebreak
  * roll and a candidate wander heading), regardless of which action wins.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { isReproductivelyReady } from './ReproductionSystem.js';
+import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -42,6 +45,10 @@ export class DecisionSystem extends SimulationSystem {
    * @param {number} [options.explorationRate]
    * @param {number} [options.followWeight] pull toward a dependent's guardian
    * @param {number} [options.followDistance] no need to follow inside this range
+   * @param {number} [options.recallWeight] how much a memory counts against sight
+   * @param {number} [options.recallRange] furthest a remembered place is worth walking to
+   * @param {number} [options.recallDistanceWeight] how sharply distance discounts a memory
+   * @param {number} [options.dangerRadius] how wide a berth to give remembered danger
    * @param {number} [options.minCommitTicks]
    * @param {number} [options.commitTickSpan]
    * @param {number} [options.wanderJitter]
@@ -60,6 +67,10 @@ export class DecisionSystem extends SimulationSystem {
     mateWeight = 0.55,
     followWeight = 0.7,
     followDistance = 1.5,
+    recallWeight = 0.8,
+    recallRange = 60,
+    recallDistanceWeight = 0.15,
+    dangerRadius = 6,
     reproduction = { minEnergyFraction: 0.7, cooldownTicks: 800 },
     minCommitTicks = 8,
     commitTickSpan = 16,
@@ -79,6 +90,10 @@ export class DecisionSystem extends SimulationSystem {
     this.mateWeight = mateWeight;
     this.followWeight = followWeight;
     this.followDistance = followDistance;
+    this.recallWeight = recallWeight;
+    this.recallRange = recallRange;
+    this.recallDistanceWeight = recallDistanceWeight;
+    this.dangerRadius = dangerRadius;
     this.reproduction = reproduction;
     this.minCommitTicks = minCommitTicks;
     this.commitTickSpan = commitTickSpan;
@@ -122,6 +137,16 @@ export class DecisionSystem extends SimulationSystem {
       // decorative. Its whole agenda is drinking, resting, and keeping up.
       const nursing = entity.guardianId !== null && !entity.weaned;
 
+      // Memory (Step 15): when nothing edible or drinkable is in sight, an
+      // animal falls back on where it has been. Recall is strictly weaker than
+      // sight — a remembered patch may already be grazed out — so it only
+      // competes once perception has come up empty.
+      const recalledFood =
+        !nursing && !onFood && !nearestFood ? this.#recall(entity, MemoryKinds.FOOD) : null;
+      const recalledWater = !atWater && !nearestWater ? this.#recall(entity, MemoryKinds.WATER) : null;
+      // Somewhere it remembers as dangerous is no place to settle down.
+      const nearDanger = this.dangerRadius > 0 && isNearDanger(entity, entity.x, entity.y, this.dangerRadius);
+
       // Individual variation (Step 14): a cautious animal acts on hunger and
       // thirst sooner (it keeps a bigger reserve), while a bold one prefers
       // covering ground to sitting still — both real trade-offs, since roaming
@@ -135,9 +160,11 @@ export class DecisionSystem extends SimulationSystem {
         seekWater: nearestWater && !atWater ? thirstDrive : 0,
         eat: onFood && !nursing ? this.eatBias + hungerDrive : 0,
         seekFood: nearestFood && !onFood && !nursing ? hungerDrive : 0,
+        recallWater: recalledWater ? thirstDrive * this.recallWeight : 0,
+        recallFood: recalledFood ? hungerDrive * this.recallWeight : 0,
         followParent: followPull,
         seekMate: mateCandidate ? this.mateWeight : 0,
-        rest: this.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
+        rest: nearDanger ? 0 : this.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
         wander: this.wanderBias * boldness,
       };
 
@@ -156,10 +183,28 @@ export class DecisionSystem extends SimulationSystem {
           ? nearestFood
           : action === 'seekWater'
             ? nearestWater
-            : null;
+            : action === 'recallFood'
+              ? recalledFood.memory
+              : action === 'recallWater'
+                ? recalledWater.memory
+                : null;
       entity.actionTarget = target ? { cellX: target.cellX, cellY: target.cellY } : null;
       entity.moveIntent = this.#intentFor(action, entity, target, roll, candidateHeading);
     }
+  }
+
+  /**
+   * The remembered place of a kind most worth walking to right now, or null.
+   * @param {object} entity @param {string} kind
+   */
+  #recall(entity, kind) {
+    return bestRemembered(entity, kind, {
+      x: entity.x,
+      y: entity.y,
+      maxDistance: this.recallRange,
+      distanceWeight: this.recallDistanceWeight,
+      dangerRadius: this.dangerRadius,
+    });
   }
 
   /**
@@ -185,7 +230,9 @@ export class DecisionSystem extends SimulationSystem {
       case 'seekFood':
       case 'seekWater':
       case 'seekMate':
-      case 'followParent': {
+      case 'followParent':
+      case 'recallFood':
+      case 'recallWater': {
         // Cell targets aim at the cell centre; a mate target carries an exact
         // position.
         const tx = target.x ?? target.cellX + 0.5;
@@ -207,7 +254,20 @@ export class DecisionSystem extends SimulationSystem {
 
 /** Highest-utility action; ties broken by a fixed, deterministic order. */
 function argmaxUtility(utilities) {
-  const order = ['drink', 'eat', 'seekWater', 'seekFood', 'followParent', 'seekMate', 'rest', 'wander'];
+  const order = [
+    'drink',
+    'eat',
+    'seekWater',
+    'seekFood',
+    // Memory is the fallback for what the animal cannot currently see, so it
+    // ranks below the senses and above everything discretionary.
+    'recallWater',
+    'recallFood',
+    'followParent',
+    'seekMate',
+    'rest',
+    'wander',
+  ];
   let best = order[0];
   for (const action of order) {
     if (utilities[action] > utilities[best]) best = action;

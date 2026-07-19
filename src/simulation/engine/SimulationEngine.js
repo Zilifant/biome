@@ -267,6 +267,10 @@ export class SimulationEngine {
       // readable long before it gets there.
       traits: { ...entity.traits },
       adultMass: entity.adultMass,
+      // Bounded spatial memory (Step 15) — inspection-only, strongest first, so
+      // what an animal is currently acting on reads at the top. Copied, and
+      // already capped by the memory helper, so this can never be large.
+      memories: [...entity.memories].sort((a, b) => b.strength - a.strength).map((m) => ({ ...m })),
       // Decision detail — inspection-only (bulk snapshots carry only `action`).
       actionTarget: entity.actionTarget,
       utilityBreakdown: entity.utilityBreakdown,

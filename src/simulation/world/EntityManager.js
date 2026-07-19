@@ -32,6 +32,7 @@ import { NEUTRAL_TRAITS } from '../traits/traits.js';
  * @property {number} hydration
  * @property {number} maxHydration
  * @property {string} lifeStage juvenile | subadult | adult | senescent
+ * @property {Array<{kind: string, cellX: number, cellY: number, tick: number, strength: number}>} memories bounded, decaying places
  * @property {Record<string, number>} traits individual multipliers, fixed at birth
  * @property {number | null} adultMass mass this individual grows toward, or
  *   null to use the species mean (kg)
@@ -110,6 +111,10 @@ function createEntity(id, definition) {
     weaned: definition.weaned ?? definition.guardianId == null,
     // Bounded life history (see systems/lifeEvents.js).
     lifeEvents: definition.lifeEvents ?? [],
+    // Bounded, decaying spatial memory (Step 15; see memory/memories.js).
+    // Written by whichever system experienced the place, faded and evicted by
+    // the memory system. Newborns start with none — an animal learns its world.
+    memories: definition.memories ?? [],
     // Locomotion intent (Step 5, extended Step 8): a heading, a countdown of
     // ticks to hold it, and whether the animal is moving this tick. Owned by
     // the decision system (movement executes it); null until first decision.

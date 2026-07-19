@@ -13,11 +13,13 @@
  *
  * Runs in the `physiology` phase (alongside metabolism, after movement/feeding
  * have positioned and fed the animal). Ownership: writes `hydration` and, on
- * severe dehydration, `health` (and kills via the shared helper). Reads the
- * perceived nearest water. No randomness, no global scans.
+ * severe dehydration, `health` (and kills via the shared helper), and records
+ * where the animal drank (Step 15). Reads the perceived nearest water. No
+ * randomness, no global scans.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { killAnimal } from './death.js';
+import { recordMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 
 export class HydrationSystem extends SimulationSystem {
   /**
@@ -27,6 +29,7 @@ export class HydrationSystem extends SimulationSystem {
    * @param {number} [options.drinkRange] max distance to water to drink
    * @param {number} [options.dehydrationDamage] health lost per tick at zero hydration
    * @param {number} [options.edibleMassFraction] carcass edible mass fraction
+   * @param {number} [options.maxMemories] cap on remembered places per animal
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -35,6 +38,7 @@ export class HydrationSystem extends SimulationSystem {
     drinkRange = 1.5,
     dehydrationDamage = 0.5,
     edibleMassFraction = 0.6,
+    maxMemories = MAX_MEMORIES,
     updateInterval = 1,
   } = {}) {
     super({ id: 'hydration', phase: 'physiology', priority: 0, updateInterval });
@@ -43,6 +47,7 @@ export class HydrationSystem extends SimulationSystem {
     this.drinkRange = drinkRange;
     this.dehydrationDamage = dehydrationDamage;
     this.edibleMassFraction = edibleMassFraction;
+    this.maxMemories = maxMemories;
   }
 
   update(world, context) {
@@ -54,6 +59,9 @@ export class HydrationSystem extends SimulationSystem {
         const nearestWater = world.perception.get(entity.id)?.nearestWater ?? null;
         if (nearestWater && nearestWater.distance <= this.drinkRange) {
           hydration += this.drinkRate;
+          // Drank here (Step 15). Lakes do not move, so this is the memory an
+          // animal can most safely act on long after the fact.
+          recordMemory(entity, MemoryKinds.WATER, nearestWater.cellX, nearestWater.cellY, context.tick, this.maxMemories);
         }
       }
       entity.hydration = Math.min(entity.maxHydration, Math.max(0, hydration));

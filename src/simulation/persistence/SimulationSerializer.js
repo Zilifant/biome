@@ -53,10 +53,14 @@
  *       trait-derived `adultMass`. Both are sampled once at birth and cannot
  *       be recovered from the seed alone once a population has turned over, so
  *       they are persisted; v11 saves lack them and are invalidated.
+ *  13 — bounded spatial memory added (Step 15): per-entity `memories`, plus the
+ *       new `MemorySystem` descriptor. What an animal has learned is not
+ *       derivable from the seed, so it is persisted; v12 saves lack the field
+ *       and register a different system lineup, so they are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 12;
+export const SAVE_FORMAT_VERSION = 13;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

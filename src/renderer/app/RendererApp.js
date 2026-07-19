@@ -85,7 +85,12 @@ export class RendererApp {
     const frame = () => {
       if (this.#dirty) {
         this.#dirty = false;
-        this.#grid.draw({ store: this.#store, camera: this.#camera, familyIds: this.#familyIds() });
+        this.#grid.draw({
+          store: this.#store,
+          camera: this.#camera,
+          familyIds: this.#familyIds(),
+          memories: this.#selectedMemories(),
+        });
         this.#ui.statusPanel.update(this.#store, this.#camera);
       }
       requestAnimationFrame(frame);
@@ -255,6 +260,18 @@ export class RendererApp {
     } catch {
       // Inspection detail is optional enrichment; the store view stands alone.
     }
+  }
+
+  /**
+   * Places the selected entity remembers (protocol v14), for the grid overlay.
+   * Live-only, like the family marks — memories are inspection-only, so they
+   * refresh when the selection changes rather than every tick.
+   * @returns {Array<{kind: string, cellX: number, cellY: number, strength: number}>}
+   */
+  #selectedMemories() {
+    const detail = this.#inspectionDetail?.entity;
+    if (!detail || detail.id !== this.#store.selection?.activeId) return [];
+    return detail.memories ?? [];
   }
 
   /**

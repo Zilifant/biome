@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-14)
+## Results (post-Step-15)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 8→11 | 0.031 | ~32,200 |
-| small-100 | 256×256 | 100→141 | 0.393 | ~2,540 |
-| medium-1k | 512×512 | 1000→1437 | 4.58 | ~218 |
-| large-5k | 1024×1024 | 5000→7160 | 33.97 | ~29 |
+| demo-default | 128×128 | 8→10 | 0.034 | ~29,900 |
+| small-100 | 256×256 | 100→141 | 0.382 | ~2,620 |
+| medium-1k | 512×512 | 1000→1433 | 4.91 | ~204 |
+| large-5k | 1024×1024 | 5000→7160 | 37.18 | ~27 |
 
 "entities" are animals and carcasses (Step 3 replaced the demo plant entities
 with a cell-level vegetation biomass field, so vegetation cost scales with
@@ -113,6 +113,14 @@ authoritative tick budget.
   loops that already run, which is invisible next to perception. Cost is in
   memory, not time: each animal now carries a 7-number `traits` object, and
   entities created without traits share one frozen neutral instance.
+- **Step 15** (memory): large-5k **33.97 → 37.18 ms/tick** (+3.2). The decay
+  pass itself is cheap and staggered (`memory.updateInterval: 5`, with decay
+  scaled by the interval so the fade rate is unchanged); most of the rise is
+  the per-animal recall lookups in the decision system. Both are bounded by the
+  hard cap of 8 memories per animal, so this cost is flat in world size and
+  linear in animals — a scan of 8 entries, not a spatial query. Memory is the
+  first per-entity *growable* structure in the engine, which is exactly why the
+  cap is enforced in the insert helper rather than left to the systems.
 
 ## Step 1 remediation recorded here
 

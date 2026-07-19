@@ -85,6 +85,22 @@ export const defaultSimulationConfig = Object.freeze({
     cooldownTicks: 1800, // ticks before an animal may mate again
     birthOffset: 1.0, // how far behind the parent the newborn appears
   }),
+  // Bounded, decaying spatial memory (see memory/memories.js and
+  // systems/MemorySystem.js). Animals remember where they ate, drank, searched
+  // in vain, and met danger. Decay rates are per kind and deliberately unequal:
+  // a lake stays put, a grass patch may already be grazed out, and "nothing
+  // here" expires fastest because vegetation regrows.
+  memory: Object.freeze({
+    maxMemories: 8, // hard cap per animal (also enforced in memory/memories.js)
+    forgetBelow: 0.05, // strength at which a memory is dropped entirely
+    updateInterval: 5, // decay runs every N ticks, scaled so the rate is unchanged
+    decay: Object.freeze({
+      food: 0.004, //   ~250 ticks
+      water: 0.0008, // ~1250 ticks
+      barren: 0.006, // ~170 ticks
+      danger: 0.001, // ~1000 ticks
+    }),
+  }),
   // Individual variation (see traits/traits.js). Each animal's traits are
   // sampled once at birth as multipliers around the species mean; `spread` is
   // the half-width of each trait's triangular distribution, so 0.15 means
@@ -138,10 +154,13 @@ export const defaultSimulationConfig = Object.freeze({
   // and can kill. Water is terrain-bound (one or more lakes), so seeking water
   // is a spatially distinct behaviour from grazing.
   hydration: Object.freeze({
-    // Gentle enough that most demo animals reach the lake in time (they have no
-    // memory of water yet — Step 15 — so they rely on wandering into perception
-    // range), while thirst still visibly diverts them to water.
-    dehydrationRate: 0.02, // hydration lost per tick
+    // Re-tuned in Step 15, once animals could remember where they drank. Memory
+    // helps but does not make thirst free: measured over 15k ticks on five
+    // seeds, raising this from 0.02 to 0.035 roughly tripled visible
+    // water-seeking behaviour (2.9k → 8.6k action-ticks) for a modest cost in
+    // population (58 → 46 survivors, 26 → 31 dehydration deaths). 0.04 and
+    // above bought little extra behaviour for markedly worse survival.
+    dehydrationRate: 0.035, // hydration lost per tick
     drinkRate: 5, // hydration restored per tick while drinking
     drinkRange: 1.5, // within this distance of water → can drink
     dehydrationDamage: 0.5, // health lost per tick while hydration is 0
@@ -170,6 +189,12 @@ export const defaultSimulationConfig = Object.freeze({
     mateWeight: 0.55, // seeking a mate when reproductively ready
     followWeight: 0.7, // a dependent juvenile keeping up with its guardian
     followDistance: 1.5, // inside this distance there is nothing to close
+    // Memory (Step 15) is a fallback for what the animal cannot see, so it is
+    // weighted below the senses: a remembered patch may already be grazed out.
+    recallWeight: 0.8, // remembered need vs. the same need in plain sight
+    recallRange: 60, // furthest a remembered place is worth walking to
+    recallDistanceWeight: 0.15, // how sharply distance discounts a memory
+    dangerRadius: 6, // how wide a berth to give somewhere remembered as dangerous
     explorationRate: 0.05, // chance to wander regardless of utilities
     drinkRange: 1.5, // within this distance of water → can drink (matches hydration)
     minCommitTicks: 8,

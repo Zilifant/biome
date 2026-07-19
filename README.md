@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–14 are done; Step 15 is next.
+protocol for continuing the work. Steps 1–15 are done; Step 16 is next.
 
 ## Install and run
 
@@ -62,9 +62,11 @@ Headless Simulation Engine           src/simulation
    ├── Scheduler        (phase + priority ordered systems)
    ├── World State      (entities, terrain, vegetation)
    ├── Spatial Grid     (uniform grid for local queries)
-   ├── Systems          (vegetation, perception, decision, movement, feeding,
-   │                     reproduction, parenting, metabolism, hydration, aging)
+   ├── Systems          (vegetation, perception, memory, decision, movement,
+   │                     feeding, reproduction, parenting, metabolism,
+   │                     hydration, aging)
    ├── Traits           (per-individual variation, fixed at birth)
+   ├── Memory           (bounded, decaying places each animal has learned)
    ├── Deterministic Randomness (seeded named streams)
    └── Persistence      (versioned save/load)
 ```
@@ -153,7 +155,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `13`) and is
+Everything a client sees carries `protocolVersion` (currently `14`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -167,9 +169,9 @@ built by `src/protocol/`:
   action, alive) — internal records never leak, and every snapshot is freshly
   cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
-  `adultMass`, and the family/life-history block (parents, offspring,
-  parenting state, bounded `lifeEvents`) are inspection-only
-  (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
+  `adultMass`, its bounded `memories`, and the family/life-history block
+  (parents, offspring, parenting state, bounded `lifeEvents`) are
+  inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
   encoded. Full snapshots also embed a **vegetation** block (quantized biomass
@@ -199,7 +201,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `12`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `13`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
@@ -240,7 +242,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 229 tests.
+ASCII renderer, committed fixtures, and 248 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs) and a cell-level vegetation biomass field that grows
@@ -261,13 +263,14 @@ heritable. Their full loop is implemented:
 | --- | --- | --- |
 | `VegetationSystem` | environment | Logistic regrowth toward per-cell capacity (staggered) |
 | `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
-| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, and temperament; sets the movement intent |
+| `MemorySystem` | perception | Fades each remembered place on its own schedule and forgets it once too faint (staggered) |
+| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, and temperament; sets the movement intent |
 | `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water, refuses impassable cells |
-| `FeedingSystem` | interaction | Removes biomass from the cell and assimilates it to energy; deterministic contention among co-located eaters |
+| `FeedingSystem` | interaction | Removes biomass from the cell and assimilates it to energy, remembering where it ate (or found nothing); deterministic contention among co-located eaters |
 | `ReproductionSystem` | interaction | Pairs well-fed adults in range, gestates, births a juvenile carrying both parent ids |
 | `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
 | `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost, divided by individual efficiency; starvation → carcass |
-| `HydrationSystem` | physiology | Dehydration, drinking at water, health damage → carcass |
+| `HydrationSystem` | physiology | Dehydration, drinking at water (remembering where), health damage → carcass |
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
 
 The result is a **multi-generational, self-sustaining population** with a
@@ -286,14 +289,26 @@ transfer loss, and never below the guardian's own reserve floor), which is why
 it follows the parent it can perceive. An orphan is weaned on the spot and
 must fend for itself.
 
+Animals also **learn where things are**. Each one keeps at most eight
+remembered places — where it ate, where it drank, where it searched and found
+nothing — and each fades on its own schedule, water slowest (a lake does not
+move) and "nothing here" fastest (grass grows back). When nothing edible or
+drinkable is in sight, an animal walks back to somewhere it remembers instead
+of wandering blindly; memory is deliberately weighted below the senses, since
+a remembered patch may already have been grazed out. Finding a remembered
+patch bare replaces the memory with a "nothing here" mark, so an animal's map
+corrects itself. A `danger` memory kind exists and is avoided, but nothing
+writes one until predators arrive in Step 16.
+
 ## Not built yet
 
-Memory/learning, predators and escape, injury and healing, carcass decay and scavenging, weather and seasons, genetics and
-inheritance, evolutionary metrics, mate choice, social groups, territory,
-disease, migration, disturbances, ecosystem engineering, multiple species, and
-profile-driven optimization toward tens of thousands of animals.
+Predators and escape, injury and healing, carcass decay and scavenging,
+weather and seasons, genetics and inheritance, evolutionary metrics, mate
+choice, social groups, territory, disease, migration, disturbances, ecosystem
+engineering, multiple species, and profile-driven optimization toward tens of
+thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 15–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 16–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

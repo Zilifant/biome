@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–14)
+## 1.4 Carried-forward deviations and open issues (Steps 1–15)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -129,6 +129,8 @@ correctness bug in shipped code unless marked ⚠.
 | A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **Step 16** — worth revisiting once orphaning is common |
 | A13 | 14 | Trait spread lives in `config.traits`, not per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) / **Step 20** (genetics ranges) |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
+| A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Step 22** (mate choice) / **Step 23** (social groups), where kin *recognition* actually has a reader |
+| A16 | 15 | The `danger` memory kind ships with avoidance implemented and tested, but nothing writes one until predators exist | **Step 16** — only needs to call `recordMemory` |
 
 ### B. Configuration / structural debt
 
@@ -148,7 +150,7 @@ correctness bug in shipped code unless marked ⚠.
 | ~~⚠ C1~~ | 2, 3, 5 | **Entity spawning ignored terrain** — animals could spawn on impassable rock | **Done in Step 13** — founding spawns rejection-sample a passable position (deterministic scan as fallback). Externally submitted `entity.spawn` commands are still the caller's responsibility, by choice |
 | ⚠ C2 | 12, 13 | **Parent references stay valid only because entities are never removed.** Carcass decay/removal will break this — now covering `parents`, `offspring`, and `guardianId` | **Step 18** — lineage refs need explicit care |
 | C3 | 1, 9, 13 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
-| C4 | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst. Mitigated by a gentle `dehydrationRate: 0.02` | **Step 15** (remember water) |
+| ~~C4~~ | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed) |
 | C5 | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). Re-tuned to be genuinely costly. An unchecked herbivore *should* grow until something limits it | **Steps 16 / 25** (predation, disease) |
 | C6 | 7 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes | **Step 30** |
 | C7 | 5, 9 | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range) | — (settled) |
@@ -2454,7 +2456,7 @@ Step 30 profiles save size (§1.4 B5).
 
 ## Step 15 — Memory and elementary learning
 
-**Status:** Not started
+**Status:** Done
 
 **Carried forward (see §1.4):** **C4** — with one lake and no memory, animals
 that wander far from water die of thirst; `dehydrationRate` was tuned down to
@@ -2520,12 +2522,12 @@ Hard cap per animal; O(1) insert/evict. Bounded memory (risk register).
 
 ### Acceptance criteria
 
-- [ ] Bounded, decaying memories influencing behavior
-- [ ] Memories inspectable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked (bounded memory)
+- [x] Bounded, decaying memories influencing behavior
+- [x] Memories inspectable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked (bounded memory)
 
 ### Explicitly out of scope
 
@@ -2533,7 +2535,112 @@ Predators, social learning, territories.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Animals now learn where things
+are, and act on it when they cannot see.
+
+**What shipped.**
+
+- **Simulation:** new `memory/memories.js` — `MemoryKinds`
+  (`food` / `water` / `barren` / `danger`), `recordMemory`, `forgetMemory`,
+  `bestRemembered`, `isNearDanger`, and a hard `MAX_MEMORIES = 8`. New
+  `MemorySystem` (`perception` phase, priority 10 — after perception is rebuilt
+  and before decisions read it) does the fading and eviction. Two guarantees
+  carry the risk register's "unbounded memory growth" row: at most 8 entries
+  per animal ever, and re-experiencing a place *refreshes* the existing entry
+  rather than adding one, so standing in a patch for 200 ticks cannot fill the
+  list. As with `recordLifeEvent` and `killAnimal`, insertion is one shared
+  helper — several systems record memories, and keeping the append and the cap
+  together is what makes the cap trustworthy.
+- **Decay rates are per kind and deliberately unequal**, each for a stated
+  reason: water fades slowest (~1250 ticks — a lake does not move), then
+  danger (~1000), then food (~250 — a patch may already be grazed out), and
+  `barren` fastest of all (~170, because vegetation regrows). Staggering is
+  real: decay is multiplied by `updateInterval`, so running every 5 ticks fades
+  memories at exactly the same rate as running every tick, and a test asserts
+  the two are indistinguishable.
+- **Writers are real experiences, not perception spam.** Feeding records where
+  the animal *ate*; drinking records where it *drank*. Arriving somewhere
+  remembered as food and finding it bare forgets that memory and records
+  `barren` instead — which is what makes an animal's map self-correcting rather
+  than an accumulating pile of stale beliefs.
+- **Consumer:** two new decision actions, `recallFood` and `recallWater`,
+  gated on perception having come up empty and weighted at `recallWeight: 0.8`
+  — memory is deliberately *weaker* than sight, since a remembered patch may
+  already be gone. Recall targets are scored by strength discounted by
+  distance, so a vivid memory across the map loses to a fainter one nearby.
+  Because they are distinct actions rather than a memory-sourced `seekFood`,
+  "this animal is navigating from memory" is visible through the existing
+  public `action` field.
+- **⚠ C4 re-checked and re-tuned, with the measurement recorded.** The plan
+  predicted the dehydration rate "can likely go back up". Measured over 15k
+  ticks on five seeds, that is only **partly** true: raising it from 0.02 to
+  0.035 roughly tripled visible water-seeking (2.9k → 8.6k action-ticks) for a
+  modest cost (58 → 46 survivors, 26 → 31 dehydration deaths), but 0.06 cost
+  markedly more (seed 99 fell to a single survivor) for little extra behaviour.
+  Settled on **0.035**, with the numbers written into the config comment so the
+  next person does not have to re-derive them. Memory helps; it does not make
+  thirst free.
+- **Protocol (v13 → v14):** inspection gained `memories` (strongest first, as
+  copies). Bulk snapshots unchanged — memory is per-animal and inspection-only.
+- **Renderer:** inspector "Remembers" panel with a strength bar per place, and
+  a grid overlay marking the selected animal's remembered cells with
+  renderer-owned glyphs (`"` food, `~` water, `x` barren, `!` danger),
+  alpha-faded by strength so forgetting is visible. Drawn *under* entities and
+  selection: it is one animal's private map, not world state. An unmapped kind
+  draws nothing rather than guessing. `SUPPORTED_PROTOCOL_VERSION` → 14.
+- **Persistence (save v12 → v13):** `memories` persisted (what an animal has
+  learned is not derivable from the seed) plus the new `MemorySystem`
+  descriptor; v12 saves invalidated. Fixtures regenerated.
+
+**Tests:** `npm test` → **248 passing / 0 failing** (was 229; +19). New
+`test/memory.test.js`: the bound (cap holds, faintest evicted first,
+re-experiencing cannot flood the list, kinds are independent per cell), fading
+(weakens then is forgotten, water outlasts food outlasts barren, staggering
+does not change the rate), recall choice (near-and-faint beats far-and-vivid,
+out-of-range ignored, danger poisons nearby recalls), what is learned (eating
+and drinking record; a bare patch converts food → barren; founders start with
+a blank map and learn by living), the **demonstration scenario**, and
+protocol/persistence/determinism.
+
+**Deterministic demonstration scenario.** Exactly as the step specifies, with
+perception *disabled* to prove the point: a near-blind animal (perception
+radius 1, so nothing can be explained by sight) eats at an isolated patch, is
+carried 12 cells away, and — with `nearestFood` confirmed null — chooses
+`recallFood`, targets the remembered cell, and walks back to within 1.5 units.
+The paired negative test is what makes it evidence: the same animal, same
+position, same hunger, same blindness, but *no memory*, does not go back and
+has no action target.
+
+**Visible result verified.** Against a live server (protocol v14): animal #14
+at 50% hydration with `perception.nearestWater: null` was walking toward cell
+(69,33) — a water memory recorded at tick 6987 and faded to 0.19 strength —
+with `recallWater` scoring 0.43 against `eat` 0.41 and `wander` 0.38. Other
+animals showed 6–8 remembered places each, mixed food and water, at a spread
+of strengths.
+
+**Performance.** large-5k **33.97 → 37.18 ms/tick** (+3.2). The decay pass is
+staggered and cheap; most of the rise is per-animal recall lookups in the
+decision system. Both are bounded by the cap of 8, so the cost is flat in world
+size and linear in animals — a scan of 8 entries, never a spatial query.
+
+**Deviations from the step spec (documented):** (1) **Kin identity is not a
+memory kind.** Lineage is already exact and non-decaying via
+`parents`/`offspring`/`guardianId` (Steps 12–13), so a decaying kin memory
+would duplicate authoritative state for no consumer; kin *recognition* belongs
+with mate choice (Step 22) and social groups (Step 23). (2) **`danger` ships
+with avoidance implemented and tested but no writer** — nothing is dangerous
+until predators exist. This is a tested capability awaiting its data source,
+not decoration: `bestRemembered` refuses to recall a place near remembered
+danger, an animal will not `rest` near one, and both are covered by tests that
+record the memory directly. Step 16 only has to call `recordMemory`.
+
+**Follow-on notes for later steps:** `recallFood` almost never fires in the
+demo, because the demo world is blanketed in vegetation and `nearestFood` is
+essentially always non-null — the gate is correct (why recall what you can
+see?), but food recall will only start earning its keep when food becomes
+patchy (seasons, Step 19) or contested. `barren` is rare for the same reason.
+Memory is the first per-entity *growable* structure in the engine; the cap is
+enforced in the insert helper precisely so no future writer can bypass it.
 
 ---
 
@@ -3991,7 +4098,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–14
+### Observed status after Steps 1–15
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
@@ -3999,13 +4106,13 @@ prediction:
 | Risk | Observed? | Evidence and outcome |
 | --- | --- | --- |
 | Population explosion | **Yes (twice)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. |
-| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~33 ms/tick — far under the 1 s budget. |
-| Unstable parameter tuning | **Yes** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. Step 13's follow utility needed reshaping twice before juveniles actually stayed with their parents. |
+| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~37 ms/tick — far under the 1 s budget. |
+| Unstable parameter tuning | **Yes** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. Step 13's follow utility needed reshaping twice before juveniles actually stayed with their parents. Step 15 re-tuned hydration again, this time from a recorded five-seed sweep rather than a single run — the better pattern to copy. |
 | Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. |
-| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse. |
+| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal, enforced in the insert helper so no future writer can bypass it. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 13 protocol and 12 save-format bumps, each with fixtures regenerated and invalidation notes. |
+| Protocol/save incompatibility | **No (by discipline)** | 14 protocol and 13 save-format bumps, each with fixtures regenerated and invalidation notes. |
 | Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
 | AI-generated duplication | **No (actively countered)** | Shared `killAnimal` helper (Step 10), shared `isReproductivelyReady` predicate (Step 12), and shared `recordLifeEvent` helper (Step 13) extracted instead of duplicating. Step 13 also put `followParent` in the decision system rather than building a second action-selection path. |
 | Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads. |

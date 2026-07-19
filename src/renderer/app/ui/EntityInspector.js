@@ -1,10 +1,10 @@
 /**
  * Entity inspector panel. Shows every occupant of the selected cell, the
  * active occupant's protocol-visible fields, optional live inspection
- * detail (absolute energy, family links, and the bounded life-history
- * timeline from the entity.inspection endpoint), and recent domain events
- * involving the entity. Only fields the protocol actually provides are shown —
- * no invented biology.
+ * detail (absolute energy, remembered places, traits, family links, and the
+ * bounded life-history timeline from the entity.inspection endpoint), and
+ * recent domain events involving the entity. Only fields the protocol actually
+ * provides are shown — no invented biology.
  */
 import { resolveAppearance } from '../rendering/EntityAppearance.js';
 
@@ -30,6 +30,26 @@ function formatUtilities(utilityBreakdown, chosen, actionTarget) {
     .join('');
   const target = actionTarget ? ` <span class="dim">→ (${actionTarget.cellX},${actionTarget.cellY})</span>` : '';
   return `<h3>Decides <span class="dim">${escapeHtml(chosen ?? '')}</span>${target}</h3>${rows}`;
+}
+
+/** Renderer-owned marks for the memory kinds the protocol sends (v14). */
+const MEMORY_MARK = { food: '"', water: '~', barren: '·', danger: '!' };
+
+/**
+ * Render what the animal remembers (protocol v14): strongest first, with a
+ * fading bar, so which memory it is currently acting on reads at the top.
+ */
+function formatMemories(detail) {
+  const memories = detail?.memories;
+  if (!memories?.length) return '';
+  const rows = memories
+    .map((memory) => {
+      const bars = Math.max(1, Math.round(memory.strength * 5));
+      const mark = MEMORY_MARK[memory.kind] ?? '?';
+      return `<div class="field"><span>${escapeHtml(mark)} ${escapeHtml(memory.kind)}</span><span>(${memory.cellX},${memory.cellY}) <span class="dim">${'▮'.repeat(bars)}${'▯'.repeat(5 - bars)} t${memory.tick}</span></span></div>`;
+    })
+    .join('');
+  return `<h3>Remembers <span class="dim">${memories.length} place${memories.length === 1 ? '' : 's'}</span></h3>${rows}`;
 }
 
 /**
@@ -193,6 +213,7 @@ export class EntityInspector {
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
     const familyBlock = formatFamily(liveDetail);
     const traitsBlock = formatTraits(liveDetail);
+    const memoriesBlock = formatMemories(liveDetail);
 
     const events = active
       ? store
@@ -205,6 +226,7 @@ export class EntityInspector {
       <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
       ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
       ${fields}
+      ${memoriesBlock}
       ${traitsBlock}
       ${familyBlock}
       ${utilitiesBlock}

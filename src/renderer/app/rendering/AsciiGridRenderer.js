@@ -2,8 +2,8 @@
  * Canvas 2D ASCII grid renderer.
  *
  * Draw order per frame: background → terrain glyphs → entity glyphs →
- * selection/follow overlays. One monospace glyph per cell, integer-aligned,
- * device-pixel-ratio aware. No sprites, gradients, shadows, or decorative
+ * remembered-place markers → selection/follow overlays. One monospace glyph
+ * per cell, integer-aligned, device-pixel-ratio aware. No sprites, gradients, shadows, or decorative
  * animation — discrete cell changes only.
  *
  * Colors come from the Dracula CSS custom properties on the document root,
@@ -17,6 +17,7 @@ import {
   TERRAIN_APPEARANCE,
   resolveTerrainAppearance,
   resolveVegetationAppearance,
+  resolveMemoryAppearance,
 } from './EntityAppearance.js';
 
 const MONO_STACK =
@@ -81,8 +82,10 @@ export class AsciiGridRenderer {
    * @param {import('./Camera.js').Camera} options.camera
    * @param {number[]} [options.familyIds] relatives of the selected entity, to
    *        mark so a parent and its dependants can be picked out of a crowd
+   * @param {Array<{kind: string, cellX: number, cellY: number, strength: number}>} [options.memories]
+   *        places the selected entity remembers, drawn as faint markers
    */
-  draw({ store, camera, familyIds = [] }) {
+  draw({ store, camera, familyIds = [], memories = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -144,8 +147,19 @@ export class AsciiGridRenderer {
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
 
-    // --- Overlay pass: family links, then selection highlight, then follow
-    // marker (so the selected entity always draws on top).
+    // --- Overlay pass: remembered places first (they sit under everything —
+    // they are the selected animal's private map, not world state), then family
+    // links, then selection highlight and follow marker on top.
+    for (const memory of memories) {
+      const appearance = resolveMemoryAppearance(memory.kind);
+      if (!appearance) continue;
+      const { px, py } = projection.cellToScreen(memory.cellX, memory.cellY);
+      // Fade with the memory itself, so forgetting is visible.
+      ctx.globalAlpha = 0.25 + 0.55 * Math.max(0, Math.min(1, memory.strength));
+      ctx.fillStyle = this.#color(appearance.colorToken);
+      ctx.fillText(appearance.glyph, px + half, py + half);
+      ctx.globalAlpha = 1;
+    }
     const activeId = store.selection?.activeId;
     for (const familyId of familyIds) {
       if (familyId === activeId) continue;

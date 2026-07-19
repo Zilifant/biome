@@ -19,6 +19,7 @@ import { AgingSystem, bodyMassForAge, lifeStageForAge } from '../simulation/syst
 import { ReproductionSystem } from '../simulation/systems/ReproductionSystem.js';
 import { ParentingSystem } from '../simulation/systems/ParentingSystem.js';
 import { VegetationSystem } from '../simulation/systems/VegetationSystem.js';
+import { MemorySystem } from '../simulation/systems/MemorySystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleTraits } from '../simulation/traits/traits.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
@@ -35,6 +36,7 @@ export function registerDemoSystems(engine) {
   const { growthRate, seedFloor, updateInterval } = engine.config.vegetation;
   engine.registerSystem(new VegetationSystem({ growthRate, seedFloor, updateInterval }));
   engine.registerSystem(new PerceptionSystem(engine.config.perception));
+  engine.registerSystem(new MemorySystem(engine.config.memory));
   engine.registerSystem(
     new DecisionSystem({
       ...engine.config.decision,
@@ -46,7 +48,7 @@ export function registerDemoSystems(engine) {
     }),
   );
   engine.registerSystem(new MovementSystem());
-  engine.registerSystem(new FeedingSystem(engine.config.feeding));
+  engine.registerSystem(new FeedingSystem({ ...engine.config.feeding, maxMemories: engine.config.memory.maxMemories }));
   engine.registerSystem(
     new ReproductionSystem({
       ...engine.config.reproduction,
@@ -56,7 +58,7 @@ export function registerDemoSystems(engine) {
   );
   engine.registerSystem(new ParentingSystem(engine.config.parenting));
   engine.registerSystem(new MetabolismSystem(engine.config.metabolism));
-  engine.registerSystem(new HydrationSystem(engine.config.hydration));
+  engine.registerSystem(new HydrationSystem({ ...engine.config.hydration, maxMemories: engine.config.memory.maxMemories }));
   // Adult mass comes from the species; the rest of the life curve from config.
   const species = getSpecies(engine.config.demo.speciesId);
   engine.registerSystem(new AgingSystem({ ...engine.config.aging, adultMass: species.bodyMass }));

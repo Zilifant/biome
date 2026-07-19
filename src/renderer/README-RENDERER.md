@@ -63,7 +63,7 @@ app/
     FixtureRendererTransport.js    offline replay of committed fixtures
   ui/
     StatusPanel.js            connection/tick/entities/camera/zoom bar
-    EntityInspector.js        occupants, protocol fields, traits, family + life history, action + utilities, perception, events
+    EntityInspector.js        occupants, protocol fields, memories, traits, family + life history, action + utilities, perception, events
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
   styles/
@@ -177,6 +177,15 @@ a renderer exists.
   remains reserved for future individual plants.
 - Inspector's absolute energy is fetched once per selection (live mode) and
   labeled with its tick; the percentage updates live from deltas.
+- Remembered places (protocol v14) arrive in the same inspection payload: at
+  most eight per animal, strongest first, each with a kind, a cell, and a
+  fading strength. The inspector lists them with a strength bar, and while an
+  animal is selected the grid marks its remembered cells with renderer-owned
+  glyphs from `MEMORY_APPEARANCE` (`"` food, `~` water, `x` barren, `!`
+  danger), alpha-faded by strength so forgetting is visible. These marks are
+  drawn *under* the entity and selection layers: they are one animal's private
+  map, not world state. An unmapped memory kind draws nothing rather than
+  guessing, so a newer engine cannot break this renderer.
 - Individual traits (protocol v13) arrive in the same inspection payload:
   seven multipliers around the species average, drawn as a centred bar per
   trait so above/below average reads without comparing numbers. Traits are
