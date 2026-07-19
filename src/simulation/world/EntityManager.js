@@ -11,6 +11,7 @@
  * the engine flushes the queues at explicit lifecycle boundaries, so no
  * entity appears or disappears while a system is iterating.
  */
+import { NEUTRAL_TRAITS } from '../traits/traits.js';
 
 /**
  * @typedef {object} Entity
@@ -31,6 +32,9 @@
  * @property {number} hydration
  * @property {number} maxHydration
  * @property {string} lifeStage juvenile | subadult | adult | senescent
+ * @property {Record<string, number>} traits individual multipliers, fixed at birth
+ * @property {number | null} adultMass mass this individual grows toward, or
+ *   null to use the species mean (kg)
  * @property {number[]} parents parent entity ids ([] for the founding population)
  * @property {number[]} offspring ids of this entity's own offspring (sparse)
  * @property {number | null} guardianId the parent this juvenile depends on
@@ -80,6 +84,14 @@ function createEntity(id, definition) {
     maxHydration,
     // Life stage (Step 11). Owned by the aging system, derived from age.
     lifeStage: definition.lifeStage ?? 'adult',
+    // Individual variation (Step 14). Sampled once by whoever creates the
+    // animal and read-only thereafter; an entity spawned without traits shares
+    // the frozen neutral set (exactly average). `adultMass` is the one
+    // trait-derived value worth precomputing — the aging system reads it every
+    // tick to grow the animal toward its own adult size, falling back to the
+    // species mean when an entity was created without one.
+    traits: definition.traits ?? NEUTRAL_TRAITS,
+    adultMass: definition.adultMass ?? null,
     // Reproduction (Step 12). Owned by the reproduction system. `parents` holds
     // the two parent ids for animals that were born in-world (empty for the
     // founding population); ids stay valid because entities are never removed.

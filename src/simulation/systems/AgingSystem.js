@@ -42,6 +42,9 @@ export function lifeStageForAge(age, { juvenileUntil, subadultUntil, adultUntil 
 }
 
 export class AgingSystem extends SimulationSystem {
+  /** @type {{birthMass: number, adultMass: number, maturityAge: number}} */
+  #growth;
+
   /**
    * @param {object} [options]
    * @param {number} [options.birthMass]
@@ -71,6 +74,10 @@ export class AgingSystem extends SimulationSystem {
   } = {}) {
     super({ id: 'aging', phase: 'lifecycle', priority: 0, updateInterval });
     this.growth = { birthMass, adultMass, maturityAge };
+    // Reused scratch for the per-entity growth curve: only `adultMass` varies
+    // between individuals, and allocating a fresh object per animal per tick
+    // would be pure garbage in the hot loop.
+    this.#growth = { birthMass, adultMass, maturityAge };
     this.stages = { juvenileUntil, subadultUntil, adultUntil };
     this.senescentMortalityPerTick = senescentMortalityPerTick;
     this.mortalityRamp = mortalityRamp;
@@ -86,7 +93,10 @@ export class AgingSystem extends SimulationSystem {
 
       const roll = random.next(); // one draw always → deterministic budget
       entity.age += this.updateInterval;
-      entity.bodyMass = bodyMassForAge(entity.age, this.growth);
+      // Each individual grows toward its own adult size (Step 14), precomputed
+      // at birth from the species mean and its `size` trait.
+      this.#growth.adultMass = entity.adultMass ?? this.growth.adultMass;
+      entity.bodyMass = bodyMassForAge(entity.age, this.#growth);
       entity.lifeStage = lifeStageForAge(entity.age, this.stages);
 
       if (entity.lifeStage === 'senescent') {

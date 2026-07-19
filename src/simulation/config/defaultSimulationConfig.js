@@ -85,6 +85,24 @@ export const defaultSimulationConfig = Object.freeze({
     cooldownTicks: 1800, // ticks before an animal may mate again
     birthOffset: 1.0, // how far behind the parent the newborn appears
   }),
+  // Individual variation (see traits/traits.js). Each animal's traits are
+  // sampled once at birth as multipliers around the species mean; `spread` is
+  // the half-width of each trait's triangular distribution, so 0.15 means
+  // roughly ±15% at the extremes and most individuals much nearer average.
+  // Behavioural traits vary more widely than physiological ones — a herd's
+  // temperaments differ more visibly than its body plans. Step 20 replaces
+  // this sampling with inheritance and moves the ranges into a genetics layer.
+  traits: Object.freeze({
+    spread: Object.freeze({
+      size: 0.18,
+      speed: 0.15,
+      metabolicEfficiency: 0.12,
+      boldness: 0.3,
+      caution: 0.3,
+      exploration: 0.4,
+      reproductiveInvestment: 0.2,
+    }),
+  }),
   // Parental care (see systems/ParentingSystem.js). A newborn depends on the
   // parent that carried it: it is provisioned with that parent's energy while
   // it stays close, is weaned at `weaningAge`, and disperses when it outgrows

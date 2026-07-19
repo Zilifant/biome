@@ -16,13 +16,16 @@
  * (`gestationUntil`, `pendingMateId`, `lastMatedTick`), appends to each
  * parent's `offspring` list, spends `energy`, and creates offspring at the
  * deferred-spawn boundary. The newborn's `guardianId` is part of its spawn
- * definition; the parenting system (Step 13) owns it thereafter. No randomness
- * — timing is fully determined by encounters and the fixed gestation.
+ * definition; the parenting system (Step 13) owns it thereafter. Mating and
+ * gestation timing use no randomness at all — they are fully determined by
+ * encounters and the fixed gestation; the only draws are the newborn's traits
+ * (Step 14), on the separate `traits` stream.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { SPECIES } from '../config/species/index.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
+import { sampleTraits } from '../traits/traits.js';
 
 /**
  * Reproductive readiness — the single source of truth, shared by the
@@ -55,6 +58,7 @@ export class ReproductionSystem extends SimulationSystem {
    * @param {number} [options.cooldownTicks]
    * @param {number} [options.birthOffset]
    * @param {number} [options.birthMass] newborn body mass (from the aging curve)
+   * @param {Record<string, number>} [options.traitSpread] per-trait variation
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -67,6 +71,7 @@ export class ReproductionSystem extends SimulationSystem {
     cooldownTicks = 800,
     birthOffset = 1.0,
     birthMass = 5,
+    traitSpread = {},
     updateInterval = 1,
   } = {}) {
     super({ id: 'reproduction', phase: 'interaction', priority: 10, updateInterval });
@@ -79,6 +84,7 @@ export class ReproductionSystem extends SimulationSystem {
     this.cooldownTicks = cooldownTicks;
     this.birthOffset = birthOffset;
     this.birthMass = birthMass;
+    this.traitSpread = traitSpread;
   }
 
   update(world, context) {
@@ -105,6 +111,12 @@ export class ReproductionSystem extends SimulationSystem {
 
       const maxEnergy = species?.maxEnergy ?? entity.maxEnergy;
       const parents = mateId === null ? [entity.id] : [entity.id, mateId];
+      // Individual variation (Step 14): the newborn draws its own traits, and
+      // the carrying parent's `reproductiveInvestment` sets how much it puts
+      // into this offspring — a better-stocked newborn for a higher birth cost.
+      // Step 20 replaces this sampling with inheritance from both parents.
+      const traits = sampleTraits(context.random('traits'), this.traitSpread);
+      const investment = entity.traits.reproductiveInvestment;
       const offspringId = context.queueSpawn({
         kind: 'animal',
         speciesId: entity.speciesId,
@@ -114,9 +126,11 @@ export class ReproductionSystem extends SimulationSystem {
         age: 0,
         lifeStage: 'juvenile',
         bodyMass: this.birthMass,
-        speed: species?.baseSpeed ?? entity.speed,
+        adultMass: (species?.bodyMass ?? entity.adultMass) * traits.size,
+        traits,
+        speed: (species?.baseSpeed ?? entity.speed) * traits.speed,
         maxEnergy,
-        energy: maxEnergy * this.offspringEnergyFraction,
+        energy: Math.min(maxEnergy, maxEnergy * this.offspringEnergyFraction * investment),
         maxHealth: species?.maxHealth ?? entity.maxHealth,
         health: species?.maxHealth ?? entity.maxHealth,
         maxHydration: species?.maxHydration ?? entity.maxHydration,
@@ -139,7 +153,7 @@ export class ReproductionSystem extends SimulationSystem {
         recordLifeEvent(parent, context.tick, LifeEventTypes.BIRTHED, { entityId: offspringId });
       }
 
-      entity.energy = Math.max(0, entity.energy - this.birthEnergyCost);
+      entity.energy = Math.max(0, entity.energy - this.birthEnergyCost * investment);
       entity.gestationUntil = null;
       entity.pendingMateId = null;
       context.emit(EventTypes.ENTITY_BORN, { entityId: offspringId, parents });

@@ -14,7 +14,8 @@
  *
  * Runs in the `decision` phase (after perception, before movement). Ownership:
  * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
- * `world.perception`, physiology, and vegetation. Determinism: exactly two
+ * `world.perception`, physiology, vegetation, and the `boldness` / `caution` /
+ * `exploration` traits. Determinism: exactly two
  * draws per animal per tick on the `decision` stream (an exploration/tiebreak
  * roll and a candidate wander heading), regardless of which action wins.
  */
@@ -121,20 +122,28 @@ export class DecisionSystem extends SimulationSystem {
       // decorative. Its whole agenda is drinking, resting, and keeping up.
       const nursing = entity.guardianId !== null && !entity.weaned;
 
+      // Individual variation (Step 14): a cautious animal acts on hunger and
+      // thirst sooner (it keeps a bigger reserve), while a bold one prefers
+      // covering ground to sitting still — both real trade-offs, since roaming
+      // finds food and water but costs energy.
+      const { boldness, caution, exploration } = entity.traits;
+      const hungerDrive = this.hungerWeight * hunger * caution;
+      const thirstDrive = this.thirstWeight * thirst * caution;
+
       const utilities = {
-        drink: atWater ? this.drinkBias + this.thirstWeight * thirst : 0,
-        seekWater: nearestWater && !atWater ? this.thirstWeight * thirst : 0,
-        eat: onFood && !nursing ? this.eatBias + this.hungerWeight * hunger : 0,
-        seekFood: nearestFood && !onFood && !nursing ? this.hungerWeight * hunger : 0,
+        drink: atWater ? this.drinkBias + thirstDrive : 0,
+        seekWater: nearestWater && !atWater ? thirstDrive : 0,
+        eat: onFood && !nursing ? this.eatBias + hungerDrive : 0,
+        seekFood: nearestFood && !onFood && !nursing ? hungerDrive : 0,
         followParent: followPull,
         seekMate: mateCandidate ? this.mateWeight : 0,
-        rest: this.restBias * (1 - Math.max(hunger, thirst)),
-        wander: this.wanderBias,
+        rest: this.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
+        wander: this.wanderBias * boldness,
       };
 
       // Exploration overrides utilities occasionally; otherwise pick the best,
       // ties broken by a fixed action order (survival needs first).
-      const action = roll < this.explorationRate ? 'wander' : argmaxUtility(utilities);
+      const action = roll < this.explorationRate * exploration ? 'wander' : argmaxUtility(utilities);
 
       entity.action = action;
       entity.utilityBreakdown = utilities;

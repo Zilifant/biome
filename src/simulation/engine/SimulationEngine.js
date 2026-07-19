@@ -262,6 +262,11 @@ export class SimulationEngine {
       speed: entity.speed,
       lowEnergy: entity.lowEnergy,
       edibleMass: entity.edibleMass,
+      // Individual variation (Step 14) — inspection-only. `adultMass` is the
+      // size this individual grows toward, so a juvenile's eventual build is
+      // readable long before it gets there.
+      traits: { ...entity.traits },
+      adultMass: entity.adultMass,
       // Decision detail — inspection-only (bulk snapshots carry only `action`).
       actionTarget: entity.actionTarget,
       utilityBreakdown: entity.utilityBreakdown,

@@ -49,10 +49,14 @@
  *       guardianId, weaned, lifeEvents, plus the new `ParentingSystem`
  *       descriptor. v10 saves lack the fields and register a different system
  *       lineup, so they are invalidated; regenerate them.
+ *  12 — individual variation added (Step 14): per-entity `traits` and the
+ *       trait-derived `adultMass`. Both are sampled once at birth and cannot
+ *       be recovered from the seed alone once a population has turned over, so
+ *       they are persisted; v11 saves lack them and are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 11;
+export const SAVE_FORMAT_VERSION = 12;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

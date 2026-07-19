@@ -33,6 +33,27 @@ function formatUtilities(utilityBreakdown, chosen, actionTarget) {
 }
 
 /**
+ * Render the individual's trait multipliers (protocol v13) as a bar per trait,
+ * so how this animal differs from its species average is readable at a glance.
+ * 1.00 is exactly average; the bar is centred on it.
+ */
+function formatTraits(detail) {
+  if (!detail?.traits) return '';
+  const rows = Object.entries(detail.traits)
+    .map(([name, value]) => {
+      // Map roughly [0.5, 1.5] onto the bar, clamped, with the midpoint at average.
+      const offset = Math.max(-1, Math.min(1, (value - 1) * 2));
+      const filled = Math.round(Math.abs(offset) * 5);
+      const bar = offset < 0 ? '─'.repeat(5 - filled) + '█'.repeat(filled) + '│' + ' '.repeat(5) : ' '.repeat(5) + '│' + '█'.repeat(filled) + '─'.repeat(5 - filled);
+      const tone = Math.abs(value - 1) < 0.05 ? 'dim' : '';
+      return `<div class="field"><span>${escapeHtml(name)}</span><span><span class="dim">${bar}</span> <span class="${tone}">${value.toFixed(2)}</span></span></div>`;
+    })
+    .join('');
+  const adult = detail.adultMass != null ? ` <span class="dim">grows to ${detail.adultMass.toFixed(1)} kg</span>` : '';
+  return `<h3>Traits${adult}</h3>${rows}`;
+}
+
+/**
  * Render family links and the bounded life-history timeline (protocol v12),
  * or nothing when the inspection payload carries neither.
  */
@@ -171,6 +192,7 @@ export class EntityInspector {
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
     const familyBlock = formatFamily(liveDetail);
+    const traitsBlock = formatTraits(liveDetail);
 
     const events = active
       ? store
@@ -183,6 +205,7 @@ export class EntityInspector {
       <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
       ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
       ${fields}
+      ${traitsBlock}
       ${familyBlock}
       ${utilitiesBlock}
       ${perceptionBlock}

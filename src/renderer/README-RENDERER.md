@@ -63,7 +63,7 @@ app/
     FixtureRendererTransport.js    offline replay of committed fixtures
   ui/
     StatusPanel.js            connection/tick/entities/camera/zoom bar
-    EntityInspector.js        occupants, protocol fields, family + life history, action + utilities, perception, events
+    EntityInspector.js        occupants, protocol fields, traits, family + life history, action + utilities, perception, events
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
   styles/
@@ -177,6 +177,11 @@ a renderer exists.
   remains reserved for future individual plants.
 - Inspector's absolute energy is fetched once per selection (live mode) and
   labeled with its tick; the percentage updates live from deltas.
+- Individual traits (protocol v13) arrive in the same inspection payload:
+  seven multipliers around the species average, drawn as a centred bar per
+  trait so above/below average reads without comparing numbers. Traits are
+  fixed for an animal's life, so the panel only changes when the selection
+  does.
 - Family links and life history (protocol v12) come from the same
   `entity.inspection` fetch, not from bulk snapshots — relationships are
   deliberately inspection-only so per-tick payloads stay lean. The inspector

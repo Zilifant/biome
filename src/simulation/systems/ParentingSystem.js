@@ -116,8 +116,10 @@ export class ParentingSystem extends SimulationSystem {
     if (deficit <= 0) return;
 
     // Charge the guardian for what the juvenile can actually absorb; the rest
-    // of the draw would be wasted, so it is never taken.
-    const given = Math.min(this.provisionRate, spendable, deficit / this.provisionEfficiency);
+    // of the draw would be wasted, so it is never taken. A heavily investing
+    // parent (Step 14) feeds its young faster, and pays for it.
+    const rate = this.provisionRate * guardian.traits.reproductiveInvestment;
+    const given = Math.min(rate, spendable, deficit / this.provisionEfficiency);
     if (given <= 0) return;
 
     guardian.energy -= given;

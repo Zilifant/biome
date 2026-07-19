@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–13 are done; Step 14 is next.
+protocol for continuing the work. Steps 1–14 are done; Step 15 is next.
 
 ## Install and run
 
@@ -62,8 +62,9 @@ Headless Simulation Engine           src/simulation
    ├── Scheduler        (phase + priority ordered systems)
    ├── World State      (entities, terrain, vegetation)
    ├── Spatial Grid     (uniform grid for local queries)
-   ├── Systems          (vegetation, perception, decision, movement,
-   │                     feeding, reproduction, metabolism, hydration, aging)
+   ├── Systems          (vegetation, perception, decision, movement, feeding,
+   │                     reproduction, parenting, metabolism, hydration, aging)
+   ├── Traits           (per-individual variation, fixed at birth)
    ├── Deterministic Randomness (seeded named streams)
    └── Persistence      (versioned save/load)
 ```
@@ -152,7 +153,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `12`) and is
+Everything a client sees carries `protocolVersion` (currently `13`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -165,9 +166,10 @@ built by `src/protocol/`:
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage,
   action, alive) — internal records never leak, and every snapshot is freshly
   cloned. Absolute energy/hydration/health and speed, the action target, the
-  utility breakdown, the perception summary, and the family/life-history block
-  (parents, offspring, parenting state, bounded `lifeEvents`) are
-  inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
+  utility breakdown, the perception summary, the individual's `traits` and
+  `adultMass`, and the family/life-history block (parents, offspring,
+  parenting state, bounded `lifeEvents`) are inspection-only
+  (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
   encoded. Full snapshots also embed a **vegetation** block (quantized biomass
@@ -197,7 +199,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `11`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `12`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
@@ -238,7 +240,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 211 tests.
+ASCII renderer, committed fixtures, and 229 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs) and a cell-level vegetation biomass field that grows
@@ -246,20 +248,27 @@ logistically toward a terrain-derived capacity.
 
 **The herbivore.** Animals are one configured species (`config/species/*` —
 biology only, never glyphs or colors; looked up by id, never branched on by
-name). Their full loop is implemented:
+name), but no two are identical: each carries a set of trait multipliers
+(`traits/traits.js`) sampled around the species mean when it comes into
+existence and fixed for life — size, speed, metabolic efficiency, boldness,
+caution, exploration, and reproductive investment. Every one is a trade-off
+rather than an upgrade, and every one changes something real: a bold animal
+covers more ground and burns more energy; a heavily investing parent raises
+better-stocked young at a higher price per birth. Step 20 makes these
+heritable. Their full loop is implemented:
 
 | System | Phase | What it does |
 | --- | --- | --- |
 | `VegetationSystem` | environment | Logistic regrowth toward per-cell capacity (staggered) |
 | `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
-| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, and perception; sets the movement intent |
+| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, and temperament; sets the movement intent |
 | `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water, refuses impassable cells |
 | `FeedingSystem` | interaction | Removes biomass from the cell and assimilates it to energy; deterministic contention among co-located eaters |
 | `ReproductionSystem` | interaction | Pairs well-fed adults in range, gestates, births a juvenile carrying both parent ids |
 | `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
-| `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost; starvation → carcass |
+| `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost, divided by individual efficiency; starvation → carcass |
 | `HydrationSystem` | physiology | Dehydration, drinking at water, health damage → carcass |
-| `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) and death of old age |
+| `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
 
 The result is a **multi-generational, self-sustaining population** with a
 complete life cycle: an animal is born, is fed by the parent that bore it, is
@@ -279,13 +288,12 @@ must fend for itself.
 
 ## Not built yet
 
-Individual variation, memory/learning, predators and escape, injury and
-healing, carcass decay and scavenging, weather and seasons, genetics and
+Memory/learning, predators and escape, injury and healing, carcass decay and scavenging, weather and seasons, genetics and
 inheritance, evolutionary metrics, mate choice, social groups, territory,
 disease, migration, disturbances, ecosystem engineering, multiple species, and
 profile-driven optimization toward tens of thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 14–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 15–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

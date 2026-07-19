@@ -10,7 +10,8 @@
  * (which this system consumes and resets — robust to staggered movement).
  *
  * Ownership: writes `energy`, `lowEnergy`, and — on death — `alive`, `kind`,
- * `edibleMass`. No randomness (deterministic arithmetic); no global scans.
+ * `edibleMass`. Reads the `metabolicEfficiency` trait. No randomness
+ * (deterministic arithmetic); no global scans.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { killAnimal } from './death.js';
@@ -48,7 +49,9 @@ export class MetabolismSystem extends SimulationSystem {
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
-      const massFactor = (entity.bodyMass / this.referenceMass) ** this.massScalingExponent;
+      // A more efficient individual (Step 14) burns proportionally less for the
+      // same mass and the same distance travelled.
+      const massFactor = (entity.bodyMass / this.referenceMass) ** this.massScalingExponent / entity.traits.metabolicEfficiency;
       const basalCost = this.basalRate * massFactor;
       const moveCost = this.moveCostFactor * entity.lastMoveDistance * massFactor;
       entity.lastMoveDistance = 0; // consumed; movement re-records it next tick

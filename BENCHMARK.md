@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-13)
+## Results (post-Step-14)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 8→11 | 0.033 | ~30,700 |
-| small-100 | 256×256 | 100→143 | 0.367 | ~2,720 |
-| medium-1k | 512×512 | 1000→1452 | 4.47 | ~224 |
-| large-5k | 1024×1024 | 5000→7262 | 33.4 | ~30 |
+| demo-default | 128×128 | 8→11 | 0.031 | ~32,200 |
+| small-100 | 256×256 | 100→141 | 0.393 | ~2,540 |
+| medium-1k | 512×512 | 1000→1437 | 4.58 | ~218 |
+| large-5k | 1024×1024 | 5000→7160 | 33.97 | ~29 |
 
 "entities" are animals and carcasses (Step 3 replaced the demo plant entities
 with a cell-level vegetation biomass field, so vegetation cost scales with
@@ -104,6 +104,15 @@ authoritative tick budget.
   spatial-grid neighbor loop perception already ran, so it costs nothing extra.
   Relationships are sparse arrays (a handful of ids per animal) and life
   histories are hard-capped at 12 entries, so neither grows without bound.
+- **Step 14** (individual variation): large-5k **33.97 ms/tick** (within noise
+  of Step 13's 33.4). Traits are sampled once at creation, never per tick. The
+  two values worth precomputing are resolved at spawn — `speed` (species mean ×
+  trait) and `adultMass`, which the aging system reads every tick through a
+  reused scratch object rather than allocating a growth record per animal per
+  tick. The remaining trait effects are a handful of float multiplies inside
+  loops that already run, which is invisible next to perception. Cost is in
+  memory, not time: each animal now carries a 7-number `traits` object, and
+  entities created without traits share one frozen neutral instance.
 
 ## Step 1 remediation recorded here
 

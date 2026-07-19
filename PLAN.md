@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–13)
+## 1.4 Carried-forward deviations and open issues (Steps 1–14)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -127,6 +127,8 @@ correctness bug in shipped code unless marked ⚠.
 | A10 | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Step 22** |
 | A11 | 13 | Juvenile *protection* omitted from the parenting strategy — nothing threatens juveniles until predators exist | **Step 16** (predation) |
 | A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **Step 16** — worth revisiting once orphaning is common |
+| A13 | 14 | Trait spread lives in `config.traits`, not per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) / **Step 20** (genetics ranges) |
+| A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
 
 ### B. Configuration / structural debt
 
@@ -136,7 +138,7 @@ correctness bug in shipped code unless marked ⚠.
 | B2 | 4 | `config.demo` retained for *scenario* selection (count + species id); biology did move to `config/species/*` | — (settled) |
 | B3 | 6, 10, 11 | Metabolism, hydration, and aging parameters live in **global config sections** rather than per-species | **Step 29** (species schema) |
 | B4 | 7 | Perception radius resolved per-species from the registry (no entity field) — a *different* pattern from B3 | **Step 29** (unify) |
-| B5 | 8 | `utilityBreakdown` persisted on the entity rather than kept transient — could bloat saves at 25k animals | **Step 30** (if save size bites) |
+| B5 | 8, 14 | `utilityBreakdown` persisted on the entity rather than kept transient — could bloat saves at 25k animals; Step 14's per-entity `traits` object adds to the same pressure (though it is genuinely non-derivable and must persist) | **Step 30** (if save size bites) |
 | B6 | 11 | `age` is a stored, per-tick-incremented field rather than derived from a `birthTick`; `updateInterval` staggering is supported and tested but unused | **Step 30** (if aging cost ever matters) |
 
 ### C. Known behavioural limitations
@@ -2278,7 +2280,7 @@ sexes are Step 22.
 
 ## Step 14 — Stable individual variation (non-inherited)
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -2340,12 +2342,12 @@ Precompute trait-derived multipliers to avoid per-tick recomputation.
 
 ### Acceptance criteria
 
-- [ ] Per-individual traits with survival/behavior consequences
-- [ ] Traits inspectable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Per-individual traits with survival/behavior consequences
+- [x] Traits inspectable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -2353,7 +2355,100 @@ Inheritance (Step 20), mate choice on traits (Step 22).
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) The phenotype seam is in
+place: Step 20 now only has to make these traits heritable, not invent them.
+
+**What shipped.**
+
+- **Simulation:** new `traits/traits.js` — `TRAIT_NAMES`, a frozen
+  `NEUTRAL_TRAITS`, and `sampleTraits(random, spread)`. Each animal carries
+  seven multipliers centred on 1.0, sampled once at creation from the `traits`
+  stream and read-only thereafter. Sampling is triangular (two draws summed),
+  so most individuals sit near the species mean and extremes are rare — what
+  variation around a type should look like — with a fixed draw budget so the
+  stream never shifts. New `config.traits.spread` gives behavioural traits a
+  wider spread (0.3–0.4) than physiological ones (0.12–0.18): temperaments
+  differ more visibly than body plans.
+- **Every trait has a real consequence.** This was the design constraint —
+  a trait with no effect would be exactly the "over-generalized abstraction"
+  the risk register warns about, so nothing was added that could not be
+  pointed at a system:
+
+  | trait | what reads it |
+  | --- | --- |
+  | `size` | `adultMass` at spawn → aging growth curve → metabolic cost, carcass mass |
+  | `speed` | `entity.speed` at spawn → movement distance and movement cost |
+  | `metabolicEfficiency` | divides the metabolic burn → starvation resistance |
+  | `boldness` | scales `wander` up and `rest` down → ground covered vs. energy kept |
+  | `caution` | scales hunger and thirst urgency → how big a reserve it keeps |
+  | `exploration` | scales `explorationRate` → how often it ignores its own ranking |
+  | `reproductiveInvestment` | newborn starting energy, birth cost, provisioning rate |
+
+  They are trade-offs, not upgrades: a bold animal finds more and spends more;
+  a heavily investing parent raises better-stocked young at a higher price per
+  birth. Nothing selects on them yet — that is Step 20.
+- **Protocol (v12 → v13):** inspection gained `traits` and `adultMass`. Bulk
+  snapshots are unchanged, per the step spec — traits are fixed for life, so
+  streaming them every tick would be pure waste. A test asserts they never leak
+  into snapshots and that inspection returns copies.
+- **Renderer:** inspector trait panel — one centred bar per trait with the
+  numeric value, so above/below average reads without comparing digits, plus
+  the adult mass this individual is growing toward.
+  `SUPPORTED_PROTOCOL_VERSION` → 13.
+- **Persistence (save v11 → v12):** `traits` and `adultMass` are persisted —
+  once a population has turned over they cannot be recovered from the seed
+  alone. v11 saves are invalidated (noted in the serializer). Fixtures
+  regenerated.
+
+**Tests:** `npm test` → **229 passing / 0 failing** (was 211; +18). New
+`test/traits.test.js`: sampling (every trait varies and is centred on 1,
+deterministic per seed, zero spread ⇒ exactly neutral, fixed draw budget, and
+a trait-less entity gets the frozen neutral set), the **demonstration
+scenario** (two animals equidistant from one isolated food patch differing
+only in the speed trait — the swifter one feeds first, and the outcome is
+byte-identical across runs), physiological consequences (the efficient
+individual keeps more energy; the larger one grows to its own adult mass and
+burns more getting there), behavioural consequences (bold values roaming over
+resting; the same hunger weighs more on a cautious animal; **neutral traits
+reproduce the pre-Step-14 numbers exactly**), reproductive investment (a
+generous parent's newborn starts richer and the parent ends poorer), and
+protocol/persistence/determinism (inspection-only, returns copies, traits
+round-trip through save/load and the restored run continues identically, the
+demo stays deterministic, and the `traits` stream is independent of others).
+
+**Visible result verified.** Against a live server (protocol v13) the eight
+founders are visibly individuals — speed 1.15–1.31 u/tick, adult mass
+28.7–31.9 kg, boldness 0.96–1.20, exploration 0.75–1.09 — and that spread
+persists into the offspring born during the run. The inspector renders the
+trait panel for whichever animal is selected.
+
+**Performance.** large-5k **33.4 → 33.97 ms/tick** (within noise). Traits are
+sampled once at creation, never per tick. The two values worth precomputing
+are resolved at spawn (`speed`, `adultMass`); the aging system reads
+`adultMass` through a **reused scratch object** rather than allocating a growth
+record per animal per tick, which was the one real hot-path trap here. The
+remaining trait effects are float multiplies inside loops that already run.
+
+**Deviations from the step spec (minor, documented):** (1) the spec says
+"precompute trait-derived multipliers" — only `speed` and `adultMass` are
+precomputed onto the entity; the decision-weight and metabolism multipliers are
+applied inline, because storing four more fields per animal to save four
+multiplies is the wrong trade at 25k animals (measured: no detectable cost).
+(2) `boldness` and `caution` were given distinct axes — boldness is roam-vs-rest,
+caution is how early unmet needs dominate — rather than two names for the same
+tendency; boldness gains its second, more natural effect (flight distance) at
+Step 16. (3) Trait spread lives in `config.traits`, not in the species
+definition; Step 29's species schema is the natural place to make it
+per-species, and Step 20 moves the ranges into a genetics layer regardless.
+
+**Follow-on notes for later steps:** `NEUTRAL_TRAITS` is shared and frozen, so
+the "no variation" case costs nothing and cannot be mutated by accident —
+Step 20 must keep expressing a *fresh* traits object per individual rather than
+mutating that one. `entity.adultMass` is nullable and the aging system falls
+back to the species mean, which is what keeps every hand-built test animal and
+externally spawned entity working unchanged. Each animal now carries a
+7-number object, which is the first per-entity allocation worth watching if
+Step 30 profiles save size (§1.4 B5).
 
 ---
 
@@ -3896,7 +3991,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–13
+### Observed status after Steps 1–14
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
@@ -3910,10 +4005,10 @@ prediction:
 | Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 12 protocol and 11 save-format bumps, each with fixtures regenerated and invalidation notes. |
+| Protocol/save incompatibility | **No (by discipline)** | 13 protocol and 12 save-format bumps, each with fixtures regenerated and invalidation notes. |
 | Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
 | AI-generated duplication | **No (actively countered)** | Shared `killAnimal` helper (Step 10), shared `isReproductivelyReady` predicate (Step 12), and shared `recordLifeEvent` helper (Step 13) extracted instead of duplicating. Step 13 also put `followParent` in the decision system rather than building a second action-selection path. |
-| Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). |
+| Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads. |
 | Renderer fixtures drifting | **No** | Regenerated on every protocol change. |
 
 ---

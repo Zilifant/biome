@@ -20,6 +20,7 @@ import { ReproductionSystem } from '../simulation/systems/ReproductionSystem.js'
 import { ParentingSystem } from '../simulation/systems/ParentingSystem.js';
 import { VegetationSystem } from '../simulation/systems/VegetationSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
+import { sampleTraits } from '../simulation/traits/traits.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
 
 const TWO_PI = Math.PI * 2;
@@ -46,7 +47,13 @@ export function registerDemoSystems(engine) {
   );
   engine.registerSystem(new MovementSystem());
   engine.registerSystem(new FeedingSystem(engine.config.feeding));
-  engine.registerSystem(new ReproductionSystem({ ...engine.config.reproduction, birthMass: engine.config.aging.birthMass }));
+  engine.registerSystem(
+    new ReproductionSystem({
+      ...engine.config.reproduction,
+      birthMass: engine.config.aging.birthMass,
+      traitSpread: engine.config.traits.spread,
+    }),
+  );
   engine.registerSystem(new ParentingSystem(engine.config.parenting));
   engine.registerSystem(new MetabolismSystem(engine.config.metabolism));
   engine.registerSystem(new HydrationSystem(engine.config.hydration));
@@ -87,7 +94,10 @@ function populateDemoWorld(engine) {
   // Initial ages come from a separate stream so adding them never shifts the
   // worldgen positions (which the `worldgen` stream draws in a fixed order).
   const ageRandom = engine.randomStream('demogen.age');
-  const growth = { birthMass: engine.config.aging.birthMass, adultMass: species.bodyMass, maturityAge: engine.config.aging.maturityAge };
+  // Traits come from their own stream too, so the founding population's
+  // individuality never shifts positions or ages (and vice versa).
+  const traitRandom = engine.randomStream('traits');
+  const traitSpread = engine.config.traits.spread;
   for (let i = 0; i < animalCount; i += 1) {
     const { x, y } = passableSpawnPosition(engine, random);
     const heading = random.float(0, TWO_PI);
@@ -96,6 +106,10 @@ function populateDemoWorld(engine) {
     // isn't synchronized and shows a mix of life stages; body mass follows the
     // growth curve for the age.
     const age = Math.floor(ageRandom.float(0, 1500));
+    // Every founder is an individual (Step 14): its own adult size, speed, and
+    // temperament, all resolved from the species mean at creation.
+    const traits = sampleTraits(traitRandom, traitSpread);
+    const adultMass = species.bodyMass * traits.size;
     engine.world.entities.queueSpawn({
       kind: species.kind,
       speciesId: species.id,
@@ -103,9 +117,11 @@ function populateDemoWorld(engine) {
       y,
       heading,
       age,
-      bodyMass: bodyMassForAge(age, growth),
+      traits,
+      adultMass,
+      bodyMass: bodyMassForAge(age, { birthMass: engine.config.aging.birthMass, adultMass, maturityAge: engine.config.aging.maturityAge }),
       lifeStage: lifeStageForAge(age, engine.config.aging),
-      speed: species.baseSpeed,
+      speed: species.baseSpeed * traits.speed,
       maxEnergy: species.maxEnergy,
       energy,
       maxHealth: species.maxHealth,

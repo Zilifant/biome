@@ -31,9 +31,14 @@ describe('herbivore spawning', () => {
       assert.equal(entity.speciesId, 'herbivore.grazer');
       assert.equal(entity.kind, 'animal');
       // Body mass follows the growth curve for the animal's (spread) initial
-      // age (Step 11), so it lies between birth and adult mass.
-      assert.ok(entity.bodyMass >= engine.config.aging.birthMass - 1e-6 && entity.bodyMass <= species.bodyMass + 1e-6);
-      assert.equal(entity.speed, species.baseSpeed);
+      // age (Step 11) toward its own adult size (Step 14), so it lies between
+      // birth mass and this individual's adult mass.
+      assert.ok(entity.bodyMass >= engine.config.aging.birthMass - 1e-6 && entity.bodyMass <= entity.adultMass + 1e-6);
+      // Speed and adult mass are the species mean scaled by this individual's
+      // traits, so they vary around — but stay bounded by — the species value.
+      const { size, speed } = engine.config.traits.spread;
+      assert.ok(Math.abs(entity.speed / species.baseSpeed - 1) <= speed + 1e-9, 'speed within the trait spread');
+      assert.ok(Math.abs(entity.adultMass / species.bodyMass - 1) <= size + 1e-9, 'adult mass within the trait spread');
       assert.equal(entity.maxHealth, species.maxHealth);
       assert.equal(entity.health, species.maxHealth);
       // Energy is seeded within the species' initial fraction range.
