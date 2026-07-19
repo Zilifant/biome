@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–12 are done; Step 13 is next.
+protocol for continuing the work. Steps 1–13 are done; Step 14 is next.
 
 ## Install and run
 
@@ -152,7 +152,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `11`) and is
+Everything a client sees carries `protocolVersion` (currently `12`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -165,8 +165,9 @@ built by `src/protocol/`:
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage,
   action, alive) — internal records never leak, and every snapshot is freshly
   cloned. Absolute energy/hydration/health and speed, the action target, the
-  utility breakdown, and the perception summary are inspection-only
-  (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
+  utility breakdown, the perception summary, and the family/life-history block
+  (parents, offspring, parenting state, bounded `lifeEvents`) are
+  inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
   encoded. Full snapshots also embed a **vegetation** block (quantized biomass
@@ -181,8 +182,10 @@ built by `src/protocol/`:
   `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`),
   `entity.removed`, `entity.fed` (`{ entityId, cell, amount }`),
   `entity.mated` (`{ entityId, partnerId }`), `entity.born`
-  (`{ entityId, parents }`) — facts with `{ seq, tick }`,
-  never presentation instructions. A dead animal (whatever the cause) becomes
+  (`{ entityId, parents }`), `entity.provisioned`
+  (`{ entityId, guardianId, amount }`), and `entity.lifeEvent`
+  (`{ entityId, event, guardianId }` — `weaned` | `dispersed` | `orphaned`)
+  — facts with `{ seq, tick }`, never presentation instructions. A dead animal (whatever the cause) becomes
   a `carcass`-kind entity **in place** — a kind change carried as a delta
   update, not a removal. Nothing is ever removed from the world yet, which is
   why parent/lineage ids stay valid (see `PLAN.md` §1.4 C2).
@@ -194,7 +197,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `10`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `11`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
@@ -235,7 +238,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 193 tests.
+ASCII renderer, committed fixtures, and 211 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs) and a cell-level vegetation biomass field that grows
@@ -248,32 +251,41 @@ name). Their full loop is implemented:
 | System | Phase | What it does |
 | --- | --- | --- |
 | `VegetationSystem` | environment | Logistic regrowth toward per-cell capacity (staggered) |
-| `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle + nearby animals, via the spatial grid — never global reads |
-| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, and perception; sets the movement intent |
+| `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
+| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, and perception; sets the movement intent |
 | `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water, refuses impassable cells |
 | `FeedingSystem` | interaction | Removes biomass from the cell and assimilates it to energy; deterministic contention among co-located eaters |
 | `ReproductionSystem` | interaction | Pairs well-fed adults in range, gestates, births a juvenile carrying both parent ids |
+| `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
 | `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost; starvation → carcass |
 | `HydrationSystem` | physiology | Dehydration, drinking at water, health damage → carcass |
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) and death of old age |
 
-The result is a **multi-generational, self-sustaining population**: animals
-graze and drink, spend energy, grow, mature, reproduce, age, and die, and the
-demo holds a roughly steady population with births balancing age deaths.
-Nothing enforces that balance — it emerges from reproductive cost, lifespan,
-and food availability. The demo lifespan is deliberately compressed so growth,
-stage transitions, and age death are observable in a short run.
+The result is a **multi-generational, self-sustaining population** with a
+complete life cycle: an animal is born, is fed by the parent that bore it, is
+weaned, disperses at maturity, grazes and drinks, grows, breeds in its turn,
+ages, and dies — and each of those milestones is readable in its own bounded
+life history. The demo holds a roughly steady population with births
+balancing age deaths. Nothing enforces that balance — it emerges from
+reproductive cost, parental investment, lifespan, and food availability. The
+demo lifespan is deliberately compressed so growth, stage transitions, and age
+death are observable in a short run.
+
+Juvenile dependency is real, not decorative: an unweaned juvenile does not
+graze at all. It lives on energy transferred from its guardian (at a
+transfer loss, and never below the guardian's own reserve floor), which is why
+it follows the parent it can perceive. An orphan is weaned on the spot and
+must fend for itself.
 
 ## Not built yet
 
-Parenting and juvenile dependency, individual variation, memory/learning,
-predators and escape, injury and healing, carcass decay and scavenging,
-weather and seasons, genetics and inheritance, evolutionary metrics, mate
-choice, social groups, territory, disease, migration, disturbances, ecosystem
-engineering, multiple species, and profile-driven optimization toward tens of
-thousands of animals.
+Individual variation, memory/learning, predators and escape, injury and
+healing, carcass decay and scavenging, weather and seasons, genetics and
+inheritance, evolutionary metrics, mate choice, social groups, territory,
+disease, migration, disturbances, ecosystem engineering, multiple species, and
+profile-driven optimization toward tens of thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 13–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 14–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

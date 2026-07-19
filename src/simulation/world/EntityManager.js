@@ -32,6 +32,10 @@
  * @property {number} maxHydration
  * @property {string} lifeStage juvenile | subadult | adult | senescent
  * @property {number[]} parents parent entity ids ([] for the founding population)
+ * @property {number[]} offspring ids of this entity's own offspring (sparse)
+ * @property {number | null} guardianId the parent this juvenile depends on
+ * @property {boolean} weaned whether parental provisioning has ended
+ * @property {Array<{tick: number, type: string}>} lifeEvents bounded life history
  * @property {number | null} gestationUntil tick the pregnancy comes to term
  * @property {number | null} pendingMateId the other parent, recorded at mating
  * @property {number | null} lastMatedTick for the mating cooldown
@@ -83,6 +87,17 @@ function createEntity(id, definition) {
     gestationUntil: definition.gestationUntil ?? null,
     pendingMateId: definition.pendingMateId ?? null,
     lastMatedTick: definition.lastMatedTick ?? null,
+    // Parenting (Step 13). `offspring` is the sparse inverse of `parents`,
+    // appended at birth. `guardianId` is the parent a dependent juvenile
+    // follows and is provisioned by — set once in the newborn's spawn
+    // definition, then owned (and cleared at weaning-independence or on the
+    // guardian's death) by the parenting system. Founders have no guardian and
+    // are therefore already weaned.
+    offspring: definition.offspring ?? [],
+    guardianId: definition.guardianId ?? null,
+    weaned: definition.weaned ?? definition.guardianId == null,
+    // Bounded life history (see systems/lifeEvents.js).
+    lifeEvents: definition.lifeEvents ?? [],
     // Locomotion intent (Step 5, extended Step 8): a heading, a countdown of
     // ticks to hold it, and whether the animal is moving this tick. Owned by
     // the decision system (movement executes it); null until first decision.

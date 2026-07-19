@@ -1,4 +1,5 @@
 import { EventTypes } from '../events/EventTypes.js';
+import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
 
 /**
  * Turn a living animal into a carcass in place (Step 6 model), emitting
@@ -13,11 +14,13 @@ import { EventTypes } from '../events/EventTypes.js';
  * @param {string} cause death cause for the event (e.g. 'starvation')
  * @param {number} edibleMass carcass edible mass (∝ body mass)
  * @param {(type: string, payload: object) => void} emit context.emit
+ * @param {number} [tick] tick to stamp on the closing life-history entry
  */
-export function killAnimal(entity, cause, edibleMass, emit) {
+export function killAnimal(entity, cause, edibleMass, emit, tick = null) {
   entity.alive = false;
   entity.kind = 'carcass';
   entity.lowEnergy = false;
   entity.edibleMass = edibleMass;
+  if (tick !== null) recordLifeEvent(entity, tick, LifeEventTypes.DIED, { cause });
   emit(EventTypes.ENTITY_DIED, { entityId: entity.id, cause });
 }

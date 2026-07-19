@@ -85,7 +85,7 @@ export class RendererApp {
     const frame = () => {
       if (this.#dirty) {
         this.#dirty = false;
-        this.#grid.draw({ store: this.#store, camera: this.#camera });
+        this.#grid.draw({ store: this.#store, camera: this.#camera, familyIds: this.#familyIds() });
         this.#ui.statusPanel.update(this.#store, this.#camera);
       }
       requestAnimationFrame(frame);
@@ -249,11 +249,26 @@ export class RendererApp {
       const inspection = await this.#http.requestEntity(entityId);
       if (inspection?.found && this.#store.selection?.activeId === entityId) {
         this.#inspectionDetail = inspection;
+        this.#dirty = true;
         this.#updatePanels();
       }
     } catch {
       // Inspection detail is optional enrichment; the store view stands alone.
     }
+  }
+
+  /**
+   * Relatives of the selected entity — its guardian and its offspring, from
+   * the inspection payload (protocol v12). Marked in the grid so a family
+   * group can be picked out; purely presentational and live-only, since bulk
+   * snapshots deliberately don't carry relationships.
+   * @returns {number[]}
+   */
+  #familyIds() {
+    const detail = this.#inspectionDetail?.entity;
+    if (!detail || detail.id !== this.#store.selection?.activeId) return [];
+    const guardianId = detail.parentingState?.guardianId;
+    return guardianId != null ? [guardianId, ...(detail.offspring ?? [])] : (detail.offspring ?? []);
   }
 
   toggleFollow() {

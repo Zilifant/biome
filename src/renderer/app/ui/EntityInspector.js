@@ -1,9 +1,10 @@
 /**
  * Entity inspector panel. Shows every occupant of the selected cell, the
  * active occupant's protocol-visible fields, optional live inspection
- * detail (absolute energy from the entity.inspection endpoint), and recent
- * domain events involving the entity. Only fields the protocol actually
- * provides are shown — no invented biology.
+ * detail (absolute energy, family links, and the bounded life-history
+ * timeline from the entity.inspection endpoint), and recent domain events
+ * involving the entity. Only fields the protocol actually provides are shown —
+ * no invented biology.
  */
 import { resolveAppearance } from '../rendering/EntityAppearance.js';
 
@@ -29,6 +30,39 @@ function formatUtilities(utilityBreakdown, chosen, actionTarget) {
     .join('');
   const target = actionTarget ? ` <span class="dim">→ (${actionTarget.cellX},${actionTarget.cellY})</span>` : '';
   return `<h3>Decides <span class="dim">${escapeHtml(chosen ?? '')}</span>${target}</h3>${rows}`;
+}
+
+/**
+ * Render family links and the bounded life-history timeline (protocol v12),
+ * or nothing when the inspection payload carries neither.
+ */
+function formatFamily(detail) {
+  if (!detail) return '';
+  const ids = (list) => list.map((id) => `#${id}`).join(', ');
+  const rows = [];
+  if (detail.parents?.length) {
+    rows.push(`<div class="field"><span>parents</span><span>${ids(detail.parents)}</span></div>`);
+  }
+  if (detail.offspring?.length) {
+    rows.push(`<div class="field"><span>offspring</span><span>${ids(detail.offspring)}</span></div>`);
+  }
+  const parenting = detail.parentingState;
+  if (parenting?.dependent) {
+    const care = parenting.weaned ? 'weaned' : 'nursing';
+    rows.push(
+      `<div class="field"><span>follows</span><span class="ok">#${parenting.guardianId} <span class="dim">(${care})</span></span></div>`,
+    );
+  }
+  const timeline = (detail.lifeEvents ?? [])
+    .slice()
+    .reverse()
+    .map(
+      (event) =>
+        `<li><span class="dim">t${event.tick}</span> ${escapeHtml(event.type)}${event.cause ? ` <span class="dim">(${escapeHtml(event.cause)})</span>` : ''}${event.entityId != null ? ` <span class="dim">#${event.entityId}</span>` : ''}</li>`,
+    )
+    .join('');
+  if (rows.length === 0 && timeline === '') return '';
+  return `<h3>Family</h3>${rows.join('')}${timeline ? `<ul class="entity-events">${timeline}</ul>` : ''}`;
 }
 
 /** Render the transient perception summary (protocol v6), or nothing. */
@@ -108,7 +142,6 @@ export class EntityInspector {
           `<div class="field"><span>health</span><span>${live.health.toFixed(1)} / ${live.maxHealth}</span></div>` +
           `<div class="field"><span>speed</span><span>${live.speed.toFixed(2)} u/tick</span></div>` +
           (live.edibleMass > 0 ? `<div class="field"><span>edible mass</span><span>${live.edibleMass.toFixed(1)} kg</span></div>` : '') +
-          (live.parents?.length ? `<div class="field"><span>parents</span><span>${live.parents.map((id) => `#${id}`).join(' + ')}</span></div>` : '') +
           (live.reproState?.gestating
             ? `<div class="field"><span>gestating</span><span class="ok">until t${live.reproState.gestationUntil}</span></div>`
             : live.reproState?.lastMatedTick !== null && live.reproState?.lastMatedTick !== undefined
@@ -137,6 +170,7 @@ export class EntityInspector {
       ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
+    const familyBlock = formatFamily(liveDetail);
 
     const events = active
       ? store
@@ -149,6 +183,7 @@ export class EntityInspector {
       <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
       ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
       ${fields}
+      ${familyBlock}
       ${utilitiesBlock}
       ${perceptionBlock}
       <div class="inspector-actions">

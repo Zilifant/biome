@@ -18,6 +18,10 @@ export const EventTypes = Object.freeze({
   ENTITY_FED: 'entity.fed', //         { entityId, cell: {cellX, cellY}, amount }
   ENTITY_MATED: 'entity.mated', //     { entityId, partnerId, gestationUntil }
   ENTITY_BORN: 'entity.born', //       { entityId, parents: [id, id] }
+  ENTITY_PROVISIONED: 'entity.provisioned', // { entityId, guardianId, amount }
+  // A milestone in one animal's life history. `event` is a life-event type
+  // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
+  ENTITY_LIFE_EVENT: 'entity.lifeEvent', //    { entityId, event, guardianId }
 });
 
 /**

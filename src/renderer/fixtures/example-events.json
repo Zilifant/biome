@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 11,
+  "protocolVersion": 12,
   "kind": "events.batch",
   "simulationId": "demo-42",
   "tick": 11,

@@ -61,7 +61,7 @@ export class HydrationSystem extends SimulationSystem {
       if (entity.hydration <= 0) {
         entity.health = Math.max(0, entity.health - this.dehydrationDamage);
         if (entity.health <= 0) {
-          killAnimal(entity, 'dehydration', entity.bodyMass * this.edibleMassFraction, context.emit);
+          killAnimal(entity, 'dehydration', entity.bodyMass * this.edibleMassFraction, context.emit, context.tick);
         }
       }
     }

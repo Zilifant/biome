@@ -58,7 +58,7 @@ export class MetabolismSystem extends SimulationSystem {
 
       if (entity.energy <= 0) {
         // Starve: die in place and become a carcass (identity preserved).
-        killAnimal(entity, 'starvation', entity.bodyMass * this.edibleMassFraction, context.emit);
+        killAnimal(entity, 'starvation', entity.bodyMass * this.edibleMassFraction, context.emit, context.tick);
       }
     }
   }

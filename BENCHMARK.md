@@ -17,8 +17,8 @@ npm run benchmark -- --ticks=5000 --seed=7
 The script (`src/scripts/benchmark.js`) runs the demo world headless (no
 server, no renderer, no real-time pacing) across scaled entity counts. Each
 scenario warms up 50 ticks (JIT steady state) before timing the remainder,
-and reports start→end entity counts because the demo `LifecycleSystem`
-starves animals over the run. It also verifies two identical 2000-tick runs
+and reports start→end entity counts because populations change over the run
+(births, age deaths, carcasses). It also verifies two identical 2000-tick runs
 serialize byte-for-byte identically, so a benchmark run doubles as a
 determinism check.
 
@@ -32,20 +32,20 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-3)
+## Results (post-Step-13)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 8→0 | 0.011 | ~95,000 |
-| small-100 | 256×256 | 100→0 | 0.048 | ~21,000 |
-| medium-1k | 512×512 | 1000→0 | 0.339 | ~2,950 |
-| large-5k | 1024×1024 | 5000→0 | 1.81 | ~554 |
+| demo-default | 128×128 | 8→11 | 0.033 | ~30,700 |
+| small-100 | 256×256 | 100→143 | 0.367 | ~2,720 |
+| medium-1k | 512×512 | 1000→1452 | 4.47 | ~224 |
+| large-5k | 1024×1024 | 5000→7262 | 33.4 | ~30 |
 
-"entities" are animals only (Step 3 replaced the demo plant entities with a
-cell-level vegetation biomass field — vegetation cost now scales with world
-size, not entity count). End counts are 0 because the demo animals starve
-with nothing to eat yet (feeding lands in Step 9). All scenarios sit far
-under the one-second authoritative tick budget.
+"entities" are animals and carcasses (Step 3 replaced the demo plant entities
+with a cell-level vegetation biomass field, so vegetation cost scales with
+world size, not entity count). End counts now *exceed* the start because
+animals reproduce (Step 12). All scenarios sit far under the one-second
+authoritative tick budget.
 
 ### History
 - **Step 1** (post event-bus fix): demo 0.0035, small 0.025, medium 0.244,
@@ -96,6 +96,14 @@ under the one-second authoritative tick budget.
   benchmark (large-5k ends at ~7.3k entities instead of 5k). Mate search is
   grid-local (`queryRadius`), never a global pairwise scan. Note that scenario
   "end entity" counts now exceed the start.
+- **Step 13** (parenting): large-5k **33.4 ms/tick** (within noise of Step 12,
+  at the same ~7.3k end population). `ParentingSystem` visits each animal once
+  and resolves its guardian by an O(1) id lookup — no scan, no reverse index —
+  and only bonded juveniles do any work at all, which is a small fraction of
+  the population. The guardian-in-perception check rides along inside the
+  spatial-grid neighbor loop perception already ran, so it costs nothing extra.
+  Relationships are sparse arrays (a handful of ids per animal) and life
+  histories are hard-capped at 12 entries, so neither grows without bound.
 
 ## Step 1 remediation recorded here
 

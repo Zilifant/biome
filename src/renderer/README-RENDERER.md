@@ -63,7 +63,7 @@ app/
     FixtureRendererTransport.js    offline replay of committed fixtures
   ui/
     StatusPanel.js            connection/tick/entities/camera/zoom bar
-    EntityInspector.js        occupants, protocol fields, action + utilities, perception, events
+    EntityInspector.js        occupants, protocol fields, family + life history, action + utilities, perception, events
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
   styles/
@@ -177,4 +177,13 @@ a renderer exists.
   remains reserved for future individual plants.
 - Inspector's absolute energy is fetched once per selection (live mode) and
   labeled with its tick; the percentage updates live from deltas.
+- Family links and life history (protocol v12) come from the same
+  `entity.inspection` fetch, not from bulk snapshots — relationships are
+  deliberately inspection-only so per-tick payloads stay lean. The inspector
+  renders parents, offspring, the guardian a dependent juvenile is following,
+  and the animal's bounded life-event timeline (born, birthed, weaned,
+  dispersed, orphaned, died). While an entity with relatives is selected, the
+  grid marks its guardian and offspring with pink brackets, so a family group
+  can be picked out of a crowd. Because the data is fetched per selection, the
+  marks refresh when the selection changes rather than every tick.
 - Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.

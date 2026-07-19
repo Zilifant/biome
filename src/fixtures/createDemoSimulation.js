@@ -17,6 +17,7 @@ import { HydrationSystem } from '../simulation/systems/HydrationSystem.js';
 import { MetabolismSystem } from '../simulation/systems/MetabolismSystem.js';
 import { AgingSystem, bodyMassForAge, lifeStageForAge } from '../simulation/systems/AgingSystem.js';
 import { ReproductionSystem } from '../simulation/systems/ReproductionSystem.js';
+import { ParentingSystem } from '../simulation/systems/ParentingSystem.js';
 import { VegetationSystem } from '../simulation/systems/VegetationSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
@@ -46,6 +47,7 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(new MovementSystem());
   engine.registerSystem(new FeedingSystem(engine.config.feeding));
   engine.registerSystem(new ReproductionSystem({ ...engine.config.reproduction, birthMass: engine.config.aging.birthMass }));
+  engine.registerSystem(new ParentingSystem(engine.config.parenting));
   engine.registerSystem(new MetabolismSystem(engine.config.metabolism));
   engine.registerSystem(new HydrationSystem(engine.config.hydration));
   // Adult mass comes from the species; the rest of the life curve from config.
@@ -53,10 +55,33 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(new AgingSystem({ ...engine.config.aging, adultMass: species.bodyMass }));
 }
 
+/**
+ * A passable position for a founding animal (§1.4 C1). Births have always
+ * placed newborns on passable cells; founders used to be able to start inside
+ * rock and walk out via the movement guard. Rejection sampling keeps the draw
+ * order deterministic; the deterministic scan is the fallback for a world with
+ * almost no open ground.
+ * @param {SimulationEngine} engine
+ * @param {import('../simulation/random/SeededRandom.js').SeededRandom} random
+ */
+function passableSpawnPosition(engine, random) {
+  const { width, height } = engine.world;
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const x = random.float(0, width);
+    const y = random.float(0, height);
+    if (engine.world.isPassableAt(x, y)) return { x, y };
+  }
+  for (let cellY = 0; cellY < engine.world.terrain.height; cellY += 1) {
+    for (let cellX = 0; cellX < engine.world.terrain.width; cellX += 1) {
+      if (engine.world.terrain.isPassable(cellX, cellY)) return { x: cellX + 0.5, y: cellY + 0.5 };
+    }
+  }
+  throw new Error('the world has no passable cell to spawn on');
+}
+
 /** @param {SimulationEngine} engine */
 function populateDemoWorld(engine) {
   const random = engine.randomStream('worldgen');
-  const { width, height } = engine.world;
   const { animalCount, speciesId } = engine.config.demo;
   const species = getSpecies(speciesId);
   // Initial ages come from a separate stream so adding them never shifts the
@@ -64,8 +89,7 @@ function populateDemoWorld(engine) {
   const ageRandom = engine.randomStream('demogen.age');
   const growth = { birthMass: engine.config.aging.birthMass, adultMass: species.bodyMass, maturityAge: engine.config.aging.maturityAge };
   for (let i = 0; i < animalCount; i += 1) {
-    const x = random.float(0, width);
-    const y = random.float(0, height);
+    const { x, y } = passableSpawnPosition(engine, random);
     const heading = random.float(0, TWO_PI);
     const energy = species.maxEnergy * random.float(species.initialEnergyFraction.min, species.initialEnergyFraction.max);
     // Spread initial ages across juvenile→adult so the starting population

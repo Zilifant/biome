@@ -272,6 +272,16 @@ export class SimulationEngine {
         gestationUntil: entity.gestationUntil,
         lastMatedTick: entity.lastMatedTick,
       },
+      // Family and life history (Step 13) — inspection-only, both bounded:
+      // `offspring` is sparse (a handful per lifetime) and `lifeEvents` is
+      // hard-capped, so neither can grow without limit.
+      offspring: [...entity.offspring],
+      parentingState: {
+        guardianId: entity.guardianId,
+        dependent: entity.guardianId !== null,
+        weaned: entity.weaned,
+      },
+      lifeEvents: entity.lifeEvents.map((event) => ({ ...event })),
       // Transient perception summary (null if not yet computed or not an
       // animal). Inspection-only — never in bulk snapshots.
       perception: this.world.perception.get(entityId) ?? null,

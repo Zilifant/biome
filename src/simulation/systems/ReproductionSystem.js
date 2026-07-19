@@ -13,13 +13,16 @@
  * positions; before metabolism, so the costs are charged the same tick).
  * Mate search is grid-local (`queryRadius`), never a global pairwise scan
  * (invariant 17). Ownership: writes the reproductive fields
- * (`gestationUntil`, `pendingMateId`, `lastMatedTick`), spends `energy`, and
- * creates offspring at the deferred-spawn boundary. No randomness — timing is
- * fully determined by encounters and the fixed gestation.
+ * (`gestationUntil`, `pendingMateId`, `lastMatedTick`), appends to each
+ * parent's `offspring` list, spends `energy`, and creates offspring at the
+ * deferred-spawn boundary. The newborn's `guardianId` is part of its spawn
+ * definition; the parenting system (Step 13) owns it thereafter. No randomness
+ * — timing is fully determined by encounters and the fixed gestation.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { SPECIES } from '../config/species/index.js';
+import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
 
 /**
  * Reproductive readiness — the single source of truth, shared by the
@@ -101,6 +104,7 @@ export class ReproductionSystem extends SimulationSystem {
       }
 
       const maxEnergy = species?.maxEnergy ?? entity.maxEnergy;
+      const parents = mateId === null ? [entity.id] : [entity.id, mateId];
       const offspringId = context.queueSpawn({
         kind: 'animal',
         speciesId: entity.speciesId,
@@ -117,16 +121,28 @@ export class ReproductionSystem extends SimulationSystem {
         health: species?.maxHealth ?? entity.maxHealth,
         maxHydration: species?.maxHydration ?? entity.maxHydration,
         hydration: species?.maxHydration ?? entity.maxHydration,
-        parents: mateId === null ? [entity.id] : [entity.id, mateId],
+        parents,
+        // Parenting (Step 13): the newborn depends on the parent that carried
+        // it. The bond is part of the spawn definition; from here on it is the
+        // parenting system's to hold and to break.
+        guardianId: entity.id,
+        weaned: false,
+        lifeEvents: [{ tick: context.tick, type: LifeEventTypes.BORN }],
       });
+
+      // The sparse inverse of `parents`, recorded on whichever parents still
+      // exist (ids stay valid because entities are never removed).
+      for (const parentId of parents) {
+        const parent = world.entities.get(parentId);
+        if (!parent) continue;
+        parent.offspring.push(offspringId);
+        recordLifeEvent(parent, context.tick, LifeEventTypes.BIRTHED, { entityId: offspringId });
+      }
 
       entity.energy = Math.max(0, entity.energy - this.birthEnergyCost);
       entity.gestationUntil = null;
       entity.pendingMateId = null;
-      context.emit(EventTypes.ENTITY_BORN, {
-        entityId: offspringId,
-        parents: mateId === null ? [entity.id] : [entity.id, mateId],
-      });
+      context.emit(EventTypes.ENTITY_BORN, { entityId: offspringId, parents });
     }
   }
 

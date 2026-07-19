@@ -92,7 +92,7 @@ export class AgingSystem extends SimulationSystem {
       if (entity.lifeStage === 'senescent') {
         const p = this.#mortality(entity.age) * this.updateInterval;
         if (entity.age >= this.maxAge || roll < p) {
-          killAnimal(entity, 'age', entity.bodyMass * this.edibleMassFraction, context.emit);
+          killAnimal(entity, 'age', entity.bodyMass * this.edibleMassFraction, context.emit, context.tick);
         }
       }
     }

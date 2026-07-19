@@ -35,7 +35,11 @@ export class FeedingSystem extends SimulationSystem {
 
   update(world, context) {
     for (const entity of world.entities.all()) {
+      // An unweaned juvenile lives on its guardian's provisioning (Step 13) and
+      // never grazes; the decision system will not choose `eat` for one, and
+      // this guard keeps that true no matter how the action was set.
       if (entity.kind !== 'animal' || !entity.alive || entity.action !== 'eat') continue;
+      if (entity.guardianId !== null && !entity.weaned) continue;
 
       const { cellX, cellY } = world.cellOf(entity.x, entity.y);
       // Don't overeat past satiation: cap intake by the energy deficit as well.

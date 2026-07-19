@@ -1,11 +1,15 @@
 /**
  * Bounded domain-event log. Known event types get compact one-line
  * formatting; unknown types fall back to a generic rendering instead of
- * failing. `entity.moved` events flood at one per animal per tick, so they
- * are hidden behind a renderer-local toggle by default.
+ * failing. Some events recur every tick per animal (movement, feeding,
+ * provisioning) and would drown out the milestones, so they are hidden behind
+ * a renderer-local toggle by default.
  */
 
 const MAX_RENDERED_EVENTS = 60;
+
+/** High-frequency events, hidden unless "show routine" is checked. */
+const ROUTINE_EVENT_TYPES = new Set(['entity.moved', 'entity.fed', 'entity.provisioned']);
 
 function formatEvent(event) {
   switch (event.type) {
@@ -23,6 +27,10 @@ function formatEvent(event) {
       return `& mated #${event.entityId} + #${event.partnerId}`;
     case 'entity.born':
       return `* born #${event.entityId}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
+    case 'entity.provisioned':
+      return `^ fed #${event.entityId} by #${event.guardianId}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
+    case 'entity.lifeEvent':
+      return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}`;
     default: {
       const extra = Object.entries(event)
         .filter(([key]) => !['seq', 'tick', 'type'].includes(key))
@@ -38,8 +46,10 @@ function eventClass(event) {
   if (event.type === 'entity.created') return 'event-created';
   if (event.type === 'entity.removed') return 'event-removed';
   if (event.type === 'entity.moved') return 'event-moved';
-  if (event.type === 'entity.fed') return 'event-fed';
-  if (event.type === 'entity.mated' || event.type === 'entity.born') return 'event-birth';
+  if (event.type === 'entity.fed' || event.type === 'entity.provisioned') return 'event-fed';
+  if (event.type === 'entity.mated' || event.type === 'entity.born' || event.type === 'entity.lifeEvent') {
+    return 'event-birth';
+  }
   return 'event-other';
 }
 
@@ -70,7 +80,7 @@ export class EventLog {
     const events = [];
     for (let i = store.events.length - 1; i >= 0 && events.length < MAX_RENDERED_EVENTS; i -= 1) {
       const event = store.events[i];
-      if (!this.#showMoves && (event.type === 'entity.moved' || event.type === 'entity.fed')) continue;
+      if (!this.#showMoves && ROUTINE_EVENT_TYPES.has(event.type)) continue;
       events.push(event);
     }
     const fragment = document.createDocumentFragment();

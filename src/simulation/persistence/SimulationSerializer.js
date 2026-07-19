@@ -45,10 +45,14 @@
  *  10 — reproduction fields added (Step 12): parents, gestationUntil,
  *       pendingMateId, lastMatedTick, plus the new `ReproductionSystem`
  *       descriptor. v9 saves are invalidated.
+ *  11 — parenting and life-history fields added (Step 13): offspring,
+ *       guardianId, weaned, lifeEvents, plus the new `ParentingSystem`
+ *       descriptor. v10 saves lack the fields and register a different system
+ *       lineup, so they are invalidated; regenerate them.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 10;
+export const SAVE_FORMAT_VERSION = 11;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

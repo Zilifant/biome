@@ -6,10 +6,11 @@
  * the random wander that used to live in the movement system: decisions choose
  * WHAT to do and set the movement intent; the movement system merely executes
  * it. Actions:
- *   - eat      — standing on a food cell (consumption itself is Step 9)
- *   - seekFood — food perceived nearby; head toward it (subsumes "approach")
- *   - rest     — stay put (attractive when satiated)
- *   - wander   — undirected exploration with a committed heading
+ *   - eat          — standing on a food cell (consumption itself is Step 9)
+ *   - seekFood     — food perceived nearby; head toward it (subsumes "approach")
+ *   - followParent — a dependent juvenile keeping up with its guardian
+ *   - rest         — stay put (attractive when satiated)
+ *   - wander       — undirected exploration with a committed heading
  *
  * Runs in the `decision` phase (after perception, before movement). Ownership:
  * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
@@ -38,6 +39,8 @@ export class DecisionSystem extends SimulationSystem {
    * @param {number} [options.restBias]
    * @param {number} [options.wanderBias]
    * @param {number} [options.explorationRate]
+   * @param {number} [options.followWeight] pull toward a dependent's guardian
+   * @param {number} [options.followDistance] no need to follow inside this range
    * @param {number} [options.minCommitTicks]
    * @param {number} [options.commitTickSpan]
    * @param {number} [options.wanderJitter]
@@ -54,6 +57,8 @@ export class DecisionSystem extends SimulationSystem {
     explorationRate = 0.05,
     drinkRange = 1.5,
     mateWeight = 0.55,
+    followWeight = 0.7,
+    followDistance = 1.5,
     reproduction = { minEnergyFraction: 0.7, cooldownTicks: 800 },
     minCommitTicks = 8,
     commitTickSpan = 16,
@@ -71,6 +76,8 @@ export class DecisionSystem extends SimulationSystem {
     this.explorationRate = explorationRate;
     this.drinkRange = drinkRange;
     this.mateWeight = mateWeight;
+    this.followWeight = followWeight;
+    this.followDistance = followDistance;
     this.reproduction = reproduction;
     this.minCommitTicks = minCommitTicks;
     this.commitTickSpan = commitTickSpan;
@@ -102,12 +109,24 @@ export class DecisionSystem extends SimulationSystem {
         nearestAnimal && nearestAnimal.speciesId === entity.speciesId && isReproductivelyReady(entity, context.tick, this.reproduction)
           ? nearestAnimal
           : null;
+      // A dependent juvenile is pulled toward its guardian, more strongly the
+      // further it has drifted — half weight the moment it loses contact,
+      // rising to full weight at the edge of perception, so keeping up always
+      // outranks aimless wandering but never outranks real hunger or thirst.
+      // Only a guardian it can currently perceive counts (Step 13).
+      const guardian = perceived?.guardian ?? null;
+      const followPull = guardian && guardian.distance > this.followDistance ? this.#followUtility(guardian, perceived) : 0;
+      // An unweaned juvenile lives on its guardian's provisioning and does not
+      // graze at all — that is what makes the dependency real rather than
+      // decorative. Its whole agenda is drinking, resting, and keeping up.
+      const nursing = entity.guardianId !== null && !entity.weaned;
 
       const utilities = {
         drink: atWater ? this.drinkBias + this.thirstWeight * thirst : 0,
         seekWater: nearestWater && !atWater ? this.thirstWeight * thirst : 0,
-        eat: onFood ? this.eatBias + this.hungerWeight * hunger : 0,
-        seekFood: nearestFood && !onFood ? this.hungerWeight * hunger : 0,
+        eat: onFood && !nursing ? this.eatBias + this.hungerWeight * hunger : 0,
+        seekFood: nearestFood && !onFood && !nursing ? this.hungerWeight * hunger : 0,
+        followParent: followPull,
         seekMate: mateCandidate ? this.mateWeight : 0,
         rest: this.restBias * (1 - Math.max(hunger, thirst)),
         wander: this.wanderBias,
@@ -119,18 +138,32 @@ export class DecisionSystem extends SimulationSystem {
 
       entity.action = action;
       entity.utilityBreakdown = utilities;
-      // seekMate steers toward another animal's position rather than a cell.
-      const target =
-        action === 'seekFood'
+      // seekMate and followParent steer toward another animal's position
+      // rather than a cell.
+      const followed = action === 'seekMate' ? mateCandidate : action === 'followParent' ? guardian : null;
+      const target = followed
+        ? { cellX: Math.floor(followed.x), cellY: Math.floor(followed.y), x: followed.x, y: followed.y }
+        : action === 'seekFood'
           ? nearestFood
           : action === 'seekWater'
             ? nearestWater
-            : action === 'seekMate'
-              ? { cellX: Math.floor(mateCandidate.x), cellY: Math.floor(mateCandidate.y), x: mateCandidate.x, y: mateCandidate.y }
-              : null;
+            : null;
       entity.actionTarget = target ? { cellX: target.cellX, cellY: target.cellY } : null;
       entity.moveIntent = this.#intentFor(action, entity, target, roll, candidateHeading);
     }
+  }
+
+  /**
+   * Utility of closing the gap to a perceived guardian: half the follow weight
+   * as soon as the juvenile is out of contact range, ramping to full weight at
+   * the edge of what it can perceive (beyond which the parent is simply lost).
+   * @param {{distance: number}} guardian
+   * @param {{radius: number}} perceived
+   */
+  #followUtility(guardian, perceived) {
+    const span = Math.max(perceived.radius - this.followDistance, 1e-6);
+    const drift = clamp01((guardian.distance - this.followDistance) / span);
+    return this.followWeight * (0.5 + 0.5 * drift);
   }
 
   #intentFor(action, entity, target, roll, candidateHeading) {
@@ -142,7 +175,8 @@ export class DecisionSystem extends SimulationSystem {
         return { heading: entity.moveIntent?.heading ?? candidateHeading, ttl: 0, moving: false };
       case 'seekFood':
       case 'seekWater':
-      case 'seekMate': {
+      case 'seekMate':
+      case 'followParent': {
         // Cell targets aim at the cell centre; a mate target carries an exact
         // position.
         const tx = target.x ?? target.cellX + 0.5;
@@ -164,7 +198,7 @@ export class DecisionSystem extends SimulationSystem {
 
 /** Highest-utility action; ties broken by a fixed, deterministic order. */
 function argmaxUtility(utilities) {
-  const order = ['drink', 'eat', 'seekWater', 'seekFood', 'seekMate', 'rest', 'wander'];
+  const order = ['drink', 'eat', 'seekWater', 'seekFood', 'followParent', 'seekMate', 'rest', 'wander'];
   let best = order[0];
   for (const action of order) {
     if (utilities[action] > utilities[best]) best = action;

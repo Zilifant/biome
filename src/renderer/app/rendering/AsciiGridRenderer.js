@@ -79,8 +79,10 @@ export class AsciiGridRenderer {
    * @param {object} options
    * @param {import('../state/RendererStore.js').RendererStore} options.store
    * @param {import('./Camera.js').Camera} options.camera
+   * @param {number[]} [options.familyIds] relatives of the selected entity, to
+   *        mark so a parent and its dependants can be picked out of a crowd
    */
-  draw({ store, camera }) {
+  draw({ store, camera, familyIds = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -142,8 +144,17 @@ export class AsciiGridRenderer {
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
 
-    // --- Overlay pass: selection highlight, then follow marker.
+    // --- Overlay pass: family links, then selection highlight, then follow
+    // marker (so the selected entity always draws on top).
     const activeId = store.selection?.activeId;
+    for (const familyId of familyIds) {
+      if (familyId === activeId) continue;
+      const relative = store.getEntity(familyId);
+      if (!relative) continue;
+      const cell = worldCellOf(relative, world);
+      const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
+      this.#drawBrackets(px, py, cellSize, this.#color('pink'));
+    }
     const selected = activeId != null ? store.getEntity(activeId) : null;
     if (selected) {
       const cell = worldCellOf(selected, world);

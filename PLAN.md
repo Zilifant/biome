@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–12)
+## 1.4 Carried-forward deviations and open issues (Steps 1–13)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -118,13 +118,15 @@ correctness bug in shipped code unless marked ⚠.
 | A1 | 2 | Terrain legend lives at `terrain.cellTypes`, not `world.cellTypes` (natural home for the payload) | — (settled) |
 | A2 | 2 | Cover generated as clumped patches, not per-cell scatter — per-cell scatter fragmented the RLE (1024² snapshot 916 KB → 118 KB) | — (settled) |
 | A3 | 3 | Individual tree/shrub entities omitted (plan marked optional); `plant` kind reserved for them | any later step that needs point vegetation |
-| A4 | 6 | Bounded per-entity `lifeEvents` list deferred | **Step 13** (and 21) |
+| ~~A4~~ | 6 | Bounded per-entity `lifeEvents` list deferred | **Done in Step 13** — `systems/lifeEvents.js`, capped at 12 entries; Step 21 may extend the vocabulary |
 | A5 | 7 | Renderer debug overlay of perceived cells deferred | later renderer pass |
 | A6 | 8 | `approachFood` folded into `seekFood` (identical mechanics) | — (settled) |
 | A7 | 8 | Action glyph *tint* deferred (`action` is in the bulk snapshot, so it is available) | later renderer pass |
 | A8 | 10 | Optional `entity.drank` event skipped (redundant with the public `action` field) | — (settled) |
 | A9 | 12 | No sexes: either adult may initiate, the lower id gestates | **Step 22** |
 | A10 | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Step 22** |
+| A11 | 13 | Juvenile *protection* omitted from the parenting strategy — nothing threatens juveniles until predators exist | **Step 16** (predation) |
+| A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **Step 16** — worth revisiting once orphaning is common |
 
 ### B. Configuration / structural debt
 
@@ -141,9 +143,9 @@ correctness bug in shipped code unless marked ⚠.
 
 | # | From | Item | Owed to |
 | --- | --- | --- | --- |
-| ⚠ C1 | 2, 3, 5 | **Entity spawning still ignores terrain** — animals can spawn on impassable rock. Latent since Step 2; it surfaced as four test failures in Step 11 when a new RNG draw shifted spawn positions. Animals escape via the movement guard, but a spawn can be briefly invalid | **Step 13** or earlier — make spawning terrain-aware (births already are) |
-| ⚠ C2 | 12 | **Parent references stay valid only because entities are never removed.** Carcass decay/removal will break this | **Step 18** — lineage refs need explicit care |
-| C3 | 1, 9 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
+| ~~⚠ C1~~ | 2, 3, 5 | **Entity spawning ignored terrain** — animals could spawn on impassable rock | **Done in Step 13** — founding spawns rejection-sample a passable position (deterministic scan as fallback). Externally submitted `entity.spawn` commands are still the caller's responsibility, by choice |
+| ⚠ C2 | 12, 13 | **Parent references stay valid only because entities are never removed.** Carcass decay/removal will break this — now covering `parents`, `offspring`, and `guardianId` | **Step 18** — lineage refs need explicit care |
+| C3 | 1, 9, 13 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
 | C4 | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst. Mitigated by a gentle `dehydrationRate: 0.02` | **Step 15** (remember water) |
 | C5 | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). Re-tuned to be genuinely costly. An unchecked herbivore *should* grow until something limits it | **Steps 16 / 25** (predation, disease) |
 | C6 | 7 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes | **Step 30** |
@@ -2078,7 +2080,7 @@ decay), lineage refs will need care.
 
 ## Step 13 — Offspring and parenting
 
-**Status:** Not started
+**Status:** Done
 
 **Carried forward (see §1.4):** **A4** — the bounded per-entity `lifeEvents`
 list was deferred from Step 6 and is due here (this step's "life-history
@@ -2150,12 +2152,12 @@ events (observation roadmap).
 
 ### Acceptance criteria
 
-- [ ] Coherent parenting + dispersal with valid relationships
-- [ ] Life cycle observable end-to-end
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked (sparse relationships)
+- [x] Coherent parenting + dispersal with valid relationships
+- [x] Life cycle observable end-to-end
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked (sparse relationships)
 
 ### Explicitly out of scope
 
@@ -2163,7 +2165,114 @@ Genetics, social groups beyond parent-offspring, predators.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Closes Milestone C — the
+herbivore life cycle now runs end to end: born → parented → weaned →
+dispersed → mature → reproduce → age → die, every milestone readable.
+
+**What shipped.**
+
+- **Simulation:** new `ParentingSystem` (`interaction` phase, priority 20 —
+  after feeding and reproduction, so a guardian provisions from what it
+  actually has after eating). A newborn is bonded to the parent that carried it
+  (`guardianId`, part of the spawn definition); while the bond holds the system
+  provisions it, weans it at `weaningAge`, and clears the bond when it outgrows
+  the juvenile stage (dispersal) or when the guardian dies (orphaning). New
+  entity fields: `offspring` (sparse inverse of `parents`), `guardianId`,
+  `weaned`, and the bounded `lifeEvents` list. New shared helper
+  `systems/lifeEvents.js` (`recordLifeEvent`, hard cap `MAX_LIFE_EVENTS = 12`),
+  following the `death.js`/`killAnimal` precedent — several systems append life
+  events, so the append and the bound live in one place. New
+  `config.parenting`.
+- **Juvenile dependency is a real constraint, not a top-up.** An unweaned
+  juvenile does not graze at all: the decision system scores no `eat`/`seekFood`
+  for one and the feeding system refuses it, so it lives entirely on
+  provisioned energy (lossy transfer, and never below the guardian's own
+  reserve floor). That is what makes it *follow* the parent. First attempt had
+  provisioning as a top-up on a juvenile that also grazed; measured, it
+  delivered ~2.5 energy per juvenile — parenting existed but did nothing. Under
+  real dependency it delivers **~29.5 energy per juvenile**, a genuine parental
+  investment on top of the 37 already spent on mating and birth. An orphan is
+  weaned on the spot and may feed itself, so losing a parent is a setback, not
+  a death sentence.
+- **Following is a decision, not a parenting side-effect.** `followParent` is a
+  new action in `DecisionSystem`, so all action selection stays in one place
+  and `ParentingSystem` never competes for `action`/`moveIntent`. Its utility
+  is half the follow weight the moment the juvenile loses contact, ramping to
+  full weight at the edge of perception — so keeping up always outranks aimless
+  wandering but never outranks real hunger or thirst. (First shape scaled
+  linearly from zero and lost to `wander` below distance 3, so juveniles drifted
+  and were rarely in provisioning range; mean juvenile–guardian distance is now
+  **1.97** world units.) `PerceptionSystem` reports a `guardian` entry — a
+  juvenile can only follow a parent it can actually sense, and the check rides
+  along inside the neighbor loop perception already ran, so it costs nothing.
+- **⚠ C1 fixed:** founding animals are now spawned by rejection-sampling a
+  passable position (with a deterministic scan as fallback), so no animal ever
+  starts inside rock. Births already placed newborns on passable cells.
+  Externally submitted `entity.spawn` commands are still the caller's
+  responsibility — deliberately, since a command rejection would be a protocol
+  behaviour change.
+- **Protocol (v11 → v12):** two new events — `entity.provisioned`
+  (`{ entityId, guardianId, amount }`) and `entity.lifeEvent`
+  (`{ entityId, event, guardianId }`, carrying `weaned` | `dispersed` |
+  `orphaned`). Inspection gained `offspring`, `parentingState`
+  (`{ guardianId, dependent, weaned }`), and `lifeEvents`. Bulk snapshots are
+  unchanged: relationships stay inspection-only so per-tick payloads stay lean,
+  and `followParent` is already visible through the existing public `action`
+  field. A test asserts none of the new fields leak into snapshots, and that
+  inspection returns copies.
+- **Renderer:** inspector gained a Family block (parents, offspring, the
+  guardian a dependent is following with its nursing/weaned state) and the
+  life-event timeline; the grid marks the selected entity's guardian and
+  offspring with pink brackets; the event log formats both new event types and
+  groups `entity.provisioned` with the routine (per-tick) events behind the
+  existing "show routine" toggle. `SUPPORTED_PROTOCOL_VERSION` → 12.
+- **Persistence (save v10 → v11):** the four new fields round-trip
+  automatically; the new `ParentingSystem` descriptor changes the system
+  lineup, so v10 saves are invalidated (noted in the serializer). Fixtures
+  regenerated.
+
+**Tests:** `npm test` → **211 passing / 0 failing** (was 193; +18). New
+`test/parenting.test.js`: provisioning (transfer at a loss, out of range, the
+guardian's reserve floor, a full juvenile costing nothing, the event),
+weaning/dispersal/orphaning (including that an orphan may then graze), a
+follow sandbox (a drifted dependent chooses `followParent` and closes the gap;
+a nursing juvenile removes no biomass but the same animal does once weaned),
+life history (the cap drops oldest-first, death closes the log with its cause,
+a newborn and both parents record the birth), and protocol/demo integration
+(inspection-only projection, inspection returns copies, the demo raises
+juveniles born → provisioned → weaned → dispersed with every relationship ref
+still resolving, founders never on impassable terrain, determinism over 2000
+ticks).
+
+**Visible result verified.** Against a live server (protocol v12): juvenile
+#23, age 60, `action=followParent`, energy 72.5 (born at 60, provisioned up),
+`parentingState {guardianId: 15, dependent: true, weaned: false}`, 2.74 units
+from its guardian, with `eat`/`seekFood` scored 0 and `followParent` 0.447
+beating `wander` 0.35. And a complete lineage read from inspection: #9 born
+t843 → weaned t1094 → dispersed t1244 → birthed its own offspring t4171.
+
+**Performance.** large-5k **35.3 → 33.4 ms/tick** (within noise, same ~7.3k end
+population). Each animal is visited once and resolves its guardian by an O(1)
+id lookup — no scan, no reverse index — and only bonded juveniles do any work.
+Relationships are sparse arrays of a few ids; life histories are hard-capped.
+
+**Deviations from the step spec (minor, documented):** (1) **Protection was
+not implemented** — there is nothing to protect juveniles *from* until
+predators arrive, so it belongs with Step 16 rather than as an untestable
+placeholder here. (2) `lifeEvents` is appended by three systems through one
+shared helper rather than owned by a single system; the cap is a module
+constant, not a config knob, because `killAnimal` has no config access and the
+bound is structural rather than tuning. (3) Weaning uses an explicit
+`weaningAge` but dispersal keys off `lifeStage !== 'juvenile'` rather than a
+second age constant, so it can never drift from `aging.juvenileUntil`.
+
+**Follow-on notes for later steps:** an orphaned *unweaned* juvenile is
+currently rescued by being weaned early; once predators (Step 16) make
+orphaning common, that mercy is worth revisiting. `offspring` and `parents`
+stay valid only because entities are never removed — carcass decay (Step 18)
+still has to deal with that (§1.4 C2), and it now affects two fields, not one.
+Per-individual variation of parental investment is Step 14; mate choice and
+sexes are Step 22.
 
 ---
 
@@ -3787,7 +3896,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–12
+### Observed status after Steps 1–13
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
@@ -3795,15 +3904,15 @@ prediction:
 | Risk | Observed? | Evidence and outcome |
 | --- | --- | --- |
 | Population explosion | **Yes (twice)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. |
-| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~35 ms/tick — far under the 1 s budget. |
-| Unstable parameter tuning | **Yes** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. |
+| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~33 ms/tick — far under the 1 s budget. |
+| Unstable parameter tuning | **Yes** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. Step 13's follow utility needed reshaping twice before juveniles actually stayed with their parents. |
 | Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. |
-| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. |
+| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 11 protocol and 10 save-format bumps, each with fixtures regenerated and invalidation notes. |
+| Protocol/save incompatibility | **No (by discipline)** | 12 protocol and 11 save-format bumps, each with fixtures regenerated and invalidation notes. |
 | Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
-| AI-generated duplication | **No (actively countered)** | Shared `killAnimal` helper (Step 10) and shared `isReproductivelyReady` predicate (Step 12) extracted instead of duplicating. |
+| AI-generated duplication | **No (actively countered)** | Shared `killAnimal` helper (Step 10), shared `isReproductivelyReady` predicate (Step 12), and shared `recordLifeEvent` helper (Step 13) extracted instead of duplicating. Step 13 also put `followParent` in the decision system rather than building a second action-selection path. |
 | Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). |
 | Renderer fixtures drifting | **No** | Regenerated on every protocol change. |
 

@@ -85,6 +85,20 @@ export const defaultSimulationConfig = Object.freeze({
     cooldownTicks: 1800, // ticks before an animal may mate again
     birthOffset: 1.0, // how far behind the parent the newborn appears
   }),
+  // Parental care (see systems/ParentingSystem.js). A newborn depends on the
+  // parent that carried it: it is provisioned with that parent's energy while
+  // it stays close, is weaned at `weaningAge`, and disperses when it outgrows
+  // the juvenile stage (`aging.juvenileUntil`, so the two never drift apart).
+  // Care is a real cost to the parent — the transfer is lossy and the parent
+  // stops giving at its own reserve floor.
+  parenting: Object.freeze({
+    weaningAge: 250, // ticks; provisioning ends here (well before independence)
+    provisionRange: 2.0, // guardian must be this close to feed the juvenile
+    provisionRate: 0.5, // energy drawn from the guardian per tick
+    provisionEfficiency: 0.8, // fraction of it that reaches the juvenile
+    parentMinEnergyFraction: 0.35, // guardian never provisions below this
+    juvenileMaxEnergyFraction: 0.85, // juvenile stops taking above this
+  }),
   // Aging, growth, life stages (see systems/AgingSystem.js). Ages are in
   // ticks; the demo lifespan is deliberately compressed so growth, stage
   // transitions, and age death are observable (a realistic lifespan under the
@@ -136,6 +150,8 @@ export const defaultSimulationConfig = Object.freeze({
     restBias: 0.3, // rest attractiveness, scaled by fullness
     wanderBias: 0.35, // baseline exploration utility
     mateWeight: 0.55, // seeking a mate when reproductively ready
+    followWeight: 0.7, // a dependent juvenile keeping up with its guardian
+    followDistance: 1.5, // inside this distance there is nothing to close
     explorationRate: 0.05, // chance to wander regardless of utilities
     drinkRange: 1.5, // within this distance of water → can drink (matches hydration)
     minCommitTicks: 8,

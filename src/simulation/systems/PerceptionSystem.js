@@ -3,10 +3,11 @@
  *
  * Each tick, every living animal builds a bounded summary of what it can sense
  * within its species' perception radius: nearby animals (via the spatial
- * index), and the nearest food cell, water cell, and obstacle (via a local
- * scan of the cell neighborhood). Perception is strictly local — an animal
- * never reads global world state (invariant 17): neighbors come from
- * `SpatialGrid.queryRadius`, and cell features from a radius-bounded scan.
+ * index), its parent if it still depends on one (Step 13), and the nearest
+ * food cell, water cell, and obstacle (via a local scan of the cell
+ * neighborhood). Perception is strictly local — an animal never reads global
+ * world state (invariant 17): neighbors come from `SpatialGrid.queryRadius`,
+ * and cell features from a radius-bounded scan.
  *
  * The summaries live in `world.perception` (a transient Map keyed by entity
  * id, rebuilt every tick, never serialized). Nothing acts on perception yet —
@@ -53,6 +54,7 @@ export class PerceptionSystem extends SimulationSystem {
     // --- Animals: sub-quadratic via the spatial grid (already radius-filtered).
     let animalCount = 0;
     let nearestAnimal = null;
+    let guardian = null;
     for (const otherId of world.grid.queryRadius(entity.x, entity.y, radius)) {
       if (otherId === entity.id) continue;
       const other = world.entities.get(otherId);
@@ -62,6 +64,11 @@ export class PerceptionSystem extends SimulationSystem {
       if (nearestAnimal === null || distance < nearestAnimal.distance) {
         // speciesId lets behaviour distinguish conspecifics (e.g. mate seeking).
         nearestAnimal = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
+      }
+      // A dependent juvenile can only follow a parent it can actually sense
+      // (Step 13) — the bond gives no magic knowledge of where the parent is.
+      if (otherId === entity.guardianId) {
+        guardian = { id: otherId, distance, x: other.x, y: other.y };
       }
     }
 
@@ -99,6 +106,7 @@ export class PerceptionSystem extends SimulationSystem {
       radius,
       animalCount,
       nearestAnimal,
+      guardian,
       nearestFood: finalizeCell(nearestFood),
       nearestWater: finalizeCell(nearestWater),
       nearestObstacle: finalizeCell(nearestObstacle),
