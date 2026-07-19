@@ -1,10 +1,10 @@
 /**
  * Entity inspector panel. Shows every occupant of the selected cell, the
  * active occupant's protocol-visible fields, optional live inspection
- * detail (absolute energy, remembered places, traits, family links, and the
- * bounded life-history timeline from the entity.inspection endpoint), and
- * recent domain events involving the entity. Only fields the protocol actually
- * provides are shown — no invented biology.
+ * detail (absolute energy, injuries, remembered places, traits, family links,
+ * and the bounded life-history timeline from the entity.inspection endpoint),
+ * and recent domain events involving the entity. Only fields the protocol
+ * actually provides are shown — no invented biology.
  */
 import { resolveAppearance } from '../rendering/EntityAppearance.js';
 
@@ -30,6 +30,23 @@ function formatUtilities(utilityBreakdown, chosen, actionTarget) {
     .join('');
   const target = actionTarget ? ` <span class="dim">→ (${actionTarget.cellX},${actionTarget.cellY})</span>` : '';
   return `<h3>Decides <span class="dim">${escapeHtml(chosen ?? '')}</span>${target}</h3>${rows}`;
+}
+
+/**
+ * Render current injuries (protocol v16), worst first, with a severity bar and
+ * the derived impairment the simulation actually acts on.
+ */
+function formatInjuries(detail) {
+  const injuries = detail?.injuries;
+  if (!injuries?.length) return '';
+  const rows = injuries
+    .map((injury) => {
+      const bars = Math.max(1, Math.round(injury.severity * 5));
+      return `<div class="field"><span class="bad">${escapeHtml(injury.kind)}</span><span>${'▰'.repeat(bars)}${'▱'.repeat(Math.max(0, 5 - bars))} <span class="dim">${injury.severity.toFixed(2)} · since t${injury.tick}</span></span></div>`;
+    })
+    .join('');
+  const impairment = Math.round((detail.impairment ?? 0) * 100);
+  return `<h3>Injured <span class="warn">${impairment}% impaired</span></h3>${rows}`;
 }
 
 /** Renderer-owned marks for the memory kinds the protocol sends (v14). */
@@ -214,6 +231,7 @@ export class EntityInspector {
     const familyBlock = formatFamily(liveDetail);
     const traitsBlock = formatTraits(liveDetail);
     const memoriesBlock = formatMemories(liveDetail);
+    const injuriesBlock = formatInjuries(liveDetail);
 
     const events = active
       ? store
@@ -226,6 +244,7 @@ export class EntityInspector {
       <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
       ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
       ${fields}
+      ${injuriesBlock}
       ${memoriesBlock}
       ${traitsBlock}
       ${familyBlock}

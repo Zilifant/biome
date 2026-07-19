@@ -69,9 +69,12 @@ describe('terrain-aware movement', () => {
     }
   });
 
-  test('a single step never exceeds speed × the terrain modifier of the starting cell', () => {
+  test('a single step never exceeds speed × terrain modifier × the sprint multiplier', () => {
     const engine = createDemoSimulation({ seed: 42 });
-    // Check every animal's first step against its starting-cell modifier.
+    // The ceiling has grown since Step 5: a chase or an escape sprints
+    // (Step 16), and an injury (Step 17) only ever slows an animal down — so
+    // the sprint multiplier is the upper bound on any single step.
+    const { sprintMultiplier } = engine.config.locomotion;
     const before = [...engine.world.entities.all()].map((e) => ({
       id: e.id,
       x: e.x,
@@ -83,10 +86,15 @@ describe('terrain-aware movement', () => {
     for (const prior of before) {
       const entity = engine.world.entities.get(prior.id);
       const dist = Math.hypot(entity.x - prior.x, entity.y - prior.y);
-      assert.ok(
-        dist <= prior.speed * prior.modifier + 1e-9,
-        `animal ${prior.id} moved ${dist} > speed*modifier ${prior.speed * prior.modifier}`,
-      );
+      const ceiling = prior.speed * prior.modifier * sprintMultiplier;
+      assert.ok(dist <= ceiling + 1e-9, `animal ${prior.id} moved ${dist} > ceiling ${ceiling}`);
+      // And a walking animal still respects the un-sprinted bound.
+      if (entity.moveIntent && entity.moveIntent.sprint !== true) {
+        assert.ok(
+          dist <= prior.speed * prior.modifier + 1e-9,
+          `animal ${prior.id} walked ${dist} > speed*modifier ${prior.speed * prior.modifier}`,
+        );
+      }
     }
   });
 

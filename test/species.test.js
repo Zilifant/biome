@@ -26,9 +26,11 @@ describe('herbivore spawning', () => {
   test('demo animals are configured from the species definition', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const species = getSpecies('herbivore.grazer');
-    assert.equal(engine.entityCount, engine.config.demo.animalCount);
-    for (const entity of engine.world.entities.all()) {
-      assert.equal(entity.speciesId, 'herbivore.grazer');
+    const { animalCount, predatorCount } = engine.config.demo;
+    assert.equal(engine.entityCount, animalCount + predatorCount, 'both cohorts are founded');
+    const grazers = [...engine.world.entities.all()].filter((e) => e.speciesId === 'herbivore.grazer');
+    assert.equal(grazers.length, animalCount);
+    for (const entity of grazers) {
       assert.equal(entity.kind, 'animal');
       // Body mass follows the growth curve for the animal's (spread) initial
       // age (Step 11) toward its own adult size (Step 14), so it lies between

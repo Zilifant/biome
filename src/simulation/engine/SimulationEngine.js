@@ -24,6 +24,7 @@ import { EventTypes } from '../events/EventTypes.js';
 import { CommandProcessor } from '../commands/CommandProcessor.js';
 import { SeededRandom, deriveSeed } from '../random/SeededRandom.js';
 import { defaultSimulationConfig, mergeConfig } from '../config/defaultSimulationConfig.js';
+import { recordTombstone, lookupLineageList } from '../world/lineage.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -44,6 +45,7 @@ function publicEntityView(entity) {
     lifeStage: entity.lifeStage,
     action: entity.action,
     alive: entity.alive,
+    decayStage: entity.decayStage,
   };
 }
 
@@ -182,6 +184,9 @@ export class SimulationEngine {
       },
       onRemoved: (entity) => {
         this.world.removeFromGrid(entity);
+        // The one chokepoint every removal passes through, so nothing can leave
+        // the world unremembered (Step 18, §1.4 C2).
+        recordTombstone(this.world, entity, tick, this.config.lineage.maxTombstones);
         this.events.emit(EventTypes.ENTITY_REMOVED, tick, { entityId: entity.id });
       },
     });
@@ -260,8 +265,27 @@ export class SimulationEngine {
       health: entity.health,
       maxHealth: entity.maxHealth,
       speed: entity.speed,
+      stamina: entity.stamina,
+      maxStamina: entity.maxStamina,
       lowEnergy: entity.lowEnergy,
       edibleMass: entity.edibleMass,
+      // Predation state (Step 16) — inspection-only. `huntTargetId` is what
+      // makes a pursuit legible: an observer can see which animal a predator
+      // has committed to, not just that it is moving.
+      huntTargetId: entity.huntTargetId,
+      lastHuntTick: entity.lastHuntTick,
+      // Injuries (Step 17) — inspection-only, worst first, and already capped
+      // by the injury helper. `impairment` is the derived total the movement
+      // and feeding systems act on, exposed so the penalty is legible rather
+      // than something a viewer has to infer from a limping animal.
+      injuries: [...entity.injuries].sort((a, b) => b.severity - a.severity).map((i) => ({ ...i })),
+      impairment: entity.impairment,
+      // Carcass detail (Step 18). `decayStage` is also in bulk snapshots (the
+      // renderer ramps its glyph from it); the absolute mass is inspection-only,
+      // like every other absolute quantity.
+      decayStage: entity.decayStage,
+      diedTick: entity.diedTick,
+      deathCause: entity.deathCause,
       // Individual variation (Step 14) — inspection-only. `adultMass` is the
       // size this individual grows toward, so a juvenile's eventual build is
       // readable long before it gets there.
@@ -274,8 +298,16 @@ export class SimulationEngine {
       // Decision detail — inspection-only (bulk snapshots carry only `action`).
       actionTarget: entity.actionTarget,
       utilityBreakdown: entity.utilityBreakdown,
-      // Reproduction detail — inspection-only.
+      // Reproduction detail — inspection-only. Lineage ids are resolved rather
+      // than handed over raw (Step 18): now that carcasses are removed, a
+      // reference can point at something alive, something dead we still
+      // remember, or something the world has forgotten — and saying which is
+      // more honest than a bare id the caller cannot look up.
       parents: [...entity.parents],
+      lineage: {
+        parents: lookupLineageList(this.world, entity.parents),
+        offspring: lookupLineageList(this.world, entity.offspring),
+      },
       reproState: {
         gestating: entity.gestationUntil !== null,
         gestationUntil: entity.gestationUntil,

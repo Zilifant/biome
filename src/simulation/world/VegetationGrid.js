@@ -177,6 +177,25 @@ export class VegetationGrid {
     return removed;
   }
 
+  /**
+   * Add biomass to a cell, clamped to its carrying capacity (nutrient return
+   * from a decayed carcass, Step 18). The counterpart of `consumeAt`; a cell
+   * that cannot support more growth simply does not.
+   * @param {number} cellX @param {number} cellY @param {number} amount
+   * @returns {number} biomass actually added
+   */
+  addAt(cellX, cellY, amount) {
+    if (!this.#inBounds(cellX, cellY) || amount <= 0) return 0;
+    const i = this.#index(cellX, cellY);
+    const capacity = this.#capacityPerCell[i];
+    const added = Math.min(amount, Math.max(0, capacity - this.#biomass[i]));
+    if (added > 0) {
+      this.#biomass[i] += added;
+      this.#revision += 1;
+    }
+    return added;
+  }
+
   /** Total biomass, for tests and metrics. */
   totalBiomass() {
     let sum = 0;

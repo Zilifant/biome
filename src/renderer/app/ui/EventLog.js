@@ -29,6 +29,20 @@ function formatEvent(event) {
       return `* born #${event.entityId}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
     case 'entity.provisioned':
       return `^ fed #${event.entityId} by #${event.guardianId}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
+    case 'entity.hunted':
+      // The odds are shown because a hunt is not a coin flip: the number comes
+      // from the two animals' speed, stamina, and condition.
+      return `> hunt #${event.entityId} → #${event.targetId} ${event.captured ? 'caught' : 'missed'}${event.chance !== undefined ? ` (${Math.round(event.chance * 100)}%)` : ''}`;
+    case 'entity.killed':
+      return `X killed #${event.entityId} by #${event.predatorId}`;
+    case 'entity.escaped':
+      return `/ escaped #${event.entityId} from #${event.predatorId}`;
+    case 'entity.injured':
+      return `! injured #${event.entityId} (${event.injury}${event.severity !== undefined ? ` ${event.severity.toFixed(2)}` : ''})${event.sourceId != null ? ` by #${event.sourceId}` : ''}`;
+    case 'entity.recovered':
+      return `+ recovered #${event.entityId}${event.injury ? ` (${event.injury})` : ''}`;
+    case 'entity.decayed':
+      return `~ decayed #${event.entityId} → ${event.stageName ?? event.stage}${event.edibleMass !== undefined ? ` (${event.edibleMass.toFixed(1)}kg left)` : ''}`;
     case 'entity.lifeEvent':
       return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}`;
     default: {
@@ -47,6 +61,11 @@ function eventClass(event) {
   if (event.type === 'entity.removed') return 'event-removed';
   if (event.type === 'entity.moved') return 'event-moved';
   if (event.type === 'entity.fed' || event.type === 'entity.provisioned') return 'event-fed';
+  if (event.type === 'entity.killed' || event.type === 'entity.hunted') return 'event-died';
+  if (event.type === 'entity.escaped') return 'event-other';
+  if (event.type === 'entity.injured') return 'event-died';
+  if (event.type === 'entity.recovered') return 'event-created';
+  if (event.type === 'entity.decayed') return 'event-removed';
   if (event.type === 'entity.mated' || event.type === 'entity.born' || event.type === 'entity.lifeEvent') {
     return 'event-birth';
   }

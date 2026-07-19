@@ -85,6 +85,71 @@ export const defaultSimulationConfig = Object.freeze({
     cooldownTicks: 1800, // ticks before an animal may mate again
     birthOffset: 1.0, // how far behind the parent the newborn appears
   }),
+  // Carcasses and decay (see systems/CarcassSystem.js). A body is a resource on
+  // a clock: it passes through decay stages, its flesh is worth less at each
+  // one, and it leaves the world when it is either eaten clean or fully rotted.
+  // Whatever mass is left when it goes returns to the cell as biomass, closing
+  // the death→nutrient loop opened in Step 6.
+  carcass: Object.freeze({
+    decayTicks: 3000, // death to fully rotted (~2 in-world days)
+    nutrientReturn: 0.5, // biomass returned per unit of remaining edible mass
+    updateInterval: 5, // decay stages are coarse; no need to check every tick
+  }),
+  // Lineage across removal (see world/lineage.js). Carcasses are the first
+  // things ever removed from the world, so parent/offspring references can now
+  // point at something that is gone. The world remembers the recently dead so
+  // a family tree stays readable, and says "forgotten" rather than failing
+  // silently once a tombstone is evicted.
+  lineage: Object.freeze({
+    maxTombstones: 256,
+  }),
+  // Injury and healing (see injury/injuries.js and systems/InjurySystem.js).
+  // A failed capture usually leaves the prey wounded rather than untouched, and
+  // occasionally hurts the predator. A wound halves nothing on its own — it
+  // scales speed and feeding by its severity — but because the hunting system
+  // reads prey condition, being injured also makes an animal easier to catch.
+  // Healing is slow and paid for in energy, and an animal too hungry to spare
+  // it does not heal at all.
+  injury: Object.freeze({
+    healRatePerTick: 0.0015, // severity closed per tick (~230 ticks for a 0.35 wound)
+    healEnergyCost: 20, // energy per unit of severity closed
+    healEnergyFloor: 0.3, // below this energy fraction, no healing happens
+    healthPerSeverity: 60, // health regained per unit of severity closed
+    speedPenalty: 0.5, // speed lost at full impairment
+    feedPenalty: 0.5, // intake lost at full impairment
+    edibleMassFraction: 0.6,
+    // Applied by the hunting system when a capture attempt fails.
+    preyInjuryChance: 0.55,
+    preyInjurySeverity: 0.35,
+    predatorInjuryChance: 0.08, // scaled by how heavy the prey is
+    predatorInjurySeverity: 0.25,
+    healthDamage: 60, // health lost per unit of severity when the wound lands
+  }),
+  // Predation (see systems/HuntingSystem.js). A hunt is resolved in stages —
+  // detect, evaluate, stalk, chase, capture-or-escape, feed, recover — and the
+  // capture probability comes from the two animals' relative speed, remaining
+  // sprint, and the prey's condition, never from a flat roll. The floor and
+  // ceiling exist so nothing is ever untouchable or ever certain prey.
+  hunting: Object.freeze({
+    captureRange: 1.2, // distance at which the predator lunges
+    baseCaptureChance: 0.28, // chance between two evenly matched, fresh animals
+    minCaptureChance: 0.02,
+    maxCaptureChance: 0.9,
+    staminaWeight: 0.6, // how much the remaining sprint budget tilts the odds
+    vulnerabilityWeight: 0.8, // how much a wounded or half-grown prey tilts them
+    failedHuntEnergyCost: 4, // a miss is expensive; hunting is a gamble
+    captureStaminaCost: 12, // the lunge itself, win or lose
+    edibleMassFraction: 0.6, // carcass edible mass from a kill
+  }),
+  // Sprinting (see systems/MovementSystem.js and MetabolismSystem.js). Chases
+  // and escapes trade stamina for speed; stamina recovers whenever an animal is
+  // not sprinting, which is what makes a failed chase cost a predator time as
+  // well as energy.
+  locomotion: Object.freeze({
+    sprintMultiplier: 1.6, // speed while sprinting
+    sprintStaminaCost: 2.5, // stamina per sprinting tick (~40 ticks from full)
+    staminaRecoveryPerTick: 0.6, // regained per non-sprinting tick (~165 to refill)
+  }),
   // Bounded, decaying spatial memory (see memory/memories.js and
   // systems/MemorySystem.js). Animals remember where they ate, drank, searched
   // in vain, and met danger. Decay rates are per kind and deliberately unequal:
@@ -174,6 +239,12 @@ export const defaultSimulationConfig = Object.freeze({
     intakeRate: 0.6, // biomass units eaten per tick per animal
     energyPerBiomass: 10, // energy units per biomass unit
     efficiency: 0.6, // fraction of food energy assimilated (≤ 1)
+    // Carnivore feeding (Step 16): flesh is far denser than grass and is
+    // assimilated more efficiently, so a predator eats rarely and in bulk.
+    fleshIntakeRate: 1.5, // edible mass eaten per tick
+    energyPerMass: 12, // energy units per unit of edible mass
+    carnivoreEfficiency: 0.75,
+    carcassRange: 1.5, // how far a carnivore reaches for a carcass
   }),
   // Utility-based action selection (see systems/DecisionSystem.js). Weights
   // score candidate actions from hunger and perception; `explorationRate` is
@@ -189,6 +260,18 @@ export const defaultSimulationConfig = Object.freeze({
     mateWeight: 0.55, // seeking a mate when reproductively ready
     followWeight: 0.7, // a dependent juvenile keeping up with its guardian
     followDistance: 1.5, // inside this distance there is nothing to close
+    // Predation (Step 16). Fleeing outranks everything — a grazing animal that
+    // spots a predator stops grazing — and grows more urgent the closer the
+    // threat. Hunting is gated on real hunger and a usable sprint budget, so a
+    // fed or exhausted predator leaves prey alone.
+    fleeWeight: 2.0,
+    huntWeight: 1.4,
+    stalkDiscount: 0.8, // stalking is worth slightly less than committing
+    chaseRange: 4.0, // inside this, stalking becomes a sprint
+    minHungerToHunt: 0.25,
+    minHuntStamina: 15,
+    huntCooldownTicks: 60, // recovery pause after a capture attempt
+    carcassRange: 1.5, // how close a carnivore must be to eat (matches feeding)
     // Memory (Step 15) is a fallback for what the animal cannot see, so it is
     // weighted below the senses: a remembered patch may already be grazed out.
     recallWeight: 0.8, // remembered need vs. the same need in plain sight
@@ -205,8 +288,21 @@ export const defaultSimulationConfig = Object.freeze({
   // biology moved to species definitions (config/species/*); no per-animal
   // tuning lives here anymore.
   demo: Object.freeze({
-    animalCount: 8,
+    animalCount: 120,
     speciesId: 'herbivore.grazer',
+    // Predators (Step 16, re-tuned in Step 18). These counts are measured, not
+    // guessed. Step 18 changed the economics fundamentally: before carcasses
+    // decayed, the ever-growing pile of bodies was a free larder that kept
+    // predators fed without hunting, and the old 60/4 balance quietly depended
+    // on it. With decay on, predators must actually hunt, and at those small
+    // numbers the system is bistable — 1–3 predators starve out, 4 wipe the
+    // grazers out. Scaling both cohorts up is what restores a real cycle:
+    // measured over 15k ticks on five seeds, 120/8 leaves both species alive in
+    // all five (roughly 74–255 grazers against 4–13 predators). Nothing
+    // enforces that balance — it emerges from encounter rates, capture odds,
+    // carcass availability, and lifespan.
+    predatorCount: 8,
+    predatorSpeciesId: 'predator.stalker',
   }),
 });
 

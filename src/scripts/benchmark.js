@@ -22,13 +22,15 @@ import { captureSimulationState } from '../simulation/persistence/SimulationSeri
  * per-cell field, so world size drives its cost). The demo lifecycle starves
  * animals over time, so we record start and end entity counts and measure the
  * whole run's tick cost.
- * @type {Array<{name: string, world: object, animalCount: number}>}
+ * Predators scale with the herd (Step 16) at roughly the demo's ratio, so the
+ * benchmark exercises a mixed population rather than a herbivore-only world.
+ * @type {Array<{name: string, world: object, animalCount: number, predatorCount: number}>}
  */
 const SCENARIOS = [
-  { name: 'demo-default', world: { width: 128, height: 128 }, animalCount: 8 },
-  { name: 'small-100', world: { width: 256, height: 256 }, animalCount: 100 },
-  { name: 'medium-1k', world: { width: 512, height: 512 }, animalCount: 1000 },
-  { name: 'large-5k', world: { width: 1024, height: 1024 }, animalCount: 5000 },
+  { name: 'demo-default', world: { width: 128, height: 128 }, animalCount: 120, predatorCount: 8 },
+  { name: 'small-100', world: { width: 256, height: 256 }, animalCount: 100, predatorCount: 7 },
+  { name: 'medium-1k', world: { width: 512, height: 512 }, animalCount: 1000, predatorCount: 67 },
+  { name: 'large-5k', world: { width: 1024, height: 1024 }, animalCount: 5000, predatorCount: 333 },
 ];
 
 function parseArgs(argv) {
@@ -50,12 +52,15 @@ function parseArgs(argv) {
 }
 
 /**
- * @param {{name: string, world: object, animalCount: number}} scenario
+ * @param {{name: string, world: object, animalCount: number, predatorCount: number}} scenario
  * @param {number} seed
  * @param {number} ticks
  */
 function runScenario(scenario, seed, ticks) {
-  const config = { world: scenario.world, demo: { animalCount: scenario.animalCount } };
+  const config = {
+    world: scenario.world,
+    demo: { animalCount: scenario.animalCount, predatorCount: scenario.predatorCount },
+  };
   const engine = createDemoSimulation({ seed, config });
   const startEntities = engine.entityCount;
 

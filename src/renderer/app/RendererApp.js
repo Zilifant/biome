@@ -90,6 +90,7 @@ export class RendererApp {
           camera: this.#camera,
           familyIds: this.#familyIds(),
           memories: this.#selectedMemories(),
+          huntTargetId: this.#huntTargetId(),
         });
         this.#ui.statusPanel.update(this.#store, this.#camera);
       }
@@ -260,6 +261,17 @@ export class RendererApp {
     } catch {
       // Inspection detail is optional enrichment; the store view stands alone.
     }
+  }
+
+  /**
+   * The prey the selected predator is pursuing (protocol v15), so a chase can
+   * be followed on the grid rather than inferred from two moving glyphs.
+   * @returns {number | null}
+   */
+  #huntTargetId() {
+    const detail = this.#inspectionDetail?.entity;
+    if (!detail || detail.id !== this.#store.selection?.activeId) return null;
+    return detail.huntTargetId ?? null;
   }
 
   /**

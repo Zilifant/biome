@@ -9,6 +9,7 @@ import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { FeedingSystem } from '../src/simulation/systems/FeedingSystem.js';
 import { AgingSystem } from '../src/simulation/systems/AgingSystem.js';
 import { recordLifeEvent, MAX_LIFE_EVENTS, LifeEventTypes } from '../src/simulation/systems/lifeEvents.js';
+import { lookupLineage, LineageStatus } from '../src/simulation/world/lineage.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
@@ -308,13 +309,34 @@ describe('parenting: protocol, persistence, and the demo', () => {
     assert.ok(seen.weaned > 0, 'juveniles were weaned');
     assert.ok(seen.dispersed > 0, 'juveniles dispersed at maturity');
 
-    // Every relationship reference still resolves (entities are never removed).
+    // Relationship references (§1.4 C2). Since Step 18 carcasses are removed,
+    // so a parent id may point at something gone — but the *reported* status
+    // must always be accurate. Asserting "everything resolves" here would pass
+    // vacuously once the population turns over, so assert the resolution
+    // instead: never claim alive for something missing, or forgotten for
+    // something present.
     for (const entity of engine.world.entities.all()) {
       for (const id of [...entity.parents, ...entity.offspring]) {
-        assert.ok(engine.world.entities.get(id), `dangling relationship ref ${id}`);
+        const resolved = lookupLineage(engine.world, id);
+        const present = engine.world.entities.get(id);
+        if (present) {
+          assert.equal(
+            resolved.status,
+            present.alive ? LineageStatus.ALIVE : LineageStatus.CARCASS,
+            `#${id} is in the world but reported ${resolved.status}`,
+          );
+        } else {
+          assert.ok(
+            resolved.status === LineageStatus.DEAD || resolved.status === LineageStatus.FORGOTTEN,
+            `#${id} is gone but reported ${resolved.status}`,
+          );
+        }
       }
-      if (entity.guardianId !== null) {
-        assert.ok(engine.world.entities.get(entity.guardianId), 'dangling guardian ref');
+      // A guardian bond is different: the parenting system clears it the tick
+      // after the guardian dies, so a *live* bond must point at a live animal.
+      if (entity.guardianId !== null && entity.alive) {
+        const guardian = engine.world.entities.get(entity.guardianId);
+        assert.ok(guardian && guardian.alive, `#${entity.id} still bonded to a missing guardian`);
       }
       assert.ok(entity.lifeEvents.length <= MAX_LIFE_EVENTS, 'life history stays bounded');
     }

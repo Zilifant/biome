@@ -58,10 +58,26 @@ export const KIND_APPEARANCE = Object.freeze({
  */
 export const SPECIES_APPEARANCE = Object.freeze({
   'herbivore.grazer': Object.freeze({ glyph: 'g', colorToken: 'yellow', priority: 50, label: 'grazer' }),
+  // Predators outrank prey in a shared cell, so a hunt reads as the hunter's
+  // glyph rather than disappearing behind the animal it is standing on.
+  'predator.stalker': Object.freeze({ glyph: 'S', colorToken: 'red', priority: 60, label: 'stalker' }),
 });
 
-/** Dead animals render as carcasses. */
-export const CARCASS_APPEARANCE = Object.freeze({ glyph: '%', colorToken: 'orange', priority: 40, label: 'carcass' });
+/**
+ * Dead animals render as carcasses, and a carcass visibly rots (protocol v17).
+ * The ramp is indexed by the `decayStage` the snapshot carries: a fresh body is
+ * a bold `%`, and by the time it is bare remains it is a faint `.` — so a
+ * scavenger's route between fading marks reads at a glance.
+ */
+export const CARCASS_DECAY_APPEARANCE = Object.freeze([
+  Object.freeze({ glyph: '%', colorToken: 'orange', priority: 40, label: 'carcass (fresh)' }),
+  Object.freeze({ glyph: '%', colorToken: 'red', priority: 40, label: 'carcass (ripe)' }),
+  Object.freeze({ glyph: ';', colorToken: 'comment', priority: 40, label: 'carcass (dry)' }),
+  Object.freeze({ glyph: '.', colorToken: 'comment', priority: 40, label: 'remains' }),
+]);
+
+/** Fresh carcass; the default when no decay stage is known. */
+export const CARCASS_APPEARANCE = CARCASS_DECAY_APPEARANCE[0];
 
 /** Anything the renderer does not recognize. */
 export const UNKNOWN_APPEARANCE = Object.freeze({ glyph: '?', colorToken: 'purple', priority: 30, label: 'unknown' });
@@ -137,23 +153,52 @@ export function resolveMemoryAppearance(kind) {
   return MEMORY_APPEARANCE[kind] ?? null;
 }
 
+/**
+ * Health fraction below which a living animal is drawn in a hurt tone. Injuries
+ * themselves are inspection-only (protocol v16), but `healthFraction` has been
+ * in every bulk snapshot since Step 4 — so the grid can show that an animal is
+ * in poor condition without the protocol carrying anything new.
+ */
+export const HURT_HEALTH_FRACTION = 0.7;
+
+/** Renderer-owned colour for a living animal that is visibly hurt. */
+export const HURT_COLOR_TOKEN = 'orange';
+
+/**
+ * Colour token for an entity as drawn, taking condition into account. Kept
+ * separate from `resolveAppearance` so the glyph (a species fact) and the tint
+ * (a moment-to-moment condition) stay independently cacheable.
+ * @param {{alive?: boolean, healthFraction?: number}} entity
+ * @param {{colorToken: string}} appearance
+ * @returns {string}
+ */
+export function resolveColorToken(entity, appearance) {
+  const hurt =
+    entity?.alive !== false &&
+    typeof entity?.healthFraction === 'number' &&
+    entity.healthFraction < HURT_HEALTH_FRACTION;
+  return hurt ? HURT_COLOR_TOKEN : appearance.colorToken;
+}
+
 const cache = new Map();
 
 /**
  * Deterministic appearance lookup for an entity. Cached per
- * (kind, speciesId, alive) — repeated lookups return the same object.
- * @param {{kind?: string, speciesId?: string, alive?: boolean}} entity
+ * (kind, speciesId, alive, decayStage) — repeated lookups return the same
+ * object. `decayStage` only varies for carcasses, so the cache stays small.
+ * @param {{kind?: string, speciesId?: string, alive?: boolean, decayStage?: number}} entity
  * @returns {Appearance}
  */
 export function resolveAppearance(entity) {
   const kind = entity?.kind ?? 'unknown';
   const speciesId = entity?.speciesId ?? '';
   const alive = entity?.alive !== false;
-  const key = `${kind}|${speciesId}|${alive}`;
+  const decayStage = kind === 'carcass' ? (entity?.decayStage ?? 0) : 0;
+  const key = `${kind}|${speciesId}|${alive}|${decayStage}`;
   let appearance = cache.get(key);
   if (!appearance) {
     if (kind === 'carcass' || (!alive && kind === 'animal')) {
-      appearance = CARCASS_APPEARANCE;
+      appearance = CARCASS_DECAY_APPEARANCE[decayStage] ?? CARCASS_DECAY_APPEARANCE.at(-1);
     } else {
       appearance = SPECIES_APPEARANCE[speciesId] ?? KIND_APPEARANCE[kind] ?? UNKNOWN_APPEARANCE;
     }

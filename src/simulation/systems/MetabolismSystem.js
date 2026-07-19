@@ -9,8 +9,9 @@
  * already recorded this tick's travelled distance on `entity.lastMoveDistance`
  * (which this system consumes and resets — robust to staggered movement).
  *
- * Ownership: writes `energy`, `lowEnergy`, and — on death — `alive`, `kind`,
- * `edibleMass`. Reads the `metabolicEfficiency` trait. No randomness
+ * Ownership: writes `energy`, `lowEnergy`, recovers `stamina` (Step 16), and —
+ * on death — `alive`, `kind`, `edibleMass`. Reads the `metabolicEfficiency`
+ * trait. No randomness
  * (deterministic arithmetic); no global scans.
  */
 import { SimulationSystem } from './SimulationSystem.js';
@@ -25,6 +26,7 @@ export class MetabolismSystem extends SimulationSystem {
    * @param {number} [options.massScalingExponent]
    * @param {number} [options.lowEnergyFraction]
    * @param {number} [options.edibleMassFraction]
+   * @param {number} [options.staminaRecoveryPerTick] sprint budget regained when not sprinting
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -34,6 +36,7 @@ export class MetabolismSystem extends SimulationSystem {
     massScalingExponent = 0.75,
     lowEnergyFraction = 0.25,
     edibleMassFraction = 0.6,
+    staminaRecoveryPerTick = 0.6,
     updateInterval = 1,
   } = {}) {
     super({ id: 'metabolism', phase: 'physiology', priority: 0, updateInterval });
@@ -43,6 +46,7 @@ export class MetabolismSystem extends SimulationSystem {
     this.massScalingExponent = massScalingExponent;
     this.lowEnergyFraction = lowEnergyFraction;
     this.edibleMassFraction = edibleMassFraction;
+    this.staminaRecoveryPerTick = staminaRecoveryPerTick;
   }
 
   update(world, context) {
@@ -55,6 +59,14 @@ export class MetabolismSystem extends SimulationSystem {
       const basalCost = this.basalRate * massFactor;
       const moveCost = this.moveCostFactor * entity.lastMoveDistance * massFactor;
       entity.lastMoveDistance = 0; // consumed; movement re-records it next tick
+
+      // Stamina recovers whenever the animal did not sprint this tick — the
+      // "recover" stage of the hunt pipeline, and what makes a failed chase
+      // cost a predator time as well as energy. The movement system is the
+      // only thing that spends it.
+      if (entity.stamina < entity.maxStamina) {
+        entity.stamina = Math.min(entity.maxStamina, entity.stamina + this.staminaRecoveryPerTick);
+      }
 
       entity.energy = Math.max(0, entity.energy - basalCost - moveCost);
       entity.lowEnergy = entity.energy < this.lowEnergyFraction * entity.maxEnergy;

@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–15 are done; Step 16 is next.
+protocol for continuing the work. Steps 1–18 are done; Step 19 is next.
 
 ## Install and run
 
@@ -63,8 +63,8 @@ Headless Simulation Engine           src/simulation
    ├── World State      (entities, terrain, vegetation)
    ├── Spatial Grid     (uniform grid for local queries)
    ├── Systems          (vegetation, perception, memory, decision, movement,
-   │                     feeding, reproduction, parenting, metabolism,
-   │                     hydration, aging)
+   │                     feeding, hunting, reproduction, parenting,
+   │                     metabolism, hydration, injury, carcass, aging)
    ├── Traits           (per-individual variation, fixed at birth)
    ├── Memory           (bounded, decaying places each animal has learned)
    ├── Deterministic Randomness (seeded named streams)
@@ -155,7 +155,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `14`) and is
+Everything a client sees carries `protocolVersion` (currently `17`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -169,9 +169,10 @@ built by `src/protocol/`:
   action, alive) — internal records never leak, and every snapshot is freshly
   cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
-  `adultMass`, its bounded `memories`, and the family/life-history block
-  (parents, offspring, parenting state, bounded `lifeEvents`) are
-  inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
+  `adultMass`, its bounded `memories`, its `injuries` and derived
+  `impairment`, its `stamina` and hunt target, its carcass detail, and the
+  family/life-history block (resolved `lineage`, parenting state, bounded
+  `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
   encoded. Full snapshots also embed a **vegetation** block (quantized biomass
@@ -183,10 +184,15 @@ built by `src/protocol/`:
   they carry vegetation as a sparse `{ revision, changes: [[cellIndex,
   level]] }` list, gated by the revision so unchanged ticks cost nothing.
 - **Events** (`events.js`): `entity.created`, `entity.moved`,
-  `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`),
+  `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`,
+  `predation`, `injury`),
   `entity.removed`, `entity.fed` (`{ entityId, cell, amount }`),
   `entity.mated` (`{ entityId, partnerId }`), `entity.born`
-  (`{ entityId, parents }`), `entity.provisioned`
+  (`{ entityId, parents }`), `entity.hunted`
+  (`{ entityId, targetId, chance, captured }` — the odds are reported, not
+  hidden), `entity.killed`, `entity.escaped`, `entity.injured`
+  (`{ entityId, injury, severity, sourceId }`), `entity.recovered`,
+  `entity.provisioned`
   (`{ entityId, guardianId, amount }`), and `entity.lifeEvent`
   (`{ entityId, event, guardianId }` — `weaned` | `dispersed` | `orphaned`)
   — facts with `{ seq, tick }`, never presentation instructions. A dead animal (whatever the cause) becomes
@@ -201,7 +207,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `13`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `16`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
@@ -242,35 +248,41 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 248 tests.
+ASCII renderer, committed fixtures, and 312 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs) and a cell-level vegetation biomass field that grows
 logistically toward a terrain-derived capacity.
 
-**The herbivore.** Animals are one configured species (`config/species/*` —
-biology only, never glyphs or colors; looked up by id, never branched on by
-name), but no two are identical: each carries a set of trait multipliers
+**Two species.** Animals come from configured species definitions
+(`config/species/*` — biology only, never glyphs or colors; looked up by id,
+never branched on by name), but no two are identical: each carries a set of trait multipliers
 (`traits/traits.js`) sampled around the species mean when it comes into
 existence and fixed for life — size, speed, metabolic efficiency, boldness,
 caution, exploration, and reproductive investment. Every one is a trade-off
 rather than an upgrade, and every one changes something real: a bold animal
 covers more ground and burns more energy; a heavily investing parent raises
 better-stocked young at a higher price per birth. Step 20 makes these
-heritable. Their full loop is implemented:
+heritable. The world holds a **grazer** and the **stalker** that hunts it; the
+predator/prey relation is data on the species (`preySpeciesIds`), read in both
+directions, so no system ever branches on a species name. Their full loop is
+implemented:
 
 | System | Phase | What it does |
 | --- | --- | --- |
 | `VegetationSystem` | environment | Logistic regrowth toward per-cell capacity (staggered) |
 | `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
 | `MemorySystem` | perception | Fades each remembered place on its own schedule and forgets it once too faint (staggered) |
-| `DecisionSystem` | decision | Scores `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, and temperament; sets the movement intent |
-| `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water, refuses impassable cells |
-| `FeedingSystem` | interaction | Removes biomass from the cell and assimilates it to energy, remembering where it ate (or found nothing); deterministic contention among co-located eaters |
+| `HuntingSystem` | interaction | Resolves a capture attempt from the two animals' relative speed, stamina, and condition; a kill leaves a carcass, a miss costs energy and teaches the prey the place is dangerous |
+| `DecisionSystem` | decision | Scores `flee` / `chase` / `stalk` / `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, temperament, and threat; sets the movement intent |
+| `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water and by injury, refuses impassable cells; sprints for chases and escapes, spending stamina |
+| `FeedingSystem` | interaction | Converts what the species' diet allows into energy — grass from the cell for herbivores, edible mass from a carcass for carnivores — remembering where it ate (or found nothing) |
 | `ReproductionSystem` | interaction | Pairs well-fed adults in range, gestates, births a juvenile carrying both parent ids |
 | `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
-| `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost, divided by individual efficiency; starvation → carcass |
+| `MetabolismSystem` | physiology | Mass-scaled basal + movement energy cost, divided by individual efficiency; recovers stamina when not sprinting; starvation → carcass |
 | `HydrationSystem` | physiology | Dehydration, drinking at water (remembering where), health damage → carcass |
+| `InjurySystem` | physiology | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass |
+| `CarcassSystem` | physiology | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass |
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
 
 The result is a **multi-generational, self-sustaining population** with a
@@ -289,6 +301,44 @@ transfer loss, and never below the guardian's own reserve floor), which is why
 it follows the parent it can perceive. An orphan is weaned on the spot and
 must fend for itself.
 
+**A hunt is a pipeline, never one opaque roll.** A stalker detects prey
+through the spatial grid, evaluates whether it is hungry and rested enough to
+bother, closes at a walk (`stalk`) to save its sprint budget, commits to a
+sprint (`chase`) once close — or the moment its quarry bolts, since a walking
+predator can never catch a running grazer — and inside striking range makes one
+attempt whose probability comes from the two animals' relative speed, remaining
+stamina, and the prey's condition. A kill leaves a carcass the predator feeds
+on; a miss costs it real energy and teaches the prey that this place is
+dangerous. Prey drop everything and run the moment a predator comes into view.
+Stamina is what actually decides most chases: both sides trade it for speed and
+recover it only at rest.
+
+The demo holds both species in a genuine oscillation rather than a fixed
+balance — measured over 20k ticks on five seeds, roughly 24–111 grazers against
+1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
+from encounter rates, capture odds, and lifespan, and it is a knife edge (see
+`config.demo` for the measured sweep behind the founding counts).
+
+**Death feeds the world.** A body is a resource on a clock: it passes through
+decay stages, its flesh is worth progressively less at each one, and it leaves
+the world when it is either eaten clean or fully rotted — returning whatever is
+left to the cell as biomass, so the animal that grazed there ends up feeding
+the grass. Carcasses are the first things ever *removed* from the world, which
+means a parent or offspring reference can now point at something that is gone.
+Rather than let those silently dangle, the world keeps a bounded record of the
+recently dead: a lineage reference resolves to `alive`, `carcass`, `dead` (gone,
+but we remember who it was and what killed it), or `forgotten` (evicted from
+that record). `forgotten` is a stated limit, not a failed lookup.
+
+**Surviving is not the same as being unhurt.** A prey animal that escapes a
+lunge usually carries something away from it, and a big enough grazer can hurt
+its attacker on the way out. A wound scales an animal's speed and its feeding
+rate by how bad it is, and — because the hunting system reads condition — makes
+it easier to catch next time. Wounds close slowly and are paid for in energy,
+so an animal too hungry to spare it does not heal at all: being injured and
+being starved compound each other. Enough damage kills, through the same
+health-exhaustion path as thirst.
+
 Animals also **learn where things are**. Each one keeps at most eight
 remembered places — where it ate, where it drank, where it searched and found
 nothing — and each fades on its own schedule, water slowest (a lake does not
@@ -302,13 +352,12 @@ writes one until predators arrive in Step 16.
 
 ## Not built yet
 
-Predators and escape, injury and healing, carcass decay and scavenging,
-weather and seasons, genetics and inheritance, evolutionary metrics, mate
+Weather and seasons, genetics and inheritance, evolutionary metrics, mate
 choice, social groups, territory, disease, migration, disturbances, ecosystem
 engineering, multiple species, and profile-driven optimization toward tens of
 thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 16–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 19–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

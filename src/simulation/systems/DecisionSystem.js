@@ -6,6 +6,9 @@
  * the random wander that used to live in the movement system: decisions choose
  * WHAT to do and set the movement intent; the movement system merely executes
  * it. Actions:
+ *   - flee         — a predator is in sight; sprint away (outranks everything)
+ *   - stalk        — prey sighted but out of range; close at a walk
+ *   - chase        — prey within range; sprint (the hunting system resolves it)
  *   - eat          — standing on a food cell (consumption itself is Step 9)
  *   - seekFood     — food perceived nearby; head toward it (subsumes "approach")
  *   - recallFood   — nothing in sight, but it remembers eating somewhere
@@ -23,7 +26,9 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { isReproductivelyReady } from './ReproductionSystem.js';
+import { SPECIES } from '../config/species/index.js';
 import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js';
+
 
 const TWO_PI = Math.PI * 2;
 
@@ -49,6 +54,13 @@ export class DecisionSystem extends SimulationSystem {
    * @param {number} [options.recallRange] furthest a remembered place is worth walking to
    * @param {number} [options.recallDistanceWeight] how sharply distance discounts a memory
    * @param {number} [options.dangerRadius] how wide a berth to give remembered danger
+   * @param {number} [options.fleeWeight] urgency of escaping a perceived predator
+   * @param {number} [options.huntWeight] how strongly hunger drives a predator to hunt
+   * @param {number} [options.stalkDiscount] stalking's utility relative to chasing
+   * @param {number} [options.chaseRange] distance at which stalking becomes a sprint
+   * @param {number} [options.minHungerToHunt] a fed predator does not bother
+   * @param {number} [options.minHuntStamina] nor does an exhausted one
+   * @param {number} [options.huntCooldownTicks] recovery pause after an attempt
    * @param {number} [options.minCommitTicks]
    * @param {number} [options.commitTickSpan]
    * @param {number} [options.wanderJitter]
@@ -67,6 +79,14 @@ export class DecisionSystem extends SimulationSystem {
     mateWeight = 0.55,
     followWeight = 0.7,
     followDistance = 1.5,
+    fleeWeight = 2.0,
+    huntWeight = 1.4,
+    stalkDiscount = 0.8,
+    chaseRange = 4.0,
+    minHungerToHunt = 0.25,
+    minHuntStamina = 15,
+    huntCooldownTicks = 60,
+    carcassRange = 1.5,
     recallWeight = 0.8,
     recallRange = 60,
     recallDistanceWeight = 0.15,
@@ -90,6 +110,14 @@ export class DecisionSystem extends SimulationSystem {
     this.mateWeight = mateWeight;
     this.followWeight = followWeight;
     this.followDistance = followDistance;
+    this.fleeWeight = fleeWeight;
+    this.huntWeight = huntWeight;
+    this.stalkDiscount = stalkDiscount;
+    this.chaseRange = chaseRange;
+    this.minHungerToHunt = minHungerToHunt;
+    this.minHuntStamina = minHuntStamina;
+    this.huntCooldownTicks = huntCooldownTicks;
+    this.carcassRange = carcassRange;
     this.recallWeight = recallWeight;
     this.recallRange = recallRange;
     this.recallDistanceWeight = recallDistanceWeight;
@@ -114,8 +142,15 @@ export class DecisionSystem extends SimulationSystem {
       const hunger = clamp01(1 - entity.energy / entity.maxEnergy);
       const thirst = clamp01(1 - entity.hydration / entity.maxHydration);
       const { cellX, cellY } = world.cellOf(entity.x, entity.y);
-      const onFood = world.vegetation.levelAt(cellX, cellY) >= this.foodMinLevel;
-      const nearestFood = perceived?.nearestFood ?? null;
+      // What counts as food depends on the species' diet (Step 16): grass under
+      // your feet if you graze, a carcass within reach if you do not. Both then
+      // flow through the same `eat` / `seekFood` actions — eating is eating.
+      const carnivore = SPECIES[entity.speciesId]?.diet === 'carnivore';
+      const carcass = perceived?.nearestCarcass ?? null;
+      const onFood = carnivore
+        ? carcass !== null && carcass.distance <= this.carcassRange
+        : world.vegetation.levelAt(cellX, cellY) >= this.foodMinLevel;
+      const nearestFood = carnivore ? carcass : (perceived?.nearestFood ?? null);
       const nearestWater = perceived?.nearestWater ?? null;
       const atWater = nearestWater !== null && nearestWater.distance <= this.drinkRange;
       // A perceived conspecific is a mate candidate when this animal is ready;
@@ -147,6 +182,29 @@ export class DecisionSystem extends SimulationSystem {
       // Somewhere it remembers as dangerous is no place to settle down.
       const nearDanger = this.dangerRadius > 0 && isNearDanger(entity, entity.x, entity.y, this.dangerRadius);
 
+      // Predation (Step 16). Fleeing overrides everything — a grazing animal
+      // that notices a predator stops grazing — and gets more urgent the
+      // closer the threat is. Hunting is gated on the predator actually being
+      // hungry, and on having the stamina to make the attempt worthwhile.
+      // A predator anywhere in sight is alarming; how close it is decides how
+      // alarming. Half weight at the edge of perception rising to full weight
+      // at contact — the same shape as following a parent, and for the same
+      // reason: a threat that scored zero at the boundary would let a hungry
+      // animal keep grazing while a predator walked up to it.
+      const threat = perceived?.nearestThreat ?? null;
+      const fleeUrgency = threat
+        ? this.fleeWeight * (0.5 + 0.5 * (1 - clamp01(threat.distance / (perceived.radius || 1))))
+        : 0;
+      const prey = perceived?.nearestPrey ?? null;
+      const recovering = entity.lastHuntTick !== null && context.tick - entity.lastHuntTick < this.huntCooldownTicks;
+      const willHunt =
+        prey !== null && !recovering && hunger >= this.minHungerToHunt && entity.stamina > this.minHuntStamina;
+      // Two stages, both visible in `action`: close quietly, then commit. The
+      // moment the prey bolts, stalking is pointless — a walking predator can
+      // never catch a sprinting grazer — so a fleeing target forces the sprint
+      // regardless of range.
+      const chasing = willHunt && (prey.distance <= this.chaseRange || prey.fleeing === true);
+
       // Individual variation (Step 14): a cautious animal acts on hunger and
       // thirst sooner (it keeps a bigger reserve), while a bold one prefers
       // covering ground to sitting still — both real trade-offs, since roaming
@@ -156,6 +214,9 @@ export class DecisionSystem extends SimulationSystem {
       const thirstDrive = this.thirstWeight * thirst * caution;
 
       const utilities = {
+        flee: fleeUrgency,
+        chase: chasing ? this.huntWeight * hunger : 0,
+        stalk: willHunt && !chasing ? this.huntWeight * hunger * this.stalkDiscount : 0,
         drink: atWater ? this.drinkBias + thirstDrive : 0,
         seekWater: nearestWater && !atWater ? thirstDrive : 0,
         eat: onFood && !nursing ? this.eatBias + hungerDrive : 0,
@@ -174,9 +235,19 @@ export class DecisionSystem extends SimulationSystem {
 
       entity.action = action;
       entity.utilityBreakdown = utilities;
+      // The prey this predator has committed to — the hunting system reads it
+      // to resolve capture attempts, and only ever reads it.
+      entity.huntTargetId = action === 'chase' || action === 'stalk' ? prey.id : null;
       // seekMate and followParent steer toward another animal's position
       // rather than a cell.
-      const followed = action === 'seekMate' ? mateCandidate : action === 'followParent' ? guardian : null;
+      const followed =
+        action === 'seekMate'
+          ? mateCandidate
+          : action === 'followParent'
+            ? guardian
+            : action === 'chase' || action === 'stalk'
+              ? prey
+              : null;
       const target = followed
         ? { cellX: Math.floor(followed.x), cellY: Math.floor(followed.y), x: followed.x, y: followed.y }
         : action === 'seekFood'
@@ -189,7 +260,7 @@ export class DecisionSystem extends SimulationSystem {
                 ? recalledWater.memory
                 : null;
       entity.actionTarget = target ? { cellX: target.cellX, cellY: target.cellY } : null;
-      entity.moveIntent = this.#intentFor(action, entity, target, roll, candidateHeading);
+      entity.moveIntent = this.#intentFor(action, entity, target, roll, candidateHeading, threat);
     }
   }
 
@@ -220,33 +291,56 @@ export class DecisionSystem extends SimulationSystem {
     return this.followWeight * (0.5 + 0.5 * drift);
   }
 
-  #intentFor(action, entity, target, roll, candidateHeading) {
+  #intentFor(action, entity, target, roll, candidateHeading, threat) {
     switch (action) {
       case 'eat':
       case 'drink':
       case 'rest':
         // Stationary: keep a heading for facing, but do not move.
-        return { heading: entity.moveIntent?.heading ?? candidateHeading, ttl: 0, moving: false };
+        return { heading: entity.moveIntent?.heading ?? candidateHeading, ttl: 0, moving: false, sprint: false };
+      case 'flee': {
+        // Straight away from the threat, at a sprint.
+        const heading = Math.atan2(entity.y - threat.y, entity.x - threat.x);
+        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: true };
+      }
+      case 'chase': {
+        // Committed pursuit: sprint at the prey's current position.
+        const heading = Math.atan2(target.y - entity.y, target.x - entity.x);
+        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: true };
+      }
       case 'seekFood':
       case 'seekWater':
       case 'seekMate':
       case 'followParent':
       case 'recallFood':
-      case 'recallWater': {
+      case 'recallWater':
+      case 'stalk': {
         // Cell targets aim at the cell centre; a mate target carries an exact
         // position.
         const tx = target.x ?? target.cellX + 0.5;
         const ty = target.y ?? target.cellY + 0.5;
         const heading = Math.atan2(ty - entity.y, tx - entity.x);
-        return { heading: normalizeAngle(heading), ttl: 1, moving: true };
+        // Stalking closes at a walk — spending the sprint budget before the
+        // prey is even in range is how a predator loses a chase.
+        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false };
       }
       case 'wander':
       default: {
         const intent = entity.moveIntent;
         if (!intent || !intent.moving || intent.ttl <= 0) {
-          return { heading: candidateHeading, ttl: this.minCommitTicks + Math.floor(roll * this.commitTickSpan), moving: true };
+          return {
+            heading: candidateHeading,
+            ttl: this.minCommitTicks + Math.floor(roll * this.commitTickSpan),
+            moving: true,
+            sprint: false,
+          };
         }
-        return { heading: normalizeAngle(intent.heading + (roll - 0.5) * this.wanderJitter), ttl: intent.ttl - 1, moving: true };
+        return {
+          heading: normalizeAngle(intent.heading + (roll - 0.5) * this.wanderJitter),
+          ttl: intent.ttl - 1,
+          moving: true,
+          sprint: false,
+        };
       }
     }
   }
@@ -255,6 +349,10 @@ export class DecisionSystem extends SimulationSystem {
 /** Highest-utility action; ties broken by a fixed, deterministic order. */
 function argmaxUtility(utilities) {
   const order = [
+    // Survival first: nothing outranks getting away, and a committed chase
+    // outranks a predator's other appetites.
+    'flee',
+    'chase',
     'drink',
     'eat',
     'seekWater',
@@ -263,6 +361,7 @@ function argmaxUtility(utilities) {
     // ranks below the senses and above everything discretionary.
     'recallWater',
     'recallFood',
+    'stalk',
     'followParent',
     'seekMate',
     'rest',

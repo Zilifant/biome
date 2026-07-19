@@ -18,6 +18,7 @@ export const herbivoreGrazer = Object.freeze({
   maxEnergy: 100, // energy units
   maxHealth: 100, // health units
   maxHydration: 100, // hydration units
+  maxStamina: 100, // sprint budget, spent fleeing (Step 16)
   perceptionRadius: 6, // world units the animal can sense around itself
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

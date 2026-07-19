@@ -20,6 +20,9 @@ import { ReproductionSystem } from '../simulation/systems/ReproductionSystem.js'
 import { ParentingSystem } from '../simulation/systems/ParentingSystem.js';
 import { VegetationSystem } from '../simulation/systems/VegetationSystem.js';
 import { MemorySystem } from '../simulation/systems/MemorySystem.js';
+import { HuntingSystem } from '../simulation/systems/HuntingSystem.js';
+import { InjurySystem } from '../simulation/systems/InjurySystem.js';
+import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleTraits } from '../simulation/traits/traits.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
@@ -47,8 +50,16 @@ export function registerDemoSystems(engine) {
       },
     }),
   );
-  engine.registerSystem(new MovementSystem());
-  engine.registerSystem(new FeedingSystem({ ...engine.config.feeding, maxMemories: engine.config.memory.maxMemories }));
+  engine.registerSystem(
+    new MovementSystem({ ...engine.config.locomotion, injurySpeedPenalty: engine.config.injury.speedPenalty }),
+  );
+  engine.registerSystem(
+    new FeedingSystem({
+      ...engine.config.feeding,
+      injuryFeedPenalty: engine.config.injury.feedPenalty,
+      maxMemories: engine.config.memory.maxMemories,
+    }),
+  );
   engine.registerSystem(
     new ReproductionSystem({
       ...engine.config.reproduction,
@@ -56,9 +67,24 @@ export function registerDemoSystems(engine) {
       traitSpread: engine.config.traits.spread,
     }),
   );
+  engine.registerSystem(
+    new HuntingSystem({
+      ...engine.config.hunting,
+      preyInjuryChance: engine.config.injury.preyInjuryChance,
+      preyInjurySeverity: engine.config.injury.preyInjurySeverity,
+      predatorInjuryChance: engine.config.injury.predatorInjuryChance,
+      predatorInjurySeverity: engine.config.injury.predatorInjurySeverity,
+      injuryHealthDamage: engine.config.injury.healthDamage,
+      maxMemories: engine.config.memory.maxMemories,
+    }),
+  );
   engine.registerSystem(new ParentingSystem(engine.config.parenting));
-  engine.registerSystem(new MetabolismSystem(engine.config.metabolism));
+  engine.registerSystem(
+    new MetabolismSystem({ ...engine.config.metabolism, staminaRecoveryPerTick: engine.config.locomotion.staminaRecoveryPerTick }),
+  );
   engine.registerSystem(new HydrationSystem({ ...engine.config.hydration, maxMemories: engine.config.memory.maxMemories }));
+  engine.registerSystem(new InjurySystem(engine.config.injury));
+  engine.registerSystem(new CarcassSystem(engine.config.carcass));
   // Adult mass comes from the species; the rest of the life curve from config.
   const species = getSpecies(engine.config.demo.speciesId);
   engine.registerSystem(new AgingSystem({ ...engine.config.aging, adultMass: species.bodyMass }));
@@ -88,29 +114,22 @@ function passableSpawnPosition(engine, random) {
   throw new Error('the world has no passable cell to spawn on');
 }
 
-/** @param {SimulationEngine} engine */
-function populateDemoWorld(engine) {
-  const random = engine.randomStream('worldgen');
-  const { animalCount, speciesId } = engine.config.demo;
-  const species = getSpecies(speciesId);
-  // Initial ages come from a separate stream so adding them never shifts the
-  // worldgen positions (which the `worldgen` stream draws in a fixed order).
-  const ageRandom = engine.randomStream('demogen.age');
-  // Traits come from their own stream too, so the founding population's
-  // individuality never shifts positions or ages (and vice versa).
-  const traitRandom = engine.randomStream('traits');
-  const traitSpread = engine.config.traits.spread;
-  for (let i = 0; i < animalCount; i += 1) {
-    const { x, y } = passableSpawnPosition(engine, random);
-    const heading = random.float(0, TWO_PI);
-    const energy = species.maxEnergy * random.float(species.initialEnergyFraction.min, species.initialEnergyFraction.max);
-    // Spread initial ages across juvenile→adult so the starting population
-    // isn't synchronized and shows a mix of life stages; body mass follows the
-    // growth curve for the age.
-    const age = Math.floor(ageRandom.float(0, 1500));
-    // Every founder is an individual (Step 14): its own adult size, speed, and
-    // temperament, all resolved from the species mean at creation.
-    const traits = sampleTraits(traitRandom, traitSpread);
+/**
+ * Queue one founding cohort of a species. Every founder is an individual
+ * (Step 14): its own adult size, speed, and temperament, resolved from the
+ * species mean at creation.
+ * @param {SimulationEngine} engine
+ * @param {object} species
+ * @param {number} count
+ * @param {{position: Function, age: Function, traits: Function}} draw
+ */
+function spawnCohort(engine, species, count, draw) {
+  for (let i = 0; i < count; i += 1) {
+    const { x, y, heading, energyFraction } = draw.position();
+    // Ages are spread across juvenile→adult so no cohort is synchronized;
+    // body mass follows the growth curve toward this individual's adult size.
+    const age = draw.age();
+    const traits = draw.traits();
     const adultMass = species.bodyMass * traits.size;
     engine.world.entities.queueSpawn({
       kind: species.kind,
@@ -125,12 +144,46 @@ function populateDemoWorld(engine) {
       lifeStage: lifeStageForAge(age, engine.config.aging),
       speed: species.baseSpeed * traits.speed,
       maxEnergy: species.maxEnergy,
-      energy,
+      energy: species.maxEnergy * energyFraction,
       maxHealth: species.maxHealth,
       health: species.maxHealth,
       maxHydration: species.maxHydration,
       hydration: species.maxHydration, // start fully hydrated (no extra draw)
+      maxStamina: species.maxStamina,
+      stamina: species.maxStamina,
     });
+  }
+}
+
+/** @param {SimulationEngine} engine */
+function populateDemoWorld(engine) {
+  const random = engine.randomStream('worldgen');
+  const { animalCount, speciesId, predatorCount, predatorSpeciesId } = engine.config.demo;
+  // Initial ages and traits come from their own streams, so adding either never
+  // shifts the worldgen positions (which draw in a fixed order).
+  const ageRandom = engine.randomStream('demogen.age');
+  const traitRandom = engine.randomStream('traits');
+  const traitSpread = engine.config.traits.spread;
+
+  const draw = (species) => ({
+    position: () => {
+      const { x, y } = passableSpawnPosition(engine, random);
+      return {
+        x,
+        y,
+        heading: random.float(0, TWO_PI),
+        energyFraction: random.float(species.initialEnergyFraction.min, species.initialEnergyFraction.max),
+      };
+    },
+    age: () => Math.floor(ageRandom.float(0, 1500)),
+    traits: () => sampleTraits(traitRandom, traitSpread),
+  });
+
+  const prey = getSpecies(speciesId);
+  spawnCohort(engine, prey, animalCount, draw(prey));
+  if (predatorCount > 0) {
+    const predator = getSpecies(predatorSpeciesId);
+    spawnCohort(engine, predator, predatorCount, draw(predator));
   }
   // Flush so the initial population exists at tick 0, with entity.created events.
   engine.applyDeferredEntityChanges(0);

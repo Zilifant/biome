@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–15)
+## 1.4 Carried-forward deviations and open issues (Steps 1–18)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -130,7 +130,13 @@ correctness bug in shipped code unless marked ⚠.
 | A13 | 14 | Trait spread lives in `config.traits`, not per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) / **Step 20** (genetics ranges) |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
 | A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Step 22** (mate choice) / **Step 23** (social groups), where kin *recognition* actually has a reader |
-| A16 | 15 | The `danger` memory kind ships with avoidance implemented and tested, but nothing writes one until predators exist | **Step 16** — only needs to call `recordMemory` |
+| ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
+| A17 | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Step 29** (species schema) |
+| A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
+| A19 | 17 | Hazards and fights are not injury sources — failed captures are the only writer, because nothing else in the world is dangerous | **Step 19** (weather) / **Step 23** (fights) |
+| A21 | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Step 29** (species schema) |
+| A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | **Step 21** (observation/metrics), which is the natural consumer |
+| ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
 
 ### B. Configuration / structural debt
 
@@ -148,10 +154,10 @@ correctness bug in shipped code unless marked ⚠.
 | # | From | Item | Owed to |
 | --- | --- | --- | --- |
 | ~~⚠ C1~~ | 2, 3, 5 | **Entity spawning ignored terrain** — animals could spawn on impassable rock | **Done in Step 13** — founding spawns rejection-sample a passable position (deterministic scan as fallback). Externally submitted `entity.spawn` commands are still the caller's responsibility, by choice |
-| ⚠ C2 | 12, 13 | **Parent references stay valid only because entities are never removed.** Carcass decay/removal will break this — now covering `parents`, `offspring`, and `guardianId` | **Step 18** — lineage refs need explicit care |
+| ~~⚠ C2~~ | 12, 13 | **Parent references stayed valid only because entities were never removed** | **Done in Step 18** — bounded tombstone registry + a four-state lineage lookup (`alive` / `carcass` / `dead` / `forgotten`). Written at the engine's single removal chokepoint. The old "everything resolves" assertions were rewritten to assert the *resolution is accurate*, so they cannot pass vacuously |
 | C3 | 1, 9, 13 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
 | ~~C4~~ | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed) |
-| C5 | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). Re-tuned to be genuinely costly. An unchecked herbivore *should* grow until something limits it | **Steps 16 / 25** (predation, disease) |
+| ~~C5~~ | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). An unchecked herbivore *should* grow until something limits it | **Answered in Step 16** — predation is the limiter. Measured over 20k ticks on five seeds, grazers now oscillate in the 24–111 range instead of growing without bound. Disease (Step 25) can still add a second check |
 | C6 | 7 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes | **Step 30** |
 | C7 | 5, 9 | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range) | — (settled) |
 
@@ -2646,7 +2652,7 @@ enforced in the insert helper precisely so no future writer can bypass it.
 
 ## Step 16 — First predator species
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -2710,12 +2716,12 @@ Prey search via grid; cap pursuit targets. Benchmark with mixed populations.
 
 ### Acceptance criteria
 
-- [ ] Multi-stage hunt with real capture/escape dynamics
-- [ ] Visible pursuit, flee, success and failure
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Multi-stage hunt with real capture/escape dynamics
+- [x] Visible pursuit, flee, success and failure
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -2724,13 +2730,134 @@ Injury system (Step 17), scavenging mechanics (Step 18), pack hunting
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Milestone D. The world now has
+two species and a working predator/prey oscillation.
+
+**What shipped.**
+
+- **The hunt is a pipeline across the systems that already own each part**,
+  which is what keeps it from being one opaque roll:
+  *detect* (perception reports `nearestPrey` / `nearestThreat`) → *evaluate*
+  (the decision system gates on hunger, stamina, and a post-attempt cooldown)
+  → *approach* (`stalk`, at a walk, saving the sprint budget) → *chase*
+  (sprint) → *capture-or-escape* (`HuntingSystem`, one attempt inside striking
+  range) → *feed* (the feeding system's carnivore branch eats the carcass) →
+  *recover* (stamina regenerates in metabolism; `lastHuntTick` blocks an
+  instant re-attack).
+- **New species** `predator.stalker` and a `hunts(predatorId, preyId)` relation
+  driven by the species' own `preySpeciesIds`. Perception reads it in *both*
+  directions inside the neighbour loop it already ran — what I hunt, and what
+  hunts me — so predation works without a single species-name conditional in
+  any system.
+- **Stamina** is the new resource that decides chases: `MovementSystem` spends
+  it to sprint and drops to a walk when it runs out; `MetabolismSystem`
+  recovers it when not sprinting. The same two-writer accumulator pattern as
+  energy, documented on both sides.
+- **Capture odds come from state, not a constant.** `captureChance` is the
+  predator's speed against the prey's, weighted by how much sprint each has
+  left and by how vulnerable the prey is (wounded, or not yet grown), clamped
+  so nothing is ever untouchable and nothing is ever certain. Live sampling
+  shows real spread — 31%, 34%, 37%, 43%, 49% across consecutive attempts — and
+  the number is published on `entity.hunted` rather than hidden.
+- **⚠ C5 is now answered.** Step 12 noted that "an unchecked herbivore *should*
+  grow until something limits it" and owed the limiter to Steps 16/25.
+  Predation is that limiter: grazers no longer grow without bound.
+- **A16 (Step 15) is now written.** The `danger` memory kind shipped with
+  avoidance implemented but no writer; a failed hunt now records the attack
+  site in the prey's memory, exactly as predicted.
+- **Protocol (v14 → v15):** three new events — `entity.hunted`
+  (`{ entityId, targetId, chance, captured }`), `entity.killed`,
+  `entity.escaped` — plus `predation` as an `entity.died` cause. `stalk`,
+  `chase`, and `flee` ride the existing public `action` field, so a pursuit is
+  visible in bulk snapshots without widening them; `stamina` and `huntTargetId`
+  are inspection-only.
+- **Renderer:** the stalker is `S`/red at display priority 60 (above prey, so a
+  predator on its kill still reads as the predator); the event log formats hunt
+  outcomes *with the odds the engine used*; selecting a predator brackets its
+  quarry in red. `SUPPORTED_PROTOCOL_VERSION` → 15.
+- **Persistence (save v13 → v14):** `stamina`/`maxStamina`, `huntTargetId`,
+  `lastHuntTick`, a second species in the demo, and the new `HuntingSystem`
+  descriptor; v13 saves invalidated. Fixtures regenerated.
+
+**Two real bugs found by measuring rather than by tests.**
+
+1. *Prey ignored distant predators.* Flee urgency was `1 - d/radius`, which is
+   **zero at the edge of perception** — so a hungry grazer kept eating while a
+   predator walked up to it. Reshaped to half weight at the boundary rising to
+   full at contact (the same shape as following a parent). Caught by a test
+   asserting fleeing outranks grazing, which failed for the right reason.
+2. *Predators could never catch fleeing prey.* Stalking walks (1.35) while
+   fleeing prey sprint (1.92), and the sprint only engaged inside
+   `chaseRange: 4` — but prey bolt at up to 6 units, so the gap only ever grew.
+   Predators starved in 4 of 5 seeds. Fixed by making a **fleeing target force
+   the sprint regardless of range**, with `fleeing` exposed on the perceived
+   prey record. This is visible in the live capture below: a chase at distance
+   4.9, outside `chaseRange`, because the quarry had bolted.
+
+**Tuning is measured, and the numbers are in the config.** Founding counts are
+a knife edge: over 20k ticks on five seeds, a pack of 3 dies out in 2 of 5,
+while 7 wipes the grazers out entirely in 3 of 5. At **4 predators against 60
+grazers** both species survive in all five seeds, oscillating between roughly
+24–111 grazers and 1–9 stalkers. Diagnosis before tuning mattered here:
+predators were *not* starving (mean energy 0.83, above the breeding threshold
+68% of the time), so the failure mode was demographic stochasticity in a
+founding population of 3, not an energy-budget problem.
+
+**Tests:** `npm test` → **272 passing / 0 failing** (was 248; +24). New
+`test/hunting.test.js`: the species relation (data-driven, both directions,
+unknown species hunt nothing), perception (prey/threat detection bounded by the
+grid), capture odds (faster predator ↑, faster prey ↓, tired predator ↓, tired
+or wounded or half-grown prey ↑, always inside the floor/ceiling), capture and
+escape (kill → carcass + events; miss → energy cost + a `danger` memory + an
+escape event; the lunge costs stamina either way; no attempt out of range),
+sprinting (faster than walking, spends stamina, exhausted animals drop to a
+walk, recovery only at rest), pursuit behaviour (prey abandon grazing to run; a
+predator stalks at range and commits up close; a fed or exhausted one does
+neither), carnivore feeding (a predator eats a carcass, a grazer on the same
+carcass ignores it — diet decides), and the demonstration scenario.
+
+**Deterministic demonstration scenario.** The predation sandbox the step asks
+for: one fixed pairing run at two capture-odds settings with everything else
+including the seed identical. Both variants show the full pursuit (`chase`,
+`flee`, an attempt); the favourable one produces a kill *and* the predator
+feeding on the carcass, the unfavourable one produces an escape and no kill.
+
+**Visible result verified.** Against a live server (protocol v15) at tick 3085:
+53 grazers, 6 stalkers, 37 carcasses. Caught mid-hunt — predator #80 `chase`,
+stamina 90.5/100, committed to target #111 at distance 4.9 with
+`fleeing: true`; quarry #111 `flee`, stamina 84.8, `nearestThreat` #80 at 4.7.
+Both burning stamina, the gap closing.
+
+**Performance.** large-5k **37.18 → 40.13 ms/tick** (+2.9), now with 333
+predators among 5000 prey. `HuntingSystem` only touches predators mid-chase and
+resolves targets by id; the classification cost rides inside the neighbour loop
+perception already ran. The benchmark scenarios now seed predators alongside
+prey, so the numbers describe a mixed population as the step requires.
+
+**Deviations from the step spec (documented):** (1) hunting *behaviour* lives
+in the decision system rather than in `HuntingSystem`, which only resolves
+captures — this keeps all action selection in one place, as with Step 13's
+parenting, and avoids two systems competing for `action`/`moveIntent`.
+(2) Predator `birthMass` and the aging curve still come from global config
+rather than per-species, so a stalker cub is born at the grazer's 5 kg — the
+same global-config debt as §1.4 B3, now spanning two species and more visible.
+(3) Prey have no *spatial* refuge from predators (cover slows both equally),
+which is part of why the founding counts are a knife edge; terrain-aware
+escape belongs with territory (Step 24).
+
+**Follow-on notes for later steps:** carcasses now accumulate fast (37 at tick
+3085 in the demo) and never decay — Step 18 is no longer optional cleanup but a
+real need, and it inherits §1.4 C2 (relationship refs stay valid only because
+entities are never removed). Injury (Step 17) already has its hook: capture
+odds read prey `health`, so a wounded animal is measurably easier to catch.
+Pack hunting (Step 23) would extend `HuntingSystem`'s single-attacker
+assumption.
 
 ---
 
 ## Step 17 — Injury and healing
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -2791,12 +2918,12 @@ Bounded injuries per animal; negligible.
 
 ### Acceptance criteria
 
-- [ ] Nonfatal + fatal injuries with penalties and healing
-- [ ] Injuries inspectable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Nonfatal + fatal injuries with penalties and healing
+- [x] Injuries inspectable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -2804,13 +2931,107 @@ Disease (Step 25).
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Predation now has a middle
+ground between untouched and dead.
+
+**What shipped.**
+
+- **Simulation:** new `injury/injuries.js` — `InjuryKinds`, `applyInjury`,
+  `totalSeverity`, `refreshImpairment`, and a hard `MAX_INJURIES = 4`. New
+  `InjurySystem` (`physiology`, priority 10 — after metabolism and hydration,
+  so healing is charged against the energy the animal actually has left) does
+  the recovery. Inflicting is a shared helper, matching `recordMemory` /
+  `recordLifeEvent` / `killAnimal`; the system never inflicts, only heals.
+- **`impairment` is a cached derived total**, recomputed in the one place the
+  injury list changes. The movement and feeding hot loops read one number
+  instead of walking a list — the same precompute pattern as Step 14's
+  `adultMass`, and it means the penalties cost essentially nothing.
+- **The loop that makes an injury matter.** A wound scales speed and feeding by
+  its severity, and because `HuntingSystem.captureChance` already read prey
+  condition (the hook noted in Step 16's follow-on), a limping animal is
+  measurably easier to catch. Healing is slow and paid for in energy, and an
+  animal below `healEnergyFloor` does not heal at all — so being wounded and
+  being starved compound each other rather than being independent problems.
+- **Wounds come from real events.** A failed capture usually leaves the prey
+  hurt (`wound`), and a heavy enough prey can hurt its attacker on the way out
+  (`trample`, scaled by the mass ratio) — hunting is now a gamble in both
+  directions. A *successful* capture wounds nobody: the prey is simply dead.
+  Severity scales with how decisively the roll landed, so a marginal hit grazes
+  and a decisive one mauls.
+- **Fatal injuries** go through the existing `health <= 0` path, the same one
+  dehydration uses, with cause `injury`.
+- **Draw budget held fixed.** The hunting stream now spends exactly three draws
+  per attempt (capture, then a wound roll for each animal) regardless of
+  outcome, so injuries can never shift the stream. A test asserts the stream
+  state is identical whether both animals are wounded or neither is.
+- **Protocol (v15 → v16):** `entity.injured`
+  (`{ entityId, injury, severity, sourceId }`) and `entity.recovered`, plus
+  `injury` as an `entity.died` cause and `injured`/`recovered` life-event
+  types. `injuries` and `impairment` are inspection-only.
+- **Renderer:** the injured tint needed **no protocol widening** — a living
+  animal below `HURT_HEALTH_FRACTION` is drawn in the hurt tone from the
+  `healthFraction` that has ridden in every bulk snapshot since Step 4.
+  `resolveColorToken` is kept separate from `resolveAppearance` so the glyph
+  (a cached species fact) and the tint (a moment-to-moment condition) stay
+  independent. Inspector gained an injury panel with severity bars and the
+  impairment percentage. `SUPPORTED_PROTOCOL_VERSION` → 16.
+- **Persistence (save v14 → v15):** `injuries` and `impairment` persisted (a
+  wound and how far it has healed are not derivable from the seed) plus the new
+  `InjurySystem` descriptor; v14 saves invalidated. Fixtures regenerated.
+
+**Tests:** `npm test` → **294 passing / 0 failing** (was 272; +22). New
+`test/injury.test.js`: the bound and derived total (severities stack and clamp,
+damage past the cap is *folded in* rather than dropped, a scratch below the
+threshold is ignored, `refreshImpairment` cannot drift), penalties (a wounded
+animal limps and feeds worse; an injury raises capture odds through the
+existing formula), healing (wounds close and cost energy and restore health; a
+starving animal does not heal; recovery is announced and written to the life
+history; a wound that empties an animal kills it with cause `injury`), what a
+failed hunt leaves (prey usually wounded with the event naming the attacker, a
+lucky prey untouched, the predator sometimes trampled, a successful capture
+wounding nobody, and the fixed draw budget), and
+protocol/persistence/determinism.
+
+**Deterministic demonstration scenario.** Exactly the one the step asks for,
+built as a before/after/after measurement on one animal: ten unhurt ticks
+establish a baseline distance, a 0.3-severity wound makes the same ten ticks
+cover measurably less ground, the injury is still present halfway through the
+recovery window **computed from config** (`(severity − HEALED_BELOW) /
+healRatePerTick`), and it is gone past that window — after which the animal
+covers exactly its baseline distance again.
+
+**Visible result verified.** Against a live server (protocol v16) at tick
+10954: predator #168 carrying a `trample` injury from its own prey, severity
+0.172, 17% impaired, effective speed 1.361 against a 1.489 baseline. Life
+histories show the full arc on prey too — grazer #33 injured t680 → recovered
+t804, injured again t1538 → recovered t1644. Thirteen living animals were below
+full health, which is what the grid tints.
+
+**Performance.** large-5k **40.13 → 42.66 ms/tick** (+2.5). `InjurySystem`
+skips uninjured animals after one array-length check, and the penalties are a
+single cached multiply each.
+
+**Deviations from the step spec (documented):** (1) hazards and fights are not
+injury sources — nothing else in the world is dangerous yet, so failed captures
+are the only writer, as predation was the only realistic source available.
+(2) Injury does not have its own RNG stream; the wound rolls come from the
+`hunting` stream that already governs the event that causes them, which keeps
+the draw budget for one attempt in one place.
+
+**Follow-on notes for later steps:** health lost to **dehydration never
+recovers** — the hydration system only ever subtracts, so an animal that has
+been thirsty carries that damage permanently while a mauled one heals. That
+asymmetry was invisible before this step and is now conspicuous; it belongs
+either with a general condition/recovery pass or with disease (Step 25).
+Carcasses continue to pile up untouched (Step 18). Pack hunting (Step 23) will
+want to attribute a wound to multiple attackers, which the current
+single-`sourceId` event shape does not express.
 
 ---
 
 ## Step 18 — Carcasses and scavenging
 
-**Status:** Not started
+**Status:** Done
 
 **Carried forward (see §1.4):** **⚠ C2 — this step breaks a standing
 assumption.** Nothing has ever been removed from the world, so `parents` ids
@@ -2880,12 +3101,12 @@ Carcasses are few; decay staggered. Negligible.
 
 ### Acceptance criteria
 
-- [ ] Carcass edible mass, decay stages, scavenging, disappearance
-- [ ] Visible scavenging + decay
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Carcass edible mass, decay stages, scavenging, disappearance
+- [x] Visible scavenging + decay
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -2893,7 +3114,116 @@ Decomposition chemistry, microbes, insects.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) The death→nutrient loop opened
+at Step 6 is closed, and the world removes things for the first time.
+
+**⚠ C2 resolved — the policy, decided before anything was removed.** The engine
+turned out to be *behaviourally* null-tolerant already: parenting orphans a
+juvenile whose guardian is missing, hunting abandons a vanished target,
+reproduction skips a parent that is gone. What removal actually destroys is
+**observability** of lineage. So the policy is "be honest, with a memory":
+new `world/lineage.js` keeps a bounded tombstone registry (256 entries, FIFO),
+and a lineage reference resolves to one of four states — `alive`, `carcass`,
+`dead` (gone, but we remember who and what killed it), or `forgotten` (evicted).
+`forgotten` is a *stated limit*, not a failed lookup.
+
+The plan warned the existing invariant must not "silently start passing
+vacuously", and it would have: `assert(entities.get(parentId))` becomes
+meaningless once everything is forgotten. Both tests were rewritten to assert
+the **resolution is accurate** instead — an id present in the world must never
+report `dead`/`forgotten`, and one absent must never report `alive`/`carcass`.
+Tombstones are written at the engine's single removal chokepoint
+(`applyDeferredEntityChanges`), so no removal path — including a command-driven
+`entity.remove` — can bypass them; a test covers that other path specifically.
+
+**What else shipped.**
+
+- **`CarcassSystem`** (`physiology`, priority 20 — after feeding has taken its
+  bite, so nothing is removed out from under a scavenger mid-meal). Decay is a
+  pure function of elapsed time, so the `updateInterval: 5` stagger cannot
+  drift it — asserted by a test comparing interval 1 against 5.
+- **Freshness matters.** `STAGE_YIELD` cuts flesh value at each stage
+  (1 → 0.8 → 0.5 → 0.25), shared between the feeding system and tests through
+  one `CarcassSystem.yieldFor`. Old remains are barely worth crossing the map
+  for, which is what keeps scavenging from replacing hunting.
+- **Nutrient return.** Whatever mass is left when a carcass goes is deposited
+  into its cell via a new `VegetationGrid.addAt`, clamped to carrying capacity.
+  A carcass eaten clean returns nothing — the scavengers already took it.
+- **Protocol (v16 → v17):** `decayStage` added to `PUBLIC_ENTITY_FIELDS` (the
+  renderer ramps its glyph from it; 0 on everything living), new
+  `entity.decayed` event, and inspection gained resolved `lineage` plus carcass
+  detail. Absolute `edibleMass` stays inspection-only.
+- **Renderer:** `CARCASS_DECAY_APPEARANCE` ramps a fresh orange `%` down
+  through `;` to faint `.` remains; the appearance cache key gained the stage so
+  the ramp stays free. `SUPPORTED_PROTOCOL_VERSION` → 17.
+- **Persistence (save v15 → v16):** `diedTick`, `deathCause`, `decayStage`, the
+  `CarcassSystem` descriptor, and a new top-level `tombstones` block. The
+  registry has to persist: without it a restored run would forget *different*
+  animals than the original.
+
+**The re-tune this step forced, and why it matters.** Making carcasses decay
+changed the predator economics fundamentally, and exposed that **Step 16's
+balance had been propped up by the pile-up**. Measured directly: with decay
+disabled the demo held 62 grazers / 6 predators at 15k ticks; with decay on,
+identical otherwise, grazers went extinct. The ever-growing heap of bodies had
+been a free larder keeping predators fed without hunting. With it gone the old
+60/4 world is bistable — 1–3 predators starve out, 4 wipe the grazers out, with
+no stable middle. Scaling both cohorts up is what restores a real cycle:
+**120 grazers / 8 predators leaves both species alive in 5 of 5 seeds** at 15k
+ticks (roughly 74–255 grazers against 4–13 predators). Long runs still show
+genuine predator–prey behaviour rather than a fixed point: at 24k ticks seed 99
+sits near equilibrium (82 grazers / 10 predators) while seed 42 shows prey
+release (373 grazers / 2 predators). Both are real outcomes, not bugs.
+
+**Two bugs caught by writing the tests.**
+
+1. `VegetationGrid.addAt` read `this.#capacity[i]` — but `#capacity` is the
+   *scalar* config value; the per-cell array is `#capacityPerCell`. Indexing a
+   number gave `undefined`, so every deposit computed `NaN` and silently added
+   nothing. The nutrient-return test failed on exactly that.
+2. `test/movement.test.js` still asserted a single step never exceeds
+   `speed × terrain modifier` — a bound from Step 5, before sprinting existed.
+   It only started failing now because the denser demo produces a flee inside
+   the tested window. Updated to the real ceiling (× the sprint multiplier),
+   *and* strengthened: a non-sprinting animal must still respect the old bound.
+
+**Tests:** `npm test` → **312 passing / 0 failing** (was 294; +18). New
+`test/carcass.test.js`: decay stages (announced once each, not per tick;
+stagger-independent; yields strictly decreasing), being eaten (mass converts at
+exactly the stated rate; an old carcass feeds less than a fresh one; one eaten
+clean returns nothing), rotting away (disappears by the expected tick and feeds
+the ground; the pulse applies once; the deposit is capped by carrying capacity),
+lineage across removal (the four states, bounded FIFO eviction, every removal
+path remembered, inspection resolving rather than handing over raw ids), the
+demonstration scenario, and protocol/persistence/determinism.
+
+**Deterministic demonstration scenario.** A hungry scavenger a short walk from
+a fresh body: it approaches, feeds, the carcass decays through its stages and
+vanishes — and is still resolvable as `dead` afterwards.
+
+**Visible result verified.** Against a live server (protocol v17) at tick 3786:
+158 grazers, 7 predators, 44 carcasses spread across all four decay stages
+(25 fresh / 9 ripe / 7 dry / 3 remains) rather than piling up. And the C2 case
+end to end — grazer #226's parents both resolve `dead` with cause `age` and
+their death ticks, while its two offspring resolve `alive`.
+
+**Performance.** large-5k **42.66 → 42.57 ms/tick** (no measurable change).
+Removal actually *shrinks* what every other system iterates: before this step
+carcasses accumulated forever and every system paid to skip them.
+
+**Deviations from the step spec (documented):** (1) there is no dedicated
+scavenger guild — predators are the scavengers, since a third species is its
+own scope. (2) The optional "local vegetation boost" is implemented as the
+nutrient return on removal rather than a continuous seep, which keeps it a
+single auditable event and makes "applied once" testable.
+
+**Follow-on notes for later steps:** the standing carcass count now scales with
+the death rate (44 at 158 grazers), which is a flow equilibrium rather than
+growth — but `decayTicks: 3000` against a compressed lifespan means bodies are
+conspicuous. Weather (Step 19) would plausibly modulate decay rate. The
+tombstone registry is the natural home for the population/lineage metrics Step
+21 wants, and its 256-entry bound is the first thing to revisit if lineage
+questions need to reach further back.
 
 ---
 
@@ -4098,23 +4428,23 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–15
+### Observed status after Steps 1–18
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
 
 | Risk | Observed? | Evidence and outcome |
 | --- | --- | --- |
-| Population explosion | **Yes (twice)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. |
-| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~37 ms/tick — far under the 1 s budget. |
-| Unstable parameter tuning | **Yes** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. Step 13's follow utility needed reshaping twice before juveniles actually stayed with their parents. Step 15 re-tuned hydration again, this time from a recorded five-seed sweep rather than a single run — the better pattern to copy. |
+| Population explosion | **Yes (three times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. |
+| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~43 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
+| Unstable parameter tuning | **Yes (repeatedly)** | Hydration (§1.4 C4) and reproduction (C5) both needed parameter sweeps to avoid collapse/explosion. Step 13's follow utility needed reshaping twice. Step 15 re-tuned hydration from a recorded five-seed sweep — the better pattern to copy. **Step 18 is the cautionary case:** Step 16's predator/prey balance turned out to depend on a *defect* (carcasses accumulating forever as a free larder), and fixing the defect collapsed it. A balance that rests on unfinished behaviour is not a balance; re-measure after any step that changes an energy source. |
 | Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. |
-| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal, enforced in the insert helper so no future writer can bypass it. |
+| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal and Step 17's injuries at 4, both enforced in their insert helpers so no future writer can bypass them. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 14 protocol and 13 save-format bumps, each with fixtures regenerated and invalidation notes. |
+| Protocol/save incompatibility | **No (by discipline)** | 17 protocol and 16 save-format bumps, each with fixtures regenerated and invalidation notes. |
 | Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
-| AI-generated duplication | **No (actively countered)** | Shared `killAnimal` helper (Step 10), shared `isReproductivelyReady` predicate (Step 12), and shared `recordLifeEvent` helper (Step 13) extracted instead of duplicating. Step 13 also put `followParent` in the decision system rather than building a second action-selection path. |
+| AI-generated duplication | **No (actively countered)** | Shared `killAnimal` (Step 10), `isReproductivelyReady` (Step 12), `recordLifeEvent` (Step 13), `recordMemory` (Step 15), and `applyInjury` (Step 17) helpers extracted instead of duplicating. Step 13 put `followParent` in the decision system rather than building a second action-selection path, and Step 16 did the same for `flee`/`stalk`/`chase`. Step 17 reused the existing `health <= 0` death path and the already-projected `healthFraction` rather than adding either. |
 | Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads. |
 | Renderer fixtures drifting | **No** | Regenerated on every protocol change. |
 

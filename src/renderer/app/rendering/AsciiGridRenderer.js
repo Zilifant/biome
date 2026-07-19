@@ -3,8 +3,8 @@
  *
  * Draw order per frame: background → terrain glyphs → entity glyphs →
  * remembered-place markers → selection/follow overlays. One monospace glyph
- * per cell, integer-aligned, device-pixel-ratio aware. No sprites, gradients, shadows, or decorative
- * animation — discrete cell changes only.
+ * per cell, integer-aligned, device-pixel-ratio aware. No sprites, gradients,
+ * shadows, or decorative animation — discrete cell changes only.
  *
  * Colors come from the Dracula CSS custom properties on the document root,
  * with the exact hex fallbacks from EntityAppearance for safety.
@@ -18,6 +18,7 @@ import {
   resolveTerrainAppearance,
   resolveVegetationAppearance,
   resolveMemoryAppearance,
+  resolveColorToken,
 } from './EntityAppearance.js';
 
 const MONO_STACK =
@@ -84,8 +85,10 @@ export class AsciiGridRenderer {
    *        mark so a parent and its dependants can be picked out of a crowd
    * @param {Array<{kind: string, cellX: number, cellY: number, strength: number}>} [options.memories]
    *        places the selected entity remembers, drawn as faint markers
+   * @param {number | null} [options.huntTargetId] the prey the selected predator
+   *        has committed to, marked so a pursuit is legible mid-chase
    */
-  draw({ store, camera, familyIds = [], memories = [] }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -143,7 +146,9 @@ export class AsciiGridRenderer {
       const [cellX, cellY] = key.split(',').map(Number);
       const { px, py } = projection.cellToScreen(cellX, cellY);
       const appearance = resolveAppearance(entity);
-      ctx.fillStyle = this.#color(appearance.colorToken);
+      // A hurt animal is tinted (Step 17) from the `healthFraction` the
+      // protocol already sends — injuries themselves stay inspection-only.
+      ctx.fillStyle = this.#color(resolveColorToken(entity, appearance));
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
 
@@ -168,6 +173,14 @@ export class AsciiGridRenderer {
       const cell = worldCellOf(relative, world);
       const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
       this.#drawBrackets(px, py, cellSize, this.#color('pink'));
+    }
+    if (huntTargetId != null && huntTargetId !== activeId) {
+      const quarry = store.getEntity(huntTargetId);
+      if (quarry) {
+        const cell = worldCellOf(quarry, world);
+        const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
+        this.#drawBrackets(px, py, cellSize, this.#color('red'));
+      }
     }
     const selected = activeId != null ? store.getEntity(activeId) : null;
     if (selected) {

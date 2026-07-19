@@ -19,6 +19,21 @@ export const EventTypes = Object.freeze({
   ENTITY_MATED: 'entity.mated', //     { entityId, partnerId, gestationUntil }
   ENTITY_BORN: 'entity.born', //       { entityId, parents: [id, id] }
   ENTITY_PROVISIONED: 'entity.provisioned', // { entityId, guardianId, amount }
+  // Predation (Step 16). `entity.hunted` reports one capture attempt and the
+  // odds it was made at, so an observer can see that a hunt is resolved from
+  // the two animals' state rather than a flat roll; `escaped` and `killed`
+  // report which way it went (a kill also emits `entity.died` with cause
+  // `predation`).
+  ENTITY_HUNTED: 'entity.hunted', //   { entityId, targetId, chance, captured }
+  ENTITY_ESCAPED: 'entity.escaped', // { entityId, predatorId }
+  ENTITY_KILLED: 'entity.killed', //   { entityId, predatorId }
+  // Injury (Step 17). A wound that does not kill still costs the animal speed,
+  // feeding, and — because hunting reads condition — safety.
+  ENTITY_INJURED: 'entity.injured', //     { entityId, injury, severity, sourceId }
+  ENTITY_RECOVERED: 'entity.recovered', // { entityId, injury }
+  // Decay (Step 18). A carcass announces each stage it passes through; when it
+  // is finally gone the usual `entity.removed` follows.
+  ENTITY_DECAYED: 'entity.decayed', // { entityId, stage, stageName, edibleMass }
   // A milestone in one animal's life history. `event` is a life-event type
   // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
   ENTITY_LIFE_EVENT: 'entity.lifeEvent', //    { entityId, event, guardianId }

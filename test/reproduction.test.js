@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { ReproductionSystem, isReproductivelyReady } from '../src/simulation/systems/ReproductionSystem.js';
+import { lookupLineage, LineageStatus } from '../src/simulation/world/lineage.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 
@@ -174,10 +175,18 @@ describe('reproduction: demo integration', () => {
     }
     assert.ok(births > 0, 'expected births in the demo');
     assert.equal(firstBirth.parents.length, 2);
-    // Every parent reference in the world resolves to a real entity.
+    // Every parent reference resolves to an accurate status (§1.4 C2). Before
+    // Step 18 nothing was ever removed, so this was trivially "resolves to a
+    // real entity"; now it has to tolerate the dead without going vacuous.
     for (const entity of engine.world.entities.all()) {
       for (const parentId of entity.parents) {
-        assert.ok(engine.world.entities.get(parentId), `dangling parent ref ${parentId}`);
+        const resolved = lookupLineage(engine.world, parentId);
+        const present = engine.world.entities.get(parentId);
+        assert.equal(
+          present != null,
+          resolved.status === LineageStatus.ALIVE || resolved.status === LineageStatus.CARCASS,
+          `parent #${parentId} reported ${resolved.status} but ${present ? 'is' : 'is not'} in the world`,
+        );
       }
     }
     // Population renewed beyond the founding cohort.

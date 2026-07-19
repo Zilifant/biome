@@ -31,6 +31,12 @@ import { NEUTRAL_TRAITS } from '../traits/traits.js';
  * @property {number} maxHealth
  * @property {number} hydration
  * @property {number} maxHydration
+ * @property {Array<{kind: string, severity: number, tick: number}>} injuries bounded wounds (Step 17)
+ * @property {number} impairment derived total injury severity, 0…1
+ * @property {number} stamina sprint budget (Step 16)
+ * @property {number} maxStamina
+ * @property {number | null} huntTargetId prey this predator is pursuing
+ * @property {number | null} lastHuntTick tick of the last capture attempt
  * @property {string} lifeStage juvenile | subadult | adult | senescent
  * @property {Array<{kind: string, cellX: number, cellY: number, tick: number, strength: number}>} memories bounded, decaying places
  * @property {Record<string, number>} traits individual multipliers, fixed at birth
@@ -48,6 +54,9 @@ import { NEUTRAL_TRAITS } from '../traits/traits.js';
  * @property {number} lastMoveDistance distance travelled this tick (movement → metabolism)
  * @property {boolean} lowEnergy set by metabolism when energy is low
  * @property {number} edibleMass carcass edible mass (0 while alive)
+ * @property {number | null} diedTick tick this animal died (drives decay)
+ * @property {string | null} deathCause what killed it (carried into the tombstone)
+ * @property {number} decayStage index into DECAY_STAGES (carcasses only)
  * @property {string} action current chosen action (decision system)
  * @property {{cellX: number, cellY: number} | null} actionTarget target cell of the action
  * @property {Record<string, number> | null} utilityBreakdown scored action utilities
@@ -62,6 +71,7 @@ function createEntity(id, definition) {
   const maxEnergy = definition.maxEnergy ?? 100;
   const maxHealth = definition.maxHealth ?? 100;
   const maxHydration = definition.maxHydration ?? 100;
+  const maxStamina = definition.maxStamina ?? 100;
   return {
     id,
     kind: definition.kind,
@@ -83,6 +93,16 @@ function createEntity(id, definition) {
     // Hydration (Step 10). Owned by the hydration system; parallels energy.
     hydration: definition.hydration ?? maxHydration,
     maxHydration,
+    // Stamina (Step 16): the sprint budget. Drained by the movement system
+    // when an animal sprints (chasing or fleeing) and recovered by the
+    // metabolism system when it does not — the same two-writer accumulator
+    // pattern as energy. `huntTargetId` is the prey a predator has committed
+    // to, owned by the decision system; `lastHuntTick` gates the recovery
+    // pause after a capture attempt.
+    stamina: definition.stamina ?? maxStamina,
+    maxStamina,
+    huntTargetId: definition.huntTargetId ?? null,
+    lastHuntTick: definition.lastHuntTick ?? null,
     // Life stage (Step 11). Owned by the aging system, derived from age.
     lifeStage: definition.lifeStage ?? 'adult',
     // Individual variation (Step 14). Sampled once by whoever creates the
@@ -111,6 +131,11 @@ function createEntity(id, definition) {
     weaned: definition.weaned ?? definition.guardianId == null,
     // Bounded life history (see systems/lifeEvents.js).
     lifeEvents: definition.lifeEvents ?? [],
+    // Injuries (Step 17; see injury/injuries.js). `impairment` is the cached
+    // total severity, kept beside the list so the movement and feeding hot
+    // loops read one number instead of walking the list every tick.
+    injuries: definition.injuries ?? [],
+    impairment: definition.impairment ?? 0,
     // Bounded, decaying spatial memory (Step 15; see memory/memories.js).
     // Written by whichever system experienced the place, faded and evicted by
     // the memory system. Newborns start with none — an animal learns its world.
@@ -132,6 +157,12 @@ function createEntity(id, definition) {
     lastMoveDistance: definition.lastMoveDistance ?? 0,
     lowEnergy: definition.lowEnergy ?? false,
     edibleMass: definition.edibleMass ?? 0,
+    // Death and decay (Step 18). `diedTick` starts the decay clock and
+    // `deathCause` follows the entity into its tombstone when it is finally
+    // removed, so lineage can still say what happened to it.
+    diedTick: definition.diedTick ?? null,
+    deathCause: definition.deathCause ?? null,
+    decayStage: definition.decayStage ?? 0,
   };
 }
 

@@ -9,9 +9,15 @@
  * decision system re-commits next tick. Distance travelled is recorded for the
  * metabolism system.
  *
- * Ownership: writes `x`, `y`, `heading`, `lastMoveDistance`, and (on a block)
- * adjusts `moveIntent`. No randomness — determinism lives in the decision
- * system's committed heading. No global scans.
+ * An intent may ask for a sprint (Step 16): chases and escapes move faster and
+ * spend `stamina` to do it, and fall back to a walk once that budget is gone.
+ * Injuries (Step 17) cut the step in the other direction — a wounded animal
+ * limps, whether it is walking or sprinting.
+ *
+ * Ownership: writes `x`, `y`, `heading`, `lastMoveDistance`, drains `stamina`
+ * while sprinting (the metabolism system recovers it), and (on a block) adjusts
+ * `moveIntent`. No randomness — determinism lives in the decision system's
+ * committed heading. No global scans.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
@@ -25,10 +31,16 @@ function normalizeAngle(angle) {
 export class MovementSystem extends SimulationSystem {
   /**
    * @param {object} [options]
+   * @param {number} [options.sprintMultiplier] speed multiplier while sprinting
+   * @param {number} [options.sprintStaminaCost] stamina spent per sprinting tick
+   * @param {number} [options.injurySpeedPenalty] speed lost at full impairment
    * @param {number} [options.updateInterval]
    */
-  constructor({ updateInterval = 1 } = {}) {
+  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, updateInterval = 1 } = {}) {
     super({ id: 'movement.execute', phase: 'movement', priority: 0, updateInterval });
+    this.sprintMultiplier = sprintMultiplier;
+    this.sprintStaminaCost = sprintStaminaCost;
+    this.injurySpeedPenalty = injurySpeedPenalty;
   }
 
   update(world, context) {
@@ -40,7 +52,18 @@ export class MovementSystem extends SimulationSystem {
         continue;
       }
 
-      const step = entity.speed * world.speedModifierAt(entity.x, entity.y);
+      // Sprinting (Step 16) buys speed with stamina, and only while there is
+      // stamina to spend — an exhausted animal drops back to a walk mid-chase,
+      // which is what decides most hunts.
+      const sprinting = intent.sprint === true && entity.stamina > 0;
+      if (sprinting) {
+        entity.stamina = Math.max(0, entity.stamina - this.sprintStaminaCost);
+      }
+      const pace = sprinting ? this.sprintMultiplier : 1;
+      // An injured animal limps (Step 17): `impairment` is the cached total
+      // severity of its wounds, so this is one multiply, not a list walk.
+      const injured = 1 - entity.impairment * this.injurySpeedPenalty;
+      const step = entity.speed * pace * injured * world.speedModifierAt(entity.x, entity.y);
       const targetX = world.clampX(entity.x + Math.cos(intent.heading) * step);
       const targetY = world.clampY(entity.y + Math.sin(intent.heading) * step);
 

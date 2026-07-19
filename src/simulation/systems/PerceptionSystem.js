@@ -3,8 +3,9 @@
  *
  * Each tick, every living animal builds a bounded summary of what it can sense
  * within its species' perception radius: nearby animals (via the spatial
- * index), its parent if it still depends on one (Step 13), and the nearest
- * food cell, water cell, and obstacle (via a local scan of the cell
+ * index), its parent if it still depends on one (Step 13), the nearest animal
+ * it hunts and the nearest one that hunts it (Step 16), and the nearest food
+ * cell, water cell, and obstacle (via a local scan of the cell
  * neighborhood). Perception is strictly local — an animal never reads global
  * world state (invariant 17): neighbors come from `SpatialGrid.queryRadius`,
  * and cell features from a radius-bounded scan.
@@ -17,7 +18,7 @@
  * vegetation. No randomness.
  */
 import { SimulationSystem } from './SimulationSystem.js';
-import { SPECIES } from '../config/species/index.js';
+import { SPECIES, hunts } from '../config/species/index.js';
 import { TerrainType } from '../world/TerrainGrid.js';
 
 export class PerceptionSystem extends SimulationSystem {
@@ -55,10 +56,34 @@ export class PerceptionSystem extends SimulationSystem {
     let animalCount = 0;
     let nearestAnimal = null;
     let guardian = null;
+    let nearestPrey = null;
+    let nearestThreat = null;
+    let nearestCarcass = null;
     for (const otherId of world.grid.queryRadius(entity.x, entity.y, radius)) {
       if (otherId === entity.id) continue;
       const other = world.entities.get(otherId);
-      if (!other || other.kind !== 'animal' || !other.alive) continue;
+      if (!other) continue;
+      // Carcasses are what a carnivore actually eats (Step 16), so they are
+      // sensed alongside the living.
+      if (other.kind === 'carcass') {
+        if (other.edibleMass > 0) {
+          const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
+          if (nearestCarcass === null || distance < nearestCarcass.distance) {
+            const cell = world.cellOf(other.x, other.y);
+            nearestCarcass = {
+              id: otherId,
+              distance,
+              x: other.x,
+              y: other.y,
+              cellX: cell.cellX,
+              cellY: cell.cellY,
+              edibleMass: other.edibleMass,
+            };
+          }
+        }
+        continue;
+      }
+      if (other.kind !== 'animal' || !other.alive) continue;
       const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
       animalCount += 1;
       if (nearestAnimal === null || distance < nearestAnimal.distance) {
@@ -69,6 +94,16 @@ export class PerceptionSystem extends SimulationSystem {
       // (Step 13) — the bond gives no magic knowledge of where the parent is.
       if (otherId === entity.guardianId) {
         guardian = { id: otherId, distance, x: other.x, y: other.y };
+      }
+      // Predation (Step 16), read from the species relation in both
+      // directions in this one pass: what I hunt, and what hunts me.
+      if (hunts(entity.speciesId, other.speciesId) && (nearestPrey === null || distance < nearestPrey.distance)) {
+        // `fleeing` is visible to the hunter: prey that has bolted is running,
+        // and a predator that keeps walking will never close the gap again.
+        nearestPrey = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y, fleeing: other.action === 'flee' };
+      }
+      if (hunts(other.speciesId, entity.speciesId) && (nearestThreat === null || distance < nearestThreat.distance)) {
+        nearestThreat = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
       }
     }
 
@@ -107,6 +142,9 @@ export class PerceptionSystem extends SimulationSystem {
       animalCount,
       nearestAnimal,
       guardian,
+      nearestPrey,
+      nearestThreat,
+      nearestCarcass,
       nearestFood: finalizeCell(nearestFood),
       nearestWater: finalizeCell(nearestWater),
       nearestObstacle: finalizeCell(nearestObstacle),

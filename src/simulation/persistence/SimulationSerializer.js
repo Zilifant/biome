@@ -57,10 +57,25 @@
  *       new `MemorySystem` descriptor. What an animal has learned is not
  *       derivable from the seed, so it is persisted; v12 saves lack the field
  *       and register a different system lineup, so they are invalidated.
+ *  14 — predation added (Step 16): per-entity `stamina`/`maxStamina`,
+ *       `huntTargetId`, `lastHuntTick`, a second species in the demo, and the
+ *       new `HuntingSystem` descriptor. v13 saves lack the fields and register
+ *       a different system lineup, so they are invalidated.
+ *  15 — injuries added (Step 17): per-entity `injuries` and the derived
+ *       `impairment`, plus the new `InjurySystem` descriptor. A wound and how
+ *       far it has healed cannot be recovered from the seed, so both persist;
+ *       v14 saves lack them and register a different system lineup, so they
+ *       are invalidated.
+ *  16 — carcass decay added (Step 17→18): per-entity `diedTick`, `deathCause`,
+ *       `decayStage`, the new `CarcassSystem` descriptor, and a new top-level
+ *       `tombstones` block. This is the first format where entities are
+ *       *removed* from the world, so the tombstone registry is part of the
+ *       saved state — without it a restored run would forget different animals
+ *       than the original. v15 saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 13;
+export const SAVE_FORMAT_VERSION = 16;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -76,6 +91,7 @@ export function captureSimulationState(engine) {
     config: engine.config,
     randomStreams: engine.serializeRandomStreams(),
     entities: engine.world.entities.serialize(),
+    tombstones: engine.world.serializeTombstones(),
     vegetation: engine.world.vegetation.serialize(),
     events: engine.events.serialize(),
     pendingCommands: engine.commands.serialize(),
@@ -105,6 +121,7 @@ export function restoreSimulationState(engine, saved) {
   engine.clock.setTick(saved.tick);
   engine.restoreRandomStreams(saved.randomStreams);
   engine.world.entities.restore(saved.entities);
+  engine.world.restoreTombstones(saved.tombstones);
   engine.world.rebuildSpatialIndex();
   engine.world.vegetation.restore(saved.vegetation);
   engine.events.restore(saved.events);

@@ -32,14 +32,20 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-15)
+## Results (post-Step-18)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 8→10 | 0.034 | ~29,900 |
-| small-100 | 256×256 | 100→141 | 0.382 | ~2,620 |
-| medium-1k | 512×512 | 1000→1433 | 4.91 | ~204 |
-| large-5k | 1024×1024 | 5000→7160 | 37.18 | ~27 |
+| demo-default | 128×128 | 128→171 | 0.631 | ~1,590 |
+| small-100 | 256×256 | 107→143 | 0.492 | ~2,030 |
+| medium-1k | 512×512 | 1067→1407 | 5.68 | ~176 |
+| large-5k | 1024×1024 | 5333→7044 | 42.57 | ~23 |
+
+Since Step 16 each scenario seeds **predators alongside prey** at roughly the
+demo's ratio, so these numbers describe a mixed population, not a
+herbivore-only world. The `demo-default` row also grew from 8 animals to 64:
+a working predator/prey demo needs enough prey density for encounters to
+happen at all.
 
 "entities" are animals and carcasses (Step 3 replaced the demo plant entities
 with a cell-level vegetation biomass field, so vegetation cost scales with
@@ -121,6 +127,31 @@ authoritative tick budget.
   linear in animals — a scan of 8 entries, not a spatial query. Memory is the
   first per-entity *growable* structure in the engine, which is exactly why the
   cap is enforced in the insert helper rather than left to the systems.
+- **Step 16** (predation): large-5k **37.18 → 40.13 ms/tick** (+2.9), now with
+  333 predators among 5000 prey rather than prey alone. `HuntingSystem` only
+  touches predators that are mid-chase and resolves the target by id, so it is
+  effectively free; the cost is in perception, which now classifies each
+  neighbour as prey/threat/carcass — but that rides inside the spatial-grid
+  loop it already ran, so it is a few comparisons per neighbour rather than a
+  new query. Sprinting adds one branch and one subtraction to the movement
+  loop. The `demo-default` row rose from 0.034 to 0.244 ms/tick purely because
+  the demo herd grew 8 → 64.
+- **Step 17** (injury and healing): large-5k **40.13 → 42.66 ms/tick** (+2.5).
+  `InjurySystem` skips every uninjured animal after one array-length check, and
+  injured animals are a small minority. The penalties cost nothing to apply:
+  `impairment` is a cached total maintained wherever the injury list changes, so
+  the movement and feeding hot loops read one number instead of walking a list.
+  Injuries are capped at 4 per animal, so like memories and life events they
+  cannot grow without bound.
+- **Step 18** (carcasses and decay): large-5k **42.66 → 42.57 ms/tick** (no
+  measurable change). `CarcassSystem` is staggered (every 5 ticks) and only
+  touches carcasses, whose decay is a pure function of elapsed time — no state
+  machine to advance, so a stagger cannot drift it. The one structural change
+  is that entities are now *removed*, which shrinks the entity set the other
+  systems iterate: before this step carcasses accumulated forever and every
+  system paid to skip them. The `demo-default` row rose to 0.63 ms/tick because
+  the demo cohorts doubled to 120 prey / 8 predators — see PLAN.md Step 18 for
+  why that re-tune was needed.
 
 ## Step 1 remediation recorded here
 

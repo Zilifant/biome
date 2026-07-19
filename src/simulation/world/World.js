@@ -48,6 +48,11 @@ export class World {
     // grid); empty until the first perception tick after construction/load.
     /** @type {Map<number, object>} */
     this.perception = new Map();
+    // Bounded memory of entities that have left the world (Step 18). Written at
+    // the engine's removal chokepoint; see world/lineage.js for why this exists
+    // and what "forgotten" means. Insertion-ordered, so eviction is FIFO.
+    /** @type {Map<number, object>} */
+    this.tombstones = new Map();
   }
 
   /** Cell coordinates containing a continuous position, clamped to the grid. */
@@ -125,6 +130,16 @@ export class World {
   /** @param {import('./EntityManager.js').Entity} entity */
   removeFromGrid(entity) {
     this.grid.remove(entity.id);
+  }
+
+  /** Serializable view of the tombstone registry (Step 18). */
+  serializeTombstones() {
+    return [...this.tombstones.values()].map((tombstone) => ({ ...tombstone }));
+  }
+
+  /** @param {Array<object>} saved */
+  restoreTombstones(saved = []) {
+    this.tombstones = new Map(saved.map((tombstone) => [tombstone.id, { ...tombstone }]));
   }
 
   /** Rebuild the spatial index from entity positions (after a load). */

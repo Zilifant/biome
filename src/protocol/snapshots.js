@@ -32,6 +32,9 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   'lifeStage',
   'action',
   'alive',
+  // Carcass decay (Step 18). Bulk-projected because the renderer ramps the
+  // carcass glyph from it; 0 on everything living.
+  'decayStage',
 ]);
 
 function cloneEntity(entity) {

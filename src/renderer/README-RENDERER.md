@@ -177,6 +177,28 @@ a renderer exists.
   remains reserved for future individual plants.
 - Inspector's absolute energy is fetched once per selection (live mode) and
   labeled with its tick; the percentage updates live from deltas.
+- Carcasses rot visibly (protocol v17): `decayStage` rides in bulk snapshots,
+  and `CARCASS_DECAY_APPEARANCE` ramps a fresh orange `%` down to faint
+  `;` and `.` remains. The appearance cache is keyed on the stage as well, so
+  the ramp costs nothing per frame. Absolute `edibleMass` stays
+  inspection-only, like every other absolute quantity. The event log formats
+  `entity.decayed`.
+- Injuries (protocol v16) are inspection-only, but the *grid* still shows
+  condition: a living animal below `HURT_HEALTH_FRACTION` is drawn in the hurt
+  tone, using the `healthFraction` that has been in every bulk snapshot since
+  Step 4 — no protocol widening needed. `resolveColorToken` is deliberately
+  separate from `resolveAppearance` so the glyph (a species fact, cached) and
+  the tint (a moment-to-moment condition) stay independent. The inspector
+  lists each wound with a severity bar and the derived impairment percentage,
+  and the event log formats `entity.injured` / `entity.recovered`.
+- Hunts (protocol v15) are readable without any new bulk fields: `stalk`,
+  `chase`, and `flee` ride the existing public `action`, so a pursuit is
+  visible in the grid from the glyphs alone. The event log formats
+  `entity.hunted` with the capture odds the engine actually used, plus
+  `entity.killed` / `entity.escaped`. While a predator is selected, its quarry
+  is bracketed in red from the inspection payload's `huntTargetId`. The stalker
+  is `S`/red at priority 60, above prey, so a predator standing on its kill
+  still reads as the predator.
 - Remembered places (protocol v14) arrive in the same inspection payload: at
   most eight per animal, strongest first, each with a kind, a cell, and a
   fading strength. The inspector lists them with a strength bar, and while an

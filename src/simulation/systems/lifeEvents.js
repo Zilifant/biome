@@ -27,6 +27,8 @@ export const LifeEventTypes = Object.freeze({
   WEANED: 'weaned', //       provisioning by the guardian ended
   DISPERSED: 'dispersed', // left the guardian at maturity
   ORPHANED: 'orphaned', //   the guardian died before independence
+  INJURED: 'injured', //     took a wound that did not kill it
+  RECOVERED: 'recovered', // a wound finally healed
   DIED: 'died', //           carries the cause
 });
 
