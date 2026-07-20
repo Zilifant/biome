@@ -28,6 +28,9 @@ export const LifeEventTypes = Object.freeze({
   DISPERSED: 'dispersed', // left the guardian at maturity
   ORPHANED: 'orphaned', //   the guardian died before independence
   INJURED: 'injured', //     took a wound that did not kill it
+  INFECTED: 'infected', //   caught something, from someone
+  SICKENED: 'sickened', //   the disease became visible
+  CURED: 'cured', //         came through it, with immunity for a while
   RECOVERED: 'recovered', // a wound finally healed
   DIED: 'died', //           carries the cause
 });

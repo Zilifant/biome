@@ -178,6 +178,19 @@ export const HURT_HEALTH_FRACTION = 0.7;
 export const HURT_COLOR_TOKEN = 'orange';
 
 /**
+ * Renderer-owned colour for a visibly ill animal (protocol v24). Takes
+ * precedence over the hurt tint: an outbreak crossing a herd is the thing worth
+ * seeing, and a sick animal is usually losing health anyway, so the two tints
+ * would otherwise fight over the same animals.
+ *
+ * Only `symptomatic` is tinted, even though the protocol also sends
+ * `incubating`. That is deliberate rather than an oversight: the whole model
+ * rests on a carrier being *invisible*, and colouring one would hand the viewer
+ * information no animal in the world has.
+ */
+export const SICK_COLOR_TOKEN = 'purple';
+
+/**
  * Colour token for an entity as drawn, taking condition into account. Kept
  * separate from `resolveAppearance` so the glyph (a species fact) and the tint
  * (a moment-to-moment condition) stay independently cacheable.
@@ -186,6 +199,7 @@ export const HURT_COLOR_TOKEN = 'orange';
  * @returns {string}
  */
 export function resolveColorToken(entity, appearance) {
+  if (entity?.alive !== false && entity?.diseaseState === 'symptomatic') return SICK_COLOR_TOKEN;
   const hurt =
     entity?.alive !== false &&
     typeof entity?.healthFraction === 'number' &&

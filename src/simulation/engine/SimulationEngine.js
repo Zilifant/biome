@@ -29,6 +29,7 @@ import { genotypeOf } from '../traits/genetics.js';
 import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js';
 import { dominanceOf } from '../social/dominance.js';
 import { territoryOf } from '../systems/TerritorySystem.js';
+import { diseaseSeverity, isInfectious, isSymptomatic } from '../disease/disease.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -49,6 +50,7 @@ function publicEntityView(entity) {
     lifeStage: entity.lifeStage,
     sex: entity.sex,
     groupId: entity.groupId,
+    diseaseState: entity.diseaseState,
     action: entity.action,
     alive: entity.alive,
     decayStage: entity.decayStage,
@@ -372,6 +374,18 @@ export class SimulationEngine {
           lastMarkTick: entity.lastMarkTick,
         };
       })(),
+      // Disease (Step 25) — the compartment itself rides in bulk snapshots (an
+      // outbreak has to be watchable); this is the detail. `infectious` is
+      // spelled out rather than left to be inferred, because the whole point of
+      // the model is that it does not match `symptomatic`.
+      disease: {
+        state: entity.diseaseState,
+        since: entity.diseaseSince,
+        until: entity.diseaseUntil,
+        infectious: isInfectious(entity),
+        symptomatic: isSymptomatic(entity),
+        severity: diseaseSeverity(entity, this.config.disease.speedPenalty),
+      },
       // Sociality (Step 23) — inspection-only apart from the `groupId` label.
       // `dominance` is *derived* on read rather than stored: there is no pecking
       // order in state, so an animal's standing shifts as it grows, starves, and

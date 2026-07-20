@@ -160,6 +160,59 @@ export const defaultSimulationConfig = Object.freeze({
     fightInjurySeverity: 0.2,
     fightWinnerInjuryFraction: 0.4,
   }),
+  // Disease (see disease/disease.js and systems/DiseaseSystem.js). A
+  // compartmental model — susceptible → incubating → symptomatic → recovered —
+  // whose one load-bearing choice is that **an incubating animal is infectious
+  // and looks healthy**. If only visibly sick animals could transmit, the herd
+  // would shun the one obvious case and an outbreak would be a non-event;
+  // because the disease runs ahead of its own symptoms, avoidance is late by
+  // construction and density is a real cost of the sociality Step 23 added.
+  // Immunity wanes so outbreaks can recur instead of burning through once.
+  disease: Object.freeze({
+    transmissionRadius: 2.5, // contact range — tighter than perception
+    transmissionChance: 0.02, // per susceptible contact per tick
+    incubationTicks: 250, // infectious and invisible
+    // Visibly ill: slow, feeding badly, infertile, shunned. This duration and
+    // `feedPenalty` are the two numbers that decide what disease costs the
+    // demo, and it is worth being clear that the cost is almost entirely
+    // **sublethal** — measured over 15k ticks on five seeds, a run has 300+
+    // infections and only 1–5 deaths *from* disease. What suppresses the
+    // population is 200 ticks per case of feeding badly and not breeding.
+    //
+    //   disease off (control)          4/5 seeds alive, grazers 52–165
+    //   400 ticks, feedPenalty 0.4     3/5, grazers 1–83   (too harsh)
+    //   200 ticks, feedPenalty 0.3     4/5, grazers 7–75   (adopted)
+    //
+    // Adopted because it matches the control's 4/5 while still visibly
+    // suppressing the population — a density-dependent pressure that bites
+    // without breaking the demo, which is what the step asks for.
+    symptomaticTicks: 200,
+    immunityTicks: 3000, // then back into the susceptible pool
+    mortalityPerTick: 0.0004, // chance a symptomatic animal simply dies
+    sickHealthDrain: 0.03, // health lost per symptomatic tick (the usual route)
+    // Baseline condition recovery (§1.4 A20). Wounds healed from Step 17 but
+    // health lost to thirst never came back, so a once-thirsty animal carried
+    // the damage for life while a mauled one mended. A step about recovering
+    // from illness is the right home for the general case: a healthy, well-fed
+    // animal now slowly regains health from *any* source of damage. Gated on
+    // energy like injury healing, because mending is work.
+    healthRecoveryPerTick: 0.02,
+    recoveryEnergyFraction: 0.5,
+    speedPenalty: 0.45, // speed lost while symptomatic (stacks with injury)
+    feedPenalty: 0.3, // intake lost while symptomatic
+    edibleMassFraction: 0.6,
+    // How many animals start the demo already incubating. One is enough: the
+    // point is that an outbreak *spreads*, not that it is seeded broadly.
+    initialInfected: 1,
+    // A fresh case from outside the population, roughly once every ~2900 ticks.
+    // Without it the pathogen goes extinct with its last carrier: the seeded
+    // outbreak peaked at 68 symptomatic around tick 1500, burned through by
+    // 2500, and by 5500 every survivor's immunity had lapsed with nothing left
+    // to catch — one epidemic in the demo's entire history. A standing
+    // reservoir is what makes disease a recurring pressure, which is what the
+    // step asks it to be.
+    spilloverChance: 0.00035,
+  }),
   // Sociality (see systems/SocialSystem.js and social/dominance.js). Herds are
   // a *label* propagated between neighbours, never a stored roster: animals in
   // sight of each other converge on the smallest group id around, so herds

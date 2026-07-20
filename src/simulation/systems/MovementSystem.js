@@ -21,6 +21,7 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
+import { diseaseSeverity } from '../disease/disease.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -36,10 +37,11 @@ export class MovementSystem extends SimulationSystem {
    * @param {number} [options.injurySpeedPenalty] speed lost at full impairment
    * @param {number} [options.updateInterval]
    */
-  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, updateInterval = 1 } = {}) {
+  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, updateInterval = 1 } = {}) {
     super({ id: 'movement.execute', phase: 'movement', priority: 0, updateInterval });
     this.sprintMultiplier = sprintMultiplier;
     this.sprintStaminaCost = sprintStaminaCost;
+    this.diseaseSpeedPenalty = diseaseSpeedPenalty;
     this.injurySpeedPenalty = injurySpeedPenalty;
   }
 
@@ -63,7 +65,11 @@ export class MovementSystem extends SimulationSystem {
       // An injured animal limps (Step 17): `impairment` is the cached total
       // severity of its wounds, so this is one multiply, not a list walk.
       const injured = 1 - entity.impairment * this.injurySpeedPenalty;
-      const step = entity.speed * pace * injured * world.speedModifierAt(entity.x, entity.y);
+      // Illness slows an animal the same way a wound does (Step 25), and the
+      // two stack — a sick, mauled animal is in real trouble. Derived from the
+      // compartment on read, so it can never disagree with the disease state.
+      const ill = 1 - diseaseSeverity(entity, this.diseaseSpeedPenalty);
+      const step = entity.speed * pace * injured * ill * world.speedModifierAt(entity.x, entity.y);
       const targetX = world.clampX(entity.x + Math.cos(intent.heading) * step);
       const targetY = world.clampY(entity.y + Math.sin(intent.heading) * step);
 

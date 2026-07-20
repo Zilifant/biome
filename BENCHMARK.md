@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-24)
+## Results (post-Step-25)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→178 | 1.145 | ~874 |
-| small-100 | 256×256 | 107→147 | 0.686 | ~1,457 |
-| medium-1k | 512×512 | 1067→1462 | 9.91 | ~101 |
-| large-5k | 1024×1024 | 5333→7205 | 74.33 | ~13 |
+| demo-default | 128×128 | 128→170 | 1.002 | ~998 |
+| small-100 | 256×256 | 107→139 | 0.683 | ~1,465 |
+| medium-1k | 512×512 | 1067→1454 | 9.71 | ~103 |
+| large-5k | 1024×1024 | 5333→7228 | 79.78 | ~13 |
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -168,6 +168,16 @@ authoritative tick budget.
   instead of one value), still a bounded 7 loci per animal. Every system
   continues to read only the expressed `traits`, exactly as before, so nothing
   in the hot path learned about genetics.
+- **Step 25** (disease): large-5k **74.33 → 79.78 ms/tick (+5.5)**. Almost all of
+  it is the O(N) progression-and-recovery pass every animal makes each tick;
+  **transmission itself costs nothing between outbreaks**, because only
+  *infectious* animals query the grid. That was the deliberate choice: the
+  obvious shape — every animal looking around for a sick neighbour — would have
+  been a third full neighbour walk on top of perception's and sociality's
+  (§1.4 C6), and would have cost far more than this. Spillover is two draws per
+  tick flat, whatever the population. A test pins the scaling by showing twenty
+  animals and four hundred leave the random stream in the same state.
+
 - **Step 24** (territories and home ranges): large-5k **72.01 → 74.33 ms/tick
   (+2.3, within this scenario's noise)** — cheap by construction, and
   deliberately so. The home-range summary is four numbers updated in O(1) per

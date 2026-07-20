@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–24 are done; Step 25 is next.
+protocol for continuing the work. Steps 1–25 are done; Step 26 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -65,8 +65,8 @@ Headless Simulation Engine           src/simulation
    ├── Spatial Grid     (uniform grid for local queries)
    ├── Systems          (weather, vegetation, perception, memory, social,
    │                     decision, movement, feeding, hunting, reproduction,
-   │                     parenting, metabolism, hydration, injury, carcass,
-   │                     aging, metrics)
+   │                     parenting, territory, metabolism, hydration, injury,
+   │                     disease, carcass, aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
@@ -159,7 +159,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `23`) and is
+Everything a client sees carries `protocolVersion` (currently `24`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -170,7 +170,7 @@ built by `src/protocol/`:
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
-  groupId, action, alive, decayStage) — internal records never leak, and every snapshot
+  groupId, diseaseState, action, alive, decayStage) — internal records never leak, and every snapshot
   is freshly cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
   `adultMass`, its `genome` / `genotype` / parent traits, its bounded
@@ -180,7 +180,9 @@ built by `src/protocol/`:
   standard it is currently holding, and the last animal it sized up), its
   `social` block (herd, *derived* dominance, alarm state, who it is defending),
   its `territory` block (home range, drift from it, ground held, whose claim it
-  is standing on), and the family/life-history block (resolved `lineage`, parenting state, bounded
+  is standing on), its `disease` block (compartment, whether it is infectious —
+  which is *not* the same as whether it looks ill — and how far through it is),
+  and the family/life-history block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
@@ -230,7 +232,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `22`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `23`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors.
@@ -273,7 +275,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 480 tests.
+ASCII renderer, committed fixtures, and 507 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -325,6 +327,7 @@ Their full loop is implemented:
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
 | `SocialSystem` | decision | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop |
 | `TerritorySystem` | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance |
+| `DiseaseSystem` | physiology | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well |
 | `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
 The result is a **multi-generational, self-sustaining population** with a
@@ -360,6 +363,24 @@ balance — measured over 20k ticks on five seeds, roughly 24–111 grazers agai
 1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
 `config.demo` for the measured sweep behind the founding counts).
+
+**Disease travels ahead of its own symptoms.** An animal that has caught
+something spreads it for a couple of hundred ticks while looking perfectly
+healthy, and only then visibly sickens — slower, feeding badly, unable to breed,
+and left out of its herd's centre of mass so the group drifts away from it. That
+ordering is the whole model. If only visibly sick animals could transmit,
+avoidance would be a complete defence and an outbreak would be a non-event; a
+herd would shun the one obvious case and carry on. Because the carrier looks
+fine, avoidance is always late, and the density that herding creates becomes a
+real cost rather than a free benefit.
+
+Recovery grants immunity, but immunity **wanes** — so a population that has been
+through an epidemic slowly becomes susceptible again, and with a fresh case
+arriving from outside now and then, disease is a standing pressure rather than a
+single event in the demo's history. The compartment counts are the outbreak
+curve, and they are in the metrics: watching *infectious* run well ahead of
+*visibly sick* is watching the mechanism work. Transmission costs nothing
+between outbreaks, because only infectious animals ever look around.
 
 **Animals live somewhere, and some of them own it.** Every animal carries a
 *home range* that is nothing more than a running average of where it has
@@ -509,12 +530,12 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Disease, migration, disturbances,
+Migration, disturbances,
 ecosystem engineering, a config-driven species schema (beyond today's two
 hand-written species), and profile-driven optimization toward tens of thousands
 of animals.
 
-`PLAN.md` sequences all of these as Steps 25–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 26–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

@@ -55,6 +55,7 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
+import { isSymptomatic } from '../disease/disease.js';
 
 export class SocialSystem extends SimulationSystem {
   /**
@@ -137,7 +138,14 @@ export class SocialSystem extends SimulationSystem {
         if (other.speciesId !== entity.speciesId) continue;
         const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
 
-        if (distance <= this.groupRadius) {
+        // Social avoidance of illness (Step 25), done *without* a new movement
+        // action. A visibly sick animal is simply not counted in the herd's
+        // centre of mass, so the group's pull leads away from it and it is left
+        // behind — which looks exactly like shunning and costs nothing, whereas
+        // a `shun` action would have had to compete with foraging (the Step 24
+        // lesson). Note it only works on *symptomatic* animals: an incubating
+        // one looks fine and is embraced, which is how the outbreak spreads.
+        if (distance <= this.groupRadius && !isSymptomatic(other)) {
           groupmates += 1;
           if (other.lifeStage === 'adult' || other.lifeStage === 'senescent') adults += 1;
           sumX += other.x;

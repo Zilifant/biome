@@ -42,6 +42,12 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // delta size. Nothing about *who else* is in the group is projected — there
   // is no roster anywhere to project.
   'groupId',
+  // Disease (Step 25). Bulk-projected because a symptomatic animal has to be
+  // visible on the grid for an outbreak to be watchable at all — and because
+  // the *incubating* value being projected too is the honest thing: the
+  // protocol does not hide who is carrying it, the renderer simply cannot make
+  // an animal look ill before it is.
+  'diseaseState',
   'action',
   'alive',
   // Carcass decay (Step 18). Bulk-projected because the renderer ramps the

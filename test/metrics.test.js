@@ -204,7 +204,12 @@ describe('metrics: the system', () => {
     const sample = summarizeForHistory(engine.world.metrics);
     assert.deepEqual(Object.keys(sample).sort(), ['species', 'tick']);
     for (const entry of sample.species) {
-      assert.deepEqual(Object.keys(entry).sort(), ['generation', 'living', 'speciesId', 'traits']);
+      // The exact key list is the point of this assertion, not incidental: the
+      // history is the one thing that grows with *time*, so anything added to a
+      // sample multiplies by 120 retained samples. `infectious` (Step 25) is one
+      // integer and earns it by being the outbreak curve — the thing the disease
+      // step exists to make visible over time.
+      assert.deepEqual(Object.keys(entry).sort(), ['generation', 'infectious', 'living', 'speciesId', 'traits']);
       assert.equal(Object.keys(entry.traits).length, TRAIT_NAMES.length);
     }
   });

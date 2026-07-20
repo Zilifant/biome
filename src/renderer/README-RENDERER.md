@@ -195,6 +195,14 @@ a renderer exists.
   also shows the sex counts and the selection differential **split by sex**,
   which is the row that distinguishes sexual from natural selection: a mate
   preference moves only the sex being chosen.
+- Disease (protocol v24). `diseaseState` rides in bulk snapshots so an outbreak
+  is watchable, and a **symptomatic** animal is tinted purple — taking precedence
+  over the hurt tint, since an outbreak crossing a herd is the thing worth
+  seeing and a sick animal is usually losing health anyway. An **incubating**
+  animal is deliberately *not* tinted even though the protocol sends its state:
+  the whole model rests on a carrier being invisible, and colouring one would
+  hand the viewer information no animal in the world has. The inspector panel
+  spells out `infectious` separately from `symptomatic` for the same reason.
 - Territory (protocol v23) is inspection-only. The claim layer is deliberately
   **not** projected: a per-cell ownership map in every snapshot would rival the
   vegetation block for something that changes far more slowly and matters for

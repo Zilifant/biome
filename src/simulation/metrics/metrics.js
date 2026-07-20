@@ -32,6 +32,7 @@ import { SPECIES } from '../config/species/index.js';
 import { TRAIT_NAMES } from '../traits/traits.js';
 import { genotypeOf } from '../traits/genetics.js';
 import { SEX_VALUES } from '../mating/mateChoice.js';
+import { DiseaseStates } from '../disease/disease.js';
 
 /**
  * The cohorts a selection differential is computed within: the whole adult
@@ -115,6 +116,9 @@ export function computeMetrics(world, { tick, windowTicks }) {
         // Home ranges (Step 24): the radii of animals that have settled one.
         rangeRadii: [],
         settled: 0,
+        // Disease (Step 25): the compartment counts, which *are* the outbreak
+        // curve. Kept per species because the two carry it independently.
+        diseaseStates: Object.fromEntries(Object.values(DiseaseStates).map((state) => [state, 0])),
         // Adults, split by whether they have actually reproduced — the two
         // samples a selection differential is the difference between — and
         // again by sex, because that is the split sexual selection lives in.
@@ -149,6 +153,7 @@ export function computeMetrics(world, { tick, windowTicks }) {
     bucket.living += 1;
     if (entity.lifeStage in bucket.lifeStages) bucket.lifeStages[entity.lifeStage] += 1;
     if (entity.sex !== null && entity.sex in bucket.sexes) bucket.sexes[entity.sex] += 1;
+    if (entity.diseaseState in bucket.diseaseStates) bucket.diseaseStates[entity.diseaseState] += 1;
     if (entity.homeRange !== null) {
       bucket.settled += 1;
       bucket.rangeRadii.push(entity.homeRange.radius);
@@ -200,6 +205,12 @@ export function computeMetrics(world, { tick, windowTicks }) {
       // observation roadmap rules out, and the inspector already serves the
       // one-animal question.
       homeRange: { settled: bucket.settled, radius: describe(bucket.rangeRadii) },
+      disease: {
+        ...bucket.diseaseStates,
+        // Infectious ≠ symptomatic, and reporting only the visible count would
+        // understate an outbreak by exactly the animals driving it.
+        infectious: bucket.diseaseStates[DiseaseStates.INCUBATING] + bucket.diseaseStates[DiseaseStates.SYMPTOMATIC],
+      },
       generation: describe(bucket.generations),
       reproductiveSuccess: describe(bucket.offspringCounts),
       births: bucket.births,
@@ -265,6 +276,7 @@ export function summarizeForHistory(report) {
       living: entry.living,
       generation: entry.generation.mean,
       traits: Object.fromEntries(TRAIT_NAMES.map((name) => [name, entry.traits[name].phenotype.mean])),
+      infectious: entry.disease.infectious,
     })),
   };
 }

@@ -57,6 +57,9 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {{x: number, y: number, radius: number, samples: number} | null}
  *   homeRange bounded running summary of where this animal lives (Step 24)
  * @property {number | null} lastMarkTick tick it last marked ground
+ * @property {string} diseaseState susceptible | incubating | symptomatic | recovered
+ * @property {number | null} diseaseSince tick the current stage began
+ * @property {number | null} diseaseUntil tick the current stage ends
  * @property {Array<{tick: number, type: string}>} lifeEvents bounded life history
  * @property {string | null} sex 'female' | 'male' (Step 22); null for non-animals
  * @property {number | null} gestationUntil tick the pregnancy comes to term
@@ -180,6 +183,13 @@ function createEntity(id, definition) {
     // that replaces it. Null until the animal has lived somewhere.
     homeRange: definition.homeRange ?? null,
     lastMarkTick: definition.lastMarkTick ?? null,
+    // Disease (Step 25; see disease/disease.js). Three fields hold the whole
+    // compartmental state: which compartment, when it was entered, and when it
+    // ends. Severity is *derived* from the compartment rather than stored, so
+    // the two can never drift apart.
+    diseaseState: definition.diseaseState ?? 'susceptible',
+    diseaseSince: definition.diseaseSince ?? null,
+    diseaseUntil: definition.diseaseUntil ?? null,
     // The animal this one has decided to stand over, owned by the decision
     // system exactly as `huntTargetId` is, and read by hunting.
     defendingId: definition.defendingId ?? null,

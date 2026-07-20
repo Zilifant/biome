@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–24)
+## 1.4 Carried-forward deviations and open issues (Steps 1–25)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -142,6 +142,9 @@ correctness bug in shipped code unless marked ⚠.
 | A26 | 20 | Genetics is a module called by reproduction, not a registered `GeneticsSystem` — inheritance happens at one instant that reproduction already owns | — (settled; a system would need a per-tick newborn scan) |
 | A27 | 21 | Metrics are polled over HTTP rather than streamed in snapshots/deltas — a full aggregate would dwarf the per-tick payload | — (settled; a summary view needs no tick resolution) |
 | A28 | 21 | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash | a later observability pass, if it earns its keep |
+| A37 | 25 | Disease does not cross species — a pathogen adapted to a grazer is not the one adapted to a stalker | a later step, if a shared or zoonotic pathogen is wanted |
+| A38 | 25 | Susceptibility, incubation, and virulence are global config rather than per species | **Step 29** (species schema), which now has five blocks to absorb |
+| A39 | 25 | An environmental **spillover** keeps the pathogen alive. Without it the disease went extinct with its last carrier (one epidemic in 15k ticks); with it, outbreaks recur. It is a modelling convenience standing in for a reservoir that is not simulated | — (settled; a reservoir species would be Step 29's business) |
 | A29 | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | a later step, if runaway is wanted; the species block itself belongs to **Step 29** |
 | A30 | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Step 29**, if a species ever needs the other answer |
 | ⚠ A31 | 23 | **Step 21's selection sandbox has never demonstrated its claim.** Measured over seven seeds: the trait rose in 3, fell in 4, mean change −0.0002, with the selection differential negative in five and uncorrelated with the trait's direction. Cause: the differential compares breeders against *all* adults, and 71 % of adults are breeders there, so the two samples are nearly the same set. Tightening the breeding gate makes it visible but drives the population extinct | an unmet **Step 21** acceptance criterion. The test now claims no direction; a world that demonstrates it must be built, not tuned |
@@ -150,7 +153,7 @@ correctness bug in shipped code unless marked ⚠.
 | A35 | 24 | Grazers get a home range but no site fidelity and no claims, so "territory" in the demo is a predator-only phenomenon at ~9 individuals | **Step 29** (species schema) is where a third, genuinely territorial species would land |
 | A36 | 24 | The claim layer is not projected to the renderer — the home-range ring is drawn from inspection for the selected animal only | a later renderer pass, if a territory *map* earns the per-snapshot cost |
 | A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
-| ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
+| ~~⚠ A20~~ | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from *any* source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
 
 ### B. Configuration / structural debt
 
@@ -190,6 +193,7 @@ correctness bug in shipped code unless marked ⚠.
 | D10 | Step 23's first cuts of both group formation and alarm were unbounded local mechanisms, and both went global: alarm became a self-sustaining chain reaction (106/119 permanently fleeing), and herd labels never dissolved after a split | A local mechanism needs an *explicit* bound — a hop count from the source — to stay local. Population density is not a bound |
 | D11 | Step 24's `intrusionThreshold` was set equal to `markStrength`, so freshly marked ground sat exactly at the "occupied" threshold and decayed below it immediately — avoidance never fired at all | When one parameter is a threshold *on* another, write the relationship down beside them. Equal values are the failure case, not the neutral one |
 | D12 | Two Step 24 tests assumed a resident still held the cell it was spawned on. It does not — it moves. A third asserted a stochastic time-on-claim comparison across two runs whose trajectories diverge from tick one | Ask the world what is true (`heldGround` scans the grid) instead of assuming the setup held; and assert mechanisms, not outcomes compared across diverging runs |
+| D13 | A Step 22 test measured event *retention* rather than emission: it stepped 3000 ticks at once and then asked `eventsSince`, so the bounded outbox had long since trimmed everything but the tail. It passed only because a courtship happened to land in the surviving window, and Step 23's new events shortened that window until it reported **zero** courtships in a run that had 280 | Collect events tick by tick when counting them. `eventsSince` after a long `step(n)` measures what survived retention, not what happened |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -4583,7 +4587,7 @@ smaller than the other two (§1.4 C6).
 
 ## Step 25 — Simplified disease or parasites
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -4644,12 +4648,12 @@ Transmission via grid neighborhoods only. Benchmark in dense populations.
 
 ### Acceptance criteria
 
-- [ ] SIR-style disease with visible symptoms and outcomes
-- [ ] Disease observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] SIR-style disease with visible symptoms and outcomes
+- [x] Disease observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -4657,7 +4661,133 @@ Detailed immunology, pathogen evolution, vectors as entities.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) One modelling choice carries the
+whole step, and §1.4 A20 is closed along with it.
+
+**An incubating animal is infectious and looks perfectly healthy.** Everything
+interesting follows from that. If only visibly sick animals could transmit,
+avoidance would be a complete defence and an outbreak would be a non-event — the
+herd shuns the one obvious case and carries on. Because the disease runs ahead
+of its own symptoms, **avoidance is late by construction**: by the time a herd
+can see who is ill, it has been standing next to them for a couple of hundred
+ticks. That is what turns the density Step 23 introduced into a genuine cost,
+which is precisely the pressure the plan asks this step to supply. Live, the
+demo showed **13 infectious animals of which only 4 were visible**.
+
+Compartments are susceptible → incubating → symptomatic → recovered, and
+**immunity wanes** so the population returns to the susceptible pool. Severity
+is *derived* from the compartment rather than stored, for the same reason
+dominance is (Step 23): a value computed from the state cannot drift out of step
+with it.
+
+**Transmission is driven by the infectious, not by everybody.** The obvious
+shape — every animal looking around for a sick neighbour — would have been a
+**third** full neighbour walk per animal per tick, on top of perception's and
+sociality's (§1.4 C6, already flagged twice). Only infectious animals query the
+grid, so the cost tracks **prevalence** rather than population: nothing at all
+between outbreaks. It is also the more faithful direction — a pathogen spreads
+outward from a host, it is not sought out by the healthy. A test pins the
+property by showing that twenty animals and four hundred leave the stream in the
+same state.
+
+**Social avoidance without a new movement action.** Step 24's lesson was that a
+new behaviour competing with foraging wrecks the ecology, so illness is avoided
+by a subtraction instead: a visibly sick animal is simply **not counted in the
+herd's centre of mass**, so the group's pull leads away from it and it is left
+behind. That looks exactly like shunning and costs nothing. And because it keys
+on *symptoms*, the carrier that looks fine stays in the middle of the herd —
+which is how the outbreak spreads at all.
+
+**§1.4 A20 is closed.** Wounds healed from Step 17, but health lost to thirst
+never came back, so a once-thirsty animal carried the damage for life while a
+mauled one mended. A step about recovering from illness is the right home for
+the general case: a healthy, well-fed animal now slowly regains health from *any*
+source of damage, gated on energy exactly as injury healing is, because mending
+is work.
+
+**Two findings from running it.**
+
+1. **The pathogen went extinct.** The seeded outbreak peaked at 68 symptomatic
+   around tick 1500, burned through by 2500, and by 5500 every survivor's
+   immunity had lapsed with nothing left to catch — one epidemic in the demo's
+   entire history, then 10 000 quiet ticks. Correct epidemiology for a disease
+   with no reservoir, and useless as a standing pressure. A small **environmental
+   spillover** (a fresh case roughly every 2900 ticks) makes outbreaks recur. It
+   spends two draws per tick flat, whatever the population; rolling per animal
+   would have been an O(N) walk through the stream for something this rare.
+2. **The cost is almost entirely sublethal, and that is what needed tuning.** A
+   run has 300+ infections and only 1–5 deaths *from* disease. What suppresses
+   the population is the time spent feeding badly and not breeding — so
+   `symptomaticTicks` and `feedPenalty`, not the mortality rate, are the numbers
+   that decide what disease costs.
+
+**Tuning is measured** (five seeds, 15k ticks, against a disease-off control):
+
+| | seeds with both species alive | grazers |
+| --- | --- | --- |
+| disease off (control) | 4/5 | 52–165 |
+| 400 sick ticks, feed −40 % | 3/5 | 1–83 |
+| **200 sick ticks, feed −30 %** | **4/5** | **7–75** |
+
+Adopted because it matches the control's 4/5 while still visibly suppressing the
+population — a density-dependent pressure that bites without breaking the demo.
+
+**What shipped.** `disease/disease.js` (compartments, predicates, derived
+severity, and the `infect` / `recover` / `clearImmunity` transitions, as a shared
+helper in the established pattern); `DiseaseSystem` (`physiology`) owning
+progression, transmission, spillover, mortality, and condition recovery; effects
+in movement, feeding, fertility (`isReproductivelyReady` excludes the visibly
+ill), and the herd centroid; **protocol v23 → v24** (`diseaseState` in bulk
+snapshots so an outbreak is watchable, `entity.infected` / `entity.sickened` /
+`entity.cured`, and an inspection block that spells out `infectious` separately
+from `symptomatic`); **save v22 → v23**; per-species compartment counts in
+metrics plus `infectious` in the bounded history, which is the outbreak curve;
+a renderer sick tint, disease panel, event formatting, and a sparkline.
+
+**Tests:** `npm test` → **507 passing / 0 failing** (was 480; +27). New
+`test/disease.test.js`: the compartments (including that an incubating animal is
+infectious, invisible, and unimpaired — asserted on its own because everything
+else depends on it), progression on an exact schedule with a fixed draw budget,
+transmission (in range and not beyond it, never across species, never to the
+immune, a traceable source id, and the population-independent cost), what illness
+costs (slower, infertile-when-visible-but-not-when-incubating, and left out of
+the herd's centre while an incubating animal is not), condition recovery closing
+A20, protocol/metrics/persistence, and the outbreak sandbox.
+
+**Deterministic demonstration scenario — the outbreak sandbox.** A tight cluster
+of 24 animals and one infected. Asserted as the *shape* of an epidemic rather
+than counts: it spreads beyond patient zero, animals visibly sicken, it resolves
+into recovered and dead, and it **burns out** rather than running forever. A
+companion test puts one animal on the far side of the world and asserts it never
+catches anything in 3000 ticks — locality asserted where it matters, since
+transmission is contact and not a population-wide roll.
+
+**Visible result verified.** Against a live server at protocol v24: 157 animals
+reading 93 recovered / 51 susceptible / 9 incubating / 4 symptomatic — the
+13-infectious-but-4-visible gap that is the whole model. Stalkers at 0 infected
+throughout, confirming the disease is species-bound. The outbreak curve moving in
+the bounded history (10 → 9 → 12 → 9 → 8 → 9 → 10 → 13 infectious). And a
+transmission chain traceable straight out of the event log: **#134 → #66 → #6**
+and **#129 → #24 → #185**.
+
+**Performance.** large-5k **74.33 → 79.78 ms/tick** (+5.5). Almost all of it is
+the O(N) progression-and-recovery pass; transmission itself costs nothing between
+outbreaks by design. Still ~12× inside the tick budget.
+
+**Deviations from the step spec (documented):** (1) **No cross-species
+transmission** — a pathogen adapted to a grazer is not the one adapted to a
+stalker, and spillover between hosts is its own subject; the two species carry it
+independently. (2) **Avoidance is the herd subtraction described above rather
+than a `shun` action**, deliberately, on Step 24's evidence. (3) **Condition
+recovery lives in this system**, not the injury system, because injury healing is
+paid per unit of wound severity and this is the baseline underneath it.
+
+**Follow-on notes for later steps:** Step 26 (migration and dispersal) inherits a
+population whose density now has a real cost, which is one of the classic
+reasons to leave. Step 29's species schema gains a fifth per-species candidate if
+susceptibility ever varies by species (it does not yet — `disease` is global).
+And §1.4 C6 is unchanged: this step deliberately did not add a third neighbour
+walk, so the optimization owed to Step 30 is still just perception + sociality.
 
 ---
 
@@ -5176,6 +5306,7 @@ population counts).
 | 11  | Sexual-selection sandbox     | fixed | females prefer size; the trait rises       | rises *more* than a choice-off control; S positive among males only | 22 | no |
 | 12  | Herd sandbox                 | fixed | a herd holds together; a threat alarms the near side only | tighter than a herding-off control; far side never alarmed | 23 | no |
 | 13  | Residency sandbox            | fixed | a resident settles a range; a neighbour leaves its ground | closer to home than a pull-off control; neighbour leaves 5/5 | 24 | no |
+| 14  | Outbreak sandbox             | fixed | one case in a dense group becomes an epidemic | spreads past patient zero, peaks, burns out; an isolate never catches it | 25 | no |
 
 For each: record initial state, seed, expected behavior, stable assertions,
 related steps, and whether a renderer fixture is generated. **Do not assert
@@ -5298,14 +5429,14 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–24
+### Observed status after Steps 1–25
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
 
 | Risk | Observed? | Evidence and outcome |
 | --- | --- | --- |
-| Population explosion | **Yes (four times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. Step 24 was the most destructive yet (5/5 → 1/5 at first) and had to be *bisected* rather than tuned: the cause was a single behaviour, `patrol`, competing with the wandering animals need to find food. |
+| Population explosion | **Yes (four times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. Step 24 was the most destructive yet (5/5 → 1/5 at first) and had to be *bisected* rather than tuned: the cause was a single behaviour, `patrol`, competing with the wandering animals need to find food. Step 25 cost one seed (4/5 → 3/5) until the *sublethal* cost was tuned down — and the diagnosis mattered there too, since a run had 300+ infections and only 1–5 deaths, so the mortality rate was never the lever. |
 | Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
 | Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. Step 22 followed exactly that: sexes and mate choice were swept on five seeds against a *control with choice off*, which is what showed that a shorter patience selected just as hard while keeping both species alive in 5/5 seeds rather than 4/5. |
 | Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately *weakened* a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. Step 22 found the sharpest case (D7): Step 21's selection sandbox had been passing on drift on a pinned seed, and the fix was to diagnose the mechanism (deaths were *all* age deaths — the pressure was never applied) rather than re-pin, then re-verify on four seeds it had never seen. |

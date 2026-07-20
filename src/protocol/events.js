@@ -62,6 +62,16 @@ export const EventTypes = Object.freeze({
   ENTITY_DISPUTED: 'entity.disputed', // { entityId, ownerId, winnerId, dominance, ownerDominance, escalated, cellsTransferred }
   // An adult putting itself between a predator and a groupmate or its own young.
   ENTITY_DEFENDED: 'entity.defended', // { entityId, wardId, threatId }
+  // Disease (Step 25). `infected` names the animal it came from, which is what
+  // makes a transmission chain traceable; note it fires while the new carrier
+  // still looks perfectly healthy, because an incubating animal is infectious
+  // and invisible. `sickened` is the moment symptoms appear — the first point
+  // at which anything else can react — and `cured` reports how long the
+  // immunity lasts. A death from it arrives as the usual `entity.died` with
+  // cause `disease`.
+  ENTITY_INFECTED: 'entity.infected', // { entityId, sourceId }
+  ENTITY_SICKENED: 'entity.sickened', // { entityId }
+  ENTITY_CURED: 'entity.cured', //      { entityId, immuneUntil }
   // A milestone in one animal's life history. `event` is a life-event type
   // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
   ENTITY_LIFE_EVENT: 'entity.lifeEvent', //    { entityId, event, guardianId }

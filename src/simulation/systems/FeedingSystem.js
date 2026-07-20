@@ -23,6 +23,7 @@ import { EventTypes } from '../events/EventTypes.js';
 import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 import { SPECIES } from '../config/species/index.js';
 import { CarcassSystem } from './CarcassSystem.js';
+import { diseaseSeverity } from '../disease/disease.js';
 
 export class FeedingSystem extends SimulationSystem {
   /**
@@ -47,6 +48,7 @@ export class FeedingSystem extends SimulationSystem {
     carnivoreEfficiency = 0.75,
     carcassRange = 1.5,
     injuryFeedPenalty = 0.5,
+    diseaseFeedPenalty = 0.3,
     maxMemories = MAX_MEMORIES,
     updateInterval = 1,
   } = {}) {
@@ -59,6 +61,7 @@ export class FeedingSystem extends SimulationSystem {
     this.carnivoreEfficiency = carnivoreEfficiency;
     this.carcassRange = carcassRange;
     this.injuryFeedPenalty = injuryFeedPenalty;
+    this.diseaseFeedPenalty = diseaseFeedPenalty;
     this.maxMemories = maxMemories;
   }
 
@@ -84,7 +87,7 @@ export class FeedingSystem extends SimulationSystem {
       const maxUsefulBiomass = deficit / (this.energyPerBiomass * this.efficiency);
       // A wounded animal feeds badly (Step 17), which is how an injury turns
       // into a slow slide rather than a one-off cost.
-      const rate = this.intakeRate * (1 - entity.impairment * this.injuryFeedPenalty);
+      const rate = this.intakeRate * (1 - entity.impairment * this.injuryFeedPenalty) * (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
       const desired = Math.min(rate, maxUsefulBiomass);
       if (desired <= 0) continue;
 
@@ -138,7 +141,7 @@ export class FeedingSystem extends SimulationSystem {
     const freshness = CarcassSystem.yieldFor(carcass);
     const energyPerUnit = this.energyPerMass * this.carnivoreEfficiency * freshness;
     const maxUseful = energyPerUnit > 0 ? deficit / energyPerUnit : 0;
-    const rate = this.fleshIntakeRate * (1 - entity.impairment * this.injuryFeedPenalty);
+    const rate = this.fleshIntakeRate * (1 - entity.impairment * this.injuryFeedPenalty) * (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
     const taken = Math.min(rate, carcass.edibleMass, maxUseful);
     if (taken <= 0) return;
 

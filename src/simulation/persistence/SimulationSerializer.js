@@ -106,10 +106,15 @@
  *       descriptor. Both are evolved state: a map of who holds what ground, and
  *       an average built from a walk nobody recorded, cannot be recovered from
  *       the seed. v21 saves are invalidated.
+ *  23 — disease added (Step 25): per-entity `diseaseState`, `diseaseSince`, and
+ *       `diseaseUntil`, plus the new `DiseaseSystem` descriptor. Who is
+ *       currently carrying what, and how far through it they are, is exactly
+ *       the kind of thing no seed can reproduce once a population has been
+ *       exposed. v22 saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 22;
+export const SAVE_FORMAT_VERSION = 23;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

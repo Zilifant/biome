@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 23,
+  "protocolVersion": 24,
   "kind": "snapshot.delta",
   "simulationId": "demo-42",
   "baseTick": 10,
@@ -21,6 +21,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 1,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -40,6 +41,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -59,6 +61,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 3,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -78,6 +81,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 4,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -97,6 +101,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -116,6 +121,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 3,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -135,6 +141,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -154,6 +161,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -173,6 +181,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -192,6 +201,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -211,6 +221,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 11,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -230,6 +241,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 12,
+      "diseaseState": "susceptible",
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -249,6 +261,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 13,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -268,6 +281,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 14,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -287,6 +301,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 15,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -306,6 +321,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 16,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -325,6 +341,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -344,6 +361,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -363,6 +381,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 19,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -382,6 +401,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 20,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -401,6 +421,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 12,
+      "diseaseState": "susceptible",
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -420,6 +441,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 22,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -439,6 +461,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -458,6 +481,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -477,6 +501,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -496,6 +521,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -515,6 +541,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 27,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -534,6 +561,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 12,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -553,6 +581,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -572,6 +601,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -591,6 +621,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 14,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -610,6 +641,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 32,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -629,6 +661,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 15,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -648,6 +681,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -667,6 +701,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 3,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -686,6 +721,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -705,6 +741,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -724,6 +761,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 4,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -743,6 +781,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -762,6 +801,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -781,6 +821,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 32,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -800,6 +841,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -819,6 +861,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -838,6 +881,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -857,6 +901,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -876,6 +921,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 46,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -895,6 +941,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 27,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -914,6 +961,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -933,6 +981,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 22,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -952,6 +1001,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -971,6 +1021,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -990,6 +1041,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1009,6 +1061,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1028,6 +1081,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1047,6 +1101,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1066,6 +1121,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1085,6 +1141,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1104,6 +1161,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1123,6 +1181,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1142,6 +1201,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1161,6 +1221,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -1180,6 +1241,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 19,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1199,6 +1261,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1218,6 +1281,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 22,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -1237,6 +1301,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 13,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1256,6 +1321,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1275,6 +1341,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1294,6 +1361,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 1,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1313,6 +1381,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1332,6 +1401,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 19,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1351,6 +1421,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 16,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1370,6 +1441,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -1389,6 +1461,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1408,6 +1481,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 13,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1427,6 +1501,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 27,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1446,6 +1521,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1465,6 +1541,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 27,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -1484,6 +1561,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1503,6 +1581,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 15,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1522,6 +1601,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 27,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1541,6 +1621,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1560,6 +1641,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 14,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1579,6 +1661,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1598,6 +1681,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1617,6 +1701,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1636,6 +1721,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1655,6 +1741,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 1,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1674,6 +1761,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 4,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1693,6 +1781,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 16,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1712,6 +1801,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1731,6 +1821,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1750,6 +1841,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1769,6 +1861,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": 20,
+      "diseaseState": "susceptible",
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -1788,6 +1881,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -1807,6 +1901,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1826,6 +1921,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 22,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1845,6 +1941,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "incubating",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1864,6 +1961,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": 4,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1883,6 +1981,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1902,6 +2001,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1921,6 +2021,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 1,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1940,6 +2041,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -1959,6 +2061,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 4,
+      "diseaseState": "susceptible",
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1978,6 +2081,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": 14,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1997,6 +2101,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 3,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2016,6 +2121,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 27,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2035,6 +2141,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 11,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2054,6 +2161,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2073,6 +2181,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2092,6 +2201,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2111,6 +2221,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -2130,6 +2241,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 1,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2149,6 +2261,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": 22,
+      "diseaseState": "susceptible",
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -2168,6 +2281,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2187,6 +2301,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2206,6 +2321,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": 3,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2225,6 +2341,7 @@
       "lifeStage": "adult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2244,6 +2361,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2263,6 +2381,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": 15,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2282,6 +2401,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2301,6 +2421,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2320,6 +2441,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2339,6 +2461,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "chase",
       "alive": true,
       "decayStage": 0
@@ -2358,6 +2481,7 @@
       "lifeStage": "adult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2377,6 +2501,7 @@
       "lifeStage": "subadult",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2396,6 +2521,7 @@
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "chase",
       "alive": true,
       "decayStage": 0
@@ -2415,6 +2541,7 @@
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2434,6 +2561,7 @@
       "lifeStage": "subadult",
       "sex": "male",
       "groupId": null,
+      "diseaseState": "susceptible",
       "action": "wander",
       "alive": true,
       "decayStage": 0

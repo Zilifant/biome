@@ -16,7 +16,7 @@
 import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 23;
+export const SUPPORTED_PROTOCOL_VERSION = 24;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {

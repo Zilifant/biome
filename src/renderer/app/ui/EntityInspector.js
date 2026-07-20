@@ -274,6 +274,30 @@ function formatTerritory(detail) {
   return `<h3>Range</h3>${rows.join('')}`;
 }
 
+/**
+ * Render disease (protocol v24). `infectious` is shown separately from
+ * `symptomatic` because the two genuinely differ — an incubating animal is
+ * spreading it while looking perfectly well, and that gap is the whole model.
+ */
+function formatDisease(detail) {
+  const disease = detail?.disease;
+  if (!disease || disease.state === 'susceptible') return '';
+  const tone = disease.symptomatic ? 'bad' : disease.state === 'recovered' ? 'ok' : 'warn';
+  const rows = [`<div class="field"><span>state</span><span class="${tone}">${escapeHtml(disease.state)}</span></div>`];
+  if (disease.infectious) {
+    rows.push(
+      `<div class="field"><span>infectious</span><span class="bad">yes${disease.symptomatic ? '' : ' <span class="dim">(and looks fine)</span>'}</span></div>`,
+    );
+  }
+  if (disease.until != null) {
+    rows.push(`<div class="field"><span>until</span><span class="dim">t${disease.until}</span></div>`);
+  }
+  if (disease.severity > 0) {
+    rows.push(`<div class="field"><span>impaired</span><span class="warn">${Math.round(disease.severity * 100)}%</span></div>`);
+  }
+  return `<h3>Disease</h3>${rows.join('')}`;
+}
+
 /** Render the transient perception summary (protocol v6), or nothing. */
 function formatPerception(perception) {
   if (!perception) return '';
@@ -380,6 +404,7 @@ export class EntityInspector {
       ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
+    const diseaseBlock = formatDisease(liveDetail);
     const territoryBlock = formatTerritory(liveDetail);
     const socialBlock = formatSocial(liveDetail);
     const mateChoiceBlock = formatMateChoice(liveDetail);
@@ -404,6 +429,7 @@ export class EntityInspector {
       ${memoriesBlock}
       ${traitsBlock}
       ${geneticsBlock}
+      ${diseaseBlock}
       ${socialBlock}
       ${territoryBlock}
       ${mateChoiceBlock}

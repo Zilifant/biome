@@ -72,6 +72,14 @@ function formatEvent(event) {
       }${event.cellsTransferred ? ` (+${event.cellsTransferred} cells)` : ''}`;
     case 'entity.defended':
       return `# defends #${event.entityId} over #${event.wardId} against #${event.threatId}`;
+    case 'entity.infected':
+      // A null source is a case from outside the population, not a missing
+      // field — which is why it says so rather than printing "#null".
+      return `~ infected #${event.entityId} ${event.sourceId != null ? `by #${event.sourceId}` : '(from the environment)'}`;
+    case 'entity.sickened':
+      return `!! sickened #${event.entityId}`;
+    case 'entity.cured':
+      return `++ recovered #${event.entityId}${event.immuneUntil != null ? ` <immune to t${event.immuneUntil}>` : ''}`;
     case 'entity.lifeEvent':
       return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}`;
     default: {
@@ -95,6 +103,8 @@ function eventClass(event) {
   if (event.type === 'entity.injured') return 'event-died';
   if (event.type === 'entity.alarmed' || event.type === 'entity.contested') return 'event-other';
   if (event.type === 'entity.disputed') return 'event-other';
+  if (event.type === 'entity.infected' || event.type === 'entity.sickened') return 'event-died';
+  if (event.type === 'entity.cured') return 'event-created';
   if (event.type === 'entity.defended') return 'event-birth';
   if (event.type === 'entity.recovered') return 'event-created';
   if (event.type === 'entity.decayed') return 'event-removed';

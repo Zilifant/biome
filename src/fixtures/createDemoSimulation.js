@@ -27,6 +27,8 @@ import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
 import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
+import { DiseaseSystem } from '../simulation/systems/DiseaseSystem.js';
+import { infect } from '../simulation/disease/disease.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
 import { Sexes } from '../simulation/mating/mateChoice.js';
@@ -74,12 +76,17 @@ export function registerDemoSystems(engine) {
     }),
   );
   engine.registerSystem(
-    new MovementSystem({ ...engine.config.locomotion, injurySpeedPenalty: engine.config.injury.speedPenalty }),
+    new MovementSystem({
+      ...engine.config.locomotion,
+      injurySpeedPenalty: engine.config.injury.speedPenalty,
+      diseaseSpeedPenalty: engine.config.disease.speedPenalty,
+    }),
   );
   engine.registerSystem(
     new FeedingSystem({
       ...engine.config.feeding,
       injuryFeedPenalty: engine.config.injury.feedPenalty,
+      diseaseFeedPenalty: engine.config.disease.feedPenalty,
       maxMemories: engine.config.memory.maxMemories,
     }),
   );
@@ -119,6 +126,7 @@ export function registerDemoSystems(engine) {
   );
   engine.registerSystem(new HydrationSystem({ ...engine.config.hydration, maxMemories: engine.config.memory.maxMemories }));
   engine.registerSystem(new InjurySystem(engine.config.injury));
+  engine.registerSystem(new DiseaseSystem(engine.config.disease));
   engine.registerSystem(new CarcassSystem(engine.config.carcass));
   // Adult mass comes from the species; the rest of the life curve from config.
   const species = getSpecies(engine.config.demo.speciesId);
@@ -234,6 +242,22 @@ function populateDemoWorld(engine) {
   }
   // Flush so the initial population exists at tick 0, with entity.created events.
   engine.applyDeferredEntityChanges(0);
+
+  // Seed the outbreak (Step 25). One incubating animal is enough — the point is
+  // that a disease *spreads*, not that it is handed out. Chosen by a dedicated
+  // stream so adding it never shifted any other sequence, and deterministically
+  // from the living population rather than by id, so it works whatever the
+  // founding counts are.
+  const { initialInfected, incubationTicks } = engine.config.disease;
+  if (initialInfected > 0) {
+    const patientRandom = engine.randomStream('disease.seed');
+    const candidates = [...engine.world.entities.all()].filter((e) => e.kind === 'animal' && e.alive);
+    for (let i = 0; i < initialInfected && candidates.length > 0; i += 1) {
+      const index = Math.floor(patientRandom.float(0, candidates.length));
+      const [patientZero] = candidates.splice(Math.min(index, candidates.length - 1), 1);
+      infect(patientZero, 0, incubationTicks);
+    }
+  }
 }
 
 /**

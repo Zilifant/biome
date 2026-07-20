@@ -106,6 +106,12 @@ export class MetricsPanel {
             }, max ${species.grouping.size.max ?? '–'} · ${species.grouping.solitary} alone</span></span></div>`
           : '';
 
+        const outbreak = species.disease
+          ? `<div class="field"><span>disease</span><span>${species.disease.infectious} infectious <span class="dim">(${species.disease.symptomatic} visible) · ${species.disease.recovered} immune ${drawTrend(
+              history.map((sample) => sample.species.find((s) => s.speciesId === species.speciesId)?.infectious),
+            )}</span></span></div>`
+          : '';
+
         const ranges = species.homeRange
           ? `<div class="field"><span>home range</span><span>${species.homeRange.settled} settled <span class="dim">mean r ${
               species.homeRange.radius.mean?.toFixed(1) ?? '–'
@@ -117,6 +123,7 @@ export class MetricsPanel {
           ${sexes}
           ${grouping}
           ${ranges}
+          ${outbreak}
           <div class="field"><span>generation</span><span>mean ${species.generation.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.generation.max ?? '–'}</span></span></div>
           <div class="field"><span>offspring each</span><span>mean ${species.reproductiveSuccess.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.reproductiveSuccess.max ?? '–'}</span></span></div>
           <div class="field"><span>births / deaths</span><span>${species.births} / ${species.deaths} <span class="dim">last ${metrics.windowTicks}t</span></span></div>

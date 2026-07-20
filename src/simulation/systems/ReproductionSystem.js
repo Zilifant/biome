@@ -43,6 +43,7 @@ import {
   matePreferenceFor,
 } from '../mating/mateChoice.js';
 import { FightInjuryKinds, dominanceOf, resolveContest } from '../social/dominance.js';
+import { isSymptomatic } from '../disease/disease.js';
 
 /**
  * Reproductive readiness — the single source of truth, shared by the
@@ -68,6 +69,10 @@ export function isReproductivelyReady(entity, tick, params) {
     entity.kind === 'animal' &&
     entity.alive &&
     entity.lifeStage === 'adult' &&
+    // A visibly ill animal does not breed (Step 25). Incubating ones do, which
+    // is deliberate: the disease travels through the population's ordinary life
+    // rather than being quarantined by a rule.
+    !isSymptomatic(entity) &&
     entity.gestationUntil === null &&
     entity.energy >= energyBar * entity.maxEnergy &&
     (entity.lastMatedTick === null || tick - entity.lastMatedTick >= cooldown)
