@@ -42,6 +42,7 @@ import {
   mateQuality,
   matePreferenceFor,
 } from '../mating/mateChoice.js';
+import { FightInjuryKinds, dominanceOf, resolveContest } from '../social/dominance.js';
 
 /**
  * Reproductive readiness — the single source of truth, shared by the
@@ -87,6 +88,11 @@ export class ReproductionSystem extends SimulationSystem {
    * @param {number} [options.suitorCooldownTicks] the seeking sex's refractory period
    * @param {number} [options.acceptanceThreshold] base quality a chooser insists on
    * @param {number} [options.choosinessPatienceTicks] ticks over which that standard falls to zero
+   * @param {number} [options.contestEscalationChance] chance an even contest becomes a fight
+   * @param {number} [options.contestCooldownTicks] how long a beaten rival keeps away
+   * @param {number} [options.fightInjurySeverity] severity of the loser's wound
+   * @param {number} [options.fightWinnerInjuryFraction] how much of it the winner also takes
+   * @param {number} [options.injuryHealthDamage] health lost per unit of severity
    * @param {number} [options.birthOffset]
    * @param {number} [options.birthMass] newborn body mass (from the aging curve)
    * @param {object} [options.genetics] mutation rate and step (see traits/genetics.js)
@@ -104,6 +110,11 @@ export class ReproductionSystem extends SimulationSystem {
     suitorCooldownTicks = 200,
     acceptanceThreshold: baseAcceptanceThreshold = 0.72,
     choosinessPatienceTicks = 400,
+    contestEscalationChance = 0.35,
+    contestCooldownTicks = 60,
+    fightInjurySeverity = 0.22,
+    fightWinnerInjuryFraction = 0.4,
+    injuryHealthDamage = 60,
     birthOffset = 1.0,
     birthMass = 5,
     genetics = {},
@@ -121,6 +132,11 @@ export class ReproductionSystem extends SimulationSystem {
     this.suitorCooldownTicks = suitorCooldownTicks;
     this.acceptanceThreshold = baseAcceptanceThreshold;
     this.choosinessPatienceTicks = choosinessPatienceTicks;
+    this.contestEscalationChance = contestEscalationChance;
+    this.contestCooldownTicks = contestCooldownTicks;
+    this.fightInjurySeverity = fightInjurySeverity;
+    this.fightWinnerInjuryFraction = fightWinnerInjuryFraction;
+    this.injuryHealthDamage = injuryHealthDamage;
     this.birthOffset = birthOffset;
     this.birthMass = birthMass;
     this.genetics = genetics;
@@ -237,8 +253,8 @@ export class ReproductionSystem extends SimulationSystem {
       if (entity.mateSearchSince === null) entity.mateSearchSince = context.tick;
 
       const preference = matePreferenceFor(entity.speciesId);
-      let best = null;
-      let bestQuality = -1;
+      /** @type {object[]} */
+      const suitors = [];
       for (const otherId of world.grid.queryRadius(entity.x, entity.y, this.matingRange)) {
         if (otherId === entity.id || matedThisTick.has(otherId)) continue;
         const other = world.entities.get(otherId);
@@ -249,6 +265,23 @@ export class ReproductionSystem extends SimulationSystem {
         if (!other || other.speciesId !== entity.speciesId) continue;
         if (other.sex === null || isChooser(other)) continue;
         if (!this.#eligible(other, context.tick)) continue;
+        // A rival beaten here very recently is still keeping its distance.
+        if (other.lastContestTick !== null && context.tick - other.lastContestTick < this.contestCooldownTicks) continue;
+        suitors.push(other);
+      }
+      if (suitors.length === 0) continue;
+
+      // Male–male competition (Step 23), the other half of sexual selection.
+      // Step 22 gave the female a choice; this decides who she gets a choice
+      // *about*. Rivals contest for access and the losers are driven off, so
+      // what reaches her is the animal that could hold the ground — but she
+      // still has to accept him, which is why both mechanisms stay visible
+      // instead of one silently overriding the other.
+      const contested = suitors.length > 1 ? this.#contest(suitors, context) : suitors;
+
+      let best = null;
+      let bestQuality = -1;
+      for (const other of contested) {
         const quality = mateQuality(other, preference);
         // Strictly greater, over ids in ascending order: ties go to the lowest id.
         if (quality > bestQuality) {
@@ -308,6 +341,59 @@ export class ReproductionSystem extends SimulationSystem {
         quality: bestQuality,
       });
     }
+  }
+
+  /**
+   * Rivals contest for access; the winner stays, the losers are driven off.
+   *
+   * Resolved pairwise down the list rather than as an all-against-all bracket:
+   * the current holder is challenged by each newcomer in turn, which is one
+   * contest per extra suitor (linear, never quadratic) and reads correctly as
+   * a stallion being challenged one at a time. Contests use the shared
+   * `resolveContest` helper, so a fight here injures exactly as a fight
+   * anywhere else does (§1.4 A19).
+   *
+   * @param {object[]} suitors at least two, in ascending id order
+   * @returns {object[]} the single suitor left standing
+   */
+  #contest(suitors, context) {
+    const random = context.random('social');
+    let holder = suitors[0];
+    for (let i = 1; i < suitors.length; i += 1) {
+      const challenger = suitors[i];
+      const { winner, loser, escalated, injured } = resolveContest(holder, challenger, random, {
+        escalationChance: this.contestEscalationChance,
+        fightInjurySeverity: this.fightInjurySeverity,
+        winnerInjuryFraction: this.fightWinnerInjuryFraction,
+        injuryHealthDamage: this.injuryHealthDamage,
+        tick: context.tick,
+      });
+      loser.lastContestTick = context.tick;
+      context.emit(EventTypes.ENTITY_CONTESTED, {
+        entityId: holder.id,
+        opponentId: challenger.id,
+        winnerId: winner.id,
+        dominance: dominanceOf(holder),
+        opponentDominance: dominanceOf(challenger),
+        escalated,
+        injured,
+      });
+      // Only the two animals in this contest can have been hurt by it, so they
+      // resolve from the locals — no lookup, and no way to report a wound on
+      // someone who was not there.
+      for (const id of injured) {
+        const hurt = id === winner.id ? winner : loser;
+        recordLifeEvent(hurt, context.tick, LifeEventTypes.INJURED, { injury: FightInjuryKinds.BATTLE });
+        context.emit(EventTypes.ENTITY_INJURED, {
+          entityId: hurt.id,
+          injury: FightInjuryKinds.BATTLE,
+          severity: hurt.impairment,
+          sourceId: hurt === winner ? loser.id : winner.id,
+        });
+      }
+      holder = winner;
+    }
+    return [holder];
   }
 
   /** @param {object} entity @param {number} tick */

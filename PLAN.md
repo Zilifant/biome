@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–22)
+## 1.4 Carried-forward deviations and open issues (Steps 1–23)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -125,15 +125,15 @@ correctness bug in shipped code unless marked ⚠.
 | A8 | 10 | Optional `entity.drank` event skipped (redundant with the public `action` field) | — (settled) |
 | ~~A9~~ | 12 | No sexes: either adult may initiate, the lower id gestates | **Done in Step 22** — females gestate and choose, males clear a lower energy bar and a shorter refractory period. The asymmetry is the point, not a convenience |
 | ~~A10~~ | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Done in Step 22** — it now steers toward the *best* perceived candidate (distance-discounted), and the reproduction system accepts or rejects against a declining standard |
-| A11 | 13 | Juvenile *protection* omitted from the parenting strategy — a guardian does not defend or shield its young | **still open.** Step 16 shipped predators without it; a parent that fought or interposed belongs with **Step 23** (social behaviour, where fights land) |
-| A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **still open.** Predation (Step 16) did make orphaning common and the mercy was left in place deliberately; revisit only if juvenile survival needs to bite |
+| ~~A11~~ | 13 | Juvenile *protection* omitted from the parenting strategy — a guardian does not defend or shield its young | **Done in Step 23** — a parent stands over a threatened juvenile (`defend`) and materially lowers the predator's odds. But see **A32**: it is demonstrably rare |
+| A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **still open, deliberately.** Step 23 already moved juvenile survival twice (defense, and herding); removing the mercy in the same step would have changed two variables at once with no way to attribute the result |
 | A13 | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
-| A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | still open — Step 22 turned out **not** to need it (mate choice never has to avoid relatives), so **Step 23** (social groups) or inbreeding avoidance is the first real reader |
+| ~~A15~~ | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Settled in Step 23** — kin recognition got its reader (defense), and it reads the *authoritative* lists directly. So the memory kind is still not needed and now demonstrably so, rather than by assumption |
 | ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
 | A17 | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Step 29** (species schema) |
 | A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
-| A19 | 17 | Hazards and fights are not injury sources — failed captures are still the only writer | **Step 23** (fights). Step 19 considered and rejected weather-as-injury: exposure kills through the energy budget instead, which is the simpler model and reads correctly as hypothermia |
+| ~~A19~~ | 17 | Hazards and fights are not injury sources — failed captures are still the only writer | **Done in Step 23** — a dominance contest that escalates wounds both parties (the loser worse), via the same `applyInjury` helper. 114 battle wounds in one live 30 s window. *Hazards* are still not an injury source, by the Step 19 reasoning below |
 | A21 | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Step 29** (species schema) |
 | A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | still open — Step 21 measured lineage *depth* (`generation`) instead, which needs no tombstones; a deeper query would need them |
 | A23 | 19 | Snow is a weather state, not an accumulating snowpack layer | — (settled; a layer needs a reason to exist) |
@@ -144,6 +144,9 @@ correctness bug in shipped code unless marked ⚠.
 | A28 | 21 | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash | a later observability pass, if it earns its keep |
 | A29 | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | a later step, if runaway is wanted; the species block itself belongs to **Step 29** |
 | A30 | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Step 29**, if a species ever needs the other answer |
+| ⚠ A31 | 23 | **Step 21's selection sandbox has never demonstrated its claim.** Measured over seven seeds: the trait rose in 3, fell in 4, mean change −0.0002, with the selection differential negative in five and uncorrelated with the trait's direction. Cause: the differential compares breeders against *all* adults, and 71 % of adults are breeders there, so the two samples are nearly the same set. Tightening the breeding gate makes it visible but drives the population extinct | an unmet **Step 21** acceptance criterion. The test now claims no direction; a world that demonstrates it must be built, not tuned |
+| A32 | 23 | Juvenile defense fires **once in 12 000 demo ticks** — the geometry it needs (an adult with a living juvenile of its own, nearer the predator than the parent and inside `defendRange`) almost never arises | **Step 24** (territory) may fix it for free by keeping families in one place; otherwise a tuning pass. Relaxing "nearer the predator than I am" to "near enough to interpose" is the named lever |
+| A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
 | ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
 
 ### B. Configuration / structural debt
@@ -166,7 +169,7 @@ correctness bug in shipped code unless marked ⚠.
 | C3 | 1, 9, 13 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
 | ~~C4~~ | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed) |
 | ~~C5~~ | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). An unchecked herbivore *should* grow until something limits it | **Answered in Step 16** — predation is the limiter. Measured over 20k ticks on five seeds, grazers now oscillate in the 24–111 range instead of growing without bound. Disease (Step 25) can still add a second check |
-| C6 | 7 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes | **Step 30** |
+| C6 | 7, 23 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes. **Step 23 added a second neighbour walk** (the social pass, +26 ms/tick at large-5k) over the same grid neighbourhood — folding the two into one loop is now the single clearest optimization available | **Step 30** |
 | C7 | 5, 9 | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range) | — (settled) |
 
 ### D. Test / benchmark fragility observed
@@ -180,6 +183,8 @@ correctness bug in shipped code unless marked ⚠.
 | D6 | Step 20's boundary scan rejected a file for the word "window." inside a doc comment | Source scans must strip comments: a guard that fires on prose teaches people to word around it rather than trust it |
 | D7 | Step 21's selection sandbox broke under Step 22 and the cause was **not** the new step: breaking deaths down by cause showed they were entirely age deaths, so the "sparse food favours efficiency" pressure had never really been applied and the assertion had been passing on drift, pinned to a lucky seed | When a seeded assertion breaks, ask what the fixture is *actually* measuring before re-pinning the seed. Check the mechanism (here: deaths by cause), then re-verify on seeds it was never tuned against |
 | D8 | Step 22's first "condition keeps the display honest" assertion over-claimed: at `conditionWeight` 0.4 a large display genuinely does outweigh poor condition | When an assertion about a model fails, decide whether the model or the assertion is wrong — then pin the real behaviour in *both* directions so a future retune is caught in a unit test rather than a five-seed sweep |
+| D9 | Step 23 added `case 'herd'` in the middle of a shared `switch` fallthrough chain, silently redirecting `seekFood` / `seekMate` / `followParent` into it. The result was a `NaN` heading, which fails the passability check, so animals **chose the right action and stood perfectly still** — five suites failed at once with "did not move" | A bare `case` added to a fallthrough group is a silent behaviour change, not an addition. And `JSON.stringify(NaN)` prints `null`, which sends you hunting a null-assignment bug that does not exist — check for `NaN` first when a numeric field reads `null` in a dump |
+| D10 | Step 23's first cuts of both group formation and alarm were unbounded local mechanisms, and both went global: alarm became a self-sustaining chain reaction (106/119 permanently fleeing), and herd labels never dissolved after a split | A local mechanism needs an *explicit* bound — a hop count from the source — to stay local. Population density is not a bound |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -4069,7 +4074,7 @@ alongside B3/B4/A13.
 
 ## Step 23 — Social behavior
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -4132,12 +4137,12 @@ Sparse relationships + grid neighborhoods only. Benchmark with large herds.
 
 ### Acceptance criteria
 
-- [ ] Bounded groups, herding, alarm, dominance, kin recognition
-- [ ] Social structure observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked (no global matrices)
+- [x] Bounded groups, herding, alarm, dominance, kin recognition
+- [x] Social structure observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked (no global matrices)
 
 ### Explicitly out of scope
 
@@ -4145,7 +4150,198 @@ Territory (Step 24), complex politics, multi-level societies.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Milestone F. Four carried-forward
+debts closed with it (A11, A15, A19, and the last of A9/A10's consequences).
+
+**A herd is a label, not a roster.** That is the whole design, and it is what
+keeps invariant 17 satisfied: nothing anywhere holds a membership list, and no
+per-pair structure is ever built. Animals converge on a shared `groupId` by
+local propagation — take the smallest label you can see — so herds form, merge
+on contact, and split when they lose sight of each other, all from one
+grid-local neighbour query per animal and without a single structural operation.
+
+Two things had to be bounded before that worked, and both were found by running
+it rather than by reasoning about it:
+
+1. **Alarm was a chain reaction.** Alarmed animals re-alarm the neighbours who
+   alarmed them, so panic never runs out of fuel: the first cut left **106 of
+   119 grazers permanently fleeing**. Every alarm now carries its distance in
+   hops from whoever actually saw the predator and dies at `maxAlarmHops`.
+2. **Labels never dissolved.** "Take the smallest label in sight" only ever
+   moves labels *downward*, so when a herd tore in half the piece without the
+   root kept the old label forever and two herds on opposite sides of the map
+   stayed nominally one. Labels now carry hops from their root too; an orphaned
+   half has no route back, its hop counts climb a tick at a time until they
+   exceed the cap, and it re-founds on its own.
+
+   These are the same trick, and the lesson is the same one: **a local mechanism
+   needs an explicit bound to stay local.** Density is not a bound.
+
+**Dominance is derived, never stored.** There is no pecking order in state and
+no memory of who beat whom — that is the "complex politics" this step rules out,
+and it would also be per-pair. An animal's standing is read off what it *is*:
+mass, condition, soundness, boldness, maturity. So it falls when the animal is
+mauled and comes back when it heals, which is the point — a rank you cannot lose
+by being hurt is a title, not a rank.
+
+**Where dominance bites: male–male competition.** Rivals in range of the same
+female contest for access, resolved pairwise down the list (one contest per
+extra suitor, never a bracket). The stronger wins — there is no roll to lose, so
+the event reports both *scores* rather than odds. What chance governs is whether
+the loser yields or they actually fight, and that is likeliest between evenly
+matched animals: a rival twice your size is not worth bleeding for. Fights are
+the **second writer of injuries** (§1.4 A19), after failed hunts.
+
+This lands directly on top of Step 22 and the interaction is the interesting
+part: **competition decides who she is offered, choice decides whether she takes
+him.** Neither silently overrides the other. Step 22's "she takes the best male
+present" test broke the moment contests landed, which was the honest signal that
+the pipeline had grown a stage — it is now a test of the whole pipeline.
+
+**Kin recognition finally has a reader** (§1.4 A15). Step 15 left kinship out of
+the decaying spatial memories because nothing consumed it and a fading copy would
+duplicate authoritative state. Defense consumes it — and reads `parents` /
+`offspring` **directly**, which is why the memory kind is still not needed:
+recognition here is lineage, not a scent, and the lists are exact, sparse, and
+already persisted.
+
+**What shipped.**
+
+- **`social/dominance.js`** — `dominanceOf`, `isKin`, `resolveContest`. A shared
+  helper, not a system: all three are judgements about a pair at one instant, and
+  the systems that need them own that instant (same convention as `killAnimal`,
+  `recordMemory`, `applyInjury`, `inheritGenome`, `mateQuality`).
+- **`SocialSystem`** (`decision` phase, priority −10, ahead of the decision
+  system) — labels, the transient `world.social` summary, and alarm.
+- **`DecisionSystem`** — `herd` (cohesion *and* alignment, so it is group
+  movement rather than a huddle) and `defend`; an alarmed animal flees from where
+  it was *told* the threat was. Herding is scaled by `(2 − boldness)`, reusing
+  the trait that already governs roaming rather than adding an eighth one.
+- **`HuntingSystem`** — cooperative defense: adult groupmates shave the capture
+  chance with diminishing returns, capped so a big herd is never untouchable; an
+  interposing parent counts double and makes the attempt genuinely dangerous for
+  the predator. Both halves are read from state that already exists — the social
+  summary and the prey's own sparse `parents` list — so no new scan.
+- **Protocol (v21 → v22):** `groupId` in bulk snapshots; `entity.alarmed` (with
+  the hop count, so a wave is readable), `entity.contested` (both dominance
+  scores, and whether it escalated), `entity.defended`; a `social` inspection
+  block. **Persistence (save v20 → v21):** the label, its hop count, alarm state,
+  and `lastContestTick` — the only social state there is.
+- **Renderer:** the selected animal's herd bracketed on the grid, a Herd
+  inspector panel, the three events in the log, herd statistics in the metrics
+  panel.
+
+**Tuning is measured** (five seeds, 15k ticks, against a control with the social
+*behaviours* switched off):
+
+| | seeds with both species alive | grazers | stalkers |
+| --- | --- | --- | --- |
+| sociality off (control) | 3/5 | 0–320 | 4–23 |
+| **sociality on** | **5/5** | **34–135** | **4–19** |
+
+The direction surprised me. Herding gathers prey into clusters a predator can
+find, which ought to *raise* predation — and the measured net effect is the
+opposite: sociality **stabilises** the system, trading a much lower peak grazer
+population for never losing them. One control seed lost its grazers outright.
+Both halves of that trade are worth having; a demo that swings 0–320 is one bad
+seed from an empty world.
+
+**Tests:** `npm test` → **448 passing / 0 failing** (was 406; +42). New
+`test/social.test.js`: dominance (every input moves it; a wounded animal's
+standing returns when it heals, because nothing is stored), kin recognition,
+contests (the stronger always wins; ties go to the lower id; a **fixed
+three-draw budget** whatever happens; even matches escalate far more than
+lopsided ones; a fight hurts the loser more than the winner and a yield hurts
+nobody), herds (form, merge onto the smaller label, split, respect the cap even
+when a crowd joins in one tick, never mix species, and build no roster), alarm
+(reaches beyond line of sight, stops at the hop cap, reports how far it
+travelled, expires, and fires on the transition only), herding (a straggler
+holds station against a control, herding loses to fleeing, a bolder animal is a
+looser member, and an animal that loses contact is gone), defense, cooperative
+defense, protocol/metrics/persistence, a **near-linear scaling guard** for
+invariant 17, and the herd sandbox.
+
+**Deterministic demonstration scenario — the herd sandbox.** Cohesion measured
+**against a control** (`herdWeight: 0`), because "the animals ended up near each
+other" proves nothing about animals that started near each other; what has to be
+shown is that they stay closer *than they would have*. And a long line of grazers
+with a stalker at one end: the near end panics, the far end never hears about it,
+and at least one alarmed animal was warned by a neighbour rather than by its own
+eyes — local propagation with no global effect, which is exactly what the step
+asks for.
+
+**Three findings worth recording.**
+
+1. **A `switch` fallthrough I severed.** Adding `case 'herd'` in the middle of
+   the shared `case 'seekFood': case 'seekMate': case 'followParent': …` chain
+   silently redirected all of them into the herd branch, where a missing field
+   made the heading `NaN` — and an animal with a `NaN` heading fails the
+   passability check and **stands perfectly still**. Five suites failed at once,
+   all reading "chose the right action, did not move." Worth remembering twice
+   over: a bare `case` added to a fallthrough group is a silent behaviour change,
+   and `JSON.stringify(NaN)` prints `null`, which sent me looking for a
+   null-assignment bug that did not exist.
+2. **⚠ Step 21's selection sandbox has never demonstrated what it claims** — and
+   this is a genuine unmet acceptance criterion, recorded rather than papered
+   over (§1.4 A31). Step 22 already found the pressure was barely applied;
+   measuring properly this time across seven seeds showed the trait moves up in
+   3 and down in 4, mean change −0.0002, with the selection differential
+   *negative* in five of seven and its sign uncorrelated with the direction the
+   trait went. The cause is now understood and is a property of the metric: the
+   differential compares breeders against **all** adults, and in that world
+   **71% of adults are breeders**, so the two samples are nearly the same set.
+   Tightening the breeding gate does make it visible (breeder share 3–17%, an
+   order of magnitude larger differential) but every such setting drove the
+   population extinct. The test now asserts what the fixture genuinely shows and
+   claims **no direction**; building a world that demonstrates the claim is
+   Step 21 scenario 9's work, not Step 23's.
+3. **Juvenile defense is implemented, tested, and demonstrably rare.** Over
+   12 000 demo ticks it fired **once**. The geometry it needs — an adult with a
+   living juvenile of its own, that juvenile nearer the predator than the parent
+   and inside `defendRange` — almost never comes up, partly because grazers flee
+   readily and partly because juveniles disperse early. It is not broken (unit
+   tests pin both the decision and its effect on capture odds), it is rare, and
+   saying so is more useful than calling A11 done and moving on (§1.4 A32).
+
+**Visible result verified.** Against a live server at protocol v22: 120 animals
+in **18 herds** (sizes 12, 12, 12, 9, 7, 7, 6, … capped exactly at 12) with 15
+solitary. A wave of alarm crossing the population with the hop counter telling
+the story — **93 first-hand sightings, 229 at one hop, 331 at two, and nothing
+beyond the cap**. Dominance contests reading correctly: animal #26 (dominance
+29) turning away rivals of 21–27 one after another, all yielding because it
+outmatched them; over the window, 164 contests, 57 escalating into fights, 114
+battle wounds.
+
+**Performance.** large-5k **46.06 → 72.01 ms/tick**, the largest jump since
+perception in Step 7 and the same cause — a *second* `queryRadius` per animal per
+tick on top of perception's. Still ~14× inside the tick budget, so it is recorded
+rather than optimized, and the fix is named: perception and sociality walk the
+same grid neighbourhood, so the social pass folds into perception's existing loop
+for close to nothing. That is Step 30's work; it joins §1.4 C6. The demo-default
+row nearly doubled (0.60 → 1.05) for an interesting reason — herding *clusters*
+animals, so every grid query returns more neighbours. Sociality makes its own
+neighbourhoods denser.
+
+**Deviations from the step spec (documented):** (1) **Contests live in the
+reproduction system**, not a system of their own — reproduction already gathers
+the eligible males around a female, and a second system would have duplicated
+that scan for the same instant. (2) **Cooperative defense is split in two**:
+passive (adult groupmates lower the capture chance, i.e. collective vigilance)
+and active (a parent interposing). Mobbing — prey collectively attacking a
+predator — is not implemented; the passive form is what a herd actually buys you
+and it needed no new behaviour. (3) **`groupId` is projected in bulk snapshots**
+rather than inspection-only, because a herd you cannot see is not a visible
+result; nothing else social is projected. (4) **§1.4 A12 (orphan mercy) was left
+alone deliberately** — this step already changed juvenile survival through
+defense and through herding, and removing the mercy in the same step would have
+moved two variables at once with no way to attribute the result.
+
+**Follow-on notes for later steps:** Step 24 (territory) has what it needs —
+`groupId`, dominance, and contests are exactly the machinery a territorial
+dispute is made of, and `world.social` is the seam a home-range summary would sit
+beside. The `defend` rarity above may fix itself there, since territory keeps
+animals and their young in the same place. Step 30 now has two named neighbour
+passes to fold together (§1.4 C6 and this step's).
 
 ---
 
@@ -4824,6 +5020,7 @@ population counts).
 | 9   | Selection sandbox            | fixed | a pressure shifts a trait distribution     | mean trait moves expected direction      | 21    | no                |
 | 10  | Disturbance sandbox          | fixed | local event → displacement → recovery      | bounded effect; recovery by tick N       | 27    | yes               |
 | 11  | Sexual-selection sandbox     | fixed | females prefer size; the trait rises       | rises *more* than a choice-off control; S positive among males only | 22 | no |
+| 12  | Herd sandbox                 | fixed | a herd holds together; a threat alarms the near side only | tighter than a herding-off control; far side never alarmed | 23 | no |
 
 For each: record initial state, seed, expected behavior, stable assertions,
 related steps, and whether a renderer fixture is generated. **Do not assert
@@ -4946,7 +5143,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–22
+### Observed status after Steps 1–23
 
 What has actually happened, so the register reflects evidence rather than
 prediction:

@@ -49,6 +49,12 @@ export class World {
     // grid); empty until the first perception tick after construction/load.
     /** @type {Map<number, object>} */
     this.perception = new Map();
+    // Transient per-entity social summaries (Step 23) — groupmates in range,
+    // their centre of mass and mean heading. Rebuilt each tick by the social
+    // system, exactly like `perception`, and never serialized: the only social
+    // state that persists is the `groupId` label on the entity itself.
+    /** @type {Map<number, object>} */
+    this.social = new Map();
     // Bounded memory of entities that have left the world (Step 18). Written at
     // the engine's removal chokepoint; see world/lineage.js for why this exists
     // and what "forgotten" means. Insertion-ordered, so eviction is FIFO.

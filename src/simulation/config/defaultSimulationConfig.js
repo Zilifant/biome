@@ -123,7 +123,57 @@ export const defaultSimulationConfig = Object.freeze({
     // being chosen — natural selection would move both together.
     acceptanceThreshold: 0.72,
     choosinessPatienceTicks: 400, // ~22% of the female cooldown
+    // Male–male competition (Step 23) — the other half of sexual selection.
+    // Rivals in range of the same female contest for access; the stronger one
+    // wins (dominance decides it, there is no roll), and the loser keeps away
+    // for `contestCooldownTicks`. Escalation into an actual *fight* is the only
+    // stochastic part, and is likeliest between evenly matched animals: a rival
+    // twice your size is not worth bleeding for. Fights are the second source
+    // of injuries after failed hunts (§1.4 A19).
+    contestEscalationChance: 0.35,
+    contestCooldownTicks: 60,
+    fightInjurySeverity: 0.22, // milder than a predator's bite (0.35)
+    fightWinnerInjuryFraction: 0.4, // winning a fight is not the same as being unhurt
     birthOffset: 1.0, // how far behind the parent the newborn appears
+  }),
+  // Sociality (see systems/SocialSystem.js and social/dominance.js). Herds are
+  // a *label* propagated between neighbours, never a stored roster: animals in
+  // sight of each other converge on the smallest group id around, so herds
+  // merge and split without any structural operation. Alarm spreads one
+  // neighbour-hop per tick, which is what makes a wave of panic cross a herd
+  // visibly instead of the whole population reacting at once.
+  //
+  // Measured over 15k ticks on five seeds against a control with the social
+  // *behaviours* switched off (`herdWeight` 0, `defendWeight` 0,
+  // `hunting.defenderWeight` 0, `maxAlarmHops` 0):
+  //
+  //   sociality off   3/5 seeds with both species alive, grazers  0–320
+  //                   (one seed lost the grazers outright), stalkers 4–23
+  //   sociality on    5/5 seeds with both species alive, grazers 34–135,
+  //                   stalkers 4–19
+  //
+  // The direction was not what I expected going in: herding gathers prey into
+  // clusters a predator can find, which ought to *raise* predation. The net
+  // measured effect is the opposite — sociality **stabilises** the system,
+  // trading a much lower peak grazer population for never losing them. Both
+  // halves of that are worth having; a demo that oscillates 0–320 is one bad
+  // seed from an empty world.
+  social: Object.freeze({
+    groupRadius: 6, // how far conspecifics count each other as groupmates
+    maxGroupSize: 12, // cap, so one label cannot swallow the population
+    // Hops a label survives from its root. Not a size limit — it is what lets a
+    // herd *split*: plain min-id propagation only moves labels downward, so the
+    // half of a torn herd without the root would keep the old label forever.
+    maxGroupHops: 3,
+    minGroupSize: 2, // a lone animal is not a herd of one
+    alarmRadius: 6, // how far panic carries per hop
+    alarmTicks: 25, // how long an animal keeps running after being told
+    // Hops a warning survives from whoever actually saw the predator. This is
+    // the load-bearing number: without a cap, alarmed animals re-alarm the
+    // neighbours who alarmed them and the panic becomes self-sustaining — the
+    // first cut left 106 of 119 grazers permanently fleeing. At 2 hops the wave
+    // reaches ~3 herd-radii from the sighting and then dies.
+    maxAlarmHops: 2,
   }),
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
   // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,
@@ -197,6 +247,13 @@ export const defaultSimulationConfig = Object.freeze({
     failedHuntEnergyCost: 4, // a miss is expensive; hunting is a gamble
     captureStaminaCost: 12, // the lunge itself, win or lose
     edibleMassFraction: 0.6, // carcass edible mass from a kill
+    // Cooperative defense (Step 23). Adult groupmates standing around the prey
+    // shave the odds with diminishing returns, capped so a large herd is never
+    // untouchable; a parent actively interposing counts double and makes the
+    // attempt genuinely dangerous for the predator.
+    defenderWeight: 0.12,
+    maxDefenders: 4,
+    defenderInjuryBonus: 2.5, // how much likelier a guarded kill is to hurt the hunter
   }),
   // Sprinting (see systems/MovementSystem.js and MetabolismSystem.js). Chases
   // and escapes trade stamina for speed; stamina recovers whenever an animal is
@@ -358,6 +415,15 @@ export const defaultSimulationConfig = Object.freeze({
     // threat. Hunting is gated on real hunger and a usable sprint budget, so a
     // fed or exhausted predator leaves prey alone.
     fleeWeight: 2.0,
+    // Sociality (Step 23). Herding is deliberately weak — it ranks below every
+    // real need, so a hungry animal grazes its way out of the group and a fed
+    // one drifts back in, which is what makes a herd loose and living rather
+    // than a rigid formation. Defending young outranks even fleeing, because an
+    // adult that has decided to stand over its juvenile has decided not to run.
+    herdWeight: 0.6,
+    herdDistance: 2.0, // inside this there is nothing to close
+    defendWeight: 2.6,
+    defendRange: 5.0, // how far an adult will go to interpose
     huntWeight: 1.4,
     stalkDiscount: 0.8, // stalking is worth slightly less than committing
     chaseRange: 4.0, // inside this, stalking becomes a sprint

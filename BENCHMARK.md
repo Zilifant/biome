@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-22)
+## Results (post-Step-23)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→177 | 0.604 | ~1,655 |
-| small-100 | 256×256 | 107→142 | 0.465 | ~2,150 |
-| medium-1k | 512×512 | 1067→1450 | 6.14 | ~163 |
-| large-5k | 1024×1024 | 5333→7233 | 46.06 | ~22 |
+| demo-default | 128×128 | 128→179 | 1.045 | ~957 |
+| small-100 | 256×256 | 107→139 | 0.650 | ~1,538 |
+| medium-1k | 512×512 | 1067→1456 | 9.96 | ~100 |
+| large-5k | 1024×1024 | 5333→7184 | 72.01 | ~14 |
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -168,6 +168,23 @@ authoritative tick budget.
   instead of one value), still a bounded 7 loci per animal. Every system
   continues to read only the expressed `traits`, exactly as before, so nothing
   in the hot path learned about genetics.
+- **Step 23** (social behaviour): large-5k **46.06 → 72.01 ms/tick (+26)** —
+  the largest single jump since perception in Step 7, and the same cause. The
+  `SocialSystem` runs a **second** `queryRadius` per animal per tick, over
+  radius 6, on top of the one perception already does. Everything else it adds
+  is cheap: the group tally is one O(N) pass over labels, dominance is a handful
+  of arithmetic derived on read, and contests happen only where two rivals share
+  a female.
+  
+  Still ~14× inside the one-second tick budget, so it is recorded rather than
+  optimized — but the fix is obvious and named: **perception and sociality walk
+  the same grid neighbourhood**, so the social pass could be folded into
+  perception's existing loop for close to nothing. That is Step 30's work
+  (measured optimization), and it now joins §1.4 C6 as the second entry in the
+  "one neighbour walk too many" column. Note that the demo-default row nearly
+  doubled (0.60 → 1.05) because herding *clusters* animals, so each grid query
+  returns more neighbours — sociality makes its own neighbourhoods denser.
+
 - **Step 22** (mate choice and sexual selection): large-5k **41.42 → 46.06
   ms/tick**. Within the run-to-run band this scenario has shown all along (it
   has bounced 41–46 since Step 19), and the added work is genuinely small:

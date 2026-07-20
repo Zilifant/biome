@@ -45,6 +45,18 @@ export const EventTypes = Object.freeze({
   // only when the season or the weather actually changes — temperature drifts
   // every tick and would flood the log.
   ENVIRONMENT_CHANGED: 'environment.changed', // { season, weather, temperature, previousSeason, previousWeather }
+  // Sociality (Step 23). `alarmed` fires on the *transition* into panic only —
+  // a herd of twenty in view of a predator would otherwise emit twenty events a
+  // tick for as long as it stayed in view. `sourceId` is null when the animal
+  // saw the threat with its own eyes rather than being told by a neighbour,
+  // which is what lets an observer watch a wave of alarm cross a herd.
+  ENTITY_ALARMED: 'entity.alarmed', //   { entityId, sourceId, x, y }
+  // A dominance contest. There are no odds to report because there is no roll:
+  // the stronger animal wins. What is reported is *why* — both scores — and
+  // whether it escalated into an actual fight rather than a yield.
+  ENTITY_CONTESTED: 'entity.contested', // { entityId, opponentId, winnerId, dominance, opponentDominance, escalated, injured }
+  // An adult putting itself between a predator and a groupmate or its own young.
+  ENTITY_DEFENDED: 'entity.defended', // { entityId, wardId, threatId }
   // A milestone in one animal's life history. `event` is a life-event type
   // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
   ENTITY_LIFE_EVENT: 'entity.lifeEvent', //    { entityId, event, guardianId }

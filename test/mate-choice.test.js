@@ -356,13 +356,40 @@ describe('mate choice: pairing', () => {
   });
 
   test('a female takes the best male present, not the nearest', () => {
+    // One suitor at a time is the case where *her* preference is the only
+    // thing operating. With two males present, Step 23's male–male contest
+    // runs first and decides who she is offered at all — see the pipeline test
+    // below, and `#chooseMate` in the decision system for the steering half.
     const engine = repro({ acceptanceThreshold: 0 });
     const her = spawnAdult(engine, { x: 10, y: 10, sex: Sexes.FEMALE });
-    const runt = spawnAdult(engine, { x: 10.2, y: 10, sex: Sexes.MALE, genome: genomeWith({ size: 0.75 }) });
-    const prize = spawnAdult(engine, { x: 11.5, y: 10, sex: Sexes.MALE, genome: genomeWith({ size: 1.25 }) });
+    const runt = spawnAdult(engine, { x: 10.2, y: 10, sex: Sexes.MALE, genome: genomeWith({ size: 0.75 }), bodyMass: 20 });
+    const prize = spawnAdult(engine, { x: 11.5, y: 10, sex: Sexes.MALE, genome: genomeWith({ size: 1.25 }), bodyMass: 40 });
     engine.step(1);
-    assert.equal(engine.world.entities.get(her).pendingMateId, prize, 'she chose the better male');
+    assert.equal(engine.world.entities.get(her).pendingMateId, prize, 'she paired with the better male');
     assert.equal(engine.world.entities.get(runt).lastMatedTick, null, 'the nearer one went unmated');
+  });
+
+  test('male–male competition decides who she is offered, and she still chooses', () => {
+    // The Step 23 interaction, pinned deliberately: contests gate *access* and
+    // female choice gates *acceptance*, and neither silently overrides the
+    // other. The first cut of this suite assumed choice alone decided it, and
+    // the assertion broke the moment contests landed — which is the honest
+    // signal that the pipeline had grown a stage, not that either stage is wrong.
+    const engine = repro();
+    const her = spawnAdult(engine, { x: 10, y: 10, sex: Sexes.FEMALE });
+    // Heavier ⇒ more dominant, and bigger ⇒ more attractive: the same animal
+    // wins both stages, so acceptance is the outcome.
+    const strong = spawnAdult(engine, { x: 11, y: 10, sex: Sexes.MALE, bodyMass: 44, genome: genomeWith({ size: 1.3 }) });
+    const weak = spawnAdult(engine, { x: 10.4, y: 10, sex: Sexes.MALE, bodyMass: 18, genome: genomeWith({ size: 0.7 }) });
+    const before = engine.events.lastSeq;
+    engine.step(1);
+
+    const contested = engine.eventsSince(before).find((e) => e.type === 'entity.contested');
+    assert.ok(contested, 'the rivals contested');
+    assert.equal(contested.winnerId, strong, 'the heavier animal won access');
+    assert.ok(contested.dominance !== contested.opponentDominance, 'and the scores say why');
+    assert.equal(engine.world.entities.get(weak).lastContestTick, 1, 'the loser was driven off');
+    assert.equal(engine.world.entities.get(her).pendingMateId, strong, 'she then accepted the winner');
   });
 
   test('a poor male is rejected where a good one is accepted, at the same standard', () => {

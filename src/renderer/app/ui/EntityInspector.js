@@ -192,6 +192,47 @@ function formatMateChoice(detail) {
   return `<h3>Mate choice</h3>${rows.join('')}`;
 }
 
+/**
+ * Render sociality (protocol v22): the herd, this animal's standing in it, and
+ * whether it is currently panicking or squaring up to something.
+ *
+ * `dominance` has no units and is not meant to — only comparisons between two
+ * animals mean anything, which is why it is shown beside the group rather than
+ * as a stat with a bar. It is derived on read from mass, condition, and
+ * temperament, so watching it fall as an animal is wounded is watching the
+ * thing that decides its next contest.
+ */
+function formatSocial(detail) {
+  const social = detail?.social;
+  if (!social) return '';
+  const rows = [];
+  const nearby = social.nearby;
+  if (social.groupId !== null && social.groupId !== undefined) {
+    const company = nearby ? ` <span class="dim">${nearby.groupmates} in range (${nearby.adults} adult)</span>` : '';
+    rows.push(`<div class="field"><span>herd</span><span>#${social.groupId}${company}</span></div>`);
+  } else {
+    rows.push('<div class="field"><span>herd</span><span class="dim">alone</span></div>');
+  }
+  if (nearby?.drift != null) {
+    rows.push(`<div class="field"><span>from centre</span><span>${nearby.drift.toFixed(1)}</span></div>`);
+  }
+  if (typeof social.dominance === 'number') {
+    rows.push(`<div class="field"><span>dominance</span><span>${social.dominance.toFixed(1)} <span class="dim">(relative)</span></span></div>`);
+  }
+  if (social.alarmed) {
+    const hops = social.alarmSource?.hops;
+    const how = hops === 0 ? 'saw it' : hops != null ? `${hops} hop${hops === 1 ? '' : 's'} away` : '';
+    rows.push(`<div class="field"><span>alarm</span><span class="bad">panicking <span class="dim">${escapeHtml(how)}</span></span></div>`);
+  }
+  if (social.defendingId != null) {
+    rows.push(`<div class="field"><span>defending</span><span class="warn">#${social.defendingId}</span></div>`);
+  }
+  if (social.lastContestTick != null) {
+    rows.push(`<div class="field"><span>last contest</span><span class="dim">t${social.lastContestTick}</span></div>`);
+  }
+  return `<h3>Herd</h3>${rows.join('')}`;
+}
+
 /** Render the transient perception summary (protocol v6), or nothing. */
 function formatPerception(perception) {
   if (!perception) return '';
@@ -298,6 +339,7 @@ export class EntityInspector {
       ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
+    const socialBlock = formatSocial(liveDetail);
     const mateChoiceBlock = formatMateChoice(liveDetail);
     const familyBlock = formatFamily(liveDetail);
     const traitsBlock = formatTraits(liveDetail);
@@ -320,6 +362,7 @@ export class EntityInspector {
       ${memoriesBlock}
       ${traitsBlock}
       ${geneticsBlock}
+      ${socialBlock}
       ${mateChoiceBlock}
       ${familyBlock}
       ${utilitiesBlock}

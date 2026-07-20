@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–22 are done; Step 23 is next.
+protocol for continuing the work. Steps 1–23 are done; Step 24 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -63,9 +63,10 @@ Headless Simulation Engine           src/simulation
    ├── Scheduler        (phase + priority ordered systems)
    ├── World State      (entities, terrain, vegetation)
    ├── Spatial Grid     (uniform grid for local queries)
-   ├── Systems          (weather, vegetation, perception, memory, decision,
-   │                     movement, feeding, hunting, reproduction, parenting,
-   │                     metabolism, hydration, injury, carcass, aging, metrics)
+   ├── Systems          (weather, vegetation, perception, memory, social,
+   │                     decision, movement, feeding, hunting, reproduction,
+   │                     parenting, metabolism, hydration, injury, carcass,
+   │                     aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
@@ -158,7 +159,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `21`) and is
+Everything a client sees carries `protocolVersion` (currently `22`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -169,15 +170,16 @@ built by `src/protocol/`:
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
-  action, alive, decayStage) — internal records never leak, and every snapshot
+  groupId, action, alive, decayStage) — internal records never leak, and every snapshot
   is freshly cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
   `adultMass`, its `genome` / `genotype` / parent traits, its bounded
   `memories`, its `injuries` and derived
   `impairment`, its `stamina` and hunt target, its carcass detail, its
   `mateChoice` block (what its species reads in a mate, its own choosiness, the
-  standard it is currently holding, and the last animal it sized up), and the
-  family/life-history block (resolved `lineage`, parenting state, bounded
+  standard it is currently holding, and the last animal it sized up), its
+  `social` block (herd, *derived* dominance, alarm state, who it is defending),
+  and the family/life-history block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
@@ -196,7 +198,12 @@ built by `src/protocol/`:
   `entity.mated` (`{ entityId, partnerId, quality }`), `entity.courted`
   (`{ entityId, candidateId, quality, threshold, accepted }` — the standard is
   reported beside the score, so a rejection is checkable rather than arbitrary),
-  `entity.born` (`{ entityId, parents, sex }`), `entity.hunted`
+  `entity.born` (`{ entityId, parents, sex }`), `entity.alarmed`
+  (`{ entityId, sourceId, hops, x, y }` — `hops` is how far the warning has
+  travelled from whoever actually saw the predator, so a wave of panic is
+  readable), `entity.contested` (`{ entityId, opponentId, winnerId, dominance,
+  opponentDominance, escalated }` — both scores, because dominance decides it and
+  there is no roll to report), `entity.defended`, `entity.hunted`
   (`{ entityId, targetId, chance, captured }` — the odds are reported, not
   hidden), `entity.killed`, `entity.escaped`, `entity.injured`
   (`{ entityId, injury, severity, sourceId }`), `entity.recovered`,
@@ -220,7 +227,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `20`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `21`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors.
@@ -263,7 +270,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 406 tests.
+ASCII renderer, committed fixtures, and 448 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -313,6 +320,7 @@ Their full loop is implemented:
 | `InjurySystem` | physiology | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass |
 | `CarcassSystem` | physiology | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass |
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
+| `SocialSystem` | decision | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop |
 | `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
 The result is a **multi-generational, self-sustaining population** with a
@@ -348,6 +356,45 @@ balance — measured over 20k ticks on five seeds, roughly 24–111 grazers agai
 1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
 `config.demo` for the measured sweep behind the founding counts).
+
+**Animals form herds, and a herd is a label rather than a roster.** Nothing
+anywhere holds a membership list: animals in sight of each other converge on a
+shared group id by taking the smallest one they can see, so herds form, merge on
+contact, and split apart again from one local neighbour query each — never a
+per-pair structure. Two bounds keep it honest, and both were added after
+watching the unbounded version misbehave. Every herd label carries its distance
+in hops from the animal whose id it is, so a herd torn in half cannot keep
+pretending to be one; and every **alarm** carries its distance in hops from
+whoever actually saw the predator, so panic crosses a herd as a wave and then
+stops instead of becoming a chain reaction that never runs out of fuel. An
+animal that has been warned but has seen nothing itself still runs — away from
+where it was *told* the danger was.
+
+Herding is deliberately the weakest thing an animal can want. It loses to
+hunger, thirst, weather and predators, which is what makes a herd loose and
+living: animals graze their way out of it and drift back in. A bold animal is a
+looser member, because the same trait that makes it roam makes it care less.
+
+**Standing is derived, not stored.** There is no pecking order anywhere in
+state — an animal's dominance is read off what it is right now: its mass, its
+condition, its wounds, its temperament. So it falls when an animal is mauled and
+returns when it heals, which is the point of not storing it. Where it bites is
+**male–male competition**: rivals around the same female contest for access, and
+the stronger simply wins — the event reports both scores rather than odds,
+because there is no roll. What chance governs is whether the loser yields or
+they fight, and that is likeliest between animals too evenly matched for either
+to back down. A fight wounds both, the loser worse. Together with mate choice
+this makes both halves of sexual selection real: **competition decides who she
+is offered, and she still decides whether to take him.**
+
+**A herd is also a defence.** Adult groupmates standing around an animal make it
+measurably harder to catch — collective vigilance, with diminishing returns and
+a cap, so a large herd is never untouchable. A parent that puts itself between a
+predator and its own calf counts for more, and makes the attempt genuinely
+dangerous for the hunter. Which calf is *its own* comes from the lineage lists
+themselves; recognition here is ancestry, not a scent. Measured over five seeds,
+sociality does not simply make prey safer — it makes the whole system steadier,
+trading a much lower peak grazer population for never losing them.
 
 **There are two sexes, and one of them chooses.** Females gestate; males clear a
 much lower energy bar and a much shorter refractory period, because they pay for
@@ -435,12 +482,12 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Social groups, territory, disease, migration, disturbances,
+Territory, disease, migration, disturbances,
 ecosystem engineering, a config-driven species schema (beyond today's two
 hand-written species), and profile-driven optimization toward tens of thousands
 of animals.
 
-`PLAN.md` sequences all of these as Steps 23–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 24–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

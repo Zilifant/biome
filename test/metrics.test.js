@@ -303,7 +303,39 @@ describe('metrics: selection sandbox', () => {
     return species?.traits.metabolicEfficiency.genotype.mean ?? null;
   };
 
-  test('under sparse food, mean metabolic efficiency rises across generations', () => {
+  /**
+   * ⚠ This test used to assert that mean metabolic efficiency **rises** here.
+   * It does not, and measurement in Step 23 showed it never reliably did — it
+   * passed because it was pinned to seed 42. See §1.4 A31; the directional claim
+   * is recorded as an unmet Step 21 acceptance criterion rather than quietly
+   * dropped, and it is deliberately *not* re-asserted here on a luckier seed.
+   *
+   * What was measured, over seven seeds (42, 7, 13, 99, 2024, 5, 77) at 5000
+   * ticks: the trait moved up in 3 and down in 4, with an across-seed mean
+   * change of −0.0002 — i.e. no signal at all. The mean selection differential
+   * was *negative* in five of the seven, and its sign did not even correlate
+   * with the direction the trait went.
+   *
+   * The cause is now understood, and it is a property of the metric rather than
+   * a bug in it. The differential compares breeders against **all** adults, and
+   * in this world roughly **71% of adults are breeders** — a short cooldown
+   * against a long adult life means almost everyone eventually breeds, so the
+   * two samples are nearly the same set and the difference between them is
+   * structurally near zero. A selection differential can only see selection
+   * when reproduction is actually limiting.
+   *
+   * Tightening the breeding gate does make it visible (at `minEnergyFraction`
+   * 0.9 the breeder share falls to 3–17% and the differential grows by an order
+   * of magnitude) — but every setting tried that made reproduction limiting also
+   * drove this population extinct inside 5000 ticks. A world that demonstrates
+   * the claim needs to be built rather than tuned, which is Step 21 scenario 9's
+   * work and not Step 23's.
+   *
+   * So this asserts what the fixture genuinely shows: generations turn over, the
+   * machinery reports a live distribution, and the trait is free to move. No
+   * direction is claimed.
+   */
+  test('the selection machinery reports a live, moving trait distribution', () => {
     const engine = selectionWorld(42);
     engine.step(50);
     const start = meanEfficiency(engine);
@@ -311,12 +343,13 @@ describe('metrics: selection sandbox', () => {
 
     engine.step(5000);
     const end = meanEfficiency(engine);
-    const generations = engine.world.metrics.species.find((s) => s.speciesId === GRAZER.id).generation.max;
+    const grazer = engine.world.metrics.species.find((s) => s.speciesId === GRAZER.id);
 
-    assert.ok(engine.world.metrics.species[0].living > 0, 'the population survived to be measured');
-    assert.ok(generations >= 2, `several generations passed (max depth ${generations})`);
-    // Direction, not magnitude — the step asks for exactly this.
-    assert.ok(end > start, `efficiency rose (${start.toFixed(4)} → ${end.toFixed(4)})`);
+    assert.ok(grazer.living > 0, 'the population survived to be measured');
+    assert.ok(grazer.generation.max >= 2, `several generations passed (max depth ${grazer.generation.max})`);
+    assert.ok(Math.abs(end - start) > 1e-4, `the distribution moved (${start.toFixed(4)} → ${end.toFixed(4)})`);
+    assert.equal(typeof grazer.traits.metabolicEfficiency.selectionDifferential, 'number', 'and the differential is computed');
+    assert.ok(grazer.traits.metabolicEfficiency.histogram.bins.reduce((a, b) => a + b, 0) === grazer.living);
   });
 
   test('selection is emergent: nothing writes traits after birth', () => {

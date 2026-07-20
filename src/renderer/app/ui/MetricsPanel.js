@@ -97,10 +97,19 @@ export class MetricsPanel {
         const sexes = species.sexes
           ? `<div class="field"><span>sexes</span><span>${species.sexes.female ?? 0} f / ${species.sexes.male ?? 0} m</span></div>`
           : '';
+        // Herds are summarized, never listed — there is no roster in the engine
+        // to list, and a membership list would be the per-organism record the
+        // observation roadmap rules out.
+        const grouping = species.grouping
+          ? `<div class="field"><span>herds</span><span>${species.grouping.groups} <span class="dim">mean ${
+              species.grouping.size.mean?.toFixed(1) ?? '–'
+            }, max ${species.grouping.size.max ?? '–'} · ${species.grouping.solitary} alone</span></span></div>`
+          : '';
 
         return `
           <h3>${escapeHtml(species.speciesId)} <span class="dim">${species.living} alive ${populationTrend}</span></h3>
           ${sexes}
+          ${grouping}
           <div class="field"><span>generation</span><span>mean ${species.generation.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.generation.max ?? '–'}</span></span></div>
           <div class="field"><span>offspring each</span><span>mean ${species.reproductiveSuccess.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.reproductiveSuccess.max ?? '–'}</span></span></div>
           <div class="field"><span>births / deaths</span><span>${species.births} / ${species.deaths} <span class="dim">last ${metrics.windowTicks}t</span></span></div>

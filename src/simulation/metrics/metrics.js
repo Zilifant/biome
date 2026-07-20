@@ -107,6 +107,11 @@ export function computeMetrics(world, { tick, windowTicks }) {
         traitValues: Object.fromEntries(TRAIT_NAMES.map((name) => [name, []])),
         genotypeValues: Object.fromEntries(TRAIT_NAMES.map((name) => [name, []])),
         sexes: Object.fromEntries(SEX_VALUES.map((sex) => [sex, 0])),
+        // Herd structure (Step 23). Counting label occurrences is O(N) and
+        // yields group sizes without anything ever holding a roster — the same
+        // reason the social system can cap group size without one.
+        grouped: 0,
+        groupCounts: new Map(),
         // Adults, split by whether they have actually reproduced — the two
         // samples a selection differential is the difference between — and
         // again by sex, because that is the split sexual selection lives in.
@@ -141,6 +146,10 @@ export function computeMetrics(world, { tick, windowTicks }) {
     bucket.living += 1;
     if (entity.lifeStage in bucket.lifeStages) bucket.lifeStages[entity.lifeStage] += 1;
     if (entity.sex !== null && entity.sex in bucket.sexes) bucket.sexes[entity.sex] += 1;
+    if (entity.groupId !== null) {
+      bucket.grouped += 1;
+      bucket.groupCounts.set(entity.groupId, (bucket.groupCounts.get(entity.groupId) ?? 0) + 1);
+    }
     bucket.generations.push(entity.generation);
     bucket.offspringCounts.push(entity.offspring.length);
     // Young enough to have been born inside the window.
@@ -169,6 +178,16 @@ export function computeMetrics(world, { tick, windowTicks }) {
       living: bucket.living,
       lifeStages: { ...bucket.lifeStages },
       sexes: { ...bucket.sexes },
+      // Herds, summarized rather than enumerated: how many animals are in one
+      // at all, how many herds there are, and the size distribution. Never a
+      // membership list — that would be a per-organism record, which the
+      // observation roadmap rules out, and it does not exist to be listed.
+      grouping: {
+        grouped: bucket.grouped,
+        solitary: bucket.living - bucket.grouped,
+        groups: bucket.groupCounts.size,
+        size: describe([...bucket.groupCounts.values()]),
+      },
       generation: describe(bucket.generations),
       reproductiveSuccess: describe(bucket.offspringCounts),
       births: bucket.births,

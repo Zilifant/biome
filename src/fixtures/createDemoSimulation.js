@@ -25,6 +25,7 @@ import { InjurySystem } from '../simulation/systems/InjurySystem.js';
 import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
 import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
+import { SocialSystem } from '../simulation/systems/SocialSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
 import { Sexes } from '../simulation/mating/mateChoice.js';
@@ -44,6 +45,9 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(new VegetationSystem({ growthRate, seedFloor, diebackRate, updateInterval }));
   engine.registerSystem(new PerceptionSystem(engine.config.perception));
   engine.registerSystem(new MemorySystem(engine.config.memory));
+  // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision
+  // system, which consumes the group summary it builds.
+  engine.registerSystem(new SocialSystem(engine.config.social));
   engine.registerSystem(
     new DecisionSystem({
       ...engine.config.decision,
@@ -58,6 +62,10 @@ export function registerDemoSystems(engine) {
         suitorMinEnergyFraction: engine.config.reproduction.suitorMinEnergyFraction,
         suitorCooldownTicks: engine.config.reproduction.suitorCooldownTicks,
       },
+      herdWeight: engine.config.decision.herdWeight,
+      herdDistance: engine.config.decision.herdDistance,
+      defendWeight: engine.config.decision.defendWeight,
+      defendRange: engine.config.decision.defendRange,
     }),
   );
   engine.registerSystem(
@@ -75,6 +83,7 @@ export function registerDemoSystems(engine) {
       ...engine.config.reproduction,
       birthMass: engine.config.aging.birthMass,
       genetics: engine.config.genetics,
+      injuryHealthDamage: engine.config.injury.healthDamage,
     }),
   );
   engine.registerSystem(

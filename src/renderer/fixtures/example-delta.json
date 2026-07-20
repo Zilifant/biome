@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 21,
+  "protocolVersion": 22,
   "kind": "snapshot.delta",
   "simulationId": "demo-42",
   "baseTick": 10,
@@ -10,17 +10,18 @@
       "id": 1,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 128,
-      "y": 92.23797882540654,
-      "heading": 5.6838343836881435,
+      "x": 125.18049031346455,
+      "y": 95.76781083519191,
+      "heading": 2.669381078397775,
       "age": 256,
-      "energyFraction": 0.880250217567645,
+      "energyFraction": 0.8597867373912362,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 10.646838342761992,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "action": "wander",
+      "groupId": 1,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -28,9 +29,9 @@
       "id": 2,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 68.7862515777689,
-      "y": 83.25739120278658,
-      "heading": 4.895679895634949,
+      "x": 70.23256970026658,
+      "y": 83.56415262269563,
+      "heading": 5.231578650520369,
       "age": 1113,
       "energyFraction": 0.9086191267287888,
       "hydrationFraction": 0.9961500000000004,
@@ -38,6 +39,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -46,17 +48,18 @@
       "id": 3,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 1.226113753913337,
-      "y": 13.240321854109263,
-      "heading": 1.7580790296172228,
+      "x": 7.157075055913559,
+      "y": 1.4265982785502729,
+      "heading": 3.3103456954760744,
       "age": 1258,
-      "energyFraction": 0.8580632213402981,
+      "energyFraction": 0.8577555013672312,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 33.73785618601833,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 3,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -64,16 +67,17 @@
       "id": 4,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 66.47003185909209,
-      "y": 81.56893158669878,
-      "heading": 0.23476048384556236,
+      "x": 56.94969752028515,
+      "y": 80.39575544039606,
+      "heading": 3.6037520234226106,
       "age": 249,
-      "energyFraction": 0.8151146986543262,
+      "energyFraction": 0.8151150707504524,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.868798057907727,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": 4,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -82,17 +86,18 @@
       "id": 5,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 69.63436543941498,
-      "y": 117.24581986665726,
-      "heading": 2.3895525963085036,
+      "x": 69.10368456298318,
+      "y": 117.9257868895957,
+      "heading": 5.717690755551391,
       "age": 527,
-      "energyFraction": 0.8504039334628021,
+      "energyFraction": 0.8585531019999219,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 17.79392790545884,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "rest",
+      "groupId": null,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -100,16 +105,17 @@
       "id": 6,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 12.882849242724157,
+      "x": 12.408254730136655,
       "y": 0,
-      "heading": 3.878917765584193,
+      "heading": 3.777723585018247,
       "age": 1430,
-      "energyFraction": 0.8978189356893782,
+      "energyFraction": 0.8623721241531688,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 30.323982199025338,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 3,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -118,17 +124,18 @@
       "id": 7,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 101.08429970517004,
-      "y": 114.7186074261909,
-      "heading": 1.5201527492466766,
+      "x": 96.64117077370435,
+      "y": 87.27707637108013,
+      "heading": 4.4046932505702205,
       "age": 1058,
-      "energyFraction": 0.8359696219566984,
+      "energyFraction": 0.7261858687852087,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 26.52235990469344,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -136,9 +143,9 @@
       "id": 8,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 18.97938530559158,
-      "y": 30.596362229738535,
-      "heading": 0.2904995265274728,
+      "x": 7.661522830517997,
+      "y": 32.647630683686984,
+      "heading": 3.014612680935675,
       "age": 389,
       "energyFraction": 0.9343804908741337,
       "hydrationFraction": 0.9961500000000004,
@@ -146,6 +153,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -154,9 +162,9 @@
       "id": 9,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 82.09323553091366,
-      "y": 75.94863477463183,
-      "heading": 4.118295102021479,
+      "x": 91.74236690962672,
+      "y": 82.71407378805732,
+      "heading": 3.6892363017343293,
       "age": 764,
       "energyFraction": 0.9386918708259517,
       "hydrationFraction": 0.9961500000000004,
@@ -164,6 +172,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -172,9 +181,9 @@
       "id": 10,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 57.80043248099125,
-      "y": 91.13300328699174,
-      "heading": 5.21697532915168,
+      "x": 57.69478994502571,
+      "y": 100.18710276865819,
+      "heading": 0.10703308764974118,
       "age": 1415,
       "energyFraction": 0.9651639658789378,
       "hydrationFraction": 0.9961500000000004,
@@ -182,6 +191,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -190,16 +200,17 @@
       "id": 11,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 78.42776160884249,
-      "y": 70.91845308096343,
-      "heading": 2.7456023056823415,
+      "x": 77.23457115153423,
+      "y": 73.08787155150763,
+      "heading": 2.722788592546733,
       "age": 660,
-      "energyFraction": 0.8492457116919735,
+      "energyFraction": 0.8491376010896734,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 20.592053890309764,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 11,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -208,16 +219,17 @@
       "id": 12,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 84.10395419861645,
-      "y": 10.351188315619057,
-      "heading": 3.8409615517767444,
+      "x": 83.94719183099127,
+      "y": 10.59041213235921,
+      "heading": 3.707443048728524,
       "age": 1128,
-      "energyFraction": 0.6570213971517004,
+      "energyFraction": 0.6556139848611271,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.83962205778807,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 12,
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -226,16 +238,17 @@
       "id": 13,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 96.50587167735517,
-      "y": 58.01095057255672,
-      "heading": 1.1072985293471618,
+      "x": 93.0685873878533,
+      "y": 50.94598414621011,
+      "heading": 3.7820756806493545,
       "age": 1105,
-      "energyFraction": 0.8103043071680025,
+      "energyFraction": 0.8275362760178999,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 30.23650855233427,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": 13,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -244,16 +257,17 @@
       "id": 14,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 22.51413281754627,
-      "y": 115.08347790753034,
-      "heading": 5.175356269700625,
+      "x": 26.087826001081112,
+      "y": 119.23374290471082,
+      "heading": 0.4991270595265469,
       "age": 726,
-      "energyFraction": 0.8023484144106098,
+      "energyFraction": 0.8248306038574067,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 22.922800883731664,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": 14,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -262,17 +276,18 @@
       "id": 15,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 124.33256193268929,
-      "y": 20.794405725237937,
-      "heading": 1.4990077226142369,
+      "x": 124.20070758083607,
+      "y": 15.39159803826374,
+      "heading": 4.171260568488582,
       "age": 270,
-      "energyFraction": 0.8521256749642184,
+      "energyFraction": 0.8314770618752821,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.824453025968278,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "action": "wander",
+      "groupId": 15,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -280,16 +295,17 @@
       "id": 16,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 124.32488468581222,
-      "y": 120.95270305506584,
-      "heading": 0.5487527390022002,
+      "x": 128,
+      "y": 126.46542231431985,
+      "heading": 0.4909907900218844,
       "age": 1241,
-      "energyFraction": 0.8019421135741883,
+      "energyFraction": 0.6823518059947229,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.93680102622602,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 16,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -298,16 +314,17 @@
       "id": 17,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 0.017226258540828945,
-      "y": 107.65561544300272,
-      "heading": 4.726607687916037,
+      "x": 3.8339464000205457,
+      "y": 117.41593774341787,
+      "heading": 0.9041534931412691,
       "age": 255,
-      "energyFraction": 0.935297856305887,
+      "energyFraction": 0.9353113527882192,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.180531837545335,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -317,15 +334,16 @@
       "kind": "animal",
       "speciesId": "herbivore.grazer",
       "x": 128,
-      "y": 77.49541139575221,
-      "heading": 0.005549607756552,
+      "y": 78.27552352566215,
+      "heading": 0.3094722647964998,
       "age": 1351,
-      "energyFraction": 0.8533544018762517,
+      "energyFraction": 0.8533314891176416,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.22676840343047,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -334,17 +352,18 @@
       "id": 19,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 35.40510132772946,
-      "y": 78.43443232978075,
-      "heading": 5.307302226672984,
+      "x": 33.60178171266938,
+      "y": 80.02354842552107,
+      "heading": 4.235781207463653,
       "age": 899,
-      "energyFraction": 0.8500396338410667,
+      "energyFraction": 0.8499030289511635,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 26.05093321506437,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 19,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -352,9 +371,9 @@
       "id": 20,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 20.03889732354776,
-      "y": 85.06341314804047,
-      "heading": 1.7117837495721915,
+      "x": 19.135815312843253,
+      "y": 84.70868444310553,
+      "heading": 1.8745748026382216,
       "age": 1191,
       "energyFraction": 0.964129093996637,
       "hydrationFraction": 0.9961500000000004,
@@ -362,6 +381,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 20,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -371,8 +391,8 @@
       "kind": "animal",
       "speciesId": "herbivore.grazer",
       "x": 85.74791488313508,
-      "y": 11.734104674855894,
-      "heading": 0.6993688981869512,
+      "y": 11.734104674855875,
+      "heading": 0.5658503951387308,
       "age": 1184,
       "energyFraction": 0.8090038600370038,
       "hydrationFraction": 0.9961500000000004,
@@ -380,6 +400,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": 12,
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -388,16 +409,17 @@
       "id": 22,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 51.068308134421514,
-      "y": 54.96991772872475,
-      "heading": 2.8029643471789427,
+      "x": 52.09576892034976,
+      "y": 49.641208925397954,
+      "heading": 3.383123083673115,
       "age": 929,
-      "energyFraction": 0.9078043579378491,
+      "energyFraction": 0.9078047735756382,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 24.82334903297217,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": 22,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -406,17 +428,18 @@
       "id": 23,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 78.96010861814435,
-      "y": 65.7157309157246,
-      "heading": 3.3755997571160306,
+      "x": 71.46548530423796,
+      "y": 66.49271410954174,
+      "heading": 3.0689773183566977,
       "age": 1442,
-      "energyFraction": 0.8516576568327049,
+      "energyFraction": 0.7778982084609573,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 30.02795453304425,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "eat",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -424,17 +447,18 @@
       "id": 24,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 7.546608182760373,
-      "y": 79.44425275370588,
-      "heading": 3.1823347235094204,
+      "x": 15.742703180964211,
+      "y": 83.03916061479703,
+      "heading": 0.11265158347912241,
       "age": 618,
-      "energyFraction": 0.8866648762778229,
+      "energyFraction": 0.8867387374104166,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 20.126548318657605,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -442,16 +466,17 @@
       "id": 25,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 103.00341025159838,
-      "y": 26.762123936957412,
-      "heading": 2.9328336345577064,
+      "x": 111.10439944433938,
+      "y": 31.053923835200735,
+      "heading": 0.9438823234966822,
       "age": 562,
-      "energyFraction": 0.8707085671053387,
+      "energyFraction": 0.8703975343987902,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 20.061140741290664,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -460,9 +485,9 @@
       "id": 26,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 73.68356700674107,
-      "y": 27.360135986838575,
-      "heading": 3.0011211525074017,
+      "x": 81.9030749226204,
+      "y": 26.313822610072428,
+      "heading": 4.436076892478951,
       "age": 1276,
       "energyFraction": 0.988699045617748,
       "hydrationFraction": 0.9961500000000004,
@@ -470,7 +495,8 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -478,16 +504,17 @@
       "id": 27,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 62.52965216676272,
-      "y": 29.69531803744618,
-      "heading": 3.7022997777384177,
+      "x": 69.191968903418,
+      "y": 33.82277219407449,
+      "heading": 0.21677405047725085,
       "age": 666,
-      "energyFraction": 0.8830243681550339,
+      "energyFraction": 0.8831668869339652,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 20.83824233766054,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 27,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -496,9 +523,9 @@
       "id": 28,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 84.21493705735443,
-      "y": 16.04060610908193,
-      "heading": 2.2890210283848376,
+      "x": 85.6409011920645,
+      "y": 12.337731392062443,
+      "heading": 3.208062389630239,
       "age": 20,
       "energyFraction": 0.8978998722871085,
       "hydrationFraction": 0.9961500000000004,
@@ -506,6 +533,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": 12,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -514,16 +542,17 @@
       "id": 29,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 115.2500742832519,
-      "y": 42.87251135686329,
-      "heading": 0.9979434658903648,
+      "x": 111.87075253175229,
+      "y": 38.057190394521555,
+      "heading": 4.314323607647278,
       "age": 706,
-      "energyFraction": 0.8654451168330567,
+      "energyFraction": 0.8352177603483298,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 23.643894559525553,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -532,17 +561,18 @@
       "id": 30,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 79.13770524227846,
-      "y": 14.743276476617364,
-      "heading": 3.3893844696049715,
+      "x": 81.3312541096581,
+      "y": 17.762807696253347,
+      "heading": 1.1002656874995225,
       "age": 811,
-      "energyFraction": 0.8098409200590079,
+      "energyFraction": 0.850041077256672,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 25.39281684859232,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "action": "rest",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -550,17 +580,18 @@
       "id": 31,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 24.629080462318353,
-      "y": 118.97692897294125,
-      "heading": 4.1163061087033235,
+      "x": 28.63673652301806,
+      "y": 122.4967559789927,
+      "heading": 3.899444947658079,
       "age": 1237,
-      "energyFraction": 0.8984410353548866,
+      "energyFraction": 0.8987158178722124,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.906034171790814,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 14,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -568,9 +599,9 @@
       "id": 32,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 80.81379311657305,
-      "y": 26.974133111971312,
-      "heading": 0.3049793276767021,
+      "x": 81.11808031530573,
+      "y": 22.950997032454573,
+      "heading": 5.576482219252576,
       "age": 770,
       "energyFraction": 0.9936701803191665,
       "hydrationFraction": 0.9961500000000004,
@@ -578,6 +609,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": 32,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -586,16 +618,17 @@
       "id": 33,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 128,
-      "y": 4.023181408978719,
-      "heading": 5.102127352251259,
+      "x": 120.97507932155115,
+      "y": 16.937521402314513,
+      "heading": 3.0269979878941484,
       "age": 862,
-      "energyFraction": 0.918534470238081,
+      "energyFraction": 0.9184130147174465,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 27.450950339619162,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 15,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -604,17 +637,18 @@
       "id": 34,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 19.968467005353023,
-      "y": 101.54017463974475,
-      "heading": 3.699548620878229,
+      "x": 29.811080553991033,
+      "y": 96.93848744466347,
+      "heading": 2.4026085273655617,
       "age": 939,
-      "energyFraction": 0.9062722494548597,
+      "energyFraction": 0.8366024410991941,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 25.655445823376297,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -622,17 +656,18 @@
       "id": 35,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 8.596972190830414,
-      "y": 6.88938269288545,
-      "heading": 3.0915384725257624,
+      "x": 12.159697164246156,
+      "y": 0,
+      "heading": 3.752268763092861,
       "age": 1391,
-      "energyFraction": 0.7626629817683913,
+      "energyFraction": 0.7624855498851262,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 31.781006142636762,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 3,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -640,16 +675,17 @@
       "id": 36,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 47.134693322791236,
-      "y": 70.64601327378472,
-      "heading": 4.649153166308185,
+      "x": 47.09257349507303,
+      "y": 75.34914691636186,
+      "heading": 4.714943530860542,
       "age": 696,
-      "energyFraction": 0.8780028640552779,
+      "energyFraction": 0.8804929355780864,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 21.609621049820632,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -658,9 +694,9 @@
       "id": 37,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 14.780946960623048,
-      "y": 67.75494358878706,
-      "heading": 3.3274264178543866,
+      "x": 14.861966048405014,
+      "y": 66.1640800193729,
+      "heading": 3.1149802883736744,
       "age": 68,
       "energyFraction": 0.8862922259493557,
       "hydrationFraction": 0.9961500000000004,
@@ -668,6 +704,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -676,9 +713,9 @@
       "id": 38,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 59.61960219764949,
-      "y": 80.37842346011666,
-      "heading": 6.177212817662891,
+      "x": 60.61279560036232,
+      "y": 80.01375973203537,
+      "heading": 5.596309392766475,
       "age": 1209,
       "energyFraction": 0.8340309147278359,
       "hydrationFraction": 0.9961500000000004,
@@ -686,6 +723,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 4,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -694,17 +732,18 @@
       "id": 39,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 84.86715220277401,
-      "y": 45.351981961284565,
-      "heading": 4.839736182049656,
+      "x": 84.77508801627958,
+      "y": 47.75460176687771,
+      "heading": 1.557957241464555,
       "age": 740,
-      "energyFraction": 0.7661177102441458,
+      "energyFraction": 0.7823279012585604,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 23.051770382701882,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -712,9 +751,9 @@
       "id": 40,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 73.40649484295442,
-      "y": 49.71358156768505,
-      "heading": 4.288383674781297,
+      "x": 74.82725359263057,
+      "y": 49.70613813417003,
+      "heading": 5.214825758810637,
       "age": 24,
       "energyFraction": 0.8843241798950335,
       "hydrationFraction": 0.9961500000000004,
@@ -722,7 +761,8 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -730,9 +770,9 @@
       "id": 41,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 86.21431704534082,
-      "y": 18.811013304296043,
-      "heading": 6.1963319006103585,
+      "x": 82.58347547448993,
+      "y": 20.795280428619904,
+      "heading": 0.9119530866898193,
       "age": 939,
       "energyFraction": 0.932281686996577,
       "hydrationFraction": 0.9961500000000004,
@@ -740,7 +780,27 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 32,
       "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 42,
+      "kind": "animal",
+      "speciesId": "herbivore.grazer",
+      "x": 33.9406286664836,
+      "y": 92.39143961347463,
+      "heading": 0.6726658889635351,
+      "age": 76,
+      "energyFraction": 0.9632420461120296,
+      "hydrationFraction": 0.9961500000000004,
+      "bodyMass": 6.986415257272403,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -749,16 +809,17 @@
       "kind": "animal",
       "speciesId": "herbivore.grazer",
       "x": 0,
-      "y": 54.05499159545082,
-      "heading": 2.147239916132754,
+      "y": 46.24190346109662,
+      "heading": 3.971572140336102,
       "age": 1496,
-      "energyFraction": 0.8149108155176674,
+      "energyFraction": 0.7452428059723445,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 31.355549413547855,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -766,16 +827,17 @@
       "id": 44,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 47.307161441390036,
-      "y": 126.83715930663683,
-      "heading": 3.4537151645196307,
+      "x": 47.24439886351639,
+      "y": 127.85498980212853,
+      "heading": 3.2042271920505616,
       "age": 419,
-      "energyFraction": 0.8678581357155525,
+      "energyFraction": 0.867859388806948,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 16.679107023982986,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -784,9 +846,9 @@
       "id": 45,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 110.11245545102659,
-      "y": 70.43752432630565,
-      "heading": 1.7280120144215498,
+      "x": 115.53253279498368,
+      "y": 64.13811454288683,
+      "heading": 5.808283283136813,
       "age": 736,
       "energyFraction": 0.8663220695573964,
       "hydrationFraction": 0.9961500000000004,
@@ -794,6 +856,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -802,17 +865,18 @@
       "id": 46,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 45.646551139027686,
-      "y": 90.38402710545509,
-      "heading": 0.9372551227048129,
+      "x": 40.9164125166161,
+      "y": 83.68506965296224,
+      "heading": 4.7968868396020286,
       "age": 164,
-      "energyFraction": 0.8993704290233566,
+      "energyFraction": 0.8877853586687132,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 9.129213700065296,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": 46,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -820,9 +884,9 @@
       "id": 47,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 72.3915135648617,
-      "y": 24.432171690739217,
-      "heading": 4.979057226391809,
+      "x": 69.80075325223015,
+      "y": 34.61318837067846,
+      "heading": 2.242226894184048,
       "age": 72,
       "energyFraction": 0.7272675611467696,
       "hydrationFraction": 0.9961500000000004,
@@ -830,6 +894,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": 27,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -838,9 +903,9 @@
       "id": 48,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 92.71136907513689,
-      "y": 122.53661785739779,
-      "heading": 0.9666411468902245,
+      "x": 85.78479688069955,
+      "y": 122.18194585753355,
+      "heading": 1.8173324647949016,
       "age": 1403,
       "energyFraction": 0.9306874810215592,
       "hydrationFraction": 0.9961500000000004,
@@ -848,6 +913,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -856,16 +922,17 @@
       "id": 49,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 51.50149431376344,
-      "y": 48.299328148456496,
-      "heading": 0.7241164727208531,
+      "x": 51.68352307894928,
+      "y": 48.19339137329358,
+      "heading": 1.384293526616093,
       "age": 926,
-      "energyFraction": 0.8613898352864162,
+      "energyFraction": 0.8331641527931041,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 27.83948960198886,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 22,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -874,16 +941,17 @@
       "id": 50,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 76.53320313293379,
-      "y": 112.23564655649906,
-      "heading": 5.067442842626386,
+      "x": 73.1145901606099,
+      "y": 119.10855671679825,
+      "heading": 0.43723138848802634,
       "age": 918,
-      "energyFraction": 0.799904890071843,
+      "energyFraction": 0.7999050231347035,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 24.870640104403908,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -892,16 +960,17 @@
       "id": 51,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 104.34766012154644,
-      "y": 39.59838372370543,
-      "heading": 3.406473509660005,
+      "x": 109.24176150148101,
+      "y": 42.10639619751078,
+      "heading": 2.734936338704033,
       "age": 247,
-      "energyFraction": 0.9121041904810451,
+      "energyFraction": 0.9121045580878565,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 10.658847755671037,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -910,16 +979,17 @@
       "id": 52,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 96.24283213940329,
-      "y": 89.23195290462152,
-      "heading": 1.0349162148872235,
+      "x": 93.57086870184396,
+      "y": 83.21634651733956,
+      "heading": 0.6687000237973946,
       "age": 1366,
-      "energyFraction": 0.8605832660921543,
+      "energyFraction": 0.8529744347547152,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.357397747947832,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -928,9 +998,9 @@
       "id": 53,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 112.9979126537921,
-      "y": 29.78233675045393,
-      "heading": 2.0464572777199037,
+      "x": 107.80218328453253,
+      "y": 28.85605753674465,
+      "heading": 2.7191779152804094,
       "age": 1366,
       "energyFraction": 0.8333088989108971,
       "hydrationFraction": 0.9961500000000004,
@@ -938,6 +1008,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -946,16 +1017,17 @@
       "id": 54,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 44.97208584119922,
-      "y": 102.368242469819,
-      "heading": 6.016556011172136,
+      "x": 39.11037188734876,
+      "y": 87.77300065959133,
+      "heading": 4.399117641093444,
       "age": 1413,
-      "energyFraction": 0.9908581235736602,
+      "energyFraction": 0.9901603377498145,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.684174900129438,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -964,17 +1036,18 @@
       "id": 55,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 21.92273205081446,
-      "y": 51.26230740168224,
-      "heading": 5.937180982624087,
+      "x": 25.331438066735842,
+      "y": 47.315491373192195,
+      "heading": 5.830393252254888,
       "age": 70,
-      "energyFraction": 0.9419370626007576,
+      "energyFraction": 0.9416259883742506,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 6.895357783784391,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -982,16 +1055,17 @@
       "id": 56,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 0,
-      "y": 122.51609324645455,
-      "heading": 1.8914411970573823,
+      "x": 3.6849870032937306,
+      "y": 117.108975814871,
+      "heading": 0.6457137506358306,
       "age": 15,
-      "energyFraction": 0.9312184299120732,
+      "energyFraction": 0.9312141075360291,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 5.388399413562961,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1000,16 +1074,17 @@
       "id": 57,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 48.11679961666447,
-      "y": 59.35856258778853,
-      "heading": 4.492654182264712,
+      "x": 47.49605241016513,
+      "y": 61.22926067975903,
+      "heading": 4.246484727522462,
       "age": 389,
-      "energyFraction": 0.9198852844864241,
+      "energyFraction": 0.9166268088409911,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 14.002870931274257,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1018,9 +1093,9 @@
       "id": 58,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 58.442965225554275,
-      "y": 6.082914439945143,
-      "heading": 6.121904416989919,
+      "x": 57.79253035944992,
+      "y": 9.862582539109724,
+      "heading": 0.598696903829838,
       "age": 293,
       "energyFraction": 0.8452842247590708,
       "hydrationFraction": 0.9961500000000004,
@@ -1028,6 +1103,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1036,16 +1112,17 @@
       "id": 59,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 93.98199669298346,
-      "y": 106.58178257781942,
-      "heading": 5.112563181543129,
+      "x": 88.22627316863861,
+      "y": 123.18965800096329,
+      "heading": 1.5690610503105216,
       "age": 527,
-      "energyFraction": 0.8751232711917818,
+      "energyFraction": 0.8631819466941658,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 17.955397691119277,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1064,6 +1141,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": null,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1072,9 +1150,9 @@
       "id": 61,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 95.70939074998888,
-      "y": 45.60122979136986,
-      "heading": 2.8895196947829564,
+      "x": 97.59666318333686,
+      "y": 47.43911278230775,
+      "heading": 2.6581345086904538,
       "age": 1075,
       "energyFraction": 0.8862598568902517,
       "hydrationFraction": 0.9961500000000004,
@@ -1082,7 +1160,8 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1090,17 +1169,18 @@
       "id": 62,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 44.35200536463589,
-      "y": 85.49384042187873,
-      "heading": 6.006124559342382,
+      "x": 35.88039511820394,
+      "y": 82.26961156659456,
+      "heading": 4.262110544289626,
       "age": 134,
-      "energyFraction": 0.8850033906455694,
+      "energyFraction": 0.8848403114078396,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 8.299785989354458,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": 19,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1108,9 +1188,9 @@
       "id": 63,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 64.05627560878209,
-      "y": 123.40160337164532,
-      "heading": 0.9869234969287,
+      "x": 63.42665955363924,
+      "y": 123.67565755240196,
+      "heading": 1.352901131720916,
       "age": 814,
       "energyFraction": 0.8290787690446925,
       "hydrationFraction": 0.9961500000000004,
@@ -1118,6 +1198,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1126,9 +1207,9 @@
       "id": 64,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 46.67879409533941,
-      "y": 40.651748684754544,
-      "heading": 3.5530633418265722,
+      "x": 54.44849117753818,
+      "y": 47.2650451887851,
+      "heading": 2.6509232035536243,
       "age": 1494,
       "energyFraction": 0.9224435789844921,
       "hydrationFraction": 0.9961500000000004,
@@ -1136,7 +1217,8 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "action": "wander",
+      "groupId": 22,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1144,9 +1226,9 @@
       "id": 65,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 103.84821002121964,
-      "y": 54.157623342230174,
-      "heading": 6.154478509214677,
+      "x": 92.31503064937343,
+      "y": 48.93446870041411,
+      "heading": 3.8326575557580735,
       "age": 483,
       "energyFraction": 0.8609603597739447,
       "hydrationFraction": 0.9961500000000004,
@@ -1154,6 +1236,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 13,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1162,17 +1245,18 @@
       "id": 66,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 1.2438328595779187,
-      "y": 44.66071462262374,
-      "heading": 4.715037096051608,
+      "x": 0,
+      "y": 39.528617733880296,
+      "heading": 4.2815394865835525,
       "age": 268,
-      "energyFraction": 0.8662247293677835,
+      "energyFraction": 0.8660064502554321,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.356694160481823,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1180,16 +1264,17 @@
       "id": 67,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 81.12529663607339,
-      "y": 63.53635990286135,
-      "heading": 4.064393099056862,
+      "x": 75.78023447608116,
+      "y": 79.33206224117565,
+      "heading": 2.3099058742732694,
       "age": 1117,
-      "energyFraction": 0.8924888685631482,
+      "energyFraction": 0.8916789728205134,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.486290923296472,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": null,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1198,16 +1283,17 @@
       "id": 68,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 128,
-      "y": 103.30946772419423,
-      "heading": 0.3123364197451233,
+      "x": 124.42387653060422,
+      "y": 95.54832571436854,
+      "heading": 6.278440218688318,
       "age": 1315,
-      "energyFraction": 0.9625716328501732,
+      "energyFraction": 0.9611826082941779,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.294422516738994,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 1,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1216,17 +1302,18 @@
       "id": 69,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 3.9617854811458573,
-      "y": 68.49892990809322,
-      "heading": 5.073630160741268,
+      "x": 3.9738607778716597,
+      "y": 69.10877142744248,
+      "heading": 4.146116959510606,
       "age": 1169,
-      "energyFraction": 0.8739298718663595,
+      "energyFraction": 0.836982252075922,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.029191106720827,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "eat",
+      "groupId": null,
+      "action": "rest",
       "alive": true,
       "decayStage": 0
     },
@@ -1234,17 +1321,18 @@
       "id": 70,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 43.008814407076024,
-      "y": 95.60395501804527,
-      "heading": 0.29553120858032145,
+      "x": 33.8746675231297,
+      "y": 81.42825281081826,
+      "heading": 4.207072703102084,
       "age": 355,
-      "energyFraction": 0.8972013171811849,
+      "energyFraction": 0.7882829257311103,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 13.541374783980077,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": 19,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1252,17 +1340,18 @@
       "id": 71,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 116.08949257568085,
-      "y": 124.07969174303204,
-      "heading": 1.415327343054697,
+      "x": 125.1547037323723,
+      "y": 128,
+      "heading": 0.5199419560716976,
       "age": 362,
-      "energyFraction": 0.8698979252154458,
+      "energyFraction": 0.6844036804599543,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 13.928124504721023,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "action": "eat",
+      "groupId": 16,
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -1270,17 +1359,18 @@
       "id": 72,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 60.06160373119569,
-      "y": 45.864051117119146,
-      "heading": 2.089604498700561,
+      "x": 61.916403843813896,
+      "y": 46.72828703403333,
+      "heading": 1.2715299256052028,
       "age": 252,
-      "energyFraction": 0.8396853937417568,
+      "energyFraction": 0.8908939753956087,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.620039410566632,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1288,17 +1378,18 @@
       "id": 73,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 121.85535572917215,
-      "y": 110.45560653896328,
-      "heading": 5.327709059580959,
+      "x": 126.78550543486449,
+      "y": 110.87110935169012,
+      "heading": 5.953400219632247,
       "age": 620,
-      "energyFraction": 0.8412935445060516,
+      "energyFraction": 0.7896092537980443,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 21.468117197270043,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1306,9 +1397,9 @@
       "id": 74,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 96.66999817190364,
-      "y": 57.691736068907105,
-      "heading": 1.4332406394210508,
+      "x": 91.83097260925129,
+      "y": 49.13595850753805,
+      "heading": 3.7806854013909366,
       "age": 764,
       "energyFraction": 0.8314159583389003,
       "hydrationFraction": 0.9961500000000004,
@@ -1316,6 +1407,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": 13,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1324,9 +1416,9 @@
       "id": 75,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 67.44062421914407,
-      "y": 41.519731794567655,
-      "heading": 1.7582640325158945,
+      "x": 68.96496923276167,
+      "y": 39.83334603559951,
+      "heading": 0.35812283402863887,
       "age": 248,
       "energyFraction": 0.9355179964172503,
       "hydrationFraction": 0.9961500000000004,
@@ -1334,6 +1426,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": 27,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1342,16 +1435,17 @@
       "id": 76,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 7.484558843908761,
-      "y": 96.99238804741172,
-      "heading": 6.113152541980992,
+      "x": 5.392013349743807,
+      "y": 94.42148492274256,
+      "heading": 4.502007898813907,
       "age": 1356,
-      "energyFraction": 0.8685659808988963,
+      "energyFraction": 0.832194458266317,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.478477329714224,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1360,17 +1454,18 @@
       "id": 77,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 72.5943058525714,
-      "y": 37.771748246505354,
-      "heading": 6.120732410300967,
+      "x": 71.6685653496896,
+      "y": 39.38767940583613,
+      "heading": 2.5538213361877418,
       "age": 1150,
-      "energyFraction": 0.8171410877015856,
+      "energyFraction": 0.853721456199648,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 30.918537789629774,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 27,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1388,6 +1483,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1396,9 +1492,9 @@
       "id": 79,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 119.24658506525233,
-      "y": 34.77730154635355,
-      "heading": 1.84372260834202,
+      "x": 124.43198368985516,
+      "y": 16.368107595769928,
+      "heading": 5.043172001522395,
       "age": 980,
       "energyFraction": 0.8938131611208248,
       "hydrationFraction": 0.9961500000000004,
@@ -1406,6 +1502,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 15,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1414,9 +1511,9 @@
       "id": 80,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 72.89074957535253,
-      "y": 34.838170115734535,
-      "heading": 0.2865831912633068,
+      "x": 72.83619056263571,
+      "y": 35.08465003554702,
+      "heading": 0.26811720921174054,
       "age": 464,
       "energyFraction": 0.8388960799114905,
       "hydrationFraction": 0.9961500000000004,
@@ -1424,6 +1521,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": 27,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1432,16 +1530,17 @@
       "id": 81,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 87.13230344062761,
+      "x": 85.630132848572,
       "y": 128,
-      "heading": 2.323979667258552,
+      "heading": 2.7317327405196714,
       "age": 465,
-      "energyFraction": 0.9079180295521526,
+      "energyFraction": 0.9077235321049397,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 16.397704988074604,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1450,16 +1549,17 @@
       "id": 82,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 24.241031945165474,
-      "y": 112.22947684968157,
-      "heading": 4.296312779380827,
+      "x": 26.79388636597088,
+      "y": 112.84377285646191,
+      "heading": 6.228350566855791,
       "age": 288,
-      "energyFraction": 0.797925598198706,
+      "energyFraction": 0.7978527487762394,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 12.388227254483102,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": 14,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1468,17 +1568,18 @@
       "id": 83,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 19.723007492150845,
-      "y": 101.50092251074724,
-      "heading": 5.133037795536193,
+      "x": 26.15371306737901,
+      "y": 98.2622587720362,
+      "heading": 5.476270501561491,
       "age": 1363,
-      "energyFraction": 0.8375184744152332,
+      "energyFraction": 0.7935331539744915,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 30.356668993667704,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1486,16 +1587,17 @@
       "id": 84,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 8.901819450781037,
-      "y": 91.90659275562307,
-      "heading": 5.043172001522395,
+      "x": 7.405648543818743,
+      "y": 95.84770451885328,
+      "heading": 3.579499309611161,
       "age": 857,
-      "energyFraction": 0.7843683558177759,
+      "energyFraction": 0.7149196067010982,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 26.996623648321183,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1504,9 +1606,9 @@
       "id": 85,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 82.34172765472533,
-      "y": 26.389675809704222,
-      "heading": 3.172436491468911,
+      "x": 90.20164584423448,
+      "y": 24.059948662678583,
+      "heading": 1.481787906812798,
       "age": 1104,
       "energyFraction": 0.7565553166287624,
       "hydrationFraction": 0.9961500000000004,
@@ -1514,6 +1616,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1532,6 +1635,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1540,17 +1644,18 @@
       "id": 87,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 110.05757212025017,
-      "y": 104.93993462663404,
-      "heading": 3.7471923014196378,
+      "x": 122.31183110238412,
+      "y": 99.885931052558,
+      "heading": 5.322821654852383,
       "age": 406,
-      "energyFraction": 0.9008227418780465,
+      "energyFraction": 0.8740344647498464,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 15.376347292162057,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 1,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1558,9 +1663,9 @@
       "id": 88,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 75.95835395411927,
-      "y": 76.31421630541814,
-      "heading": 0.06431998857943277,
+      "x": 56.759131090401965,
+      "y": 83.8015569753827,
+      "heading": 1.9389429962161824,
       "age": 1464,
       "energyFraction": 0.9764561188817499,
       "hydrationFraction": 0.9961500000000004,
@@ -1568,6 +1673,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": 4,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1576,17 +1682,18 @@
       "id": 89,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 119.88574676407654,
-      "y": 124.07982919204292,
-      "heading": 1.1060019808978403,
+      "x": 128,
+      "y": 128,
+      "heading": 0.5582241312174343,
       "age": 1458,
-      "energyFraction": 0.8104952377782169,
+      "energyFraction": 0.7134538943166006,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 26.477964765415525,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "eat",
+      "groupId": 16,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1594,16 +1701,17 @@
       "id": 90,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 91.32273829601745,
-      "y": 27.145861869986927,
-      "heading": 1.0424243774859967,
+      "x": 89.42554019893014,
+      "y": 24.853023544644536,
+      "heading": 1.6979040420893305,
       "age": 786,
-      "energyFraction": 0.7650998516752273,
+      "energyFraction": 0.7650998516752271,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 24.324181933171488,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1622,6 +1730,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1631,15 +1740,16 @@
       "kind": "animal",
       "speciesId": "herbivore.grazer",
       "x": 128,
-      "y": 67.56248588206896,
-      "heading": 1.0210087084585284,
+      "y": 67.61361862107364,
+      "heading": 1.2439367802023371,
       "age": 928,
-      "energyFraction": 0.8552433847301932,
+      "energyFraction": 0.8552339952980499,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 27.300068887167424,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1648,9 +1758,9 @@
       "id": 93,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 15.610644703981068,
-      "y": 95.31960652333609,
-      "heading": 1.6681721931041444,
+      "x": 19.485044094475843,
+      "y": 87.59631653218635,
+      "heading": 4.722075044075293,
       "age": 1083,
       "energyFraction": 0.9911188815335951,
       "hydrationFraction": 0.9961500000000004,
@@ -1658,7 +1768,8 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 20,
+      "action": "seekMate",
       "alive": true,
       "decayStage": 0
     },
@@ -1666,17 +1777,18 @@
       "id": 94,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 50.97587512300708,
-      "y": 100.1550101108418,
-      "heading": 0.8352224028912987,
+      "x": 53.856283892134556,
+      "y": 100.55287521257705,
+      "heading": 6.0452929627171335,
       "age": 197,
-      "energyFraction": 0.8279756026307503,
+      "energyFraction": 0.8307103172238135,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 9.96950526440856,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1684,9 +1796,9 @@
       "id": 95,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 46.76343780427543,
-      "y": 91.7534825245317,
-      "heading": 2.8369093359294997,
+      "x": 49.05780512056679,
+      "y": 85.49265890922024,
+      "heading": 4.342651727732598,
       "age": 982,
       "energyFraction": 0.8783399238381173,
       "hydrationFraction": 0.9961500000000004,
@@ -1694,6 +1806,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1702,9 +1815,9 @@
       "id": 96,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 42.074499828266944,
-      "y": 58.92083996764757,
-      "heading": 2.7432368704393433,
+      "x": 52.82915854815215,
+      "y": 46.825662697950435,
+      "heading": 0.6312647219898633,
       "age": 79,
       "energyFraction": 0.9794013707675698,
       "hydrationFraction": 0.9961500000000004,
@@ -1712,6 +1825,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": 22,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1720,17 +1834,18 @@
       "id": 97,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 101.65034589908281,
-      "y": 119.16730418600713,
-      "heading": 1.2288390475269484,
+      "x": 82.40857129565104,
+      "y": 97.77526006529594,
+      "heading": 3.7350887292499575,
       "age": 663,
-      "energyFraction": 0.7999521529118381,
+      "energyFraction": 0.7264323867705285,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 22.53722687442289,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1738,16 +1853,17 @@
       "id": 98,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 62.453052715771896,
-      "y": 82.40682519070168,
-      "heading": 2.861829952304629,
+      "x": 59.26895485295003,
+      "y": 82.64929318832161,
+      "heading": 2.984284698019167,
       "age": 139,
-      "energyFraction": 0.8623455803588904,
+      "energyFraction": 0.8472744695243122,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 8.437581499167276,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": 4,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1756,17 +1872,18 @@
       "id": 99,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 122.76856675031436,
-      "y": 119.8173544669173,
-      "heading": 2.3888795921953037,
+      "x": 128,
+      "y": 120.73591384273507,
+      "heading": 0.24273362592198922,
       "age": 1267,
-      "energyFraction": 0.9771961732522075,
+      "energyFraction": 0.9767348595283039,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.237993776844817,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "action": "seekMate",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1774,9 +1891,9 @@
       "id": 100,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 3.3342940086001938,
-      "y": 61.39306703536768,
-      "heading": 5.039554033788139,
+      "x": 4.202910055090429,
+      "y": 72.27354476461095,
+      "heading": 1.537284129139179,
       "age": 535,
       "energyFraction": 0.8432595243679389,
       "hydrationFraction": 0.9961500000000004,
@@ -1784,6 +1901,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1792,17 +1910,18 @@
       "id": 101,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 124.58211816894503,
-      "y": 107.58652005651143,
-      "heading": 0.7806774999953587,
+      "x": 125.45897660195537,
+      "y": 95.60171386237084,
+      "heading": 5.327662924029233,
       "age": 644,
-      "energyFraction": 0.8963514845942165,
+      "energyFraction": 0.8958198997584784,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 20.528596444705872,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": 1,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1810,17 +1929,18 @@
       "id": 102,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 77.37491836710447,
-      "y": 44.05306794861513,
-      "heading": 4.144275211587768,
+      "x": 76.74803168060855,
+      "y": 46.21045046904702,
+      "heading": 2.0732331052208437,
       "age": 1418,
-      "energyFraction": 0.7561940421249091,
+      "energyFraction": 0.7561457840002136,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 31.061727758031342,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1828,16 +1948,17 @@
       "id": 103,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 58.124574452638626,
-      "y": 85.60921105742455,
-      "heading": 2.132102696075351,
+      "x": 57.863600200872526,
+      "y": 82.7495146310133,
+      "heading": 2.706126035205787,
       "age": 256,
-      "energyFraction": 0.9054701009412597,
+      "energyFraction": 0.9050280921694097,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.303998955637216,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": 4,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1846,17 +1967,18 @@
       "id": 104,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 26.524434179735263,
-      "y": 105.563243314804,
-      "heading": 5.150825491674826,
+      "x": 27.34617270808716,
+      "y": 118.52525900838003,
+      "heading": 0.6005745139870564,
       "age": 1334,
-      "energyFraction": 0.8989641443896023,
+      "energyFraction": 0.9109159074091366,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.05241458013188,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "action": "wander",
+      "groupId": 14,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1864,17 +1986,18 @@
       "id": 105,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 27.13768718345132,
-      "y": 8.078490054014647,
-      "heading": 5.9285315693079745,
+      "x": 8.219577131203634,
+      "y": 0,
+      "heading": 3.4969469893967275,
       "age": 135,
-      "energyFraction": 0.892484458325709,
+      "energyFraction": 0.8919395621127473,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 8.885159285854897,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "action": "wander",
+      "groupId": 3,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1882,17 +2005,18 @@
       "id": 106,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 71.55887071623688,
-      "y": 41.70114177127928,
-      "heading": 4.967814079111018,
+      "x": 69.51038792676191,
+      "y": 39.6929606661773,
+      "heading": 3.5394147676090912,
       "age": 681,
-      "energyFraction": 0.820821472649081,
+      "energyFraction": 0.8304806191630364,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 22.938301287651623,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "action": "eat",
+      "groupId": 27,
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -1900,17 +2024,18 @@
       "id": 107,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 74.93227395329626,
-      "y": 67.98944422806179,
-      "heading": 0.21151999694260828,
+      "x": 74.16612284275364,
+      "y": 66.92622191699127,
+      "heading": 3.4266068952723274,
       "age": 666,
-      "energyFraction": 0.9547757937644127,
+      "energyFraction": 0.9542745979626371,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 22.094717422327122,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "rest",
+      "groupId": 11,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1918,16 +2043,17 @@
       "id": 108,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 7.19200018756268,
-      "y": 38.94238917725957,
-      "heading": 1.6275223922473172,
+      "x": 8.07015703194244,
+      "y": 33.137124878652784,
+      "heading": 2.6244205273405687,
       "age": 1205,
-      "energyFraction": 0.8555394919031221,
+      "energyFraction": 0.8518430502527314,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.515013467916287,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1936,17 +2062,18 @@
       "id": 109,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 29.297134282447686,
-      "y": 45.75100454689332,
-      "heading": 4.443121670331841,
+      "x": 28.54514181903616,
+      "y": 47.209749554948345,
+      "heading": 2.744267197187188,
       "age": 998,
-      "energyFraction": 0.8114709422471356,
+      "energyFraction": 0.8462360370857226,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 27.816350745435944,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1954,9 +2081,9 @@
       "id": 110,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 47.63917909603082,
-      "y": 34.06752961045456,
-      "heading": 4.76781379986232,
+      "x": 46.40049762809435,
+      "y": 35.830931415822526,
+      "heading": 2.740092955161486,
       "age": 1125,
       "energyFraction": 0.8619219027170882,
       "hydrationFraction": 0.9961500000000004,
@@ -1964,6 +2091,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1972,17 +2100,18 @@
       "id": 111,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 95.68168105327722,
-      "y": 90.0405689529614,
-      "heading": 4.437583946011719,
+      "x": 97.50399589132307,
+      "y": 91.20344841235614,
+      "heading": 4.537922712850234,
       "age": 768,
-      "energyFraction": 0.8661034314252352,
+      "energyFraction": 0.8659415519081098,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 22.219550385272505,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1990,17 +2119,18 @@
       "id": 112,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 120.61956715377491,
-      "y": 105.77857948557545,
-      "heading": 5.697567132209716,
+      "x": 123.8895069370807,
+      "y": 101.11683574014586,
+      "heading": 5.422506234916015,
       "age": 411,
-      "energyFraction": 0.7918697352830257,
+      "energyFraction": 0.7800091514322657,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 14.892534643673152,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "action": "wander",
+      "groupId": 1,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -2008,9 +2138,9 @@
       "id": 113,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 63.8580900485585,
-      "y": 45.66972824397971,
-      "heading": 5.820474571311683,
+      "x": 52.72888468890755,
+      "y": 49.70284519282732,
+      "heading": 5.437578874919982,
       "age": 179,
       "energyFraction": 0.8675935177240849,
       "hydrationFraction": 0.9961500000000004,
@@ -2018,7 +2148,8 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "action": "wander",
+      "groupId": 22,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -2026,9 +2157,9 @@
       "id": 114,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 63.14126971007317,
-      "y": 65.49128013231417,
-      "heading": 0.26527283891332054,
+      "x": 48.302205820396296,
+      "y": 65.59671652867353,
+      "heading": 1.9977476935525047,
       "age": 168,
       "energyFraction": 0.8784719633683227,
       "hydrationFraction": 0.9961500000000004,
@@ -2036,6 +2167,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2044,9 +2176,9 @@
       "id": 115,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 25.986009867749697,
-      "y": 89.27036040937011,
-      "heading": 5.99571195466504,
+      "x": 17.975901214689426,
+      "y": 88.22067508475796,
+      "heading": 4.378111416610971,
       "age": 1280,
       "energyFraction": 0.8305400744436838,
       "hydrationFraction": 0.9961500000000004,
@@ -2054,6 +2186,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2062,17 +2195,18 @@
       "id": 116,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 1.5324683403332269,
-      "y": 2.7827496484633483,
-      "heading": 3.126011396901422,
+      "x": 7.043937040477383,
+      "y": 3.3470606592777994,
+      "heading": 3.142420548042557,
       "age": 580,
-      "energyFraction": 0.8900204938574194,
+      "energyFraction": 0.8899195114190239,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 19.459123533071946,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "action": "wander",
+      "groupId": 3,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -2080,9 +2214,9 @@
       "id": 117,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 62.289387116505516,
-      "y": 15.546381059176708,
-      "heading": 0.4269481653183771,
+      "x": 61.21360578840604,
+      "y": 17.877413078599226,
+      "heading": 0.4544799938168449,
       "age": 1508,
       "energyFraction": 0.8733902657784605,
       "hydrationFraction": 0.9961500000000004,
@@ -2090,6 +2224,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2098,17 +2233,18 @@
       "id": 118,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 95.45206088714251,
-      "y": 125.32122357974997,
-      "heading": 2.728483877104935,
+      "x": 93.5838181213535,
+      "y": 128,
+      "heading": 2.2332379151875443,
       "age": 1156,
-      "energyFraction": 0.8837706197316822,
+      "energyFraction": 0.8108541935880786,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.936968920892106,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "action": "wander",
+      "groupId": null,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -2116,16 +2252,17 @@
       "id": 119,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 128,
-      "y": 16.93669792312866,
-      "heading": 6.1242313414621705,
+      "x": 125.10146974941787,
+      "y": 15.333861831265319,
+      "heading": 5.600942146704921,
       "age": 998,
-      "energyFraction": 0.8696113177554295,
+      "energyFraction": 0.8683303628814683,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.846382838728516,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": 15,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2135,15 +2272,16 @@
       "kind": "animal",
       "speciesId": "herbivore.grazer",
       "x": 0,
-      "y": 30.89937956302538,
-      "heading": 2.0764357246186993,
+      "y": 30.573045724716412,
+      "heading": 1.9704466703076324,
       "age": 1368,
-      "energyFraction": 0.8390506534745277,
+      "energyFraction": 0.8391043809921064,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.814138572965746,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2152,9 +2290,9 @@
       "id": 121,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 8.576462333404073,
-      "y": 47.143284451102964,
-      "heading": 4.967516923174395,
+      "x": 6.306838561999653,
+      "y": 47.21999276107278,
+      "heading": 4.321512190825439,
       "age": 252,
       "energyFraction": 0.7863647101266248,
       "hydrationFraction": 0.9961500000000004,
@@ -2162,6 +2300,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2170,9 +2309,9 @@
       "id": 122,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 17.36326831790023,
-      "y": 4.517308705020526,
-      "heading": 2.682306854219867,
+      "x": 17.110390828051894,
+      "y": 3.382234842486987,
+      "heading": 3.1228934434966575,
       "age": 542,
       "energyFraction": 0.7964154410737608,
       "hydrationFraction": 0.9961500000000004,
@@ -2180,6 +2319,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2188,17 +2328,18 @@
       "id": 123,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 38.063307165726705,
-      "y": 105.7891651259845,
-      "heading": 1.3175388614050636,
+      "x": 39.53791713136325,
+      "y": 89.09283603541161,
+      "heading": 4.399117641093444,
       "age": 800,
-      "energyFraction": 0.8493459255886489,
+      "energyFraction": 0.5402567013463812,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 36.63901745210402,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "action": "wander",
+      "groupId": null,
+      "action": "chase",
       "alive": true,
       "decayStage": 0
     },
@@ -2206,9 +2347,9 @@
       "id": 124,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 119.18361656403748,
-      "y": 116.99815085972662,
-      "heading": 0.03540091775384102,
+      "x": 118.97992599128666,
+      "y": 118.14244746090876,
+      "heading": 0.4375750666952536,
       "age": 1128,
       "energyFraction": 0.7428691643018378,
       "hydrationFraction": 0.9961500000000004,
@@ -2216,6 +2357,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2224,9 +2366,9 @@
       "id": 125,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 118.23619624436118,
-      "y": 47.83944203962577,
-      "heading": 5.875544342472727,
+      "x": 117.9114859639939,
+      "y": 46.93322423718812,
+      "heading": 5.742619293187323,
       "age": 733,
       "energyFraction": 0.7002138369913933,
       "hydrationFraction": 0.9961500000000004,
@@ -2234,6 +2376,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2242,16 +2385,17 @@
       "id": 126,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 83.52798188012986,
-      "y": 66.71012006380334,
-      "heading": 4.064393099056862,
+      "x": 82.55729940129764,
+      "y": 70.71851831432754,
+      "heading": 2.722788592546733,
       "age": 285,
-      "energyFraction": 0.5691963172433211,
+      "energyFraction": 0.5691146946546225,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 17.865848903710898,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
+      "groupId": null,
       "action": "chase",
       "alive": true,
       "decayStage": 0
@@ -2260,9 +2404,9 @@
       "id": 127,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 27.788727966105615,
-      "y": 22.549172778759747,
-      "heading": 4.433836926506716,
+      "x": 29.75868203526923,
+      "y": 30.668349115903762,
+      "heading": 1.4503962009190943,
       "age": 229,
       "energyFraction": 0.8500976789402656,
       "hydrationFraction": 0.9961500000000004,
@@ -2270,6 +2414,7 @@
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2278,9 +2423,9 @@
       "id": 128,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 19.596974050381952,
-      "y": 108.55605489222782,
-      "heading": 5.834409993845425,
+      "x": 20.30172730724711,
+      "y": 109.6413076487279,
+      "heading": 5.789173120521395,
       "age": 460,
       "energyFraction": 0.8485671781146856,
       "hydrationFraction": 0.9961500000000004,
@@ -2288,6 +2433,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
+      "groupId": null,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2296,1337 +2442,1345 @@
   "removed": [],
   "events": [
     {
-      "seq": 1352,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 1,
-      "from": {
-        "x": 128,
-        "y": 92.92325744191832
-      },
-      "to": {
-        "x": 128,
-        "y": 92.23797882540654
-      }
-    },
-    {
-      "seq": 1353,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 2,
-      "from": {
-        "x": 68.55102947870806,
-        "y": 84.52631411017832
-      },
-      "to": {
-        "x": 68.7862515777689,
-        "y": 83.25739120278658
-      }
-    },
-    {
-      "seq": 1354,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 3,
-      "from": {
-        "x": 1.4388331568749502,
-        "y": 12.117812760172436
-      },
-      "to": {
-        "x": 1.226113753913337,
-        "y": 13.240321854109263
-      }
-    },
-    {
-      "seq": 1355,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 4,
-      "from": {
-        "x": 65.38736036491616,
-        "y": 81.30998853428868
-      },
-      "to": {
-        "x": 66.47003185909209,
-        "y": 81.56893158669878
-      }
-    },
-    {
-      "seq": 1356,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 6,
-      "from": {
-        "x": 14.292449712766473,
-        "y": 0
-      },
-      "to": {
-        "x": 12.882849242724157,
-        "y": 0
-      }
-    },
-    {
-      "seq": 1357,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 7,
-      "from": {
-        "x": 101.01753913941312,
-        "y": 113.40149113986017
-      },
-      "to": {
-        "x": 101.08429970517004,
-        "y": 114.7186074261909
-      }
-    },
-    {
-      "seq": 1358,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 8,
-      "from": {
-        "x": 17.864734191467388,
-        "y": 30.263129613514916
-      },
-      "to": {
-        "x": 18.97938530559158,
-        "y": 30.596362229738535
-      }
-    },
-    {
-      "seq": 1359,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 9,
-      "from": {
-        "x": 82.82505289236374,
-        "y": 77.03200428644823
-      },
-      "to": {
-        "x": 82.09323553091366,
-        "y": 75.94863477463183
-      }
-    },
-    {
-      "seq": 1360,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 10,
-      "from": {
-        "x": 57.22407007294542,
-        "y": 92.17662266825194
-      },
-      "to": {
-        "x": 57.80043248099125,
-        "y": 91.13300328699174
-      }
-    },
-    {
-      "seq": 1361,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 11,
-      "from": {
-        "x": 80.24025167836163,
-        "y": 70.16069666035854
-      },
-      "to": {
-        "x": 78.42776160884249,
-        "y": 70.91845308096343
-      }
-    },
-    {
-      "seq": 1362,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 12,
-      "from": {
-        "x": 85.02359714974712,
-        "y": 11.124801269841157
-      },
-      "to": {
-        "x": 84.10395419861645,
-        "y": 10.351188315619057
-      }
-    },
-    {
-      "seq": 1363,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 13,
-      "from": {
-        "x": 95.99241649212098,
-        "y": 56.98365547921993
-      },
-      "to": {
-        "x": 96.50587167735517,
-        "y": 58.01095057255672
-      }
-    },
-    {
-      "seq": 1364,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 14,
-      "from": {
-        "x": 22.001032815122937,
-        "y": 116.11142565084819
-      },
-      "to": {
-        "x": 22.51413281754627,
-        "y": 115.08347790753034
-      }
-    },
-    {
-      "seq": 1365,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 15,
-      "from": {
-        "x": 124.24875566741157,
-        "y": 19.62900839439434
-      },
-      "to": {
-        "x": 124.33256193268929,
-        "y": 20.794405725237937
-      }
-    },
-    {
-      "seq": 1366,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 16,
-      "from": {
-        "x": 122.64981822935661,
-        "y": 119.92858347107767
-      },
-      "to": {
-        "x": 124.32488468581222,
-        "y": 120.95270305506584
-      }
-    },
-    {
-      "seq": 1367,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 17,
-      "from": {
-        "x": 0,
-        "y": 108.86705449962619
-      },
-      "to": {
-        "x": 0.017226258540828945,
-        "y": 107.65561544300272
-      }
-    },
-    {
-      "seq": 1368,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 18,
-      "from": {
-        "x": 127.04158542566442,
-        "y": 77.48876210538387
-      },
-      "to": {
-        "x": 128,
-        "y": 77.49541139575221
-      }
-    },
-    {
-      "seq": 1369,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 19,
-      "from": {
-        "x": 34.70813352260456,
-        "y": 79.46439078296565
-      },
-      "to": {
-        "x": 35.40510132772946,
-        "y": 78.43443232978075
-      }
-    },
-    {
-      "seq": 1370,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 20,
-      "from": {
-        "x": 20.221743557636138,
-        "y": 83.77512007770574
-      },
-      "to": {
-        "x": 20.03889732354776,
-        "y": 85.06341314804047
-      }
-    },
-    {
-      "seq": 1371,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 21,
-      "from": {
-        "x": 84.79061282900543,
-        "y": 10.928812502206053
-      },
-      "to": {
-        "x": 85.74791488313508,
-        "y": 11.734104674855894
-      }
-    },
-    {
-      "seq": 1372,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 22,
-      "from": {
-        "x": 52.28893320498175,
-        "y": 54.54002054588604
-      },
-      "to": {
-        "x": 51.068308134421514,
-        "y": 54.96991772872475
-      }
-    },
-    {
-      "seq": 1373,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 24,
-      "from": {
-        "x": 8.757391908517562,
-        "y": 79.49360990151824
-      },
-      "to": {
-        "x": 7.546608182760373,
-        "y": 79.44425275370588
-      }
-    },
-    {
-      "seq": 1374,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 25,
-      "from": {
-        "x": 103.71860655324191,
-        "y": 26.610612870029914
-      },
-      "to": {
-        "x": 103.00341025159838,
-        "y": 26.762123936957412
-      }
-    },
-    {
-      "seq": 1375,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 26,
-      "from": {
-        "x": 74.26799689325179,
-        "y": 27.277495969391172
-      },
-      "to": {
-        "x": 73.68356700674107,
-        "y": 27.360135986838575
-      }
-    },
-    {
-      "seq": 1376,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 27,
-      "from": {
-        "x": 63.52975733312236,
-        "y": 30.323319117622702
-      },
-      "to": {
-        "x": 62.52965216676272,
-        "y": 29.69531803744618
-      }
-    },
-    {
-      "seq": 1377,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 28,
-      "from": {
-        "x": 84.96907147103975,
-        "y": 15.177684789149307
-      },
-      "to": {
-        "x": 84.21493705735443,
-        "y": 16.04060610908193
-      }
-    },
-    {
-      "seq": 1378,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 29,
-      "from": {
-        "x": 114.61712025664457,
-        "y": 41.89118860574088
-      },
-      "to": {
-        "x": 115.2500742832519,
-        "y": 42.87251135686329
-      }
-    },
-    {
-      "seq": 1379,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 31,
-      "from": {
-        "x": 25.367610026437802,
-        "y": 120.0655607304202
-      },
-      "to": {
-        "x": 24.629080462318353,
-        "y": 118.97692897294125
-      }
-    },
-    {
-      "seq": 1380,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 32,
-      "from": {
-        "x": 80.23255387989866,
-        "y": 26.791158706490307
-      },
-      "to": {
-        "x": 80.81379311657305,
-        "y": 26.974133111971312
-      }
-    },
-    {
-      "seq": 1381,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 33,
-      "from": {
-        "x": 128,
-        "y": 5.162691562946681
-      },
-      "to": {
-        "x": 128,
-        "y": 4.023181408978719
-      }
-    },
-    {
-      "seq": 1382,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 34,
-      "from": {
-        "x": 21.082129338682993,
-        "y": 102.23521765383526
-      },
-      "to": {
-        "x": 19.968467005353023,
-        "y": 101.54017463974475
-      }
-    },
-    {
-      "seq": 1383,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 35,
-      "from": {
-        "x": 9.762337456219731,
-        "y": 6.831002525106822
-      },
-      "to": {
-        "x": 8.596972190830414,
-        "y": 6.88938269288545
-      }
-    },
-    {
-      "seq": 1384,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 36,
-      "from": {
-        "x": 47.212343580968835,
-        "y": 71.8723235524408
-      },
-      "to": {
-        "x": 47.134693322791236,
-        "y": 70.64601327378472
-      }
-    },
-    {
       "seq": 1385,
       "tick": 11,
-      "type": "entity.moved",
-      "entityId": 37,
-      "from": {
-        "x": 15.969670876009847,
-        "y": 67.97842717916845
-      },
-      "to": {
-        "x": 14.780946960623048,
-        "y": 67.75494358878706
-      }
+      "type": "entity.alarmed",
+      "entityId": 19,
+      "sourceId": 62,
+      "hops": 2,
+      "x": 40.65344283750305,
+      "y": 93.68143807435968
     },
     {
       "seq": 1386,
       "tick": 11,
-      "type": "entity.moved",
-      "entityId": 38,
-      "from": {
-        "x": 58.45266514661306,
-        "y": 80.50255169310311
-      },
-      "to": {
-        "x": 59.61960219764949,
-        "y": 80.37842346011666
-      }
+      "type": "entity.alarmed",
+      "entityId": 31,
+      "sourceId": 14,
+      "hops": 2,
+      "x": 16.82500084203739,
+      "y": 111.31846090219156
     },
     {
       "seq": 1387,
       "tick": 11,
-      "type": "entity.moved",
-      "entityId": 39,
-      "from": {
-        "x": 84.71474511484124,
-        "y": 46.542289374264314
-      },
-      "to": {
-        "x": 84.86715220277401,
-        "y": 45.351981961284565
-      }
+      "type": "entity.alarmed",
+      "entityId": 107,
+      "sourceId": 11,
+      "hops": 1,
+      "x": 84.36423955713843,
+      "y": 69.91417901561877
     },
     {
       "seq": 1388,
       "tick": 11,
-      "type": "entity.moved",
-      "entityId": 40,
-      "from": {
-        "x": 73.9411845903158,
-        "y": 50.898134551662146
-      },
-      "to": {
-        "x": 73.40649484295442,
-        "y": 49.71358156768505
-      }
+      "type": "entity.alarmed",
+      "entityId": 109,
+      "sourceId": 55,
+      "hops": 1,
+      "x": 6.742055816644014,
+      "y": 56.3592868928103
     },
     {
       "seq": 1389,
       "tick": 11,
-      "type": "entity.moved",
-      "entityId": 41,
-      "from": {
-        "x": 85.64406013577852,
-        "y": 18.86066697674064
-      },
-      "to": {
-        "x": 86.21431704534082,
-        "y": 18.811013304296043
-      }
+      "type": "entity.alarmed",
+      "entityId": 116,
+      "sourceId": 6,
+      "hops": 1,
+      "x": 18.48474840157603,
+      "y": 3.3565324457027876
     },
     {
       "seq": 1390,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 43,
+      "entityId": 2,
       "from": {
-        "x": 0.3419795146428838,
-        "y": 53.16184049689168
+        "x": 69.5922335030552,
+        "y": 84.68462767165073
       },
       "to": {
-        "x": 0,
-        "y": 54.05499159545082
+        "x": 70.23256970026658,
+        "y": 83.56415262269563
       }
     },
     {
       "seq": 1391,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 44,
+      "entityId": 3,
       "from": {
-        "x": 48.299384544587085,
-        "y": 127.15731934200507
+        "x": 8.959087514303805,
+        "y": 1.7336132592050175
       },
       "to": {
-        "x": 47.307161441390036,
-        "y": 126.83715930663683
+        "x": 7.157075055913559,
+        "y": 1.4265982785502729
       }
     },
     {
       "seq": 1392,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 45,
+      "entityId": 4,
       "from": {
-        "x": 110.30708236668316,
-        "y": 69.20977947659942
+        "x": 57.94611963030631,
+        "y": 80.89211422933163
       },
       "to": {
-        "x": 110.11245545102659,
-        "y": 70.43752432630565
+        "x": 56.94969752028515,
+        "y": 80.39575544039606
       }
     },
     {
       "seq": 1393,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 46,
+      "entityId": 6,
       "from": {
-        "x": 44.993039406013914,
-        "y": 89.49435385993907
+        "x": 13.939971226087525,
+        "y": 0
       },
       "to": {
-        "x": 45.646551139027686,
-        "y": 90.38402710545509
+        "x": 12.408254730136655,
+        "y": 0
       }
     },
     {
       "seq": 1394,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 47,
+      "entityId": 7,
       "from": {
-        "x": 72.23023635160563,
-        "y": 25.02255339451985
+        "x": 97.02461244608794,
+        "y": 88.48366967025126
       },
       "to": {
-        "x": 72.3915135648617,
-        "y": 24.432171690739217
+        "x": 96.64117077370435,
+        "y": 87.27707637108013
       }
     },
     {
       "seq": 1395,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 48,
+      "entityId": 8,
       "from": {
-        "x": 92.02101746301396,
-        "y": 121.5364767571276
+        "x": 8.815552531860146,
+        "y": 32.50029931854808
       },
       "to": {
-        "x": 92.71136907513689,
-        "y": 122.53661785739779
+        "x": 7.661522830517997,
+        "y": 32.647630683686984
       }
     },
     {
       "seq": 1396,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 49,
+      "entityId": 9,
       "from": {
-        "x": 50.617358664387204,
-        "y": 47.51741856772206
+        "x": 92.85854874179056,
+        "y": 83.39479712921764
       },
       "to": {
-        "x": 51.50149431376344,
-        "y": 48.299328148456496
+        "x": 91.74236690962672,
+        "y": 82.71407378805732
       }
     },
     {
       "seq": 1397,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 50,
+      "entityId": 10,
       "from": {
-        "x": 76.10698742056184,
-        "y": 113.38519979444683
+        "x": 56.5094148177178,
+        "y": 100.05974168390293
       },
       "to": {
-        "x": 76.53320313293379,
-        "y": 112.23564655649906
+        "x": 57.69478994502571,
+        "y": 100.18710276865819
       }
     },
     {
       "seq": 1398,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 51,
+      "entityId": 11,
       "from": {
-        "x": 105.52210356158878,
-        "y": 39.916956956074756
+        "x": 79.02930383415192,
+        "y": 72.28896627363211
       },
       "to": {
-        "x": 104.34766012154644,
-        "y": 39.59838372370543
+        "x": 77.23457115153423,
+        "y": 73.08787155150763
       }
     },
     {
       "seq": 1399,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 52,
+      "entityId": 12,
       "from": {
-        "x": 95.85932547802423,
-        "y": 88.5861482744244
+        "x": 84.96163464477272,
+        "y": 11.234714808181513
       },
       "to": {
-        "x": 96.24283213940329,
-        "y": 89.23195290462152
+        "x": 83.94719183099127,
+        "y": 10.59041213235921
       }
     },
     {
       "seq": 1400,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 53,
+      "entityId": 13,
       "from": {
-        "x": 113.51004730295746,
-        "y": 28.788109333820266
+        "x": 93.98943475030099,
+        "y": 51.632286973765744
       },
       "to": {
-        "x": 112.9979126537921,
-        "y": 29.78233675045393
+        "x": 93.0685873878533,
+        "y": 50.94598414621011
       }
     },
     {
       "seq": 1401,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 54,
+      "entityId": 14,
       "from": {
-        "x": 43.09297197188743,
-        "y": 102.88148976608473
+        "x": 25.079099755497438,
+        "y": 118.6838160578032
       },
       "to": {
-        "x": 44.97208584119922,
-        "y": 102.368242469819
+        "x": 26.087826001081112,
+        "y": 119.23374290471082
       }
     },
     {
       "seq": 1402,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 55,
+      "entityId": 16,
       "from": {
-        "x": 20.761735634578425,
-        "y": 51.6808547171229
+        "x": 128,
+        "y": 125.53971202274482
       },
       "to": {
-        "x": 21.92273205081446,
-        "y": 51.26230740168224
+        "x": 128,
+        "y": 126.46542231431985
       }
     },
     {
       "seq": 1403,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 56,
+      "entityId": 17,
       "from": {
-        "x": 0,
-        "y": 121.36221859579067
+        "x": 3.08477603045918,
+        "y": 116.46376911903069
       },
       "to": {
-        "x": 0,
-        "y": 122.51609324645455
+        "x": 3.8339464000205457,
+        "y": 117.41593774341787
       }
     },
     {
       "seq": 1404,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 57,
+      "entityId": 18,
       "from": {
-        "x": 48.3967158455404,
-        "y": 60.611875955095734
+        "x": 126.98758599843288,
+        "y": 77.910616336827
       },
       "to": {
-        "x": 48.11679961666447,
-        "y": 59.35856258778853
+        "x": 128,
+        "y": 78.27552352566215
       }
     },
     {
       "seq": 1405,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 58,
+      "entityId": 19,
       "from": {
-        "x": 57.25203238466161,
-        "y": 6.276672046141207
+        "x": 34.51463029417017,
+        "y": 81.79158364041956
       },
       "to": {
-        "x": 58.442965225554275,
-        "y": 6.082914439945143
+        "x": 33.60178171266938,
+        "y": 80.02354842552107
       }
     },
     {
       "seq": 1406,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 59,
+      "entityId": 20,
       "from": {
-        "x": 93.49760016557998,
-        "y": 107.7269318926241
+        "x": 19.525041600441146,
+        "y": 83.4670586228861
       },
       "to": {
-        "x": 93.98199669298346,
-        "y": 106.58178257781942
+        "x": 19.135815312843253,
+        "y": 84.70868444310553
       }
     },
     {
       "seq": 1407,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 61,
+      "entityId": 21,
       "from": {
-        "x": 96.75954634213237,
-        "y": 45.330760949533385
+        "x": 84.69193094041464,
+        "y": 11.063417997719275
       },
       "to": {
-        "x": 95.70939074998888,
-        "y": 45.60122979136986
+        "x": 85.74791488313508,
+        "y": 11.734104674855875
       }
     },
     {
       "seq": 1408,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 62,
+      "entityId": 22,
       "from": {
-        "x": 43.21847074473166,
-        "y": 85.81618900344391
+        "x": 53.35232102878748,
+        "y": 49.95074720974025
       },
       "to": {
-        "x": 44.35200536463589,
-        "y": 85.49384042187873
+        "x": 52.09576892034976,
+        "y": 49.641208925397954
       }
     },
     {
       "seq": 1409,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 63,
+      "entityId": 23,
       "from": {
-        "x": 63.405246711873446,
-        "y": 122.41626755339847
+        "x": 73.29995538274545,
+        "y": 66.359268815559
       },
       "to": {
-        "x": 64.05627560878209,
-        "y": 123.40160337164532
+        "x": 71.46548530423796,
+        "y": 66.49271410954174
       }
     },
     {
       "seq": 1410,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 64,
+      "entityId": 24,
       "from": {
-        "x": 47.89242654736954,
-        "y": 41.18135462364716
+        "x": 14.538594764996553,
+        "y": 82.90293917303954
       },
       "to": {
-        "x": 46.67879409533941,
-        "y": 40.651748684754544
+        "x": 15.742703180964211,
+        "y": 83.03916061479703
       }
     },
     {
       "seq": 1411,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 65,
+      "entityId": 25,
       "from": {
-        "x": 102.63217374305212,
-        "y": 54.31500547379266
+        "x": 110.38959904980008,
+        "y": 30.067173985337245
       },
       "to": {
-        "x": 103.84821002121964,
-        "y": 54.157623342230174
+        "x": 111.10439944433938,
+        "y": 31.053923835200735
       }
     },
     {
       "seq": 1412,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 66,
+      "entityId": 26,
       "from": {
-        "x": 1.2405839001506505,
-        "y": 45.88760658712206
+        "x": 82.06409901407848,
+        "y": 26.881677262867267
       },
       "to": {
-        "x": 1.2438328595779187,
-        "y": 44.66071462262374
+        "x": 81.9030749226204,
+        "y": 26.313822610072428
       }
     },
     {
       "seq": 1413,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 67,
+      "entityId": 27,
       "from": {
-        "x": 82.36065007488803,
-        "y": 65.16816562460176
+        "x": 68.49999372534259,
+        "y": 33.67037532697723
       },
       "to": {
-        "x": 81.12529663607339,
-        "y": 63.53635990286135
+        "x": 69.191968903418,
+        "y": 33.82277219407449
       }
     },
     {
       "seq": 1414,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 68,
+      "entityId": 28,
       "from": {
-        "x": 128,
-        "y": 102.90444092300949
+        "x": 86.78438611709936,
+        "y": 12.413850670282914
       },
       "to": {
-        "x": 128,
-        "y": 103.30946772419423
+        "x": 85.6409011920645,
+        "y": 12.337731392062443
       }
     },
     {
       "seq": 1415,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 70,
+      "entityId": 29,
       "from": {
-        "x": 41.87939186607995,
-        "y": 95.26010619808326
+        "x": 112.32341164971692,
+        "y": 39.13363122642659
       },
       "to": {
-        "x": 43.008814407076024,
-        "y": 95.60395501804527
+        "x": 111.87075253175229,
+        "y": 38.057190394521555
       }
     },
     {
       "seq": 1416,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 72,
+      "entityId": 30,
       "from": {
-        "x": 60.65135235669766,
-        "y": 44.83118088290552
+        "x": 81.06529268523117,
+        "y": 17.239913799590134
       },
       "to": {
-        "x": 60.06160373119569,
-        "y": 45.864051117119146
+        "x": 81.3312541096581,
+        "y": 17.762807696253347
       }
     },
     {
       "seq": 1417,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 73,
+      "entityId": 32,
       "from": {
-        "x": 121.13257048913592,
-        "y": 111.47812543974919
+        "x": 80.65465847627873,
+        "y": 23.346672255868643
       },
       "to": {
-        "x": 121.85535572917215,
-        "y": 110.45560653896328
+        "x": 81.11808031530573,
+        "y": 22.950997032454573
       }
     },
     {
       "seq": 1418,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 74,
+      "entityId": 33,
       "from": {
-        "x": 96.48799206741992,
-        "y": 56.37694705254188
+        "x": 122.19889116197585,
+        "y": 16.796661967351987
       },
       "to": {
-        "x": 96.66999817190364,
-        "y": 57.691736068907105
+        "x": 120.97507932155115,
+        "y": 16.937521402314513
       }
     },
     {
       "seq": 1419,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 75,
+      "entityId": 35,
       "from": {
-        "x": 67.64364651085562,
-        "y": 40.44947624364053
+        "x": 13.689193165514038,
+        "y": 0
       },
       "to": {
-        "x": 67.44062421914407,
-        "y": 41.519731794567655
+        "x": 12.159697164246156,
+        "y": 0
       }
     },
     {
       "seq": 1420,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 76,
+      "entityId": 36,
       "from": {
-        "x": 6.20109393863094,
-        "y": 97.21274684678053
+        "x": 47.08943455311476,
+        "y": 76.57790914282229
       },
       "to": {
-        "x": 7.484558843908761,
-        "y": 96.99238804741172
+        "x": 47.09257349507303,
+        "y": 75.34914691636186
       }
     },
     {
       "seq": 1421,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 77,
+      "entityId": 37,
       "from": {
-        "x": 71.9801846277762,
-        "y": 37.87240102084173
+        "x": 16.07108704199975,
+        "y": 66.1318948515039
       },
       "to": {
-        "x": 72.5943058525714,
-        "y": 37.771748246505354
+        "x": 14.861966048405014,
+        "y": 66.1640800193729
       }
     },
     {
       "seq": 1422,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 79,
+      "entityId": 38,
       "from": {
-        "x": 119.54521714144214,
-        "y": 33.710419753245326
+        "x": 59.70539350587593,
+        "y": 80.75791787263968
       },
       "to": {
-        "x": 119.24658506525233,
-        "y": 34.77730154635355
+        "x": 60.61279560036232,
+        "y": 80.01375973203537
       }
     },
     {
       "seq": 1423,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 80,
+      "entityId": 40,
       "from": {
-        "x": 72.30218939929932,
-        "y": 34.664724088537426
+        "x": 74.2013965608886,
+        "y": 50.8451560767862
       },
       "to": {
-        "x": 72.89074957535253,
-        "y": 34.838170115734535
+        "x": 74.82725359263057,
+        "y": 49.70613813417003
       }
     },
     {
       "seq": 1424,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 81,
+      "entityId": 41,
       "from": {
-        "x": 87.97480625161448,
-        "y": 128
+        "x": 82.23304178563733,
+        "y": 20.342671701563148
       },
       "to": {
-        "x": 87.13230344062761,
-        "y": 128
+        "x": 82.58347547448993,
+        "y": 20.795280428619904
       }
     },
     {
       "seq": 1425,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 82,
+      "entityId": 43,
       "from": {
-        "x": 24.70519837896881,
-        "y": 113.27992554670415
+        "x": 0,
+        "y": 47.499664634605864
       },
       "to": {
-        "x": 24.241031945165474,
-        "y": 112.22947684968157
+        "x": 0,
+        "y": 46.24190346109662
       }
     },
     {
       "seq": 1426,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 83,
+      "entityId": 44,
       "from": {
-        "x": 19.201445600992386,
-        "y": 102.66681219551513
+        "x": 48.2849517351897,
+        "y": 127.92024971338645
       },
       "to": {
-        "x": 19.723007492150845,
-        "y": 101.50092251074724
+        "x": 47.24439886351639,
+        "y": 127.85498980212853
       }
     },
     {
       "seq": 1427,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 84,
+      "entityId": 45,
       "from": {
-        "x": 8.547673631226665,
-        "y": 92.93788521250075
+        "x": 114.42701897928983,
+        "y": 64.70651251577921
       },
       "to": {
-        "x": 8.901819450781037,
-        "y": 91.90659275562307
+        "x": 115.53253279498368,
+        "y": 64.13811454288683
       }
     },
     {
       "seq": 1428,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 85,
+      "entityId": 46,
       "from": {
-        "x": 82.95075967440148,
-        "y": 26.4084666538021
+        "x": 40.767346498807335,
+        "y": 85.44500864591264
       },
       "to": {
-        "x": 82.34172765472533,
-        "y": 26.389675809704222
+        "x": 40.9164125166161,
+        "y": 83.68506965296224
       }
     },
     {
       "seq": 1429,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 87,
+      "entityId": 47,
       "from": {
-        "x": 110.61811837255968,
-        "y": 105.32805070423072
+        "x": 70.18149111597306,
+        "y": 34.13402287235136
       },
       "to": {
-        "x": 110.05757212025017,
-        "y": 104.93993462663404
+        "x": 69.80075325223015,
+        "y": 34.61318837067846
       }
     },
     {
       "seq": 1430,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 88,
+      "entityId": 48,
       "from": {
-        "x": 74.74832668250176,
-        "y": 76.23627985953112
+        "x": 86.08137766517376,
+        "y": 121.00342669897437
       },
       "to": {
-        "x": 75.95835395411927,
-        "y": 76.31421630541814
+        "x": 85.78479688069955,
+        "y": 122.18194585753355
       }
     },
     {
       "seq": 1431,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 90,
+      "entityId": 49,
       "from": {
-        "x": 91.02118077224563,
-        "y": 26.629259296683355
+        "x": 51.464670072189094,
+        "y": 47.03357164576078
       },
       "to": {
-        "x": 91.32273829601745,
-        "y": 27.145861869986927
+        "x": 51.68352307894928,
+        "y": 48.19339137329358
       }
     },
     {
       "seq": 1432,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 92,
+      "entityId": 50,
       "from": {
-        "x": 128,
-        "y": 66.56158277882304
+        "x": 72.00390223339909,
+        "y": 118.58941819126089
       },
       "to": {
-        "x": 128,
-        "y": 67.56248588206896
+        "x": 73.1145901606099,
+        "y": 119.10855671679825
       }
     },
     {
       "seq": 1433,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 93,
+      "entityId": 51,
       "from": {
-        "x": 15.728603510925144,
-        "y": 94.11206152573877
+        "x": 110.35940666728798,
+        "y": 41.625069300704624
       },
       "to": {
-        "x": 15.610644703981068,
-        "y": 95.31960652333609
+        "x": 109.24176150148101,
+        "y": 42.10639619751078
       }
     },
     {
       "seq": 1434,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 94,
+      "entityId": 52,
       "from": {
-        "x": 50.22574472779838,
-        "y": 99.32614215889573
+        "x": 92.5886537845821,
+        "y": 82.4402588075607
       },
       "to": {
-        "x": 50.97587512300708,
-        "y": 100.1550101108418
+        "x": 93.57086870184396,
+        "y": 83.21634651733956
       }
     },
     {
       "seq": 1435,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 95,
+      "entityId": 53,
       "from": {
-        "x": 47.95455613318281,
-        "y": 91.37890536016879
+        "x": 108.82225798444973,
+        "y": 28.397562540642614
       },
       "to": {
-        "x": 46.76343780427543,
-        "y": 91.7534825245317
+        "x": 107.80218328453253,
+        "y": 28.85605753674465
       }
     },
     {
       "seq": 1436,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 96,
+      "entityId": 54,
       "from": {
-        "x": 43.162239115508164,
-        "y": 58.46305788790933
+        "x": 39.710674940451376,
+        "y": 89.6261406881374
       },
       "to": {
-        "x": 42.074499828266944,
-        "y": 58.92083996764757
+        "x": 39.11037188734876,
+        "y": 87.77300065959133
       }
     },
     {
       "seq": 1437,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 97,
+      "entityId": 55,
       "from": {
-        "x": 101.26268072712088,
-        "y": 118.07817534776217
+        "x": 23.555802696231986,
+        "y": 48.17934381283735
       },
       "to": {
-        "x": 101.65034589908281,
-        "y": 119.16730418600713
+        "x": 25.331438066735842,
+        "y": 47.315491373192195
       }
     },
     {
       "seq": 1438,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 98,
+      "entityId": 56,
       "from": {
-        "x": 63.595092275377006,
-        "y": 82.07872016835759
+        "x": 2.7139288726650173,
+        "y": 116.37731943742395
       },
       "to": {
-        "x": 62.453052715771896,
-        "y": 82.40682519070168
+        "x": 3.6849870032937306,
+        "y": 117.108975814871
       }
     },
     {
       "seq": 1439,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 99,
+      "entityId": 57,
       "from": {
-        "x": 123.6426847980562,
-        "y": 118.99858822726425
+        "x": 48.0729508050487,
+        "y": 62.37657743368524
       },
       "to": {
-        "x": 122.76856675031436,
-        "y": 119.8173544669173
+        "x": 47.49605241016513,
+        "y": 61.22926067975903
       }
     },
     {
       "seq": 1440,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 100,
+      "entityId": 58,
       "from": {
-        "x": 2.9527416903475956,
-        "y": 62.517394861127485
+        "x": 56.79580047974373,
+        "y": 9.182587988854808
       },
       "to": {
-        "x": 3.3342940086001938,
-        "y": 61.39306703536768
+        "x": 57.79253035944992,
+        "y": 9.862582539109724
       }
     },
     {
       "seq": 1441,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 101,
+      "entityId": 59,
       "from": {
-        "x": 123.69729194774139,
-        "y": 106.7100085794824
+        "x": 88.22411555248792,
+        "y": 121.9462745952309
       },
       "to": {
-        "x": 124.58211816894503,
-        "y": 107.58652005651143
+        "x": 88.22627316863861,
+        "y": 123.18965800096329
       }
     },
     {
       "seq": 1442,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 102,
+      "entityId": 61,
       "from": {
-        "x": 77.69302670180828,
-        "y": 44.55142774322253
+        "x": 98.55680624080385,
+        "y": 46.935024028899676
       },
       "to": {
-        "x": 77.37491836710447,
-        "y": 44.05306794861513
+        "x": 97.59666318333686,
+        "y": 47.43911278230775
       }
     },
     {
       "seq": 1443,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 104,
+      "entityId": 62,
       "from": {
-        "x": 26.198497538586857,
-        "y": 106.25839401129616
+        "x": 36.70102321846712,
+        "y": 83.96723385615377
       },
       "to": {
-        "x": 26.524434179735263,
-        "y": 105.563243314804
+        "x": 35.88039511820394,
+        "y": 82.26961156659456
       }
     },
     {
       "seq": 1444,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 105,
+      "entityId": 63,
       "from": {
-        "x": 26.020298951601696,
-        "y": 8.492271583076485
+        "x": 63.17136006641387,
+        "y": 122.522597505764
       },
       "to": {
-        "x": 27.13768718345132,
-        "y": 8.078490054014647
+        "x": 63.42665955363924,
+        "y": 123.67565755240196
       }
     },
     {
       "seq": 1445,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 108,
+      "entityId": 64,
       "from": {
-        "x": 7.2620260818177105,
-        "y": 37.7092564591773
+        "x": 55.61641909831367,
+        "y": 46.641081607312564
       },
       "to": {
-        "x": 7.19200018756268,
-        "y": 38.94238917725957
+        "x": 54.44849117753818,
+        "y": 47.2650451887851
       }
     },
     {
       "seq": 1446,
       "tick": 11,
       "type": "entity.moved",
-      "entityId": 109,
+      "entityId": 65,
       "from": {
-        "x": 29.64120293190925,
-        "y": 46.997767931334984
+        "x": 93.25988412066776,
+        "y": 49.71598343663967
       },
       "to": {
-        "x": 29.297134282447686,
-        "y": 45.75100454689332
+        "x": 92.31503064937343,
+        "y": 48.93446870041411
       }
     },
     {
       "seq": 1447,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 66,
+      "from": {
+        "x": 0.6709668342141041,
+        "y": 41.31225261771542
+      },
+      "to": {
+        "x": 0,
+        "y": 39.528617733880296
+      }
+    },
+    {
+      "seq": 1448,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 67,
+      "from": {
+        "x": 77.15893786569653,
+        "y": 77.8194271246459
+      },
+      "to": {
+        "x": 75.78023447608116,
+        "y": 79.33206224117565
+      }
+    },
+    {
+      "seq": 1449,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 68,
+      "from": {
+        "x": 123.10580024415663,
+        "y": 95.55458014992739
+      },
+      "to": {
+        "x": 124.42387653060422,
+        "y": 95.54832571436854
+      }
+    },
+    {
+      "seq": 1450,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 70,
+      "from": {
+        "x": 34.78908682423181,
+        "y": 83.0811397388161
+      },
+      "to": {
+        "x": 33.8746675231297,
+        "y": 81.42825281081826
+      }
+    },
+    {
+      "seq": 1451,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 71,
+      "from": {
+        "x": 124.19498669240355,
+        "y": 128
+      },
+      "to": {
+        "x": 125.1547037323723,
+        "y": 128
+      }
+    },
+    {
+      "seq": 1452,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 73,
+      "from": {
+        "x": 124.88997624068274,
+        "y": 111.51992010417665
+      },
+      "to": {
+        "x": 126.78550543486449,
+        "y": 110.87110935169012
+      }
+    },
+    {
+      "seq": 1453,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 74,
+      "from": {
+        "x": 92.89633450494998,
+        "y": 49.9276657835039
+      },
+      "to": {
+        "x": 91.83097260925129,
+        "y": 49.13595850753805
+      }
+    },
+    {
+      "seq": 1454,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 75,
+      "from": {
+        "x": 67.94473938360926,
+        "y": 39.4515135459911
+      },
+      "to": {
+        "x": 68.96496923276167,
+        "y": 39.83334603559951
+      }
+    },
+    {
+      "seq": 1455,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 76,
+      "from": {
+        "x": 5.663964400992981,
+        "y": 95.69501654357636
+      },
+      "to": {
+        "x": 5.392013349743807,
+        "y": 94.42148492274256
+      }
+    },
+    {
+      "seq": 1456,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 79,
+      "from": {
+        "x": 124.0721594243942,
+        "y": 17.415936005091197
+      },
+      "to": {
+        "x": 124.43198368985516,
+        "y": 16.368107595769928
+      }
+    },
+    {
+      "seq": 1457,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 80,
+      "from": {
+        "x": 72.24452806182842,
+        "y": 34.92210130339353
+      },
+      "to": {
+        "x": 72.83619056263571,
+        "y": 35.08465003554702
+      }
+    },
+    {
+      "seq": 1458,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 81,
+      "from": {
+        "x": 86.75990477332066,
+        "y": 128
+      },
+      "to": {
+        "x": 85.630132848572,
+        "y": 128
+      }
+    },
+    {
+      "seq": 1459,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 82,
+      "from": {
+        "x": 25.647181868323553,
+        "y": 112.90671519850225
+      },
+      "to": {
+        "x": 26.79388636597088,
+        "y": 112.84377285646191
+      }
+    },
+    {
+      "seq": 1460,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 83,
+      "from": {
+        "x": 24.740112419243058,
+        "y": 99.73803878605709
+      },
+      "to": {
+        "x": 26.15371306737901,
+        "y": 98.2622587720362
+      }
+    },
+    {
+      "seq": 1461,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 84,
+      "from": {
+        "x": 8.393164501874276,
+        "y": 96.31008490955588
+      },
+      "to": {
+        "x": 7.405648543818743,
+        "y": 95.84770451885328
+      }
+    },
+    {
+      "seq": 1462,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 85,
+      "from": {
+        "x": 90.14748265469797,
+        "y": 23.453038911799634
+      },
+      "to": {
+        "x": 90.20164584423448,
+        "y": 24.059948662678583
+      }
+    },
+    {
+      "seq": 1463,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 87,
+      "from": {
+        "x": 121.26964265120586,
+        "y": 101.37570155288427
+      },
+      "to": {
+        "x": 122.31183110238412,
+        "y": 99.885931052558
+      }
+    },
+    {
+      "seq": 1464,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 88,
+      "from": {
+        "x": 57.1955063999381,
+        "y": 82.67026714652233
+      },
+      "to": {
+        "x": 56.759131090401965,
+        "y": 83.8015569753827
+      }
+    },
+    {
+      "seq": 1465,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 89,
+      "from": {
+        "x": 128,
+        "y": 127.54390725559286
+      },
+      "to": {
+        "x": 128,
+        "y": 128
+      }
+    },
+    {
+      "seq": 1466,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 90,
+      "from": {
+        "x": 89.50136848026723,
+        "y": 24.259672695115583
+      },
+      "to": {
+        "x": 89.42554019893014,
+        "y": 24.853023544644536
+      }
+    },
+    {
+      "seq": 1467,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 92,
+      "from": {
+        "x": 128,
+        "y": 66.50187674060942
+      },
+      "to": {
+        "x": 128,
+        "y": 67.61361862107364
+      }
+    },
+    {
+      "seq": 1468,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 93,
+      "from": {
+        "x": 19.47329224776796,
+        "y": 88.8095523276758
+      },
+      "to": {
+        "x": 19.485044094475843,
+        "y": 87.59631653218635
+      }
+    },
+    {
+      "seq": 1469,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 95,
+      "from": {
+        "x": 49.509022248025666,
+        "y": 86.65690717716356
+      },
+      "to": {
+        "x": 49.05780512056679,
+        "y": 85.49265890922024
+      }
+    },
+    {
+      "seq": 1470,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 96,
+      "from": {
+        "x": 51.876449370710596,
+        "y": 46.12918124611117
+      },
+      "to": {
+        "x": 52.82915854815215,
+        "y": 46.825662697950435
+      }
+    },
+    {
+      "seq": 1471,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 97,
+      "from": {
+        "x": 83.94195817159184,
+        "y": 98.80973027899287
+      },
+      "to": {
+        "x": 82.40857129565104,
+        "y": 97.77526006529594
+      }
+    },
+    {
+      "seq": 1472,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 98,
+      "from": {
+        "x": 60.442520250928276,
+        "y": 82.4631440060548
+      },
+      "to": {
+        "x": 59.26895485295003,
+        "y": 82.64929318832161
+      }
+    },
+    {
+      "seq": 1473,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 99,
+      "from": {
+        "x": 126.67964644128578,
+        "y": 120.27531687529287
+      },
+      "to": {
+        "x": 128,
+        "y": 120.73591384273507
+      }
+    },
+    {
+      "seq": 1474,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 100,
+      "from": {
+        "x": 4.1631282733093276,
+        "y": 71.08690554345735
+      },
+      "to": {
+        "x": 4.202910055090429,
+        "y": 72.27354476461095
+      }
+    },
+    {
+      "seq": 1475,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 101,
+      "from": {
+        "x": 124.30879763470722,
+        "y": 97.22902276350128
+      },
+      "to": {
+        "x": 125.45897660195537,
+        "y": 95.60171386237084
+      }
+    },
+    {
+      "seq": 1476,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 102,
+      "from": {
+        "x": 77.08968999306556,
+        "y": 45.58865518930182
+      },
+      "to": {
+        "x": 76.74803168060855,
+        "y": 46.21045046904702
+      }
+    },
+    {
+      "seq": 1477,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 104,
+      "from": {
+        "x": 25.657058290650394,
+        "y": 117.3682484833453
+      },
+      "to": {
+        "x": 27.34617270808716,
+        "y": 118.52525900838003
+      }
+    },
+    {
+      "seq": 1478,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 105,
+      "from": {
+        "x": 10.00693403226029,
+        "y": 0.21034589455537356
+      },
+      "to": {
+        "x": 8.219577131203634,
+        "y": 0
+      }
+    },
+    {
+      "seq": 1479,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 106,
+      "from": {
+        "x": 70.56810411860666,
+        "y": 40.137443032554884
+      },
+      "to": {
+        "x": 69.51038792676191,
+        "y": 39.6929606661773
+      }
+    },
+    {
+      "seq": 1480,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 107,
+      "from": {
+        "x": 76.03357559872619,
+        "y": 67.47336889273524
+      },
+      "to": {
+        "x": 74.16612284275364,
+        "y": 66.92622191699127
+      }
+    },
+    {
+      "seq": 1481,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 108,
+      "from": {
+        "x": 9.143748530204427,
+        "y": 32.526452117568105
+      },
+      "to": {
+        "x": 8.07015703194244,
+        "y": 33.137124878652784
+      }
+    },
+    {
+      "seq": 1482,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 110,
@@ -3635,350 +3789,354 @@
         "y": 35.33488731134568
       },
       "to": {
-        "x": 47.63917909603082,
-        "y": 34.06752961045456
+        "x": 46.40049762809435,
+        "y": 35.830931415822526
       }
     },
     {
-      "seq": 1448,
+      "seq": 1483,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 111,
       "from": {
-        "x": 95.89036204414535,
-        "y": 90.78073482921364
+        "x": 97.72647690886207,
+        "y": 92.4656929642672
       },
       "to": {
-        "x": 95.68168105327722,
-        "y": 90.0405689529614
+        "x": 97.50399589132307,
+        "y": 91.20344841235614
       }
     },
     {
-      "seq": 1449,
+      "seq": 1484,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 112,
       "from": {
-        "x": 119.62309142856138,
-        "y": 106.43947003981148
+        "x": 122.64228241344797,
+        "y": 102.56754794056047
       },
       "to": {
-        "x": 120.61956715377491,
-        "y": 105.77857948557545
+        "x": 123.8895069370807,
+        "y": 101.11683574014586
       }
     },
     {
-      "seq": 1450,
+      "seq": 1485,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 113,
       "from": {
-        "x": 62.825433204631224,
-        "y": 46.18484789625588
+        "x": 51.9634588095871,
+        "y": 50.56647221691671
       },
       "to": {
-        "x": 63.8580900485585,
-        "y": 45.66972824397971
+        "x": 52.72888468890755,
+        "y": 49.70284519282732
       }
     },
     {
-      "seq": 1451,
+      "seq": 1486,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 114,
       "from": {
-        "x": 61.94896690915693,
-        "y": 65.16736066173637
+        "x": 48.8138319130627,
+        "y": 64.47210613667325
       },
       "to": {
-        "x": 63.14126971007317,
-        "y": 65.49128013231417
+        "x": 48.302205820396296,
+        "y": 65.59671652867353
       }
     },
     {
-      "seq": 1452,
+      "seq": 1487,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 115,
       "from": {
-        "x": 24.80842638949889,
-        "y": 89.61852851815435
+        "x": 18.378783783582808,
+        "y": 89.38067918643412
       },
       "to": {
-        "x": 25.986009867749697,
-        "y": 89.27036040937011
+        "x": 17.975901214689426,
+        "y": 88.22067508475796
       }
     },
     {
-      "seq": 1453,
+      "seq": 1488,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 116,
       "from": {
-        "x": 2.7417801751232673,
-        "y": 2.7639055253603377
+        "x": 8.979070209809791,
+        "y": 3.3486627456600773
       },
       "to": {
-        "x": 1.5324683403332269,
-        "y": 2.7827496484633483
+        "x": 7.043937040477383,
+        "y": 3.3470606592777994
       }
     },
     {
-      "seq": 1454,
+      "seq": 1489,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 117,
       "from": {
-        "x": 61.154656317335565,
-        "y": 15.030155210529456
+        "x": 60.093515872005966,
+        "y": 17.33014560050892
       },
       "to": {
-        "x": 62.289387116505516,
-        "y": 15.546381059176708
+        "x": 61.21360578840604,
+        "y": 17.877413078599226
       }
     },
     {
-      "seq": 1455,
+      "seq": 1490,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 118,
       "from": {
-        "x": 96.53869274686689,
-        "y": 124.8449177863693
+        "x": 94.75135673457844,
+        "y": 128
       },
       "to": {
-        "x": 95.45206088714251,
-        "y": 125.32122357974997
+        "x": 93.5838181213535,
+        "y": 128
       }
     },
     {
-      "seq": 1456,
+      "seq": 1491,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 119,
       "from": {
-        "x": 128,
-        "y": 17.113328278953848
+        "x": 124.23535432410688,
+        "y": 16.03747508777408
       },
       "to": {
-        "x": 128,
-        "y": 16.93669792312866
+        "x": 125.10146974941787,
+        "y": 15.333861831265319
       }
     },
     {
-      "seq": 1457,
+      "seq": 1492,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 120,
       "from": {
         "x": 0,
-        "y": 29.869253509529326
+        "y": 29.48836501675553
       },
       "to": {
         "x": 0,
-        "y": 30.89937956302538
+        "y": 30.573045724716412
       }
     },
     {
-      "seq": 1458,
+      "seq": 1493,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 121,
       "from": {
-        "x": 8.278970658492321,
-        "y": 48.283923473104586
+        "x": 6.755958702280873,
+        "y": 48.30987797280308
       },
       "to": {
-        "x": 8.576462333404073,
-        "y": 47.143284451102964
+        "x": 6.306838561999653,
+        "y": 47.21999276107278
       }
     },
     {
-      "seq": 1459,
+      "seq": 1494,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 122,
       "from": {
-        "x": 18.59541571519653,
-        "y": 3.9079384198575884
+        "x": 18.48474840157603,
+        "y": 3.3565324457027876
       },
       "to": {
-        "x": 17.36326831790023,
-        "y": 4.517308705020526
+        "x": 17.110390828051894,
+        "y": 3.382234842486987
       }
     },
     {
-      "seq": 1460,
+      "seq": 1495,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 123,
       "from": {
-        "x": 37.69252001037363,
-        "y": 104.35652936486915
+        "x": 40.267590812487875,
+        "y": 91.34534416323126
       },
       "to": {
-        "x": 38.063307165726705,
-        "y": 105.7891651259845
+        "x": 39.53791713136325,
+        "y": 89.09283603541161
       }
     },
     {
-      "seq": 1461,
+      "seq": 1496,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 124,
       "from": {
-        "x": 117.775169089851,
-        "y": 116.94826968734748
+        "x": 117.70337997846678,
+        "y": 117.54525176764412
       },
       "to": {
-        "x": 119.18361656403748,
-        "y": 116.99815085972662
+        "x": 118.97992599128666,
+        "y": 118.14244746090876
       }
     },
     {
-      "seq": 1462,
+      "seq": 1497,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 125,
       "from": {
-        "x": 117.00563786778295,
-        "y": 48.370833331140446
+        "x": 116.76221038736047,
+        "y": 47.62301860641592
       },
       "to": {
-        "x": 118.23619624436118,
-        "y": 47.83944203962577
+        "x": 117.9114859639939,
+        "y": 46.93322423718812
       }
     },
     {
-      "seq": 1463,
+      "seq": 1498,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 126,
       "from": {
-        "x": 84.72180769760139,
-        "y": 68.28707103063006
+        "x": 84.36423955713843,
+        "y": 69.91417901561877
       },
       "to": {
-        "x": 83.52798188012986,
-        "y": 66.71012006380334
+        "x": 82.55729940129764,
+        "y": 70.71851831432754
       }
     },
     {
-      "seq": 1464,
+      "seq": 1499,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 127,
       "from": {
-        "x": 28.178548662520388,
-        "y": 23.912242715916463
+        "x": 29.58840090209553,
+        "y": 29.26089603866858
       },
       "to": {
-        "x": 27.788727966105615,
-        "y": 22.549172778759747
+        "x": 29.75868203526923,
+        "y": 30.668349115903762
       }
     },
     {
-      "seq": 1465,
+      "seq": 1500,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 128,
       "from": {
-        "x": 18.43646119872955,
-        "y": 109.11489463382466
+        "x": 19.167673216557002,
+        "y": 110.25205575967665
       },
       "to": {
-        "x": 19.596974050381952,
-        "y": 108.55605489222782
+        "x": 20.30172730724711,
+        "y": 109.6413076487279
       }
     },
     {
-      "seq": 1466,
+      "seq": 1501,
       "tick": 11,
       "type": "entity.fed",
-      "entityId": 23,
+      "entityId": 1,
       "cell": {
-        "cellX": 78,
-        "cellY": 65
+        "cellX": 125,
+        "cellY": 95
       },
       "amount": 0.6
     },
     {
-      "seq": 1467,
+      "seq": 1502,
       "tick": 11,
       "type": "entity.fed",
-      "entityId": 69,
+      "entityId": 5,
       "cell": {
-        "cellX": 3,
-        "cellY": 68
+        "cellX": 69,
+        "cellY": 117
       },
       "amount": 0.6
     },
     {
-      "seq": 1468,
+      "seq": 1503,
       "tick": 11,
       "type": "entity.fed",
-      "entityId": 71,
+      "entityId": 15,
       "cell": {
-        "cellX": 116,
-        "cellY": 124
-      },
-      "amount": 0.07480653375387192
-    },
-    {
-      "seq": 1469,
-      "tick": 11,
-      "type": "entity.fed",
-      "entityId": 89,
-      "cell": {
-        "cellX": 119,
-        "cellY": 124
+        "cellX": 124,
+        "cellY": 15
       },
       "amount": 0.6
     },
     {
-      "seq": 1470,
+      "seq": 1504,
       "tick": 11,
       "type": "entity.fed",
-      "entityId": 106,
+      "entityId": 39,
+      "cell": {
+        "cellX": 84,
+        "cellY": 47
+      },
+      "amount": 0.6
+    },
+    {
+      "seq": 1505,
+      "tick": 11,
+      "type": "entity.fed",
+      "entityId": 72,
+      "cell": {
+        "cellX": 61,
+        "cellY": 46
+      },
+      "amount": 0.6
+    },
+    {
+      "seq": 1506,
+      "tick": 11,
+      "type": "entity.fed",
+      "entityId": 77,
       "cell": {
         "cellX": 71,
-        "cellY": 41
+        "cellY": 39
       },
-      "amount": 0.01166400033980608
+      "amount": 0.4659706652164459
     },
     {
-      "seq": 1471,
+      "seq": 1507,
       "tick": 11,
-      "type": "entity.courted",
-      "entityId": 99,
-      "candidateId": 16,
-      "quality": 0.6382578643397332,
-      "threshold": 0.8019799321331882,
-      "accepted": false
+      "type": "entity.fed",
+      "entityId": 94,
+      "cell": {
+        "cellX": 53,
+        "cellY": 100
+      },
+      "amount": 0.6
     }
   ],
-  "lastEventSeq": 1471,
+  "lastEventSeq": 1507,
   "vegetation": {
-    "revision": 345,
+    "revision": 297,
     "changes": [
       [
-        5319,
-        0
-      ],
-      [
-        8398,
+        2044,
         1
       ],
       [
-        8707,
-        1
-      ],
-      [
-        15988,
+        5063,
         0
       ],
       [
-        15991,
+        15045,
         1
       ]
     ]

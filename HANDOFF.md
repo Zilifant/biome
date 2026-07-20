@@ -2,12 +2,12 @@
 
 |                       |                                                                     |
 | --------------------- | ------------------------------------------------------------------- |
-| Steps complete        | 1–22 (Step 23 next)                                                 |
-| Tests                 | 406 passing / 0 failing, 119 suites                                 |
-| `PROTOCOL_VERSION`    | 21                                                                  |
-| `SAVE_FORMAT_VERSION` | 20                                                                  |
-| Benchmark (large-5k)  | ~46 ms/tick, 5333→7233 entities                                     |
-| Git                   | committed through `step 21`; **Step 22's work is uncommitted**      |
+| Steps complete        | 1–23 (Step 24 next)                                                 |
+| Tests                 | 448 passing / 0 failing, 129 suites                                 |
+| `PROTOCOL_VERSION`    | 22                                                                  |
+| `SAVE_FORMAT_VERSION` | 21                                                                  |
+| Benchmark (large-5k)  | ~72 ms/tick, 5333→7184 entities                                     |
+| Git                   | Steps 22 and 23 are **uncommitted** (the user handles git)          |
 
 Verify with: `npm test`, `npm run benchmark`, `npm run headless -- --ticks=2000 --seed=42`.
 
@@ -17,82 +17,89 @@ These are load-bearing and cost real time to rediscover.
 
 **Shared mutation helpers, not systems.** Things that happen at one _instant_
 live in a module the owning system calls, not a scheduled pass that hunts for
-work: `killAnimal` (death.js), `recordLifeEvent`, `recordMemory`,
-`applyInjury`, `inheritGenome`, and now `mateQuality` / `acceptanceThreshold`
-(mating/mateChoice.js). Follow this rather than adding a system that scans for
-newborns/corpses/couples each tick.
+work: `killAnimal`, `recordLifeEvent`, `recordMemory`, `applyInjury`,
+`inheritGenome`, `mateQuality`/`acceptanceThreshold` (mating/mateChoice.js), and
+`dominanceOf`/`isKin`/`resolveContest` (social/dominance.js).
 
 **All action selection lives in `DecisionSystem`.** `flee`, `chase`, `stalk`,
-`shelter`, `followParent`, `recallFood`, `seekMate`… are all scored there; other
-systems _resolve_ the chosen action. Never let a second system write `action` or
-`moveIntent`.
+`shelter`, `followParent`, `seekMate`, `herd`, `defend`… are all scored there;
+other systems _resolve_ the chosen action. Never let a second system write
+`action` or `moveIntent`.
+
+⚠ **`#intentFor` is a `switch` with fallthrough groups.** Adding a bare `case`
+in the middle of one silently redirects everything above it (§1.4 D9 — it cost
+five suites and an hour). Add new cases *before* a group, never inside it.
 
 **Fixed RNG draw budgets.** A system must consume the same number of draws
-regardless of outcome, or its stream shifts and determinism breaks. Draw first,
-branch after. Several tests assert stream state is identical across outcomes —
-including mate choice, whose budget is *zero* (quality is a pure function of
-traits and condition).
+regardless of outcome. Draw first, branch after. `resolveContest` is three,
+always; mate assessment is zero (a test asserts rejecting and accepting leave
+every stream identical).
 
-**Bounded everything.** Per-entity growable structures are hard-capped in their
-_insert helper_, not by callers: memories (8), life events (12), injuries (4),
-tombstones (256), metrics history (120), perceived mate candidates (6).
+**Bounded everything, and bound it explicitly.** Per-entity structures are capped
+in their _insert helper_: memories (8), life events (12), injuries (4),
+tombstones (256), metrics history (120), mate candidates (6). Since Step 23 the
+same applies to *propagation*: herd labels and alarms both carry a hop count from
+their source and die at a cap. §1.4 D10 — a local mechanism without an explicit
+bound goes global, and population density is not a bound.
 
 **Inspection vs. bulk snapshot.** Anything per-tick and cheap goes in
-`PUBLIC_ENTITY_FIELDS`; everything else is inspection-only
-(`GET /api/entities/:id`) or a query (`GET /api/metrics`). Inspection must
-return **copies** — tests assert mutating a response cannot reach engine state.
+`PUBLIC_ENTITY_FIELDS`; everything else is inspection-only or a query.
+Inspection must return **copies**.
 
-**Event volume is a real budget.** Step 22's first cut emitted one
-`entity.courted` per assessment and produced ~1.7 events/tick; it now reports
-only a new candidate or a changed verdict (20× less). If you add an event that
-fires while two animals are merely co-located, ask what it costs per tick.
+**Event volume is a real budget.** Two steps in a row needed the same fix: emit
+on the *transition* or the *changed verdict*, not every tick the condition holds
+(`entity.courted`, `entity.alarmed`).
 
-**Tuning is measured, and the numbers go in the config comment.** Steps 16→18→19
-each invalidated the previous step's ecological balance, and Step 22 invalidated
-Step 21's *test*. Any step that changes an energy source, a mortality source, a
-food ceiling, or a breeding rate _requires_ a fresh multi-seed sweep (5 seeds,
-15–20k ticks). Do not tune from one run. **Sweep against a control** with the new
-mechanism disabled — that comparison is what told Step 22 which patience value
-to pick.
+**Tuning is measured, against a control.** Any step touching an energy source, a
+mortality source, a food ceiling, or a breeding rate needs a fresh 5-seed,
+15–20k-tick sweep **with the new mechanism disabled as a control** — that
+comparison is what told Steps 22 and 23 which parameters to pick, and in Step 23
+it revealed sociality *stabilises* the ecology (5/5 seeds vs 3/5), which was the
+opposite of the prediction.
 
-**Assert invariants, not population outcomes.** §1.4 D1–D8 records the tests that
-had to be rewritten. The recurring traps: a fixture that makes the mechanism
-_unobservable_ (D5 — homozygous parents can't show recombination), source scans
-that read prose instead of code (D6), and — the sharpest one — a fixture that was
-never applying the pressure it claimed and passed on drift because it was pinned
-to a lucky seed (D7). When a seeded assertion breaks, diagnose the *mechanism*
-before re-pinning the seed.
+**Assert invariants, not population outcomes.** §1.4 D1–D10. The traps that have
+actually bitten: a fixture that makes the mechanism unobservable (D5), source
+scans reading prose (D6), a fixture that never applied the pressure it claimed
+and passed on a lucky seed (D7, and see A31 below), and severed `switch`
+fallthrough (D9).
 
-## Step 23 specifics
+## Step 24 specifics
 
-Social behaviour: conspecific attraction, herding, group movement, alarm,
-dominance, kin recognition, cooperative defense. Several threads converge here.
+Territories and home ranges, emerging from spatial history — not a prescribed
+map. Most of the machinery now exists:
 
-- **A11/A12** (13) — juvenile *protection* and orphan mercy were both explicitly
-  deferred to this step. A parent that fought or interposed belongs with fights.
-- **A19** (17) — fights are still not an injury source; failed hunts remain the
-  only writer. `applyInjury` is the seam.
-- **A15** (15) — kin *recognition* has never had a reader. Step 22 confirmed it
-  still doesn't: mate choice never has to avoid relatives. Social groups (or
-  inbreeding avoidance) would be the first.
-- `sex` now exists and is projected, which dominance and mating competition are
-  the obvious consumers of.
-- `world.perception` already carries `animalCount`, `nearestAnimal`, and a
-  bounded `mateCandidates` list — a groups pass wants something similar, built in
-  the same neighbour loop rather than a second scan.
+- `groupId`, `dominanceOf`, and `resolveContest` are what a territorial dispute
+  is made of; contests already handle "two animals want the same thing".
+- `world.social` is the transient-summary seam a home-range summary sits beside
+  (copy the `world.perception` / `world.social` pattern).
+- Step 15's bounded spatial memory is the obvious substrate for repeated-use
+  areas — but note it remembers *places*, not animals.
+- **A32**: juvenile defense fires about once in 12 000 demo ticks because the
+  geometry it needs is rare. Territory may fix that for free by keeping families
+  in one place; if not, the named lever is relaxing "my calf is nearer the
+  predator than I am" to "near enough to interpose".
 
 ## Things deliberately left undone
 
 Recorded in `PLAN.md` §1.4 with reasoning; the ones most likely to matter next:
 
+- **⚠ A31** (23) — **Step 21's selection sandbox has never demonstrated its
+  claim.** Measured over seven seeds the trait moves up in 3 and down in 4
+  (mean −0.0002), and the selection differential is negative in five with its
+  sign uncorrelated with the outcome. Cause: the differential compares breeders
+  against *all* adults and 71% of adults are breeders there, so the two samples
+  are nearly the same set; tightening the breeding gate makes it visible but
+  drives the population extinct. The test now claims no direction. This is an
+  unmet **Step 21** acceptance criterion and wants a purpose-built world.
 - **⚠ A20** (17) — health lost to dehydration never recovers, while wounds heal.
-  An asymmetry that became conspicuous once injuries could heal.
+- **C6** (7, 23) — perception and sociality each walk the same grid
+  neighbourhood separately (+26 ms/tick at large-5k for the second one). Folding
+  them into one loop is the single clearest optimization available; **Step 30**.
 - **A22** (18) — tombstones bounded at 256, so ancestry cannot be walked far.
-- **A28** (21) — bottleneck _detection_ is not implemented; the history carries
-  the data, but nothing decides what counts as a crash.
-- **A29/A30** (22) — mate preference *direction* is species data and only its
-  strength is heritable (so no Fisherian runaway); `GESTATING_SEX` is one
-  model-wide constant rather than per-species data.
-- **B3/B4/A13** — metabolism, hydration, aging, trait spread, mutation, and now
-  `matePreference` all live in global config or ad-hoc species fields rather
-  than one species schema. Step 29 unifies them.
+- **A12** (13) — orphan mercy, left alone on purpose so Step 23 did not move
+  juvenile survival by three mechanisms at once.
+- **A33** (23) — no mobbing; cooperative defense is vigilance plus an
+  interposing parent.
+- **B3/B4/A13/A29/A30** — metabolism, hydration, aging, trait spread, mutation,
+  `matePreference`, and `GESTATING_SEX` all live in global config or ad-hoc
+  species fields rather than one species schema. **Step 29** unifies them.

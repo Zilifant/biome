@@ -116,6 +116,7 @@ export class RendererApp {
           familyIds: this.#familyIds(),
           memories: this.#selectedMemories(),
           huntTargetId: this.#huntTargetId(),
+          groupId: this.#selectedGroupId(),
         });
         this.#ui.statusPanel.update(this.#store, this.#camera);
       }
@@ -297,6 +298,20 @@ export class RendererApp {
     const detail = this.#inspectionDetail?.entity;
     if (!detail || detail.id !== this.#store.selection?.activeId) return null;
     return detail.huntTargetId ?? null;
+  }
+
+  /**
+   * The selected animal's herd label (protocol v22). Unlike the other overlays
+   * this comes straight off the bulk snapshot rather than the inspection
+   * payload, so the herd marks track live instead of going stale between
+   * inspection fetches — `groupId` is one of the few relationship-ish things
+   * cheap enough to project per tick.
+   * @returns {number | null}
+   */
+  #selectedGroupId() {
+    const activeId = this.#store.selection?.activeId;
+    if (activeId == null) return null;
+    return this.#store.getEntity(activeId)?.groupId ?? null;
   }
 
   /**

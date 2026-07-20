@@ -9,7 +9,7 @@
 const MAX_RENDERED_EVENTS = 60;
 
 /** High-frequency events, hidden unless "show routine" is checked. */
-const ROUTINE_EVENT_TYPES = new Set(['entity.moved', 'entity.fed', 'entity.provisioned']);
+const ROUTINE_EVENT_TYPES = new Set(['entity.moved', 'entity.fed', 'entity.provisioned', 'entity.alarmed']);
 
 function formatEvent(event) {
   switch (event.type) {
@@ -51,6 +51,20 @@ function formatEvent(event) {
       return `~ decayed #${event.entityId} → ${event.stageName ?? event.stage}${event.edibleMass !== undefined ? ` (${event.edibleMass.toFixed(1)}kg left)` : ''}`;
     case 'environment.changed':
       return `@ ${event.season} · ${event.weather}${event.temperature !== undefined ? ` · ${event.temperature.toFixed(1)}°C` : ''}`;
+    case 'entity.alarmed':
+      // `hops` is what makes a wave of panic readable: 0 saw the predator,
+      // 1 was told by someone who did, and so on outward.
+      return `! alarm #${event.entityId}${event.sourceId != null ? ` from #${event.sourceId}` : ' (saw it)'}${
+        event.hops !== undefined ? ` ${event.hops}h` : ''
+      }`;
+    case 'entity.contested':
+      // No odds, because there is no roll — dominance decides it. The two
+      // scores are shown instead, which is the actual reason for the outcome.
+      return `vs contest #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.opponentId} (${event.opponentDominance?.toFixed(0)}) → #${event.winnerId}${
+        event.escalated ? ' FIGHT' : ' yielded'
+      }`;
+    case 'entity.defended':
+      return `# defends #${event.entityId} over #${event.wardId} against #${event.threatId}`;
     case 'entity.lifeEvent':
       return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}`;
     default: {
@@ -72,6 +86,8 @@ function eventClass(event) {
   if (event.type === 'entity.killed' || event.type === 'entity.hunted') return 'event-died';
   if (event.type === 'entity.escaped') return 'event-other';
   if (event.type === 'entity.injured') return 'event-died';
+  if (event.type === 'entity.alarmed' || event.type === 'entity.contested') return 'event-other';
+  if (event.type === 'entity.defended') return 'event-birth';
   if (event.type === 'entity.recovered') return 'event-created';
   if (event.type === 'entity.decayed') return 'event-removed';
   if (event.type === 'environment.changed') return 'event-created';

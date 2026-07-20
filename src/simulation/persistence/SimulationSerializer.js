@@ -93,10 +93,17 @@
  *       is recoverable from the seed once a population has turned over — and a
  *       v19 population has no sexes at all, so its animals could never pair.
  *       v19 saves are invalidated.
+ *  21 — sociality added (Step 23): a per-entity `groupId` (the herd label),
+ *       `alarmedUntil` / `alarmSource`, `lastContestTick`, `defendingId`, and
+ *       the new `SocialSystem` descriptor. The label has to persist because it
+ *       is the *only* social state there is — the group summary, like
+ *       perception, is transient and rebuilt on the next tick, and dominance is
+ *       derived on read. v20 saves lack the fields and register a different
+ *       system lineup, so they are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 20;
+export const SAVE_FORMAT_VERSION = 21;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

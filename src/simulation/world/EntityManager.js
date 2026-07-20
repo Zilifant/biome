@@ -49,6 +49,11 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {number} generation 0 for founders, parent's + 1 for the born
  * @property {number | null} guardianId the parent this juvenile depends on
  * @property {boolean} weaned whether parental provisioning has ended
+ * @property {number | null} groupId herd label (Step 23); null when not in one
+ * @property {number | null} groupHops distance in hops to the herd's root
+ * @property {number | null} alarmedUntil tick this animal stops being alarmed
+ * @property {{x: number, y: number} | null} alarmSource where the threat was
+ * @property {number | null} lastContestTick tick of the last dominance contest
  * @property {Array<{tick: number, type: string}>} lifeEvents bounded life history
  * @property {string | null} sex 'female' | 'male' (Step 22); null for non-animals
  * @property {number | null} gestationUntil tick the pregnancy comes to term
@@ -153,6 +158,21 @@ function createEntity(id, definition) {
     generation: definition.generation ?? 0,
     guardianId: definition.guardianId ?? null,
     weaned: definition.weaned ?? definition.guardianId == null,
+    // Sociality (Step 23). `groupId` is a herd *label*, not a roster — it is
+    // written by the social system through local propagation, and nothing
+    // anywhere holds the membership. `alarmedUntil`/`alarmSource` carry panic
+    // that reached this animal from a neighbour rather than from its own eyes.
+    // `lastContestTick` is the brief exclusion a beaten rival serves.
+    groupId: definition.groupId ?? null,
+    // Hops from this animal to the herd's root — the animal whose id the label
+    // is. Bounded, and what lets a split herd shed a stale label.
+    groupHops: definition.groupHops ?? null,
+    alarmedUntil: definition.alarmedUntil ?? null,
+    alarmSource: definition.alarmSource ?? null,
+    lastContestTick: definition.lastContestTick ?? null,
+    // The animal this one has decided to stand over, owned by the decision
+    // system exactly as `huntTargetId` is, and read by hunting.
+    defendingId: definition.defendingId ?? null,
     // Bounded life history (see systems/lifeEvents.js).
     lifeEvents: definition.lifeEvents ?? [],
     // Injuries (Step 17; see injury/injuries.js). `impairment` is the cached

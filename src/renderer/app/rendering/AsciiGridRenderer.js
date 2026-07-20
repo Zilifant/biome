@@ -87,8 +87,10 @@ export class AsciiGridRenderer {
    *        places the selected entity remembers, drawn as faint markers
    * @param {number | null} [options.huntTargetId] the prey the selected predator
    *        has committed to, marked so a pursuit is legible mid-chase
+   * @param {number | null} [options.groupId] the selected animal's herd label
+   *        (protocol v22), so its groupmates can be picked out of a crowd
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -166,6 +168,19 @@ export class AsciiGridRenderer {
       ctx.globalAlpha = 1;
     }
     const activeId = store.selection?.activeId;
+    // Herd (protocol v22). Drawn only for the selected animal's group, and
+    // under the family/hunt marks, because it is the loosest of the three
+    // relationships: a groupmate is company, not kin. There is no group *roster*
+    // in the protocol — this is a scan of the visible entities for a matching
+    // label, which is the same thing the engine does and for the same reason.
+    if (groupId != null) {
+      for (const entity of visible) {
+        if (entity.id === activeId || entity.groupId !== groupId) continue;
+        const cell = worldCellOf(entity, world);
+        const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
+        this.#drawBrackets(px, py, cellSize, this.#color('comment'));
+      }
+    }
     for (const familyId of familyIds) {
       if (familyId === activeId) continue;
       const relative = store.getEntity(familyId);

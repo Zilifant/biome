@@ -78,6 +78,9 @@ export class HuntingSystem extends SimulationSystem {
     predatorInjuryChance = 0.08,
     predatorInjurySeverity = 0.25,
     injuryHealthDamage = 60,
+    defenderWeight = 0.12,
+    maxDefenders = 4,
+    defenderInjuryBonus = 2.5,
     maxInjuries = MAX_INJURIES,
     maxMemories = MAX_MEMORIES,
     updateInterval = 1,
@@ -97,6 +100,9 @@ export class HuntingSystem extends SimulationSystem {
     this.predatorInjuryChance = predatorInjuryChance;
     this.predatorInjurySeverity = predatorInjurySeverity;
     this.injuryHealthDamage = injuryHealthDamage;
+    this.defenderWeight = defenderWeight;
+    this.maxDefenders = maxDefenders;
+    this.defenderInjuryBonus = defenderInjuryBonus;
     this.maxInjuries = maxInjuries;
     this.maxMemories = maxMemories;
   }
@@ -137,10 +143,13 @@ export class HuntingSystem extends SimulationSystem {
       const distance = Math.hypot(prey.x - entity.x, prey.y - entity.y);
       if (distance > this.captureRange) continue; // still closing; no attempt yet
 
-      // One attempt: a lunge, whichever way it goes. The draw budget is fixed
-      // at three per attempt (capture, then the two injury rolls) so the
-      // hunting stream never shifts with the outcome.
-      const chance = this.captureChance(entity, prey);
+      // Cooperative defense (Step 23). Two separate things, and they are worth
+      // keeping separate: adult groupmates standing around the prey make the
+      // attempt harder for everyone (collective vigilance — a stalker cannot
+      // watch six directions), while an adult that has actively chosen to
+      // `defend` this particular animal is worth more than any of them.
+      const defenders = this.defendersFor(world, prey);
+      const chance = this.captureChance(entity, prey, defenders);
       const captured = random.next() < chance;
       const preyRoll = random.next();
       const predatorRoll = random.next();
@@ -153,7 +162,18 @@ export class HuntingSystem extends SimulationSystem {
         targetId: prey.id,
         chance,
         captured,
+        // Reported alongside the odds for the same reason the odds are reported
+        // at all: an observer should be able to see *why* this hunt was hard.
+        defenders: defenders.count,
+        guarded: defenders.guardian !== null,
       });
+      if (defenders.guardian !== null) {
+        context.emit(EventTypes.ENTITY_DEFENDED, {
+          entityId: defenders.guardian.id,
+          wardId: prey.id,
+          threatId: entity.id,
+        });
+      }
 
       if (captured) {
         killAnimal(prey, 'predation', prey.bodyMass * this.edibleMassFraction, context.emit, context.tick);
@@ -171,20 +191,58 @@ export class HuntingSystem extends SimulationSystem {
         // big enough animal can hurt its attacker on the way out — which is
         // what makes hunting a gamble in both directions.
         this.#wound(prey, InjuryKinds.WOUND, this.preyInjuryChance, this.preyInjurySeverity, entity, context, preyRoll);
-        const trampleChance = this.predatorInjuryChance * Math.min(2, prey.bodyMass / Math.max(entity.bodyMass, 1e-6));
-        this.#wound(entity, InjuryKinds.TRAMPLE, trampleChance, this.predatorInjurySeverity, prey, context, predatorRoll);
+        // A defended kill is dangerous to attempt: a parent standing over its
+        // young is far likelier to hurt the attacker than the young itself is.
+        // Same roll, so the draw budget stays at three.
+        const guardian = defenders.guardian;
+        const defenderMass = guardian ? Math.max(prey.bodyMass, guardian.bodyMass) : prey.bodyMass;
+        const trampleChance =
+          this.predatorInjuryChance *
+          Math.min(2, defenderMass / Math.max(entity.bodyMass, 1e-6)) *
+          (guardian ? this.defenderInjuryBonus : 1);
+        this.#wound(entity, InjuryKinds.TRAMPLE, trampleChance, this.predatorInjurySeverity, guardian ?? prey, context, predatorRoll);
       }
     }
   }
 
   /**
-   * Probability that this predator takes this prey, from their relative state.
-   * Public so tests and inspection can read the odds rather than infer them.
+   * Who is standing with this prey animal (Step 23).
+   *
+   * Both halves are free of new scans. The adult-groupmate count is read
+   * straight off the social summary the social system already built this tick,
+   * and the active guardian is found by walking the prey's own sparse `parents`
+   * list — kin recognition through the authoritative lineage, not a search.
+   *
+   * @param {import('../world/World.js').World} world @param {object} prey
+   * @returns {{count: number, guardian: object|null}}
+   */
+  defendersFor(world, prey) {
+    const summary = world.social?.get(prey.id) ?? null;
+    const count = Math.min(this.maxDefenders, summary?.adults ?? 0);
+    let guardian = null;
+    for (const parentId of prey.parents ?? []) {
+      const parent = world.entities.get(parentId);
+      if (!parent || !parent.alive || parent.kind !== 'animal') continue;
+      // Only a parent that has actually chosen to stand over *this* animal
+      // counts — being nearby is the group effect above, not a defense.
+      if (parent.defendingId === prey.id) {
+        guardian = parent;
+        break;
+      }
+    }
+    return { count, guardian };
+  }
+
+  /**
+   * Probability that this predator takes this prey, from their relative state
+   * and who is standing with it. Public so tests and inspection can read the
+   * odds rather than infer them.
    *
    * @param {object} predator @param {object} prey
+   * @param {{count: number, guardian: object|null}} [defenders]
    * @returns {number} probability in [minCaptureChance, maxCaptureChance]
    */
-  captureChance(predator, prey) {
+  captureChance(predator, prey, defenders = { count: 0, guardian: null }) {
     // Raw speed, before either has spent anything.
     const speedRatio = prey.speed > 0 ? predator.speed / prey.speed : 2;
 
@@ -198,7 +256,18 @@ export class HuntingSystem extends SimulationSystem {
     const grown = prey.adultMass > 0 ? Math.min(1, prey.bodyMass / prey.adultMass) : 1;
     const vulnerability = 1 + this.vulnerabilityWeight * ((1 - healthFraction) + (1 - grown)) * 0.5;
 
-    const chance = this.baseCaptureChance * speedRatio * staminaEdge * vulnerability;
+    // Company (Step 23). Each adult standing nearby shaves the odds, with
+    // diminishing returns capped at `maxDefenders` — a herd of forty is not
+    // forty times safer than a herd of four, and an uncapped term would make a
+    // large herd untouchable, which is the sort of accidental invulnerability
+    // the min/max clamps exist to prevent. A parent actively interposing counts
+    // for more than a bystander, because it is between the predator and the
+    // prey rather than merely present.
+    const bystanders = Math.min(this.maxDefenders, defenders.count ?? 0);
+    const guarding = defenders.guardian ? 1 : 0;
+    const shielding = 1 / (1 + this.defenderWeight * (bystanders + 2 * guarding));
+
+    const chance = this.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding;
     return Math.min(this.maxCaptureChance, Math.max(this.minCaptureChance, chance));
   }
 }

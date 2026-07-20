@@ -36,6 +36,12 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // becomes something you can watch rather than only read about. `null` on
   // anything unsexed.
   'sex',
+  // Herd label (Step 23). Bulk-projected because a herd you cannot see is not
+  // a visible result: the renderer highlights the selected animal's group from
+  // it. Just a number (or null), and it changes rarely, so it barely touches
+  // delta size. Nothing about *who else* is in the group is projected — there
+  // is no roster anywhere to project.
+  'groupId',
   'action',
   'alive',
   // Carcass decay (Step 18). Bulk-projected because the renderer ramps the

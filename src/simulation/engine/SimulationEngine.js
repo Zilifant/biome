@@ -27,6 +27,7 @@ import { defaultSimulationConfig, mergeConfig } from '../config/defaultSimulatio
 import { recordTombstone, lookupLineageList, lookupLineage } from '../world/lineage.js';
 import { genotypeOf } from '../traits/genetics.js';
 import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js';
+import { dominanceOf } from '../social/dominance.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -46,6 +47,7 @@ function publicEntityView(entity) {
     healthFraction: entity.maxHealth > 0 ? entity.health / entity.maxHealth : 0,
     lifeStage: entity.lifeStage,
     sex: entity.sex,
+    groupId: entity.groupId,
     action: entity.action,
     alive: entity.alive,
     decayStage: entity.decayStage,
@@ -348,6 +350,32 @@ export class SimulationEngine {
                 patienceTicks: this.config.reproduction.choosinessPatienceTicks,
               }),
         lastCourtship: entity.lastCourtship ? { ...entity.lastCourtship } : null,
+      },
+      // Sociality (Step 23) — inspection-only apart from the `groupId` label.
+      // `dominance` is *derived* on read rather than stored: there is no pecking
+      // order in state, so an animal's standing shifts as it grows, starves, and
+      // heals. The group summary is this tick's local view (how many groupmates
+      // are actually in range, and how far off their centre this animal has
+      // drifted), which is the thing herding steers on — not a roster, because
+      // no roster exists anywhere.
+      social: {
+        groupId: entity.groupId,
+        dominance: dominanceOf(entity),
+        alarmed: entity.alarmedUntil !== null && this.clock.tick < entity.alarmedUntil,
+        alarmedUntil: entity.alarmedUntil,
+        alarmSource: entity.alarmSource ? { ...entity.alarmSource } : null,
+        defendingId: entity.defendingId,
+        lastContestTick: entity.lastContestTick,
+        nearby: (() => {
+          const summary = this.world.social.get(entityId);
+          if (!summary) return null;
+          return {
+            groupmates: summary.groupmates,
+            adults: summary.adults,
+            nearestDistance: summary.nearestDistance,
+            drift: summary.centroid ? Math.hypot(summary.centroid.x - entity.x, summary.centroid.y - entity.y) : null,
+          };
+        })(),
       },
       // Family and life history (Step 13) — inspection-only, both bounded:
       // `offspring` is sparse (a handful per lifetime) and `lifeEvents` is

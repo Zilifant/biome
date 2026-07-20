@@ -195,6 +195,17 @@ a renderer exists.
   also shows the sex counts and the selection differential **split by sex**,
   which is the row that distinguishes sexual from natural selection: a mate
   preference moves only the sex being chosen.
+- Sociality (protocol v22). `groupId` rides in bulk snapshots — a herd you
+  cannot see is not a visible result — and selecting an animal brackets its
+  groupmates in `comment` grey, *under* the family and hunt marks because a
+  groupmate is company rather than kin. There is no group roster in the
+  protocol; the renderer scans the visible entities for a matching label, which
+  is exactly what the engine does and for the same reason. The Herd inspector
+  panel shows the label, how many groupmates are in range, this animal's
+  *derived* dominance (unitless — only comparisons mean anything), whether it is
+  panicking and how many hops from the sighting, and who it is defending.
+  `entity.alarmed` is filtered as routine by default, since a herd in view of a
+  predator produces one per member.
 - Mate choice (protocol v21) is inspection-only apart from `sex`, which rides in
   every bulk snapshot. The inspector panel shows what the species reads in a
   mate, this individual's choosiness, the standard it is holding right now
