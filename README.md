@@ -8,6 +8,7 @@ host.
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
 protocol for continuing the work. Steps 1–21 are done; Step 22 is next.
+`HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
 
@@ -38,7 +39,7 @@ Dracula-themed, Canvas-2D character grid client that consumes the protocol
 over WebSocket/HTTP. `?mode=fixture` runs it offline against the committed
 fixtures. The renderer is a fully separate subsystem (`src/renderer/app/`)
 that imports nothing from the simulation, server, or protocol code; see
-`src/renderer/README.md` for its controls, architecture, and appearance
+`src/renderer/README-RENDERER.md` for its controls, architecture, and appearance
 configuration. The host serves it statically at `/renderer`.
 
 ## Architecture
@@ -64,7 +65,7 @@ Headless Simulation Engine           src/simulation
    ├── Spatial Grid     (uniform grid for local queries)
    ├── Systems          (weather, vegetation, perception, memory, decision,
    │                     movement, feeding, hunting, reproduction, parenting,
-   │                     metabolism, hydration, injury, carcass, aging)
+   │                     metabolism, hydration, injury, carcass, aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
@@ -168,8 +169,8 @@ built by `src/protocol/`:
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage,
-  action, alive) — internal records never leak, and every snapshot is freshly
-  cloned. Absolute energy/hydration/health and speed, the action target, the
+  action, alive, decayStage) — internal records never leak, and every snapshot
+  is freshly cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
   `adultMass`, its `genome` / `genotype` / parent traits, its bounded
   `memories`, its `injuries` and derived
@@ -200,27 +201,32 @@ built by `src/protocol/`:
   on a turn rather than every tick), `entity.provisioned`
   (`{ entityId, guardianId, amount }`), and `entity.lifeEvent`
   (`{ entityId, event, guardianId }` — `weaned` | `dispersed` | `orphaned`)
-  — facts with `{ seq, tick }`, never presentation instructions. A dead animal (whatever the cause) becomes
-  a `carcass`-kind entity **in place** — a kind change carried as a delta
-  update, not a removal. Nothing is ever removed from the world yet, which is
-  why parent/lineage ids stay valid (see `PLAN.md` §1.4 C2).
+  — facts with `{ seq, tick }`, never presentation instructions. A dead animal
+  (whatever the cause) becomes a `carcass`-kind entity **in place** — a kind
+  change carried as a delta update, not a removal. It is removed later, once
+  eaten clean or fully decayed, which is why lineage references resolve through
+  a bounded tombstone registry rather than being assumed valid (see "Death
+  feeds the world" below).
 - **Queries** (`queries.js`): status reports, entity inspection (includes a
   transient **perception** summary — nearest food/water/obstacle + nearby
   animals, inspection-only to bound size), terrain (`GET /api/terrain`),
-  bounds parsing.
+  population **metrics** (`GET /api/metrics` — aggregates only, never
+  per-organism histories), bounds parsing.
 
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
 (`SAVE_FORMAT_VERSION`, currently `19`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
+season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
 simulation continues **identically** to an uninterrupted one (tested).
 
 Derived state is *not* saved and is rebuilt on load: the spatial grid, the
-terrain layer (regenerated from the seed + `config.terrain`), and per-entity
-perception summaries. Restoring verifies the save format version and that the
+terrain layer (regenerated from the seed + `config.terrain`), per-entity
+perception summaries, and the metrics report (recomputed on the next metrics
+tick — only its bounded history persists). Restoring verifies the save format version and that the
 same systems are registered, so a changed system lineup can't silently load an
 old save. The version history — and which step invalidated which format — is
 documented in `SimulationSerializer.js`.
@@ -241,7 +247,7 @@ documented in `SimulationSerializer.js`.
 
 ## Building a renderer
 
-See `src/renderer/README.md`. Short version: depend only on the protocol
+See `src/renderer/README-RENDERER.md`. Short version: depend only on the protocol
 and a transport, treat snapshots as authoritative, map entity data to glyphs
 yourself, interpolate between authoritative ticks at your own frame rate,
 and develop offline against the committed fixtures in
@@ -253,20 +259,24 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 354 tests.
+ASCII renderer, committed fixtures, and 369 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
 logistically toward a terrain-derived capacity, and a turning year — season,
 temperature, and weather spells that modulate both.
 
-**Two species.** Animals come from configured species definitions
-(`config/species/*` — biology only, never glyphs or colors; looked up by id,
-never branched on by name), but no two are identical: each carries a set of trait multipliers
-fixed for life — size, speed, metabolic efficiency, boldness, caution,
-exploration, and reproductive investment. Every one changes something real: a
-bold animal covers more ground and burns more energy; a heavily investing
-parent raises better-stocked young at a higher price per birth.
+**Two species.** The world holds a **grazer** and the **stalker** that hunts
+it. Both come from configured species definitions (`config/species/*` — biology
+only, never glyphs or colors; looked up by id, never branched on by name), and
+the predator/prey relation is itself data on the species (`preySpeciesIds`),
+read in both directions — so no system anywhere branches on a species name.
+
+No two animals are identical. Each carries trait multipliers fixed for life —
+size, speed, metabolic efficiency, boldness, caution, exploration, and
+reproductive investment — and every one changes something real: a bold animal
+covers more ground and burns more energy; a heavily investing parent raises
+better-stocked young at a higher price per birth.
 
 Those traits are **inherited**. Each animal carries a diploid genome
 (`traits/genetics.js`) with one locus per trait; a founder's is sampled, but
@@ -277,10 +287,9 @@ expression also charges **antagonistic traits against each other** — bigger
 costs speed, faster costs efficiency, bolder costs caution — because without
 that, selection would simply ratchet every trait toward its maximum forever.
 The inspector shows genotype beside phenotype, and where they differ is exactly
-where a tradeoff is being paid. The world holds a **grazer** and the **stalker** that hunts it; the
-predator/prey relation is data on the species (`preySpeciesIds`), read in both
-directions, so no system ever branches on a species name. Their full loop is
-implemented:
+where a tradeoff is being paid.
+
+Their full loop is implemented:
 
 | System | Phase | What it does |
 | --- | --- | --- |
@@ -390,14 +399,15 @@ drinkable is in sight, an animal walks back to somewhere it remembers instead
 of wandering blindly; memory is deliberately weighted below the senses, since
 a remembered patch may already have been grazed out. Finding a remembered
 patch bare replaces the memory with a "nothing here" mark, so an animal's map
-corrects itself. A `danger` memory kind exists and is avoided, but nothing
-writes one until predators arrive in Step 16.
+corrects itself. A failed hunt writes a `danger` memory at the attack site,
+and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Mate choice, social groups, territory, disease, migration, disturbances, ecosystem
-engineering, multiple species, and profile-driven optimization toward tens of
-thousands of animals.
+Mate choice, social groups, territory, disease, migration, disturbances,
+ecosystem engineering, a config-driven species schema (beyond today's two
+hand-written species), and profile-driven optimization toward tens of thousands
+of animals.
 
 `PLAN.md` sequences all of these as Steps 22–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.

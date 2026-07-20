@@ -125,15 +125,15 @@ correctness bug in shipped code unless marked ⚠.
 | A8 | 10 | Optional `entity.drank` event skipped (redundant with the public `action` field) | — (settled) |
 | A9 | 12 | No sexes: either adult may initiate, the lower id gestates | **Step 22** |
 | A10 | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Step 22** |
-| A11 | 13 | Juvenile *protection* omitted from the parenting strategy — nothing threatens juveniles until predators exist | **Step 16** (predation) |
-| A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **Step 16** — worth revisiting once orphaning is common |
+| A11 | 13 | Juvenile *protection* omitted from the parenting strategy — a guardian does not defend or shield its young | **still open.** Step 16 shipped predators without it; a parent that fought or interposed belongs with **Step 23** (social behaviour, where fights land) |
+| A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **still open.** Predation (Step 16) did make orphaning common and the mercy was left in place deliberately; revisit only if juvenile survival needs to bite |
 | A13 | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
 | A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Step 22** (mate choice) / **Step 23** (social groups), where kin *recognition* actually has a reader |
 | ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
 | A17 | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Step 29** (species schema) |
 | A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
-| A19 | 17 | Hazards and fights are not injury sources — failed captures are the only writer, because nothing else in the world is dangerous | **Step 19** (weather) / **Step 23** (fights) |
+| A19 | 17 | Hazards and fights are not injury sources — failed captures are still the only writer | **Step 23** (fights). Step 19 considered and rejected weather-as-injury: exposure kills through the energy budget instead, which is the simpler model and reads correctly as hypothermia |
 | A21 | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Step 29** (species schema) |
 | A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | still open — Step 21 measured lineage *depth* (`generation`) instead, which needs no tombstones; a deeper query would need them |
 | A23 | 19 | Snow is a weather state, not an accumulating snowpack layer | — (settled; a layer needs a reason to exist) |
@@ -4644,10 +4644,14 @@ exact final populations for stochastic runs.**
   invariants.
 - **Invariant tests (permanent):** living entities in bounds; impassable
   cells never illegally occupied; dead entities don't act; positions match
-  the spatial index; energy has defined sources/costs; ids stable; parentage
-  refs valid; commands apply at deterministic boundaries; save/load
-  continuation matches uninterrupted runs; renderer imports nothing internal;
-  no species-name literals in core systems (from Step 29).
+  the spatial index; energy has defined sources/costs; ids stable; **lineage
+  references resolve to an accurate status** (`alive` / `carcass` / `dead` /
+  `forgotten` — since Step 18 entities are removed, so "refs valid" would pass
+  vacuously); expressed traits always equal what the genome expresses (nothing
+  writes traits post-birth); observation never perturbs the population;
+  commands apply at deterministic boundaries; save/load continuation matches
+  uninterrupted runs; renderer imports nothing internal; no species-name
+  literals in core systems (from Step 29).
 - **Performance:** benchmarks report ms/tick per subsystem; prefer reporting
   over fragile strict-timing CI gates. Fail CI only on gross regressions.
 
