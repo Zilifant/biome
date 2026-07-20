@@ -144,6 +144,23 @@ export function resolveVegetationAppearance(level) {
 }
 
 /**
+ * Ground animals wore (protocol v27). Renderer-owned: the protocol sends a
+ * cell, a kind, and a depth, and says nothing about how any of it should look.
+ *
+ * Drawn over terrain and vegetation but under disturbances and entities — worn
+ * ground is the most permanent thing on the map and the least urgent to see.
+ */
+export const FEATURE_APPEARANCE = Object.freeze({
+  trail: Object.freeze({ glyph: ':', colorToken: 'orange' }),
+  burrow: Object.freeze({ glyph: 'o', colorToken: 'comment' }),
+});
+
+/** Appearance for a feature kind, or null for one this renderer predates. */
+export function resolveFeatureAppearance(kind) {
+  return FEATURE_APPEARANCE[kind] ?? null;
+}
+
+/**
  * Local disturbances (protocol v26). Renderer-owned, like every other
  * appearance here: the protocol sends a kind, a centre, and a radius, and says
  * nothing about how any of it should look.

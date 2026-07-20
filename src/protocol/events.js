@@ -89,6 +89,12 @@ export const EventTypes = Object.freeze({
   // exactly two events for its whole life (§1.4 C3).
   ENVIRONMENT_DISTURBED: 'environment.disturbed', // { disturbanceId, kind, x, y, radius, until }
   ENVIRONMENT_SETTLED: 'environment.settled', //    { disturbanceId, kind, x, y, radius, durationTicks }
+  // A cell became — or stopped being — something animals made (Step 28).
+  // Emitted only on the *transition*: this layer is written by every moving
+  // animal every tick, so anything else would swamp the outbox (§1.4 C3). The
+  // features themselves ride in snapshots, gated on a revision that only moves
+  // when the promoted set changes.
+  ENVIRONMENT_FEATURE: 'environment.feature', // { cellX, cellY, kind, state: 'formed' | 'lost' }
   // A milestone in one animal's life history. `event` is a life-event type
   // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
   // `dispersed` additionally carries the natal centre the animal is leaving

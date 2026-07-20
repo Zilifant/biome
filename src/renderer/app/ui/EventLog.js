@@ -9,7 +9,17 @@
 const MAX_RENDERED_EVENTS = 60;
 
 /** High-frequency events, hidden unless "show routine" is checked. */
-const ROUTINE_EVENT_TYPES = new Set(['entity.moved', 'entity.fed', 'entity.provisioned', 'entity.alarmed']);
+const ROUTINE_EVENT_TYPES = new Set([
+  'entity.moved',
+  'entity.fed',
+  'entity.provisioned',
+  'entity.alarmed',
+  // Ground wearing in and fading out (Step 28) is genuine turnover rather than
+  // noise — animals really do use a patch and then abandon it — but it happens
+  // most of a tick, and the *state* already rides in every snapshot. So the log
+  // hides it by default rather than the simulation emitting less of it.
+  'environment.feature',
+]);
 
 function formatEvent(event) {
   switch (event.type) {
@@ -80,6 +90,8 @@ function formatEvent(event) {
       return `!! sickened #${event.entityId}`;
     case 'entity.cured':
       return `++ recovered #${event.entityId}${event.immuneUntil != null ? ` <immune to t${event.immuneUntil}>` : ''}`;
+    case 'environment.feature':
+      return `${event.state === 'formed' ? '::' : '..'} ${event.kind} ${event.state} @${event.cellX},${event.cellY}`;
     case 'environment.disturbed':
       return `*! ${event.kind} at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} r${event.radius?.toFixed(0)} <until t${event.until}>`;
     case 'environment.settled':

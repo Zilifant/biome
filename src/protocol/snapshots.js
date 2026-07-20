@@ -120,6 +120,13 @@ export function buildFullSnapshot(data) {
   if (data.disturbances) {
     snapshot.disturbances = data.disturbances.map((d) => ({ ...d }));
   }
+  // Ground animals have worn (Step 28): only the cells deep enough to *be*
+  // something, with a `revision` that moves when that set changes rather than
+  // when wear does — so deltas carry it on the rare tick a trail forms or fades
+  // and never on the constant ticks animals merely walk about.
+  if (data.features) {
+    snapshot.features = { revision: data.features.revision, cells: data.features.cells.map((c) => ({ ...c })) };
+  }
   return snapshot;
 }
 
@@ -235,6 +242,12 @@ export function buildDeltaSnapshot(previous, next, events = []) {
   if (next.disturbances) {
     delta.disturbances = next.disturbances.map((d) => ({ ...d }));
   }
+  // Revision-gated, exactly as vegetation is: an unchanged feature set costs a
+  // delta nothing at all, which matters because this layer is *written* every
+  // tick even though it rarely changes what it means.
+  if (next.features && next.features.revision !== previous.features?.revision) {
+    delta.features = { revision: next.features.revision, cells: next.features.cells.map((c) => ({ ...c })) };
+  }
   return delta;
 }
 
@@ -283,6 +296,13 @@ export function applyDeltaSnapshot(fullSnapshot, delta) {
   const disturbances = delta.disturbances ?? fullSnapshot.disturbances;
   if (disturbances) {
     reconstructed.disturbances = disturbances.map((d) => ({ ...d }));
+  }
+  // Features persist from the base snapshot when a delta omits them, which is
+  // the common case — the revision gate means "omitted" states that nothing
+  // formed or faded, not that there is nothing there.
+  const features = delta.features ?? fullSnapshot.features;
+  if (features) {
+    reconstructed.features = { revision: features.revision, cells: features.cells.map((c) => ({ ...c })) };
   }
   // Terrain is static and not carried by deltas, so it persists from the base
   // snapshot unchanged. Carrying it forward makes applying a delta reproduce

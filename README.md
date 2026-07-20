@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–27 are done; Step 28 is next.
+protocol for continuing the work. Steps 1–28 are done; Step 29 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -66,8 +66,8 @@ Headless Simulation Engine           src/simulation
    ├── Systems          (weather, vegetation, perception, memory, social,
    │                     decision, movement, feeding, hunting, reproduction,
    │                     parenting, territory, migration, disturbance,
-   │                     metabolism, hydration, injury, disease, carcass,
-   │                     aging, metrics)
+   │                     engineering, metabolism, hydration, injury, disease,
+   │                     carcass, aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
@@ -160,7 +160,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `26`) and is
+Everything a client sees carries `protocolVersion` (currently `27`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -194,8 +194,13 @@ built by `src/protocol/`:
   also carry the active **disturbances** — a bounded list of
   `{ id, kind, x, y, radius, startedTick, until }` circles, carried whole rather
   than diffed because there are never many; an **empty** list is the message
-  that everything has stopped, not the absence of one. Region-bounded snapshots
-  supported.
+  that everything has stopped, not the absence of one. Full snapshots and deltas
+  also carry **features** — the ground animals have worn into trails and burrows
+  (`{ revision, cells: [{ cellX, cellY, kind, wear }] }`), gated on a revision
+  that moves only when a cell becomes or stops being a feature, so the layer
+  costs a delta nothing on the overwhelming majority of ticks even though it is
+  *written* on all of them. Only cells deep enough to be something are projected;
+  scuffed ground is internal. Region-bounded snapshots supported.
 - **Deltas**: `created` / `updated` (complete public entities) / `removed`
   (ids) plus the domain events of the window; `applyDeltaSnapshot` is the
   reference application algorithm. Deltas never carry terrain (it is static);
@@ -234,7 +239,10 @@ built by `src/protocol/`:
   `environment.settled` (the same, plus `durationTicks` — how long it *actually*
   lasted, the one fact that is gone once the record is). Nothing is emitted per
   tick while a disturbance runs; the region rides in every snapshot instead, so
-  a fire costs the event budget exactly two events for its whole life
+  a fire costs the event budget exactly two events for its whole life, and
+  `environment.feature` (`{ cellX, cellY, kind, state }` — a cell became, or
+  stopped being, a trail or a burrow; emitted only on that transition, and
+  routine-filtered in the renderer because ground genuinely turns over)
   — facts with `{ seq, tick }`, never presentation instructions. A dead animal
   (whatever the cause) becomes a `carcass`-kind entity **in place** — a kind
   change carried as a delta update, not a removal. It is removed later, once
@@ -250,7 +258,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `25`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `26`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors. The migration drift is
@@ -296,7 +304,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 561 tests.
+ASCII renderer, committed fixtures, and 590 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -350,6 +358,7 @@ Their full loop is implemented:
 | `TerritorySystem` | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance |
 | `MigrationSystem` | decision | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered) |
 | `DisturbanceSystem` | environment | Raises fires, floods, and storms as bounded regions on a clock, burns the forage inside one once, hurts whatever is standing in it, and drops the record when it ends. Every other effect is derived from that record on read |
+| `EngineeringSystem` | interaction | Wears the ground animals walk on and digs the ground they rest on, fades what nobody uses, and keeps a drift toward the nearest trail. Runs after movement, so it reads the distance an animal actually just covered |
 | `DiseaseSystem` | physiology | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well |
 | `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
@@ -502,6 +511,38 @@ which was not a disturbance regime but a climate, and it had a subtler cost than
 over-pressuring the demo: nothing ever finished recovering, so the recovery you
 were supposed to be able to watch never happened.
 
+**And the ground remembers.** Walk the same line often enough and it packs down
+into a **trail** that is quicker to cross; sleep in the same spot often enough
+and it becomes a **burrow** that shelters you from the weather. Neither is
+built — there is no decision anywhere to make a path. There is only wear, added
+by animals doing what they were already doing and removed a little each tick, and
+a cell is a trail exactly while wear is winning. So a route stays open as long as
+it is used and closes over when it is not, and "maintaining" it is not a
+mechanism, it is just what not fading looks like.
+
+Both effects arrive through doors that were already there. The world already had
+one place that decided how fast ground is to cross and one that decided what
+counts as shelter, so packed earth simply *is* quicker and a burrow simply *is*
+sheltering — the movement system and the thermoregulation code never learned that
+features exist. The only genuinely new pull is that an aimless animal drifts
+toward a path it can feel nearby, and even that rides the same wander-steering
+channel migration uses, because a fourth step running has confirmed that anything
+competing with foraging loses.
+
+The feedback loop is the point: a trail is faster, faster ground attracts
+traffic, traffic deepens the trail. Measured on the demo, 96% of trail cells
+touch another one — these are connected paths, not a scatter of worn dots — and
+the population gets *steadier* rather than larger, its worst case across ten
+seeds rising from 1 surviving grazer to 26.
+
+It also revealed something nobody had looked for. Because worn ground is a
+picture of where animals actually spend their time, and because most of the
+trails came out along the map's edges, it turned out that animals spend about
+**half their lives within two cells of the world boundary** — a consequence of
+movement clamping at the wall rather than turning away from it, present since
+long before any of this and invisible until there was a layer that recorded
+where feet had been.
+
 **Animals form herds, and a herd is a label rather than a roster.** Nothing
 anywhere holds a membership list: animals in sight of each other converge on a
 shared group id by taking the smallest one they can see, so herds form, merge on
@@ -627,11 +668,10 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Ecosystem engineering, a config-driven species schema (beyond today's two
-hand-written species), and profile-driven optimization toward tens of thousands
-of animals.
+A config-driven species schema (beyond today's two hand-written species), and
+profile-driven optimization toward tens of thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 28–30, and §1.4 records the
+`PLAN.md` sequences both as Steps 29–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

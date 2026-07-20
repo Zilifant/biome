@@ -588,10 +588,18 @@ export class DecisionSystem extends SimulationSystem {
           // distance: the heading is held for 8–24 ticks and re-picked toward
           // the same gradient while it persists, so an animal migrates by
           // drifting rather than by routing. Nothing here searches.
+          // Two drifts, blended in turn onto the same arbitrary heading, and
+          // both weak: the forage gradient (Step 26) says where the better
+          // ground is, and a worn trail (Step 28) says there is an easier way to
+          // walk. Sequential rather than summed because each blend already
+          // interpolates toward its target — and applied in this order because
+          // where you are going outranks how you get there.
           const drift = entity.migrationHeading;
+          const withDrift =
+            drift === null ? candidateHeading : blendHeadings(candidateHeading, drift, entity.migrationStrength);
+          const trail = entity.trailHeading;
           return {
-            heading:
-              drift === null ? candidateHeading : blendHeadings(candidateHeading, drift, entity.migrationStrength),
+            heading: trail === null ? withDrift : blendHeadings(withDrift, trail, entity.trailStrength),
             ttl: this.minCommitTicks + Math.floor(roll * this.commitTickSpan),
             moving: true,
             sprint: false,

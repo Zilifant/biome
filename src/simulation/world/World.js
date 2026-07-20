@@ -5,6 +5,8 @@ import { VegetationGrid } from './VegetationGrid.js';
 import { initialEnvironment } from './Environment.js';
 import { ScentGrid } from './ScentGrid.js';
 import { speedScaleAt } from '../disturbance/disturbances.js';
+import { FeatureGrid } from './FeatureGrid.js';
+import { speedScaleAt as featureSpeedScaleAt, sheltersAt } from '../engineering/features.js';
 
 /**
  * The world aggregates entity storage, the spatial index, the static terrain
@@ -97,6 +99,20 @@ export class World {
     // survives a save (a fresh system restarting at 1 would reissue the id of
     // something still burning).
     this.nextDisturbanceId = 1;
+    // Ground animals have worn (Step 28) — trails and burrows. Sparse rather
+    // than a field: a handful of cells out of the whole map carry anything, so
+    // a world nobody has walked on costs nothing. Written only by
+    // `EngineeringSystem`; read through the two chokepoints below.
+    this.features = new FeatureGrid({
+      width: this.terrain.width,
+      height: this.terrain.height,
+      params: config.engineering ?? {},
+    });
+    // Note there is deliberately no threshold here. Whether a cell *is* a
+    // feature is stored on the cell (see FeatureGrid: hysteresis makes it
+    // depend on history, not just on wear), so the read chokepoints below ask
+    // the cell rather than comparing against a number that would have to be
+    // kept in step with the system's copy.
   }
 
   /** Cell coordinates containing a continuous position, clamped to the grid. */
@@ -121,7 +137,16 @@ export class World {
     // and no system needs to learn about disturbances to be slowed by one.
     // `speedScaleAt` costs one length check when nothing is happening, which is
     // most of the demo's history.
-    return this.terrain.speedModifierAt(cellX, cellY) * speedScaleAt(this.disturbances, x, y);
+    //
+    // Worn ground (Step 28) folds in at the same chokepoint and for the same
+    // reason: packed earth being quicker to cross is the same kind of fact as
+    // cover being slower, so no system needs to know a trail exists to be
+    // carried along one. Also free on a map nobody has worn down.
+    return (
+      this.terrain.speedModifierAt(cellX, cellY) *
+      speedScaleAt(this.disturbances, x, y) *
+      featureSpeedScaleAt(this.features, cellX, cellY)
+    );
   }
 
   get width() {
@@ -154,7 +179,12 @@ export class World {
    */
   isShelteredAt(x, y) {
     const { cellX, cellY } = this.cellOf(x, y);
-    return this.terrain.codeAt(cellX, cellY) === TerrainType.COVER;
+    if (this.terrain.codeAt(cellX, cellY) === TerrainType.COVER) return true;
+    // A burrow is shelter an animal made (Step 28). Landing it here rather than
+    // in the metabolism system means thermoregulation and the `shelter` action
+    // both pick it up for free, and neither of them knows the difference between
+    // a thicket and a hole in the ground.
+    return sheltersAt(this.features, cellX, cellY);
   }
 
   /** @param {number} x */

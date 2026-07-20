@@ -32,6 +32,7 @@ import { territoryOf } from '../systems/TerritorySystem.js';
 import { diseaseSeverity, isInfectious, isSymptomatic } from '../disease/disease.js';
 import { forageGradient, isDispersing, migrationOf } from '../migration/migration.js';
 import { disturbanceAt, projectDisturbances } from '../disturbance/disturbances.js';
+import { projectFeatures } from '../engineering/features.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -73,6 +74,9 @@ export class SimulationEngine {
   /** @type {object | null} memoized vegetation projection, keyed by revision */
   #vegetationProjection = null;
   #vegetationProjectionRevision = -1;
+  /** @type {object | null} memoized feature projection, keyed by revision */
+  #featureProjection = null;
+  #featureProjectionRevision = -1;
 
   /**
    * @param {object} [options]
@@ -96,6 +100,7 @@ export class SimulationEngine {
       vegetationSeed: deriveSeed(this.seed, 'vegetation'),
       vegetation: this.config.vegetation,
       territory: this.config.territory,
+      engineering: this.config.engineering,
     });
     this.scheduler = new SystemScheduler();
     this.events = new DomainEventBus({ maxBufferedEvents: this.config.events.maxBufferedEvents });
@@ -236,7 +241,25 @@ export class SimulationEngine {
       vegetation: this.getVegetationData(),
       environment: { ...this.world.environment },
       disturbances: projectDisturbances(this.world.disturbances),
+      features: this.getFeatureData(),
     };
+  }
+
+  /**
+   * Renderer-neutral projection of worn ground, memoized by the feature grid's
+   * revision. Because that revision only moves when a cell crosses the
+   * threshold, this is reused for free on the overwhelming majority of ticks —
+   * animals write wear constantly and change what it *means* rarely.
+   * Callers must treat it as read-only.
+   * @returns {object}
+   */
+  getFeatureData() {
+    const revision = this.world.features.revision;
+    if (this.#featureProjection === null || this.#featureProjectionRevision !== revision) {
+      this.#featureProjection = projectFeatures(this.world.features);
+      this.#featureProjectionRevision = revision;
+    }
+    return this.#featureProjection;
   }
 
   /**

@@ -28,6 +28,7 @@ import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
 import { MigrationSystem } from '../simulation/systems/MigrationSystem.js';
 import { DisturbanceSystem } from '../simulation/systems/DisturbanceSystem.js';
+import { EngineeringSystem } from '../simulation/systems/EngineeringSystem.js';
 import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
 import { DiseaseSystem } from '../simulation/systems/DiseaseSystem.js';
 import { infect } from '../simulation/disease/disease.js';
@@ -57,6 +58,9 @@ export function registerDemoSystems(engine) {
       maxMemories: engine.config.memory.maxMemories,
     }),
   );
+  // Priority 20 in `environment`: last of the environment systems, and before
+  // the `movement` phase whose results it reads next tick.
+  engine.registerSystem(new EngineeringSystem(engine.config.engineering));
   engine.registerSystem(new PerceptionSystem(engine.config.perception));
   engine.registerSystem(new MemorySystem(engine.config.memory));
   // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision

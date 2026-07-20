@@ -160,6 +160,61 @@ export const defaultSimulationConfig = Object.freeze({
     fightInjurySeverity: 0.2,
     fightWinnerInjuryFraction: 0.4,
   }),
+  // Ecosystem engineering (see engineering/features.js and
+  // systems/EngineeringSystem.js). Two enumerated features — a trail worn by
+  // traffic, a burrow dug by resting — held as sparse per-cell wear. Both land
+  // on chokepoints that already exist (`speedModifierAt`, `isShelteredAt`), so
+  // no system had to learn what a feature is, and the only new pull feeds Step
+  // 26's wander blend rather than the utility table (§1.4 A34).
+  //
+  // The lifecycle has no clock: a feature exists while wear arrives faster than
+  // decay removes it, so "maintained" is simply what not fading looks like.
+  engineering: Object.freeze({
+    // The whole step, on one switch — the reproducible control, as
+    // `migration.enabled` and `disturbance.enabled` are.
+    enabled: true,
+    // ⚠ These three are one mechanism, and the relationship between them is
+    // what decides whether the step works at all — so it is derived here rather
+    // than left to be inferred (§1.4 D11, D19).
+    //
+    // Decay sets the **traffic rate a cell must beat to accumulate anything**:
+    // roughly one animal-crossing per `trailWearPerUnit / decayPerTick` ticks
+    // breaks even, and anything rarer fades. At 0.035 and 0.0016 that is one
+    // crossing per ~22 ticks. Ordinary ground on a 128×128 map with ~100 animals
+    // sees far less traffic than that, so it never forms a trail; the routes
+    // animals actually converge on (around water, through gaps) do. That gap is
+    // the entire mechanism, and it is narrow — 0.0006 paved 7% of the map.
+    //
+    // ⚠ `demoteFraction` is a **hysteresis band**, not decoration. Promotion at
+    // `threshold` and demotion at `threshold × 0.7` keeps a cell sitting near
+    // the boundary from flapping across it: without the band one run produced
+    // 9569 trails formed and 9081 lost, which is a flickering world rather than
+    // a world with trails in it, and each flap costs two events and a
+    // projection churn (§1.4 D20).
+    threshold: 0.5,
+    trailWearPerUnit: 0.035,
+    demoteFraction: 0.7,
+    decayPerTick: 0.0016,
+    // Digging is slower *per tick* than wearing is per crossing, because a
+    // resting animal spends many consecutive ticks on one cell — without that
+    // asymmetry a single nap would dig a burrow. ~45 resting ticks on the same
+    // cell makes one.
+    burrowWearPerRest: 0.012,
+    maxWear: 1,
+    // Decay is staggered over the *worn* cells (never the world), rate
+    // compensated so the interval changes cost and not behaviour.
+    decayInterval: 20,
+    floor: 0.02,
+    // Hard cap on tracked worn cells. Decay keeps the real number far below
+    // this; the cap is a stated bound rather than a tuning knob.
+    maxCells: 8192,
+    // How far an animal feels a trail, and how hard it bends an aimless wander
+    // toward one. Deliberately weaker than the forage drift: an easier way to
+    // walk should never outrank where the food is.
+    trailPullRadius: 4,
+    trailPullWeight: 0.35,
+    driftInterval: 10,
+  }),
   // Local disturbances (see disturbance/disturbances.js and
   // systems/DisturbanceSystem.js). Fire, flood, and storm as bounded events: a
   // record holding where, how big, and until when, with every effect derived

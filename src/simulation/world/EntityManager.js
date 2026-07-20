@@ -204,6 +204,12 @@ function createEntity(id, definition) {
     dispersalUntil: definition.dispersalUntil ?? null,
     settledX: definition.settledX ?? null,
     settledY: definition.settledY ?? null,
+    // Worn ground (Step 28). The direction of the nearest trail worth stepping
+    // onto, and how hard it pulls — the same channel as the migration drift
+    // above, folded into the same wander heading, and zero when there is no
+    // trail nearby (which is most of the time and most of the world).
+    trailHeading: definition.trailHeading ?? null,
+    trailStrength: definition.trailStrength ?? 0,
     // Disease (Step 25; see disease/disease.js). Three fields hold the whole
     // compartmental state: which compartment, when it was entered, and when it
     // ends. Severity is *derived* from the compartment rather than stored, so

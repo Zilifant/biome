@@ -16,7 +16,7 @@
 import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 26;
+export const SUPPORTED_PROTOCOL_VERSION = 27;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {
@@ -168,6 +168,13 @@ export class RendererStore {
    * @type {object[]}
    */
   disturbances = [];
+  /**
+   * Worn ground (protocol v27): the cells deep enough to be a trail or a
+   * burrow. Revision-gated, so a delta carries it only on the rare tick one
+   * forms or fades rather than on the constant ticks animals walk about.
+   * @type {object[]}
+   */
+  features = [];
   connection = { state: 'disconnected', detail: '' };
   /** 'live' | 'fixture' */
   mode = 'live';
@@ -255,6 +262,7 @@ export class RendererStore {
     this.vegetation = snapshot.vegetation ? decodeVegetation(snapshot.vegetation) : null;
     this.environment = snapshot.environment ? { ...snapshot.environment } : null;
     this.disturbances = Array.isArray(snapshot.disturbances) ? snapshot.disturbances.map((d) => ({ ...d })) : [];
+    this.features = Array.isArray(snapshot.features?.cells) ? snapshot.features.cells.map((f) => ({ ...f })) : [];
     // A snapshot may jump the event stream forward (recovery); events skipped
     // over are gone — never invent them, just move the dedupe watermark.
     this.#lastBufferedEventSeq = Math.max(this.#lastBufferedEventSeq, 0);
@@ -327,6 +335,9 @@ export class RendererStore {
     // message that everything has stopped, and treating it as "no update" would
     // leave a fire drawn on the grid after it went out.
     if (Array.isArray(delta.disturbances)) this.disturbances = delta.disturbances.map((d) => ({ ...d }));
+    // Omitted means "nothing formed or faded", not "there is nothing" — the
+    // revision gate is what makes omission the common case.
+    if (Array.isArray(delta.features?.cells)) this.features = delta.features.cells.map((f) => ({ ...f }));
     this.tick = delta.tick;
     this.lastEventSeq = delta.lastEventSeq ?? this.lastEventSeq;
     if (Array.isArray(delta.events)) {
@@ -396,6 +407,7 @@ export class RendererStore {
     this.vegetation = null;
     this.environment = null;
     this.disturbances = [];
+    this.features = [];
     this.selection = null;
     this.followedEntityId = null;
     this.#emit('reset');

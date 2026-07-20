@@ -18,6 +18,7 @@ import {
   resolveTerrainAppearance,
   resolveVegetationAppearance,
   resolveDisturbanceAppearance,
+  resolveFeatureAppearance,
   resolveMemoryAppearance,
   resolveColorToken,
 } from './EntityAppearance.js';
@@ -133,6 +134,26 @@ export class AsciiGridRenderer {
         ctx.fillStyle = this.#color(appearance.colorToken);
         ctx.fillText(appearance.glyph, px + half, py + half);
       }
+    }
+
+    // --- Feature pass (protocol v27): trails and burrows, drawn over the
+    // ground and under everything that happens on it. The projection carries
+    // only cells deep enough to *be* something, so this walks a short list
+    // rather than the grid, and is empty on a world nobody has worn down.
+    for (const feature of store.features ?? []) {
+      const appearance = resolveFeatureAppearance(feature.kind);
+      if (!appearance) continue;
+      if (
+        feature.cellX < cells.minCellX ||
+        feature.cellX > cells.maxCellX ||
+        feature.cellY < cells.minCellY ||
+        feature.cellY > cells.maxCellY
+      ) {
+        continue;
+      }
+      const { px, py } = projection.cellToScreen(feature.cellX, feature.cellY);
+      ctx.fillStyle = this.#color(appearance.colorToken);
+      ctx.fillText(appearance.glyph, px + half, py + half);
     }
 
     // --- Disturbance pass (protocol v26): fires, floods, and storms drawn over

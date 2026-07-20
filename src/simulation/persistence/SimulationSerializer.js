@@ -128,10 +128,19 @@
  *       the same three ways. Note that the vegetation a fire already destroyed
  *       rides in the existing `vegetation` block, since it is simply gone. v24
  *       saves are invalidated.
+ *  26 — ecosystem engineering added (Step 28): a top-level `features` block (the
+ *       sparse map of worn cells) and the new `EngineeringSystem` descriptor.
+ *       Ground worn down over thousands of ticks is the clearest case yet of
+ *       state no seed can reproduce: it is the accumulated record of where
+ *       animals have actually walked and slept. Note the per-entity
+ *       `trailHeading` / `trailStrength` ride along automatically, as the
+ *       migration drift does, and for the same reason — the drift is recomputed
+ *       on a stagger, so a restore running on a stale null would diverge. v25
+ *       saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 25;
+export const SAVE_FORMAT_VERSION = 26;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -155,6 +164,11 @@ export function captureSimulationState(engine) {
     // reissue the id of something still running.
     disturbances: engine.world.disturbances.map((d) => ({ ...d })),
     nextDisturbanceId: engine.world.nextDisturbanceId,
+    // Worn ground (Step 28). Ground animals wore down over thousands of ticks
+    // is the definition of evolved state — nothing about it is recoverable from
+    // the seed, and a restore that forgot it would erase every trail in the
+    // world at the moment of loading.
+    features: engine.world.features.serialize(),
     // The report itself is derived and recomputed on the next metrics tick;
     // only the bounded history is stored, so a chart survives a restore.
     metricsHistory: engine.world.metricsHistory,
@@ -192,6 +206,7 @@ export function restoreSimulationState(engine, saved) {
   if (saved.environment) engine.world.environment = { ...saved.environment };
   engine.world.disturbances = (saved.disturbances ?? []).map((d) => ({ ...d }));
   engine.world.nextDisturbanceId = saved.nextDisturbanceId ?? 1;
+  engine.world.features.restore(saved.features);
   engine.world.metricsHistory = saved.metricsHistory ? structuredClone(saved.metricsHistory) : [];
   engine.world.metrics = null; // derived; the next metrics tick rebuilds it
   engine.world.rebuildSpatialIndex();

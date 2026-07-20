@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–27)
+## 1.4 Carried-forward deviations and open issues (Steps 1–28)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -159,6 +159,8 @@ correctness bug in shipped code unless marked ⚠.
 | A44 | 27 | **Drought and severe winter are not local disturbances.** Both already exist as *global* weather states (Step 19), so a spatially bounded copy would be the same mechanism at a different scale rather than a new one. Fire, flood, and storm have no global analogue, which is why they are the three that shipped | — (settled; a kind is a row in the effect table if one is ever wanted) |
 | A45 | 27 | **A disturbance never modifies terrain.** Terrain is derived — regenerated from the seed on load and deliberately unsaved — so an edit would vanish on restore. "Affected terrain" is expressed as a derived traversal penalty plus a renderer overlay, and the disturbance list is its own protocol layer | — (settled; mutable terrain would need terrain to become saved state) |
 | A46 | 27 | Disturbance **mortality is rare in the demo** (0–12 deaths across ten seeds): a region covers ~1% of the map and animals walk out of it. The lethal path is real and exercised in a controlled test, but the demo-level cost is sublethal — 852 burns across those seeds — exactly as Step 25's disease turned out to be | — (settled; making it demographically significant would mean bigger or more frequent events, which the 91% experiment showed breaks recovery) |
+| A47 | 28 | Animals do not seek *other* animals' burrows — a burrow shelters whoever stands on it (through `isShelteredAt`, so thermoregulation and the `shelter` action both get it free), but only trails exert a pull. Giving burrows one would mean teaching the perception hot loop about features | a later step, if a species should ever compete for or inherit a den |
+| A48 | 28 | **Grazing clearings are not a feature.** Vegetation biomass already drops visibly where animals graze and regrows after, so a separate "clearing" would be a second mechanism for something the world already does — the same reasoning that kept drought out of Step 27 (A44) | — (settled) |
 | A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
 | ~~⚠ A20~~ | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from *any* source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
 
@@ -183,6 +185,7 @@ correctness bug in shipped code unless marked ⚠.
 | ~~C4~~ | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed) |
 | ~~C5~~ | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). An unchecked herbivore *should* grow until something limits it | **Answered in Step 16** — predation is the limiter. Measured over 20k ticks on five seeds, grazers now oscillate in the 24–111 range instead of growing without bound. Disease (Step 25) can still add a second check |
 | C6 | 7, 23, 24 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes. **Step 23 added a second neighbour walk** (the social pass, +26 ms/tick at large-5k) over the same grid neighbourhood — folding the two into one loop is now the single clearest optimization available. Step 24 added only ~2 ms (its work is O(1) per animal plus a staggered coarse-grid decay), so it is not part of the problem | **Step 30** |
+| ⚠ C8 | 5, 28 | **Animals spend ~49% of their time within two cells of the world boundary**, which is 6% of the area — measured with Step 28's engineering *disabled*, so it is pre-existing and not caused by it. Movement clamps at the edge (Step 5), so an animal whose heading points off-map slides along the wall instead of turning away, and they accumulate there. Nothing before Step 28 made it visible; the trail layer is effectively an occupancy heatmap, and 78% of trails formed on the edge. Engineering adds ~4.6 points on top via trail attraction | **Step 30** or a movement pass. Reflecting the heading at a boundary instead of clamping is the obvious fix, but it changes Step 5 behaviour for every system and needs its own ten-seed measurement — deliberately not attempted inside Step 28 |
 | C7 | 5, 9 | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range) | — (settled) |
 
 ### D. Test / benchmark fragility observed
@@ -206,6 +209,9 @@ correctness bug in shipped code unless marked ⚠.
 | D16 | Step 26's "at zero strength nothing changes" guarantee was false by one ulp: `normalizeAngle(1.2)` is `1.2000000000000002`, and a fed animal on a real gradient does pass through the blend at strength 0 | An identity path must be *exactly* the identity. If a feature's safety argument is "at zero it does nothing", assert `===` on the untouched input — float-normalizing a pass-through silently makes it a different value, and it compounds |
 | ⚠ D17 | Step 27's fire recorded **no injuries at all** while still killing animals: `injuryPerTick` was 0.006 and `applyInjury` silently discards anything at or below `HEALED_BELOW` (0.02), so every call returned `null`. Visible only because a diagnostic happened to print burn counts *and* deaths-by-cause side by side | A shared helper with a **threshold** silently discards sub-threshold input, and a per-tick rate is exactly the shape that trips it. Before feeding a small value into an accumulator helper, check its floor — and when adding a new caller, assert the effect landed rather than assuming the call did something |
 | D18 | Step 27's first parameters left a disturbance running **91% of ticks**. Beyond over-pressuring the demo, it made the step's own acceptance criterion untestable: nothing ever finished recovering, so "recovery" could not be observed | For a mechanism whose visible result is *recovery*, the quiet interval is part of the design, not slack. Tune the duty cycle before tuning the severity, and sanity-check "what fraction of the time is this running?" — a mechanism that is always on has become the background rather than an event |
+| ⚠ D19 | Step 28's first cut ran in the phase its spec named (`environment`) and wore **nothing at all** for 15 000 ticks, because `lastMoveDistance` is an accumulator the metabolism system consumes and zeroes in `physiology`. Burrows, which read `action` instead, worked perfectly throughout | A **half**-working feature hides much better than a broken one — burrows forming was positive evidence that made the missing trails look like a tuning problem rather than a wiring one. When one of two similar paths produces nothing, suspect the input before the parameters. And check whether a per-tick field is *consumed* by a later phase before reading it from an earlier one |
+| D20 | Step 28's cells flapped across the feature threshold: 9569 trails formed and 9081 lost in one run, each flap costing two events and a projection churn | Any threshold a continuously-varying value crosses needs a **hysteresis band**, not a single number — cells will always sit near the boundary. Storing which side a cell is on is the right call even where "derive rather than store" is the house rule: with hysteresis the state genuinely depends on history, which a derived value cannot express |
+| D21 | Step 28 tried to reduce that churn further by widening the band, and got 0.66 / 0.76 / 0.58 events per tick at bands of 0.7 / 0.5 / 0.3 — non-monotonic, i.e. noise. The residual churn was animals genuinely using and abandoning ground, not cells oscillating | Two distinct causes can produce the same symptom, and fixing the first does not mean the second is the same thing. When a parameter sweep comes back non-monotonic (§1.4 D14 again), stop tuning and ask what is actually generating the number |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -5275,7 +5281,7 @@ the affliction pass is O(animals × active) with no spatial query.
 
 ## Step 28 — Ecosystem engineering
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -5335,12 +5341,12 @@ Feature writes are sparse/local. Cheap.
 
 ### Acceptance criteria
 
-- [ ] Concrete visible environment modification with behavioral feedback
-- [ ] Modifications observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Concrete visible environment modification with behavioral feedback
+- [x] Modifications observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -5348,7 +5354,145 @@ A generic scriptable environment-modification engine.
 
 ### Completion notes
 
-_(fill on completion)_
+**Wear is the only state, and the shape is Step 27's with the clock removed.**
+Two enumerated features — a **trail** worn by traffic, a **burrow** dug by
+resting — held as sparse per-cell wear in a `Map` rather than a dense field,
+because a handful of cells out of the whole map carry anything and a world
+nobody has walked on must cost nothing. A disturbance is a record that *expires*;
+a feature has no clock at all. It persists while wear arrives faster than decay
+removes it, so "built → maintained → lost" needs no maintenance mechanism —
+"maintained" is simply what not fading looks like.
+
+**Both effects land on chokepoints that already existed**, which is why no system
+had to learn what a feature is: `world.speedModifierAt` already decided how fast
+ground is to cross, and `world.isShelteredAt` already decided what counts as
+shelter — so a burrow is picked up by thermoregulation *and* by the `shelter`
+action for free, and neither knows an animal dug it. The one genuinely new pull
+(an animal drifting onto a nearby trail) feeds Step 26's wander-heading blend
+rather than the utility table, because §1.4 A34 has been the answer four steps
+running now.
+
+**Three bugs, and the first two were silent.**
+
+1. **⚠ The system wore nothing at all, in the phase the spec asked for.**
+   `lastMoveDistance` is a per-tick accumulator that the metabolism system
+   *consumes and zeroes* in `physiology`, so by the time any `environment` system
+   runs it is always 0. Fifteen thousand ticks produced **zero trails** while
+   burrows (which read `action` instead) formed perfectly — a half-working
+   feature is much harder to notice than a broken one. Moved to `interaction`
+   priority 40, which is where the territory system already sits for exactly the
+   same reason: it marks where an animal *ended* the tick. Recorded as §1.4 D19.
+2. **⚠ Wear was charged per tick, not per unit of distance.** An animal crossing
+   a cell may spend several ticks in it, so one slow pass wore the ground as much
+   as three fast ones — and the moment the phase bug was fixed this **paved 7% of
+   the map** (1116 simultaneous trail cells). Scaling by `lastMoveDistance` makes
+   a trail a measure of traffic rather than of dawdling.
+3. **Cells flapped across the threshold.** One run produced **9569 trails formed
+   and 9081 lost** — a flickering world rather than a world with trails in it,
+   costing two events and a projection churn per flap. Fixed with a hysteresis
+   band (promote at `threshold`, demote at `threshold × 0.7`), which is a
+   deliberate exception to "derive rather than store": with hysteresis the state
+   genuinely depends on history, which is exactly what a derived value cannot
+   express (§1.4 D20).
+
+**Measured against the control** (ten seeds, 15k ticks, `engineering.enabled`
+false):
+
+| | both alive | grazers | stalkers |
+| --- | --- | --- | --- |
+| engineering off | 3/10 | **1**–128 | 0–6 |
+| engineering on | 4/10 | **26**–97 | 0–8 |
+
+Seed survival moves by one, which at n=10 is not evidence on its own (§1.4 D14).
+The **grazer floor** is the real signal: it rises from 1 to 26 and the range
+narrows from 1–128 to 26–97 across every seed. Trails appear to buy the
+population stability rather than size — plausibly because faster travel on worn
+ground shortens the time spent between food patches — but that is a mechanism
+claim the sweep does not prove, so it is offered as a reading rather than a
+result.
+
+**⚠ The most interesting finding is not about trails.** 78% of trail cells sit on
+the map edge, which is 6% of the area — a 13× concentration. Diagnosing it turned
+up something that has nothing to do with this step: **animals spend ~49% of their
+time within two cells of the world boundary**, measured with engineering
+*disabled*. Movement clamps at the edge (Step 5), so an animal whose heading
+points off-map slides along the wall instead of turning, and they pile up there.
+Engineering adds ~4.6 points on top (edge trails mildly attract), but the bulk is
+pre-existing and nothing before this step made it visible — the trail layer is
+effectively an occupancy heatmap, and this is the first time anyone has looked at
+one. Deliberately **not fixed here**: changing boundary handling is a Step 5
+change affecting every system, and it needs its own ten-seed measurement.
+Recorded as §1.4 ⚠ C8.
+
+**Event volume is real turnover, not noise.** Features form and fade about 0.74
+times per tick. Widening the hysteresis band did *not* reduce it (0.66 / 0.76 /
+0.58 at bands of 0.7 / 0.5 / 0.3 — non-monotonic, the D14 signature of tuning
+noise), because the churn is animals genuinely using and abandoning ground rather
+than cells oscillating. So the rate was left alone and the *renderer* hides the
+events by default, which is the established answer here — `entity.moved` and
+`entity.fed` have been routine-filtered since Step 9.
+
+**What shipped.** `world/FeatureGrid.js` (sparse, bounded, decaying, with the
+hysteresis band and a revision that moves only when the promoted set changes);
+`engineering/features.js` (kinds, the declarative effect table, the derived
+accessors, and a trail gradient built to the same shape as Step 26's forage
+gradient); `EngineeringSystem` (`interaction`, priority 40); effects folded into
+the two existing world chokepoints; **protocol v26 → v27** (a revision-gated
+`features` block carrying only cells deep enough to *be* something, plus
+`environment.feature`); **save v25 → v26**; an `enabled` switch for the control;
+and renderer glyphs drawn over the ground and under everything that happens on
+it. Also fixed a latent wiring bug found on the way: `config.engineering` was
+never passed to the `World`, so a configured threshold would have been silently
+ignored.
+
+**Tests:** `npm test` → **590 passing / 0 failing** (was 561; +29). New
+`test/engineering.test.js`: that a single pass wears ground *without* making
+anything of it (the step's whole claim is that *repeated* use reshapes the
+world), promotion announced exactly once, decay and loss announced once, the
+hysteresis band surviving a dip below the promotion threshold, a different kind
+having to erode the old one, the tracking cap, the wear cap, features listed in
+cell order rather than insertion order (iteration order is deterministic by
+rule), the revision moving on promotion but *not* on ordinary walking, both
+effects reaching their chokepoints, the gradient producing nothing for an animal
+already on the best ground, wear-per-distance rather than per-tick, the zero-draw
+budget, the trail bias measured on the *heading distribution* against a
+trail-free control (§1.4 D15), revision-gated deltas, scuffed ground never being
+projected, save/load with features actually present, and the `enabled: false`
+control pinned so it stays a control.
+
+**Deterministic demonstration scenario — the worn-path sandbox.** A well-worn
+path due east of sixteen animals in a featureless world, asserted as a
+*direction*: mean cos(heading) over their wander commitments is near zero without
+the trail and clearly positive with it, against the identical world.
+
+**Visible result verified.** At protocol v27, seed 42 after 6000 ticks: **349
+trail cells** projected, and **96% of them touch another trail cell** — connected
+paths rather than scattered dots, which is the difference between a trail system
+and a heatmap of noise. The deepest cells sit at the wear cap. Formation is
+readable in the event log from tick 18.
+
+**Performance.** large-5k **80.1 → 80.6 ms/tick**, flat. Decay walks the *worn*
+cells rather than the world (a `Map`, not a field), the projection is memoized on
+a revision that barely moves, and both read chokepoints early-exit on
+`featureCount === 0`. No spatial query — §1.4 C6 still owes Step 30 two neighbour
+walks rather than three.
+
+**Deviations from the step spec (documented):** (1) **Phase `interaction`, not
+`environment`** — the spec's placement cannot work, per finding 1 above. (2) **No
+grazing clearings**: vegetation biomass already visibly drops where animals graze
+and regrows after, so a separate "clearing" feature would be a second mechanism
+for a thing the world already does (A48) — the same reasoning that kept drought
+out of Step 27. (3) **Animals do not seek *other* animals' burrows** (A47): a
+burrow shelters whoever is standing on it, but only trails attract, and giving
+burrows a pull would mean touching the perception hot loop.
+
+**Follow-on notes for later steps:** Step 29's species schema is untouched —
+features are world state, not biology — though `attracts` and `shelters` are the
+obvious hooks if a species should ever build something others do not. Step 30
+inherits ⚠ C8 (the boundary pile-up), which is now measured and which any
+occupancy-sensitive optimization should know about. And the feature layer is the
+first thing in the engine that makes *where animals actually spend their time*
+visible, which is likely to surface more than it already has.
 
 ---
 
