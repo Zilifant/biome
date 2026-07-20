@@ -73,17 +73,27 @@ export class AgingSystem extends SimulationSystem {
     updateInterval = 1,
   } = {}) {
     super({ id: 'aging', phase: 'lifecycle', priority: 0, updateInterval });
+    // Fallback for an animal whose species the registry does not know. Every
+    // real animal reads its species' own block instead (Step 29).
+    this.defaults = Object.freeze({
+      birthMass,
+      adultMass,
+      maturityAge,
+      juvenileUntil,
+      subadultUntil,
+      adultUntil,
+      senescentMortalityPerTick,
+      mortalityRamp,
+      maxAge,
+      edibleMassFraction,
+    });
     this.growth = { birthMass, adultMass, maturityAge };
-    // Reused scratch for the per-entity growth curve: only `adultMass` varies
-    // between individuals, and allocating a fresh object per animal per tick
-    // would be pure garbage in the hot loop.
+    // Reused scratch for the per-entity growth curve. Every field is now
+    // rewritten per animal (they vary by species as well as by individual), and
+    // allocating a fresh object per animal per tick would be pure garbage in the
+    // hot loop — which is exactly what the step's performance note rules out.
     this.#growth = { birthMass, adultMass, maturityAge };
     this.stages = { juvenileUntil, subadultUntil, adultUntil };
-    this.senescentMortalityPerTick = senescentMortalityPerTick;
-    this.mortalityRamp = mortalityRamp;
-    this.maxAge = maxAge;
-    this.adultUntil = adultUntil;
-    this.edibleMassFraction = edibleMassFraction;
   }
 
   update(world, context) {
@@ -92,26 +102,40 @@ export class AgingSystem extends SimulationSystem {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
       const roll = random.next(); // one draw always → deterministic budget
+      // Per-species life history (Step 29, closing §1.4 A17 and part of B3).
+      // This is the debt that was easiest to see and longest to carry: a
+      // stalker cub was born at the grazer's 5 kg, grew on the grazer's curve,
+      // and died of old age on the grazer's schedule — and the system was even
+      // constructed with a single species' `adultMass` baked in. One `Map.get`
+      // of a pre-resolved record replaces all of that.
+      const params = world.species.get(entity.speciesId)?.aging ?? this.defaults;
       entity.age += this.updateInterval;
       // Each individual grows toward its own adult size (Step 14), precomputed
-      // at birth from the species mean and its `size` trait.
-      this.#growth.adultMass = entity.adultMass ?? this.growth.adultMass;
+      // at birth from the species mean and its `size` trait. The scratch object
+      // is reused rather than reallocated — see the constructor.
+      this.#growth.birthMass = params.birthMass;
+      this.#growth.maturityAge = params.maturityAge;
+      this.#growth.adultMass = entity.adultMass ?? params.adultMass ?? this.defaults.adultMass;
       entity.bodyMass = bodyMassForAge(entity.age, this.#growth);
-      entity.lifeStage = lifeStageForAge(entity.age, this.stages);
+      entity.lifeStage = lifeStageForAge(entity.age, params);
 
       if (entity.lifeStage === 'senescent') {
-        const p = this.#mortality(entity.age) * this.updateInterval;
-        if (entity.age >= this.maxAge || roll < p) {
-          killAnimal(entity, 'age', entity.bodyMass * this.edibleMassFraction, context.emit, context.tick);
+        const p = this.#mortality(entity.age, params) * this.updateInterval;
+        if (entity.age >= params.maxAge || roll < p) {
+          killAnimal(entity, 'age', entity.bodyMass * params.edibleMassFraction, context.emit, context.tick);
         }
       }
     }
   }
 
-  /** Per-tick death probability in senescence, ramping from base to base×(1+ramp). */
-  #mortality(age) {
-    const span = this.maxAge - this.adultUntil;
-    const t = span > 0 ? Math.min(Math.max((age - this.adultUntil) / span, 0), 1) : 1;
-    return this.senescentMortalityPerTick * (1 + this.mortalityRamp * t);
+  /**
+   * Per-tick death probability in senescence, ramping from base to base×(1+ramp).
+   * Takes the species' own aging block, so a long-lived predator ramps over its
+   * own span rather than its prey's.
+   */
+  #mortality(age, params) {
+    const span = params.maxAge - params.adultUntil;
+    const t = span > 0 ? Math.min(Math.max((age - params.adultUntil) / span, 0), 1) : 1;
+    return params.senescentMortalityPerTick * (1 + params.mortalityRamp * t);
   }
 }

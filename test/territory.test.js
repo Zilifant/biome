@@ -10,12 +10,16 @@ import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
 import { computeMetrics } from '../src/simulation/metrics/metrics.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
+import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
+import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { buildFullSnapshot } from '../src/protocol/snapshots.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 
 const CONFIG = new SimulationEngine().config;
+// Resolved species (Step 29): the accessors take a resolved record, not an id.
+const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
 const GRAZER = getSpecies('herbivore.grazer');
 const STALKER = getSpecies('predator.stalker');
 
@@ -230,9 +234,9 @@ describe('territory: home ranges emerge from where an animal has been', () => {
 
 describe('territory: who holds ground', () => {
   test('only a species that defends touches the claim layer', () => {
-    assert.equal(territoryOf(GRAZER.id).defends, false, 'grazers have ranges, not territories');
-    assert.equal(territoryOf(STALKER.id).defends, true);
-    assert.equal(territoryOf('nope.unknown'), null);
+    assert.equal(territoryOf(REGISTRY.get(GRAZER.id)).defends, false, 'grazers have ranges, not territories');
+    assert.equal(territoryOf(REGISTRY.get(STALKER.id)).defends, true);
+    assert.equal(territoryOf(REGISTRY.get('nope.unknown')), null);
 
     const engine = territoryEngine();
     const grazer = spawn(engine, { x: 20, y: 20 });

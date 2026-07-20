@@ -30,8 +30,9 @@ describe('aging: growth and stage helpers', () => {
 
 /** Engine with only aging (no mortality) to watch growth/stage deterministically. */
 function agingEngine(params = {}) {
-  const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 } } });
-  engine.registerSystem(new AgingSystem({ ...GROWTH, ...STAGES, senescentMortalityPerTick: 0, maxAge: 1e9, ...params }));
+  const aging = { ...GROWTH, ...STAGES, senescentMortalityPerTick: 0, maxAge: 1e9, ...params };
+  const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 }, aging } });
+  engine.registerSystem(new AgingSystem(aging));
   return engine;
 }
 
@@ -78,8 +79,9 @@ describe('aging: senescence and age mortality', () => {
   test('senescent animals die of age; mortality only applies in senescence', () => {
     // High mortality so death is quick once senescent; verify a young animal
     // never dies of age.
-    const engine = new SimulationEngine({ seed: 2, config: { world: { width: 16, height: 16 } } });
-    engine.registerSystem(new AgingSystem({ ...GROWTH, ...STAGES, senescentMortalityPerTick: 0.5, mortalityRamp: 0, maxAge: 1e9, edibleMassFraction: 0.6 }));
+    const aging = { ...GROWTH, ...STAGES, senescentMortalityPerTick: 0.5, mortalityRamp: 0, maxAge: 1e9, edibleMassFraction: 0.6 };
+    const engine = new SimulationEngine({ seed: 2, config: { world: { width: 16, height: 16 }, aging } });
+    engine.registerSystem(new AgingSystem(aging));
     const young = spawnAt(engine, 100);
     const old = spawnAt(engine, 5999);
     const before = engine.events.lastSeq;
@@ -94,8 +96,9 @@ describe('aging: senescence and age mortality', () => {
   });
 
   test('death is certain at maxAge', () => {
-    const engine = new SimulationEngine({ seed: 3, config: { world: { width: 16, height: 16 } } });
-    engine.registerSystem(new AgingSystem({ ...GROWTH, ...STAGES, senescentMortalityPerTick: 0, mortalityRamp: 0, maxAge: 6100, edibleMassFraction: 0.6 }));
+    const aging = { ...GROWTH, ...STAGES, senescentMortalityPerTick: 0, mortalityRamp: 0, maxAge: 6100, edibleMassFraction: 0.6 };
+    const engine = new SimulationEngine({ seed: 3, config: { world: { width: 16, height: 16 }, aging } });
+    engine.registerSystem(new AgingSystem(aging));
     const id = spawnAt(engine, 6099);
     engine.step(1); // age 6100 ≥ maxAge → certain death
     assert.equal(engine.world.entities.get(id).kind, 'carcass');
@@ -158,8 +161,9 @@ describe('aging: protocol, determinism, demo', () => {
   test('performance: staggering aging cuts per-tick cost proportionally', () => {
     // The system supports updateInterval; verify age stays ≈ accurate when
     // staggered (incremented by the interval each run).
-    const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 } } });
-    engine.registerSystem(new AgingSystem({ ...GROWTH, ...STAGES, senescentMortalityPerTick: 0, maxAge: 1e9, updateInterval: 4 }));
+    const aging = { ...GROWTH, ...STAGES, senescentMortalityPerTick: 0, maxAge: 1e9 };
+    const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 }, aging } });
+    engine.registerSystem(new AgingSystem({ ...aging, updateInterval: 4 }));
     const id = spawnAt(engine, 0);
     engine.step(8); // runs at ticks 4 and 8 → age += 4 twice = 8
     assert.equal(engine.world.entities.get(id).age, 8);

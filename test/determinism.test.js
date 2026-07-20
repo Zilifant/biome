@@ -69,7 +69,8 @@ describe('determinism', () => {
     assert.equal(engine.tick, 5000);
     // Entities are never removed (carcasses persist) and reproduction adds
     // more, so the total only ever grows from the founding cohort.
-    assert.ok(engine.entityCount >= engine.config.demo.animalCount);
+    const founded = engine.config.demo.founding.reduce((sum, f) => sum + f.count, 0);
+    assert.ok(engine.entityCount >= founded);
     // Generous bound — this is a smoke check that headless stepping is fast,
     // not a strict performance assertion.
     assert.ok(elapsedMs < 30000, `5000 ticks took ${elapsedMs}ms`);

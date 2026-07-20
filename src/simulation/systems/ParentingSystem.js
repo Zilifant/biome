@@ -74,11 +74,11 @@ export class ParentingSystem extends SimulationSystem {
 
       const guardian = world.entities.get(entity.guardianId);
       if (!guardian || !guardian.alive || guardian.kind !== 'animal') {
-        this.#endBond(entity, LifeEventTypes.ORPHANED, context);
+        this.#endBond(world, entity, LifeEventTypes.ORPHANED, context);
         continue;
       }
       if (entity.lifeStage !== 'juvenile') {
-        this.#endBond(entity, LifeEventTypes.DISPERSED, context);
+        this.#endBond(world, entity, LifeEventTypes.DISPERSED, context);
         continue;
       }
       if (!entity.weaned && entity.age >= this.weaningAge) {
@@ -110,14 +110,14 @@ export class ParentingSystem extends SimulationSystem {
    * and has enough problems (§1.4 A12); sending it walking as well would move
    * two variables at once.
    */
-  #endBond(entity, reason, context) {
+  #endBond(world, entity, reason, context) {
     const guardianId = entity.guardianId;
     entity.guardianId = null;
     entity.weaned = true;
 
     let natal = null;
     if (this.disperses && reason === LifeEventTypes.DISPERSED) {
-      const migration = migrationOf(entity.speciesId);
+      const migration = migrationOf(world.species.get(entity.speciesId));
       natal = migration ? beginDispersal(entity, context.tick, migration.dispersalTicks) : null;
     }
     // The natal centre rides in the life event rather than on the entity: it is

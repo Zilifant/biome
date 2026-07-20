@@ -36,7 +36,6 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { isReproductivelyReady } from './ReproductionSystem.js';
-import { SPECIES } from '../config/species/index.js';
 import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js';
 import { thermalStress } from '../world/Environment.js';
 import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateChoice.js';
@@ -193,6 +192,9 @@ export class DecisionSystem extends SimulationSystem {
       const roll = random.next();
       const candidateHeading = random.next() * TWO_PI;
 
+      // Resolved species (Step 29): one Map.get, reused for diet, mate
+      // preference, and the territory block below.
+      const species = world.species.get(entity.speciesId);
       const perceived = world.perception.get(entity.id) ?? null;
       const hunger = clamp01(1 - entity.energy / entity.maxEnergy);
       const thirst = clamp01(1 - entity.hydration / entity.maxHydration);
@@ -200,7 +202,7 @@ export class DecisionSystem extends SimulationSystem {
       // What counts as food depends on the species' diet (Step 16): grass under
       // your feet if you graze, a carcass within reach if you do not. Both then
       // flow through the same `eat` / `seekFood` actions — eating is eating.
-      const carnivore = SPECIES[entity.speciesId]?.diet === 'carnivore';
+      const carnivore = species?.diet === 'carnivore';
       const carcass = perceived?.nearestCarcass ?? null;
       const onFood = carnivore
         ? carcass !== null && carcass.distance <= this.carcassRange
@@ -213,9 +215,9 @@ export class DecisionSystem extends SimulationSystem {
       // the choosing sex walks toward the best animal it can see rather than the
       // closest, and pays for that in the ground it covers. Whether the pair
       // actually mates is still the reproduction system's call.
-      const mateCandidate = isReproductivelyReady(entity, context.tick, this.reproduction)
+      const mateCandidate = isReproductivelyReady(entity, context.tick, species?.reproduction ?? this.reproduction)
         ? bestMateCandidate(perceived?.mateCandidates ?? [], (id) => world.entities.get(id), {
-            preference: matePreferenceFor(entity.speciesId),
+            preference: matePreferenceFor(species),
             distanceWeight: this.mateDistanceWeight,
             assess: isChooser(entity),
           })
@@ -302,7 +304,7 @@ export class DecisionSystem extends SimulationSystem {
       // uncomfortable, so get off it. A territorial animal weighs this more —
       // it has ground of its own to be on — but even a non-defender gives a
       // strong claim a wide berth.
-      const territory = territoryOf(entity.speciesId);
+      const territory = territoryOf(species);
       const homeRange = entity.homeRange;
       const rangeDrift =
         territory && homeRange ? Math.hypot(entity.x - homeRange.x, entity.y - homeRange.y) : 0;

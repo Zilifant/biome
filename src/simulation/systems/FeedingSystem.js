@@ -21,7 +21,6 @@
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
-import { SPECIES } from '../config/species/index.js';
 import { CarcassSystem } from './CarcassSystem.js';
 import { diseaseSeverity } from '../disease/disease.js';
 
@@ -35,6 +34,8 @@ export class FeedingSystem extends SimulationSystem {
    * @param {number} [options.energyPerMass] energy per unit of edible mass
    * @param {number} [options.carnivoreEfficiency] assimilation fraction for flesh
    * @param {number} [options.carcassRange] how far a carnivore reaches for a carcass
+   * @param {number} [options.referenceMass] mass at which intake is the stated rate
+   * @param {number} [options.massScalingExponent] allometric exponent, shared with metabolism
    * @param {number} [options.injuryFeedPenalty] intake lost at full impairment
    * @param {number} [options.maxMemories] cap on remembered places per animal
    * @param {number} [options.updateInterval]
@@ -47,6 +48,8 @@ export class FeedingSystem extends SimulationSystem {
     energyPerMass = 12,
     carnivoreEfficiency = 0.75,
     carcassRange = 1.5,
+    referenceMass = 30,
+    massScalingExponent = 0.75,
     injuryFeedPenalty = 0.5,
     diseaseFeedPenalty = 0.3,
     maxMemories = MAX_MEMORIES,
@@ -60,6 +63,8 @@ export class FeedingSystem extends SimulationSystem {
     this.energyPerMass = energyPerMass;
     this.carnivoreEfficiency = carnivoreEfficiency;
     this.carcassRange = carcassRange;
+    this.referenceMass = referenceMass;
+    this.massScalingExponent = massScalingExponent;
     this.injuryFeedPenalty = injuryFeedPenalty;
     this.diseaseFeedPenalty = diseaseFeedPenalty;
     this.maxMemories = maxMemories;
@@ -76,7 +81,7 @@ export class FeedingSystem extends SimulationSystem {
       // What "eat" means depends on the species' declared diet, never on its
       // name (Step 16). A carnivore eats flesh off a carcass; everyone else
       // grazes the cell it stands on.
-      if (SPECIES[entity.speciesId]?.diet === 'carnivore') {
+      if (world.species.get(entity.speciesId)?.diet === 'carnivore') {
         this.#eatCarcass(world, context, entity);
         continue;
       }
@@ -141,7 +146,17 @@ export class FeedingSystem extends SimulationSystem {
     const freshness = CarcassSystem.yieldFor(carcass);
     const energyPerUnit = this.energyPerMass * this.carnivoreEfficiency * freshness;
     const maxUseful = energyPerUnit > 0 ? deficit / energyPerUnit : 0;
-    const rate = this.fleshIntakeRate * (1 - entity.impairment * this.injuryFeedPenalty) * (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
+    // ⚠ Intake is **mass-scaled** (Step 29). Until a third carnivore existed
+    // this was a flat rate, so a 4 kg scavenger stripped a carcass exactly as
+    // fast as a 45 kg predator — invisible while every carnivore was the same
+    // size, and immediately decisive once one was not. Scaled on the same
+    // allometric exponent metabolism already uses, so a big animal eats faster
+    // *and* burns more, and the reference-mass animal is unchanged.
+    const rate =
+      this.fleshIntakeRate *
+      this.#massScale(entity) *
+      (1 - entity.impairment * this.injuryFeedPenalty) *
+      (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
     const taken = Math.min(rate, carcass.edibleMass, maxUseful);
     if (taken <= 0) return;
 
@@ -157,5 +172,15 @@ export class FeedingSystem extends SimulationSystem {
       carcassId: carcass.id,
       freshness,
     });
+  }
+  /**
+   * How fast an animal of this size eats, relative to a reference-mass animal.
+   * Shares metabolism's exponent deliberately: an animal that burns more
+   * because it is bigger should also be able to take more in.
+   * @param {object} entity
+   */
+  #massScale(entity) {
+    if (!(this.referenceMass > 0) || !(entity.bodyMass > 0)) return 1;
+    return (entity.bodyMass / this.referenceMass) ** this.massScalingExponent;
   }
 }

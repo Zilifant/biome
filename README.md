@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–28 are done; Step 29 is next.
+protocol for continuing the work. Steps 1–29 are done; Step 30 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -69,6 +69,7 @@ Headless Simulation Engine           src/simulation
    │                     engineering, metabolism, hydration, injury, disease,
    │                     carcass, aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
+   ├── Species Registry (config-driven biology, resolved once and frozen)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
    ├── Memory           (bounded, decaying places each animal has learned)
@@ -258,7 +259,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `26`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `27`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors. The migration drift is
@@ -304,18 +305,33 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 590 tests.
+ASCII renderer, committed fixtures, and 609 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
 logistically toward a terrain-derived capacity, and a turning year — season,
 temperature, and weather spells that modulate both.
 
-**Two species.** The world holds a **grazer** and the **stalker** that hunts
-it. Both come from configured species definitions (`config/species/*` — biology
-only, never glyphs or colors; looked up by id, never branched on by name), and
-the predator/prey relation is itself data on the species (`preySpeciesIds`),
-read in both directions — so no system anywhere branches on a species name.
+**Three species, and a species is data.** The world holds a **grazer**, the
+**stalker** that hunts it, and a **corvid** that eats what the stalker leaves.
+All three are configured species definitions (`config/species/*` — biology only,
+never glyphs or colors; looked up by id, never branched on by name).
+
+Each species *overrides* a shared set of defaults rather than restating
+everything, so a species file says only what is different about that animal — its
+own body, growth curve, lifespan, metabolism, water economy, senses, and breeding
+schedule. Resolution happens once when the engine is built, into frozen records,
+so reading an animal's biology in a hot loop is a single lookup.
+
+The predator/prey relation is itself data (`preySpeciesIds`), read in both
+directions: this species hunts those, therefore those fear this one. The corvid
+is the proof that this is real rather than decorative — **its entire
+implementation is one config file**. It is a carnivore, so it can eat carrion;
+it declares *no prey at all*, so nothing finds it anything to hunt and nothing
+fears it. Not a line of engine code was written to add a whole trophic level.
+That no system anywhere branches on a species name is no longer a claim in a
+comment: a source scan fails the build if any species id appears outside the
+species files.
 
 No two animals are identical. Each carries trait multipliers fixed for life —
 size, speed, metabolic efficiency, boldness, caution, exploration, reproductive
@@ -390,7 +406,7 @@ dangerous. Prey drop everything and run the moment a predator comes into view.
 Stamina is what actually decides most chases: both sides trade it for speed and
 recover it only at rest.
 
-The demo holds both species in a genuine oscillation rather than a fixed
+The demo holds grazer and stalker in a genuine oscillation rather than a fixed
 balance — measured over 20k ticks on five seeds, roughly 24–111 grazers against
 1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
@@ -668,10 +684,9 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-A config-driven species schema (beyond today's two hand-written species), and
-profile-driven optimization toward tens of thousands of animals.
+Profile-driven optimization toward tens of thousands of animals.
 
-`PLAN.md` sequences both as Steps 29–30, and §1.4 records the
+`PLAN.md` sequences it as Step 30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

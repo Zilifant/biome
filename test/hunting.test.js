@@ -7,7 +7,8 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { FeedingSystem } from '../src/simulation/systems/FeedingSystem.js';
 import { MetabolismSystem } from '../src/simulation/systems/MetabolismSystem.js';
-import { getSpecies, hunts } from '../src/simulation/config/species/index.js';
+import { getSpecies, SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
+import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { MemoryKinds } from '../src/simulation/memory/memories.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
@@ -15,6 +16,9 @@ import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapsho
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.grazer');
+// The predator/prey relation now lives on the resolved registry (Step 29).
+const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, {});
+const hunts = (a, b) => REGISTRY.hunts(a, b);
 const STALKER = getSpecies('predator.stalker');
 
 /** Bare open ground, so nothing but the two animals is in play. */

@@ -19,6 +19,8 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { GENOME_LOCI, expressGenome, genotypeOf } from '../src/simulation/traits/genetics.js';
 import { computeMetrics } from '../src/simulation/metrics/metrics.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
+import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
+import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
 import { validateCommand } from '../src/protocol/validation.js';
 import { CommandTypes, SEXES } from '../src/protocol/commands.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
@@ -26,6 +28,8 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 
 const CONFIG = new SimulationEngine().config;
+// Resolved species (Step 29): the accessors take a resolved record, not an id.
+const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
 const GRAZER = getSpecies('herbivore.grazer');
 const PREFERENCE = GRAZER.matePreference;
 
@@ -83,15 +87,25 @@ function candidate(overrides = {}) {
 }
 
 /** Reproduction-only engine, so pairing can be checked tick by tick. */
+/**
+ * A reproduction sandbox.
+ *
+ * ⚠ Reproductive parameters are **per-species** from Step 29, so they are passed
+ * as *config* here rather than as system options: the config is what the species
+ * registry resolves against, and a species' own block beats anything the system
+ * was constructed with. Passing `gestationTicks` to the system alone would be
+ * silently ignored for any animal whose species the registry knows — which is
+ * every animal in these tests.
+ */
 function repro(params = {}) {
+  const reproduction = { ...CONFIG.reproduction, gestationTicks: 50, ...params };
   return sandbox({
+    config: { reproduction },
     systems: [
       new ReproductionSystem({
-        ...CONFIG.reproduction,
-        gestationTicks: 50,
+        ...reproduction,
         birthMass: CONFIG.aging.birthMass,
         genetics: CONFIG.genetics,
-        ...params,
       }),
     ],
   });
@@ -182,9 +196,9 @@ describe('mate choice: what makes a good mate', () => {
   });
 
   test('each species declares its own display, read generically', () => {
-    assert.equal(matePreferenceFor('herbivore.grazer').trait, 'size');
-    assert.equal(matePreferenceFor('predator.stalker').trait, 'speed');
-    assert.equal(matePreferenceFor('nope.unknown'), null, 'an unknown species degrades to no preference');
+    assert.equal(matePreferenceFor(REGISTRY.get('herbivore.grazer')).trait, 'size');
+    assert.equal(matePreferenceFor(REGISTRY.get('predator.stalker')).trait, 'speed');
+    assert.equal(matePreferenceFor(REGISTRY.get('nope.unknown')), null, 'an unknown species degrades to no preference');
   });
 });
 
@@ -692,7 +706,7 @@ describe('mate choice: the sexual-selection sandbox', () => {
       seed,
       config: {
         world: { width: 48, height: 48 },
-        demo: { animalCount: 60, speciesId: 'herbivore.grazer', predatorCount: 0, predatorSpeciesId: 'predator.stalker' },
+        demo: { founding: [{ speciesId: 'herbivore.grazer', count: 60 }] },
         // Abundant, fast-growing food and no weather: the point is to leave
         // mate choice as the loudest thing in the world, not to model a meadow.
         vegetation: { capacity: 14, growthRate: 0.3, minFertility: 0.9, initialFraction: 1 },

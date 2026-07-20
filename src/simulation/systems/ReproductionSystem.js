@@ -32,7 +32,6 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
-import { SPECIES } from '../config/species/index.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
 import { inheritGenome, expressGenome } from '../traits/genetics.js';
 import {
@@ -158,7 +157,7 @@ export class ReproductionSystem extends SimulationSystem {
       if (entity.kind !== 'animal' || !entity.alive) continue;
       if (entity.gestationUntil === null || context.tick < entity.gestationUntil) continue;
 
-      const species = SPECIES[entity.speciesId];
+      const species = world.species.get(entity.speciesId);
       const mateId = entity.pendingMateId;
       // Place the newborn just behind the parent, falling back to the parent's
       // own (necessarily passable) position if that spot is blocked.
@@ -193,7 +192,10 @@ export class ReproductionSystem extends SimulationSystem {
         heading: entity.heading,
         age: 0,
         lifeStage: 'juvenile',
-        bodyMass: this.birthMass,
+        // The *newborn's own species* birth mass (Step 29). This was the last
+        // place §1.4 A17 survived: a cub of any species was born at the one
+        // global `birthMass`, whatever body it was going to grow into.
+        bodyMass: world.species.get(entity.speciesId)?.aging?.birthMass ?? this.birthMass,
         adultMass: (species?.bodyMass ?? entity.adultMass) * traits.size,
         genome,
         traits,
@@ -226,7 +228,7 @@ export class ReproductionSystem extends SimulationSystem {
         recordLifeEvent(parent, context.tick, LifeEventTypes.BIRTHED, { entityId: offspringId });
       }
 
-      entity.energy = Math.max(0, entity.energy - this.birthEnergyCost * investment);
+      entity.energy = Math.max(0, entity.energy - this.#params(world, entity).birthEnergyCost * investment);
       entity.gestationUntil = null;
       entity.pendingMateId = null;
       context.emit(EventTypes.ENTITY_BORN, { entityId: offspringId, parents, sex });
@@ -247,7 +249,7 @@ export class ReproductionSystem extends SimulationSystem {
     const matedThisTick = new Set();
     for (const entity of world.entities.all()) {
       if (!isChooser(entity) || matedThisTick.has(entity.id)) continue;
-      if (!this.#eligible(entity, context.tick)) {
+      if (!this.#eligible(world, entity, context.tick)) {
         // Not receptive: the search clock stops, so a female who spends a
         // gestation unavailable starts her next search at full standards.
         entity.mateSearchSince = null;
@@ -257,7 +259,7 @@ export class ReproductionSystem extends SimulationSystem {
       // reads, and the concrete form of "choosiness costs time".
       if (entity.mateSearchSince === null) entity.mateSearchSince = context.tick;
 
-      const preference = matePreferenceFor(entity.speciesId);
+      const preference = matePreferenceFor(world.species.get(entity.speciesId));
       /** @type {object[]} */
       const suitors = [];
       for (const otherId of world.grid.queryRadius(entity.x, entity.y, this.matingRange)) {
@@ -269,7 +271,7 @@ export class ReproductionSystem extends SimulationSystem {
         // a mate, since `null !== 'female'`.
         if (!other || other.speciesId !== entity.speciesId) continue;
         if (other.sex === null || isChooser(other)) continue;
-        if (!this.#eligible(other, context.tick)) continue;
+        if (!this.#eligible(world, other, context.tick)) continue;
         // A rival beaten here very recently is still keeping its distance.
         if (other.lastContestTick !== null && context.tick - other.lastContestTick < this.contestCooldownTicks) continue;
         suitors.push(other);
@@ -330,12 +332,13 @@ export class ReproductionSystem extends SimulationSystem {
       if (!accepted) continue;
 
       // Pair: both pay the mating cost, she carries the pregnancy.
-      entity.energy = Math.max(0, entity.energy - this.matingEnergyCost);
-      best.energy = Math.max(0, best.energy - this.matingEnergyCost);
+      const repro = this.#params(world, entity);
+      entity.energy = Math.max(0, entity.energy - repro.matingEnergyCost);
+      best.energy = Math.max(0, best.energy - repro.matingEnergyCost);
       entity.lastMatedTick = context.tick;
       best.lastMatedTick = context.tick;
       entity.pendingMateId = best.id;
-      entity.gestationUntil = context.tick + this.gestationTicks;
+      entity.gestationUntil = context.tick + repro.gestationTicks;
       entity.mateSearchSince = null;
       matedThisTick.add(entity.id);
       matedThisTick.add(best.id);
@@ -401,20 +404,25 @@ export class ReproductionSystem extends SimulationSystem {
     return [holder];
   }
 
-  /** @param {object} entity @param {number} tick */
-  #eligible(entity, tick) {
-    return isReproductivelyReady(entity, tick, {
-      minEnergyFraction: this.minEnergyFraction,
-      cooldownTicks: this.cooldownTicks,
-      suitorMinEnergyFraction: this.suitorMinEnergyFraction,
-      suitorCooldownTicks: this.suitorCooldownTicks,
-    });
+  /**
+   * Per-species reproductive parameters (Step 29), falling back to this
+   * system's config for a species the registry does not know. The resolved
+   * block is already merged and frozen, so this is one `Map.get`.
+   * @param {import('../world/World.js').World} world @param {object} entity
+   */
+  #params(world, entity) {
+    return world.species.get(entity.speciesId)?.reproduction ?? this;
+  }
+
+  /** @param {import('../world/World.js').World} world @param {object} entity @param {number} tick */
+  #eligible(world, entity, tick) {
+    return isReproductivelyReady(entity, tick, this.#params(world, entity));
   }
 
   /** Public readiness view for inspection (mirrors #eligible). */
-  readinessFor(entity, tick) {
+  readinessFor(world, entity, tick) {
     return {
-      ready: this.#eligible(entity, tick),
+      ready: this.#eligible(world, entity, tick),
       gestating: entity.gestationUntil !== null,
       gestationUntil: entity.gestationUntil,
       lastMatedTick: entity.lastMatedTick,

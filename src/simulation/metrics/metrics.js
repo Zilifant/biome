@@ -28,7 +28,6 @@
  * Everything is O(N) in the population — one pass, no pairwise work — and every
  * output is bounded: fixed bins per histogram, fixed traits per species.
  */
-import { SPECIES } from '../config/species/index.js';
 import { TRAIT_NAMES } from '../traits/traits.js';
 import { genotypeOf } from '../traits/genetics.js';
 import { SEX_VALUES } from '../mating/mateChoice.js';
@@ -186,7 +185,7 @@ export function computeMetrics(world, { tick, windowTicks }) {
     .sort((a, b) => (a.speciesId < b.speciesId ? -1 : a.speciesId > b.speciesId ? 1 : 0))
     .map((bucket) => ({
       speciesId: bucket.speciesId,
-      diet: SPECIES[bucket.speciesId]?.diet ?? null,
+      diet: world.species.get(bucket.speciesId)?.diet ?? null,
       living: bucket.living,
       lifeStages: { ...bucket.lifeStages },
       sexes: { ...bucket.sexes },

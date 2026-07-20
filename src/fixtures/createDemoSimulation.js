@@ -107,6 +107,8 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(
     new FeedingSystem({
       ...engine.config.feeding,
+      referenceMass: engine.config.metabolism.referenceMass,
+      massScalingExponent: engine.config.metabolism.massScalingExponent,
       injuryFeedPenalty: engine.config.injury.feedPenalty,
       diseaseFeedPenalty: engine.config.disease.feedPenalty,
       maxMemories: engine.config.memory.maxMemories,
@@ -153,8 +155,10 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(new DiseaseSystem(engine.config.disease));
   engine.registerSystem(new CarcassSystem(engine.config.carcass));
   // Adult mass comes from the species; the rest of the life curve from config.
-  const species = getSpecies(engine.config.demo.speciesId);
-  engine.registerSystem(new AgingSystem({ ...engine.config.aging, adultMass: species.bodyMass }));
+  // No species' `adultMass` is baked in any more (Step 29, §1.4 A17): the
+  // aging system reads each animal's own species block, and the config values
+  // it is constructed with are only the fallback for an unknown species.
+  engine.registerSystem(new AgingSystem(engine.config.aging));
   engine.registerSystem(new MetricsSystem(engine.config.metrics));
 }
 
@@ -219,8 +223,11 @@ function spawnCohort(engine, species, count, draw) {
       // not an ecological finding. Everything born in-world draws its sex.
       sex: i % 2 === 0 ? Sexes.FEMALE : Sexes.MALE,
       adultMass,
-      bodyMass: bodyMassForAge(age, { birthMass: engine.config.aging.birthMass, adultMass, maturityAge: engine.config.aging.maturityAge }),
-      lifeStage: lifeStageForAge(age, engine.config.aging),
+      // The species' own growth curve and life stages (Step 29). This used to
+      // read the global `config.aging`, which is precisely how a stalker cub
+      // came to be born at the grazer's birth mass (§1.4 A17).
+      bodyMass: bodyMassForAge(age, { birthMass: species.aging.birthMass, adultMass, maturityAge: species.aging.maturityAge }),
+      lifeStage: lifeStageForAge(age, species.aging),
       speed: species.baseSpeed * traits.speed,
       maxEnergy: species.maxEnergy,
       energy: species.maxEnergy * energyFraction,
@@ -237,12 +244,10 @@ function spawnCohort(engine, species, count, draw) {
 /** @param {SimulationEngine} engine */
 function populateDemoWorld(engine) {
   const random = engine.randomStream('worldgen');
-  const { animalCount, speciesId, predatorCount, predatorSpeciesId } = engine.config.demo;
   // Initial ages and genomes come from their own streams, so adding either
   // never shifts the worldgen positions (which draw in a fixed order).
   const ageRandom = engine.randomStream('demogen.age');
   const geneRandom = engine.randomStream('genetics');
-  const traitSpread = engine.config.traits.spread;
 
   const draw = (species) => ({
     position: () => {
@@ -255,14 +260,20 @@ function populateDemoWorld(engine) {
       };
     },
     age: () => Math.floor(ageRandom.float(0, 1500)),
-    genome: () => sampleGenome(geneRandom, traitSpread),
+    // Per-species trait spread (Step 29, §1.4 A13): how widely individuals of
+    // *this* species vary, rather than one spread applied to every animal in
+    // the world.
+    genome: () => sampleGenome(geneRandom, species.traits.spread),
   });
 
-  const prey = getSpecies(speciesId);
-  spawnCohort(engine, prey, animalCount, draw(prey));
-  if (predatorCount > 0) {
-    const predator = getSpecies(predatorSpeciesId);
-    spawnCohort(engine, predator, predatorCount, draw(predator));
+  // The founding roster is scenario data, not code: a list of
+  // `{ speciesId, count }` walked in order. Adding a species to the world is
+  // therefore a config edit — which is the whole claim of this step, and is
+  // what `test/species-schema.test.js` asserts by adding one.
+  for (const { speciesId, count } of engine.config.demo.founding) {
+    if (!(count > 0)) continue;
+    const species = engine.species.require(speciesId);
+    spawnCohort(engine, species, count, draw(species));
   }
   // Flush so the initial population exists at tick 0, with entity.created events.
   engine.applyDeferredEntityChanges(0);

@@ -24,13 +24,29 @@ import { captureSimulationState } from '../simulation/persistence/SimulationSeri
  * whole run's tick cost.
  * Predators scale with the herd (Step 16) at roughly the demo's ratio, so the
  * benchmark exercises a mixed population rather than a herbivore-only world.
- * @type {Array<{name: string, world: object, animalCount: number, predatorCount: number}>}
+ * @type {Array<{name: string, world: object, founding: Array<{speciesId: string, count: number}>}>}
  */
 const SCENARIOS = [
-  { name: 'demo-default', world: { width: 128, height: 128 }, animalCount: 120, predatorCount: 8 },
-  { name: 'small-100', world: { width: 256, height: 256 }, animalCount: 100, predatorCount: 7 },
-  { name: 'medium-1k', world: { width: 512, height: 512 }, animalCount: 1000, predatorCount: 67 },
-  { name: 'large-5k', world: { width: 1024, height: 1024 }, animalCount: 5000, predatorCount: 333 },
+  { name: 'demo-default', world: { width: 128, height: 128 }, founding: [
+      { speciesId: 'herbivore.grazer', count: 120 },
+      { speciesId: 'predator.stalker', count: 8 },
+      { speciesId: 'scavenger.corvid', count: 10 },
+    ] },
+  { name: 'small-100', world: { width: 256, height: 256 }, founding: [
+      { speciesId: 'herbivore.grazer', count: 100 },
+      { speciesId: 'predator.stalker', count: 7 },
+      { speciesId: 'scavenger.corvid', count: 8 },
+    ] },
+  { name: 'medium-1k', world: { width: 512, height: 512 }, founding: [
+      { speciesId: 'herbivore.grazer', count: 1000 },
+      { speciesId: 'predator.stalker', count: 67 },
+      { speciesId: 'scavenger.corvid', count: 80 },
+    ] },
+  { name: 'large-5k', world: { width: 1024, height: 1024 }, founding: [
+      { speciesId: 'herbivore.grazer', count: 5000 },
+      { speciesId: 'predator.stalker', count: 333 },
+      { speciesId: 'scavenger.corvid', count: 400 },
+    ] },
 ];
 
 function parseArgs(argv) {
@@ -52,14 +68,14 @@ function parseArgs(argv) {
 }
 
 /**
- * @param {{name: string, world: object, animalCount: number, predatorCount: number}} scenario
+ * @param {{name: string, world: object, founding: Array<{speciesId: string, count: number}>}} scenario
  * @param {number} seed
  * @param {number} ticks
  */
 function runScenario(scenario, seed, ticks) {
   const config = {
     world: scenario.world,
-    demo: { animalCount: scenario.animalCount, predatorCount: scenario.predatorCount },
+    demo: { founding: scenario.founding },
   };
   const engine = createDemoSimulation({ seed, config });
   const startEntities = engine.entityCount;

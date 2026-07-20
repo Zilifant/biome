@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–28)
+## 1.4 Carried-forward deviations and open issues (Steps 1–29)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -127,14 +127,14 @@ correctness bug in shipped code unless marked ⚠.
 | ~~A10~~ | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Done in Step 22** — it now steers toward the *best* perceived candidate (distance-discounted), and the reproduction system accepts or rejects against a declining standard |
 | ~~A11~~ | 13 | Juvenile *protection* omitted from the parenting strategy — a guardian does not defend or shield its young | **Done in Step 23** — a parent stands over a threatened juvenile (`defend`) and materially lowers the predator's odds. But see **A32**: it is demonstrably rare |
 | A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **still open, deliberately.** Step 23 already moved juvenile survival twice (defense, and herding); removing the mercy in the same step would have changed two variables at once with no way to attribute the result |
-| A13 | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) |
+| ~~A13~~ | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Done in Step 29** — `traits.spread` and `genetics` are per-species blocks in the schema, resolved against the config defaults |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
 | ~~A15~~ | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Settled in Step 23** — kin recognition got its reader (defense), and it reads the *authoritative* lists directly. So the memory kind is still not needed and now demonstrably so, rather than by assumption |
 | ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
-| A17 | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Step 29** (species schema) |
+| ~~A17~~ | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Done in Step 29** — the stalker has its own `aging` block (born at 8 kg, matures slower, lives to 14 000) and its own `metabolism` and `hydration`. The last place this survived was the *birth* path, where a newborn took one global `birthMass` |
 | A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
 | ~~A19~~ | 17 | Hazards and fights are not injury sources — failed captures are still the only writer | **Done in Step 23** — a dominance contest that escalates wounds both parties (the loser worse), via the same `applyInjury` helper. 114 battle wounds in one live 30 s window. *Hazards* are still not an injury source, by the Step 19 reasoning below |
-| A21 | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Step 29** (species schema) |
+| ~~A21~~ | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Done in Step 29** — `scavenger.corvid`, whose entire implementation is a config file: a carnivore with an **empty `preySpeciesIds`**, so it can only eat what is already dead. No engine code was written to add it |
 | A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | still open — Step 21 measured lineage *depth* (`generation`) instead, which needs no tombstones; a deeper query would need them |
 | A23 | 19 | Snow is a weather state, not an accumulating snowpack layer | — (settled; a layer needs a reason to exist) |
 | A24 | 19 | No per-cell microclimate — temperature is global and cover is the only spatial modifier | needs terrain elevation, which does not exist |
@@ -143,17 +143,17 @@ correctness bug in shipped code unless marked ⚠.
 | A27 | 21 | Metrics are polled over HTTP rather than streamed in snapshots/deltas — a full aggregate would dwarf the per-tick payload | — (settled; a summary view needs no tick resolution) |
 | A28 | 21 | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash | a later observability pass, if it earns its keep |
 | A37 | 25 | Disease does not cross species — a pathogen adapted to a grazer is not the one adapted to a stalker | a later step, if a shared or zoonotic pathogen is wanted |
-| A38 | 25 | Susceptibility, incubation, and virulence are global config rather than per species | **Step 29** (species schema), which now has five blocks to absorb |
+| ~~A38~~ | 25 | Susceptibility, incubation, and virulence are global config rather than per species | **Done in Step 29** — `disease` is a resolved species block, so susceptibility, incubation, and virulence can vary by species (they do not yet in the demo, which is a tuning choice rather than a structural one) |
 | A39 | 25 | An environmental **spillover** keeps the pathogen alive. Without it the disease went extinct with its last carrier (one epidemic in 15k ticks); with it, outbreaks recur. It is a modelling convenience standing in for a reservoir that is not simulated | — (settled; a reservoir species would be Step 29's business) |
-| A29 | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | a later step, if runaway is wanted; the species block itself belongs to **Step 29** |
-| A30 | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Step 29**, if a species ever needs the other answer |
+| ~~A29~~ | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | **Settled in Step 29** — `matePreference` is a resolved species block like every other. Direction is still species data and only *strength* is heritable, so there is still no full Fisherian runaway; that remains a deliberate choice rather than a config gap |
+| ~~A30~~ | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Settled in Step 29** — `reproduction` is a per-species block, so a species that needed the other answer could now state it. `GESTATING_SEX` stays one constant because every species still sets it identically |
 | ⚠ A31 | 23 | **Step 21's selection sandbox has never demonstrated its claim.** Measured over seven seeds: the trait rose in 3, fell in 4, mean change −0.0002, with the selection differential negative in five and uncorrelated with the trait's direction. Cause: the differential compares breeders against *all* adults, and 71 % of adults are breeders there, so the two samples are nearly the same set. Tightening the breeding gate makes it visible but drives the population extinct | an unmet **Step 21** acceptance criterion. The test now claims no direction; a world that demonstrates it must be built, not tuned |
 | A32 | 23 | Juvenile defense fires **once in 12 000 demo ticks** — the geometry it needs (an adult with a living juvenile of its own, nearer the predator than the parent and inside `defendRange`) almost never arises | still open. Step 24 did **not** fix it as hoped: grazers turned out not to be able to afford site fidelity at all (A34), so families are no more co-located than before. Relaxing "nearer the predator than I am" to "near enough to interpose" remains the named lever |
 | ⚠ A34 | 24 | **Patrolling is near-inert in the demo.** Routine site fidelity competes with wandering — which is how an animal finds its next meal — and cost the demo two seeds in five (4/5 → 2/5). The pull now ramps over six range radii, so it fires only for an animal that is genuinely lost. The mechanism is implemented and tested (the suite tightens the ramp to exercise it) but is not doing visible work in the demo | a future pass could give patrol a *reason* — food that is worth returning to, or a den — rather than making it compete with foraging on equal terms |
 | A35 | 24 | Grazers get a home range but no site fidelity and no claims, so "territory" in the demo is a predator-only phenomenon at ~9 individuals | **Step 29** (species schema) is where a third, genuinely territorial species would land |
 | A36 | 24 | The claim layer is not projected to the renderer — the home-range ring is drawn from inspection for the selected animal only | a later renderer pass, if a territory *map* earns the per-snapshot cost |
 | A40 | 26 | **Remembered routes are not implemented.** The step named them, but Step 15 already stores remembered *places* and `recallFood` already steers to them; a route is a trajectory, and the codebase deliberately stores no trajectory anywhere (a home range is four numbers for exactly this reason) | a later step, if a *sequence* of places ever earns the storage a single place does not |
-| A41 | 26 | Migration is a **grazer-only** phenomenon: a stalker's food is the grazer, which it already follows through perception and the hunt pipeline, so a vegetation gradient would point it at grass it cannot eat. Letting stalkers track forage as a prey proxy was tried and measured *worse* (stalkers 0–3). Both species do disperse | **Step 29** (species schema), alongside A35's mirror-image note about territory |
+| ~~A41~~ | 26 | Migration is a **grazer-only** phenomenon: a stalker's food is the grazer, which it already follows through perception and the hunt pipeline, so a vegetation gradient would point it at grass it cannot eat. Letting stalkers track forage as a prey proxy was tried and measured *worse* (stalkers 0–3). Both species do disperse | **Settled in Step 29** — `migration` is a resolved block like the rest. Migration remains grazer-only *by data* (`tracksForage`), which is now a statement about the species rather than a limitation of the code |
 | A42 | 26 | The forage cue reaches **beyond perception** (18 units against 6) and is a stated modelling convenience standing in for coarse long-range cues this world does not simulate — the smell of green ground, the lie of the land. Bounded by being a *difference* (a flat world produces no pull) and by a strength cap well below 1 | — (settled; the same kind of honest stand-in as A39's spillover) |
 | A43 | 26 | **Population fragmentation is enabled, not asserted.** Herd labels already split by hop count and separate forage patches already pull herds apart, but no test claims a fragmentation outcome | a later observability pass, if a fragmentation *measure* earns its keep |
 | A44 | 27 | **Drought and severe winter are not local disturbances.** Both already exist as *global* weather states (Step 19), so a spatially bounded copy would be the same mechanism at a different scale rather than a new one. Fire, flood, and storm have no global analogue, which is why they are the three that shipped | — (settled; a kind is a row in the effect table if one is ever wanted) |
@@ -161,6 +161,8 @@ correctness bug in shipped code unless marked ⚠.
 | A46 | 27 | Disturbance **mortality is rare in the demo** (0–12 deaths across ten seeds): a region covers ~1% of the map and animals walk out of it. The lethal path is real and exercised in a controlled test, but the demo-level cost is sublethal — 852 burns across those seeds — exactly as Step 25's disease turned out to be | — (settled; making it demographically significant would mean bigger or more frequent events, which the 91% experiment showed breaks recovery) |
 | A47 | 28 | Animals do not seek *other* animals' burrows — a burrow shelters whoever stands on it (through `isShelteredAt`, so thermoregulation and the `shelter` action both get it free), but only trails exert a pull. Giving burrows one would mean teaching the perception hot loop about features | a later step, if a species should ever compete for or inherit a den |
 | A48 | 28 | **Grazing clearings are not a feature.** Vegetation biomass already drops visibly where animals graze and regrows after, so a separate "clearing" would be a second mechanism for something the world already does — the same reasoning that kept drought out of Step 27 (A44) | — (settled) |
+| A49 | 29 | "Activity pattern" and "habitat preference" are named in the step's objective but are **not schema blocks**: there is no diurnal cycle for a pattern to exist in, and habitat preference is already expressed by `migration.tracksForage` plus the comfort band rather than as a field of its own | a later step, if a day/night cycle or a real habitat-suitability model arrives |
+| A50 | 29 | The species roster is a hand-written **import list**, not a directory scan or a data file loaded at runtime. Runtime species authoring is explicitly out of scope for the step, and a static import list is the honest form of "species definitions are code" | — (settled) |
 | A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
 | ~~⚠ A20~~ | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from *any* source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
 
@@ -170,8 +172,8 @@ correctness bug in shipped code unless marked ⚠.
 | --- | --- | --- | --- |
 | B1 | 4 | `fixtures/createDemoSimulation.js` not renamed to `createEcosystem.js` (rename was pure churn) | cosmetic cleanup |
 | B2 | 4 | `config.demo` retained for *scenario* selection (count + species id); biology did move to `config/species/*` | — (settled) |
-| B3 | 6, 10, 11 | Metabolism, hydration, and aging parameters live in **global config sections** rather than per-species | **Step 29** (species schema) |
-| B4 | 7 | Perception radius resolved per-species from the registry (no entity field) — a *different* pattern from B3 | **Step 29** (unify) |
+| ~~B3~~ | 6, 10, 11 | Metabolism, hydration, and aging parameters live in **global config sections** rather than per-species | **Done in Step 29** — metabolism, hydration, and aging are per-species blocks resolved against the config defaults |
+| ~~B4~~ | 7 | Perception radius resolved per-species from the registry (no entity field) — a *different* pattern from B3 | **Done in Step 29** — `perceptionRadius` became a `perception` block, so the third config pattern is gone and all species biology resolves one way |
 | B5 | 8, 14 | `utilityBreakdown` persisted on the entity rather than kept transient — could bloat saves at 25k animals; Step 14's per-entity `traits` object adds to the same pressure (though it is genuinely non-derivable and must persist) | **Step 30** (if save size bites) |
 | B6 | 11 | `age` is a stored, per-tick-incremented field rather than derived from a `birthTick`; `updateInterval` staggering is supported and tested but unused | **Step 30** (if aging cost ever matters) |
 
@@ -212,6 +214,8 @@ correctness bug in shipped code unless marked ⚠.
 | ⚠ D19 | Step 28's first cut ran in the phase its spec named (`environment`) and wore **nothing at all** for 15 000 ticks, because `lastMoveDistance` is an accumulator the metabolism system consumes and zeroes in `physiology`. Burrows, which read `action` instead, worked perfectly throughout | A **half**-working feature hides much better than a broken one — burrows forming was positive evidence that made the missing trails look like a tuning problem rather than a wiring one. When one of two similar paths produces nothing, suspect the input before the parameters. And check whether a per-tick field is *consumed* by a later phase before reading it from an earlier one |
 | D20 | Step 28's cells flapped across the feature threshold: 9569 trails formed and 9081 lost in one run, each flap costing two events and a projection churn | Any threshold a continuously-varying value crosses needs a **hysteresis band**, not a single number — cells will always sit near the boundary. Storing which side a cell is on is the right call even where "derive rather than store" is the house rule: with hysteresis the state genuinely depends on history, which a derived value cannot express |
 | D21 | Step 28 tried to reduce that churn further by widening the band, and got 0.66 / 0.76 / 0.58 events per tick at bands of 0.7 / 0.5 / 0.3 — non-monotonic, i.e. noise. The residual churn was animals genuinely using and abandoning ground, not cells oscillating | Two distinct causes can produce the same symptom, and fixing the first does not mean the second is the same thing. When a parameter sweep comes back non-monotonic (§1.4 D14 again), stop tuning and ask what is actually generating the number |
+| ⚠ D22 | Step 29's first three-species sweep read 3/10 against a 6/10 control, and the cause was **not** the new species: `fleshIntakeRate` was a flat per-tick number, so a 4 kg scavenger stripped a carcass as fast as a 45 kg predator. Mass-scaling intake turned it into 5/10 | A shared constant that is *correct for one size* is a latent bug that only a second size can expose. When adding a variant that differs by an order of magnitude in some dimension, grep for constants that ought to scale with it before blaming the variant's own parameters |
+| D23 | Step 29's refactor broke **23 tests**, almost all in one way: they constructed a system with custom parameters and expected those to apply, but a species' resolved block now beats anything a system was constructed with — so the parameters have to reach the *config* the registry resolves against | When a parameter's *source* moves, every caller that supplied it the old way keeps working syntactically and stops working semantically. That is worse than a break. The fixes carry a ⚠ comment at each site for exactly that reason |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -5498,7 +5502,7 @@ visible, which is likely to surface more than it already has.
 
 ## Step 29 — Expanded species system
 
-**Status:** Not started
+**Status:** Done
 
 **Carried forward (see §1.4):** this step is the designated home for the
 config debt accumulated while there was only one species. **B3** — metabolism
@@ -5572,12 +5576,12 @@ params. Benchmark multi-species tick.
 
 ### Acceptance criteria
 
-- [ ] Config-driven multi-species with no core conditionals
-- [ ] Multiple species visibly coexist
-- [ ] Tests pass (incl. no-species-literal scan)
-- [ ] Visible result verified
-- [ ] Documentation updated
-- [ ] Performance checked
+- [x] Config-driven multi-species with no core conditionals
+- [x] Multiple species visibly coexist
+- [x] Tests pass (incl. no-species-literal scan)
+- [x] Visible result verified
+- [x] Documentation updated
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -5585,7 +5589,139 @@ A biological scripting language; runtime species authoring UI.
 
 ### Completion notes
 
-_(fill on completion)_
+**A species overrides; the config supplies defaults.** That one decision is the
+whole schema. Eight blocks — `metabolism`, `hydration`, `aging`, `perception`,
+`traits`, `genetics`, `disease`, `reproduction` — fall back to the same-named
+global config section, so a species file states only what is *different* about
+that animal. The alternative (every species restating every parameter) makes the
+interesting differences invisible and turns a change to a shared default into a
+twelve-file edit. Merging is **recursive**, because at least one block is nested
+(`traits.spread`) and a shallow merge would silently drop seven of eight traits
+from any species that tweaked one.
+
+**Resolution happens once, at engine construction**, into deep-frozen records
+held by a `SpeciesRegistry` on the world. A system lookup is one `Map.get` and no
+allocation, which is what the step's performance note demands. The registry is
+per-engine rather than a module singleton on purpose: resolution depends on the
+*config*, and every sweep and half the test suite runs engines with different
+configs in one process.
+
+**The debt this step was built to absorb, item by item.** §1.4 **B3**
+(metabolism, hydration, aging all global), **B4** (perception radius as a bare
+`perceptionRadius` scalar — a *third* config pattern, now a block like the
+rest), **A13** (trait spread and mutation), **A17** (a stalker cub born at the
+grazer's 5 kg), **A29/A30** (`matePreference`, `GESTATING_SEX`), **A38** (disease
+parameters), **A41** (`migration`). Also **B2**: `config.demo` was a hardcoded
+prey/predator pair and is now a `founding` *roster*, so adding a species to the
+world is a line of config.
+
+**A21 is closed, and it closed itself.** The third species is a **scavenger**,
+and its entire implementation is one config file. It is a carnivore, so feeding
+already lets it eat carrion; it declares an **empty `preySpeciesIds`**, so
+perception finds it nothing to hunt, the hunting system never fires for it, and —
+read in the other direction — nothing fears it. Not one line of engine code was
+written or changed to add it. The empty case in `hunts()` was always reachable;
+nobody had asked what it meant. It had been open since Step 18 as "no dedicated
+scavenger guild — a third species is its own scope", and this was that step.
+
+**The static scan is the acceptance criterion made mechanical.** "No
+species-name conditionals in core systems" has been an invariant since Step 4 and
+was, until now, enforced by nothing at all. `test/species-schema.test.js` scans
+every file in `src/simulation`, strips comments first (§1.4 D6 — a guard that
+fires on prose teaches people to word around it), and fails if any species id
+appears outside `config/species/`. A companion check requires every
+`'herbivore'` / `'carnivore'` literal to sit within sixty characters of `.diet`,
+so diet remains a read of data rather than a hardcoded name.
+
+**Two findings from running it.**
+
+1. **⚠ Feeding rate was never mass-scaled, and only a third carnivore could show
+   it.** With three species the first ten-seed sweep read **3/10** against a
+   two-species control's 6/10, with corvids booming to 184. The cause was not the
+   scavenger's biology: `fleshIntakeRate` was a flat per-tick number, so a 4 kg
+   bird stripped a carcass exactly as fast as a 45 kg predator. Invisible while
+   every carnivore was the same size, decisive the moment one was not. Scaling
+   intake on the same allometric exponent metabolism already uses (a 4 kg animal
+   eats at 22% of the reference rate, a 45 kg one at 136%) is the honest fix, and
+   it is a no-op for the 30 kg grazer that *is* the reference mass. Recorded as
+   §1.4 D22.
+2. **Closing A17 helped the predator more than expected.** Giving the stalker its
+   own body — born at 8 kg, maturing slower, living to 14 000 ticks, cheaper to
+   travel, slower to dry out — moved the *two-species* control from the 4/10 of
+   Step 28 to 6/10 before the scavenger was added at all. Thirteen steps of
+   predators living on grazer physiology had been quietly costing them.
+
+**Measured** (ten seeds, 15k ticks, after the intake fix):
+
+| | grazer + stalker alive | grazers | stalkers | corvids |
+| --- | --- | --- | --- | --- |
+| two species (control) | 4/10 | 12–172 | 0–6 | — |
+| three species | **5/10** | 8–75 | 0–2 | 0–173 |
+
+Adding a whole trophic level does not cost the demo: seed survival is the same or
+better, and **all three species coexist in 4/10 seeds**. Stalkers are squeezed
+(0–2 against 0–6) — a scavenger competing for carrion is real pressure — and
+corvids show a genuine boom-and-bust (0 on one seed, 173 on another), which is
+what an animal living on a thin, unpredictable food supply should do. §1.4 D14
+applies as always: a one-seed difference at n=10 is not evidence, which is why
+the claim here is "does not degrade" rather than "improves".
+
+**What shipped.** `config/species/schema.js` (`SPECIES_BLOCKS`,
+`resolveSpecies`, `SpeciesRegistry`); the roster in `config/species/index.js`
+split into raw *definitions* (declared) and resolved species (per engine);
+`scavengerCorvid.js`; per-species blocks on the stalker closing A17;
+`world.species` as the single read path, with `metabolism`, `hydration`,
+`aging`, `perception`, `reproduction`, and newborn birth mass all now reading it;
+mass-scaled carnivore intake; `demo.founding` as a roster in the config, the
+fixture, and the benchmark scenarios; **save v26 → v27** (no entity field
+changed — the *config shape* did, and config is saved verbatim); a renderer
+appearance entry; and **no protocol bump**, since `speciesId` was already
+projected and no new observable species metadata is exposed.
+
+**Tests:** `npm test` → **609 passing / 0 failing** (was 590; +19). New
+`test/species-schema.test.js`: resolution (inheritance, partial override,
+recursive merge, every block resolvable, deep-frozen, per-engine independence,
+unknown species null-vs-throw, the relation read both ways), the two static
+scans, "a species is config not code" (a *browser* invented inside the test file
+and resolved correctly, plus the demo founding every cohort and three species
+alive at 3000 ticks), the scavenger hunting nothing and being hunted by nothing
+from data alone, a scavenger never making a capture attempt in 3000 ticks, three
+distinct birth masses and three distinct lifespans, newborns born at their own
+species' mass, perception as a block with three distinct radii, determinism, and
+save/load.
+
+**The refactor broke 23 existing tests, and the pattern is worth recording.**
+Almost all of them constructed a system with custom parameters and expected those
+to apply — but a species' block now beats anything a system was constructed with,
+so the parameters have to reach the *config* (which the registry resolves
+against) instead. That is the correct new shape and the fixes say so in comments;
+it is also exactly the sort of quiet inversion that would be baffling six months
+on. Recorded as §1.4 D23.
+
+**Visible result verified.** The demo founds 120 grazers, 8 stalkers, and 10
+corvids and runs three species side by side; at 3000 ticks on seed 42 all three
+are alive. The scavenger's ecology is visibly its own: it hunts nothing, breeds
+fast, lives ~6000 ticks against the stalker's 14 000, and sees furthest of the
+three (radius 14 against 12 and 6).
+
+**Performance.** large-5k **80.6 → 80.97 ms/tick** while carrying ~7% more
+entities (7219 → 7744) — the config indirection is not measurable, which is the
+point of resolving once and freezing.
+
+**Deviations from the step spec (documented):** (1) **No protocol bump** — the
+spec allows this explicitly ("possibly none"), and nothing new is observable.
+(2) **"Activity pattern" and "habitat preference" are not schema blocks**: there
+is no diurnal cycle to have a pattern in, and habitat preference is already
+expressed through `migration.tracksForage` and the comfort band rather than as a
+field of its own (A49). (3) **The species roster is still a hand-written import
+list**, not a directory scan — runtime species authoring is explicitly out of
+scope, and an import list is the honest static form (A50).
+
+**Follow-on notes for later steps:** Step 30 inherits a world with three species
+and ~7% more animals per scenario, and the C6 neighbour-walk fold it owes is now
+worth more per tick than it was. The schema is also where a fourth species would
+go with no code at all — which is the cheapest way to test whether C6's
+optimization actually generalizes.
 
 ---
 

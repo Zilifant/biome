@@ -6,6 +6,7 @@ import { initialEnvironment } from './Environment.js';
 import { ScentGrid } from './ScentGrid.js';
 import { speedScaleAt } from '../disturbance/disturbances.js';
 import { FeatureGrid } from './FeatureGrid.js';
+import { SpeciesRegistry } from '../config/species/schema.js';
 import { speedScaleAt as featureSpeedScaleAt, sheltersAt } from '../engineering/features.js';
 
 /**
@@ -32,6 +33,12 @@ export class World {
       throw new RangeError('world config requires positive width and height');
     }
     this.config = Object.freeze({ ...config });
+    // Resolved species (Step 29): every species merged against the config
+    // defaults and deep-frozen, once, at construction. Systems read biology
+    // from here — `world.species.get(entity.speciesId)` — which is one Map.get
+    // and no allocation, because the step's performance note rules out doing
+    // config indirection in a hot loop.
+    this.species = config.species ?? new SpeciesRegistry([], {});
     this.entities = new EntityManager();
     this.grid = new SpatialGrid(config.cellSize ?? 8);
     // Terrain uses integer cell dimensions; world width/height are already

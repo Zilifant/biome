@@ -17,6 +17,8 @@ import { VegetationSystem } from '../src/simulation/systems/VegetationSystem.js'
 import { MetabolismSystem } from '../src/simulation/systems/MetabolismSystem.js';
 import { PerceptionSystem } from '../src/simulation/systems/PerceptionSystem.js';
 import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
+import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
+import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
@@ -198,9 +200,13 @@ describe('weather: vegetation responds to the season', () => {
 });
 
 describe('weather: thermal stress and shelter', () => {
+  // A minimal world still needs a species registry: a comfort band is species
+  // data (Step 29), so `thermalStress` has nowhere else to read it from.
+  const registry = new SpeciesRegistry(SPECIES_DEFINITIONS, new SimulationEngine().config);
   const world = (temperature, sheltered = false) => ({
     environment: { temperature },
     isShelteredAt: () => sheltered,
+    species: registry,
   });
   const grazer = { speciesId: GRAZER.id, x: 0, y: 0 };
 

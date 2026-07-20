@@ -42,13 +42,12 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
-import { SPECIES } from '../config/species/index.js';
 import { FightInjuryKinds, dominanceOf, resolveContest } from '../social/dominance.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
 
 /** The territory block of a species, or null if it declares none. */
-export function territoryOf(speciesId) {
-  return SPECIES[speciesId]?.territory ?? null;
+export function territoryOf(species) {
+  return species?.territory ?? null;
 }
 
 export class TerritorySystem extends SimulationSystem {
@@ -105,7 +104,7 @@ export class TerritorySystem extends SimulationSystem {
 
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
-      const territory = territoryOf(entity.speciesId);
+      const territory = territoryOf(world.species.get(entity.speciesId));
       if (!territory) continue;
 
       this.#accumulateRange(entity, territory);

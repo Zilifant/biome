@@ -60,7 +60,7 @@ export class MigrationSystem extends SimulationSystem {
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
-      const species = migrationOf(entity.speciesId);
+      const species = migrationOf(world.species.get(entity.speciesId));
       if (!species) {
         entity.migrationHeading = null;
         entity.migrationStrength = 0;
@@ -90,7 +90,7 @@ export class MigrationSystem extends SimulationSystem {
         }
       }
 
-      this.#trackRelocation(entity, context);
+      this.#trackRelocation(world, entity, context);
     }
   }
 
@@ -110,7 +110,7 @@ export class MigrationSystem extends SimulationSystem {
    * itself and where it was born — which is the acceptance criterion, reported
    * rather than inferred.
    */
-  #trackRelocation(entity, context) {
+  #trackRelocation(world, entity, context) {
     const range = entity.homeRange;
     if (range === null) return;
 
@@ -120,7 +120,7 @@ export class MigrationSystem extends SimulationSystem {
       return;
     }
 
-    const threshold = territoryOf(entity.speciesId)?.rangeRadius ?? 0;
+    const threshold = territoryOf(world.species.get(entity.speciesId))?.rangeRadius ?? 0;
     if (!(threshold > 0)) return;
     const moved = Math.hypot(range.x - entity.settledX, range.y - entity.settledY);
     if (moved < threshold) return;

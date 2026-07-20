@@ -22,7 +22,6 @@
  * demo run would ever see winter. `ticksPerYear` is the knob.
  */
 
-import { SPECIES } from '../config/species/index.js';
 import { temperatureShiftAt } from '../disturbance/disturbances.js';
 
 /** Seasons in cycle order, starting at the year boundary. */
@@ -147,7 +146,9 @@ export function describeEnvironment(tick, weather, params) {
 export function thermalStress(world, entity, shelterRelief) {
   const environment = world.environment;
   if (!environment) return 0;
-  const species = SPECIES[entity.speciesId];
+  // `?.` because this helper is also called with hand-built minimal worlds
+  // in tests; a world with no registry simply has no comfort band.
+  const species = world.species?.get(entity.speciesId);
   const min = species?.comfortMin;
   const max = species?.comfortMax;
   // A storm (Step 27) is a *local* shift on the global temperature, applied

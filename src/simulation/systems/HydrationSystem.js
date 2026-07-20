@@ -54,11 +54,15 @@ export class HydrationSystem extends SimulationSystem {
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
-      let hydration = entity.hydration - this.dehydrationRate;
+      // Per-species water economy (Step 29, §1.4 B3): a predator gets much of
+      // its water from what it eats, so it dries out more slowly than the animal
+      // it is eating. That was previously impossible to express.
+      const params = world.species.get(entity.speciesId)?.hydration ?? this;
+      let hydration = entity.hydration - params.dehydrationRate;
       if (entity.action === 'drink') {
         const nearestWater = world.perception.get(entity.id)?.nearestWater ?? null;
-        if (nearestWater && nearestWater.distance <= this.drinkRange) {
-          hydration += this.drinkRate;
+        if (nearestWater && nearestWater.distance <= params.drinkRange) {
+          hydration += params.drinkRate;
           // Drank here (Step 15). Lakes do not move, so this is the memory an
           // animal can most safely act on long after the fact.
           recordMemory(entity, MemoryKinds.WATER, nearestWater.cellX, nearestWater.cellY, context.tick, this.maxMemories);
@@ -67,9 +71,9 @@ export class HydrationSystem extends SimulationSystem {
       entity.hydration = Math.min(entity.maxHydration, Math.max(0, hydration));
 
       if (entity.hydration <= 0) {
-        entity.health = Math.max(0, entity.health - this.dehydrationDamage);
+        entity.health = Math.max(0, entity.health - params.dehydrationDamage);
         if (entity.health <= 0) {
-          killAnimal(entity, 'dehydration', entity.bodyMass * this.edibleMassFraction, context.emit, context.tick);
+          killAnimal(entity, 'dehydration', entity.bodyMass * params.edibleMassFraction, context.emit, context.tick);
         }
       }
     }

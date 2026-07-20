@@ -27,10 +27,10 @@ function uniformGenome(value) {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [value, value]]));
 }
 
-function sandbox({ seed = 1, systems = [] } = {}) {
+function sandbox({ seed = 1, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -225,21 +225,23 @@ describe('genetics: inheritance', () => {
 
 describe('genetics: inheritance sandbox', () => {
   test('offspring resemble their parents across a lineage', () => {
+    // ⚠ Per-species from Step 29: these reach the *config* so the species
+    // registry resolves with them; a species' own block beats system options.
+    const reproduction = {
+      ...CONFIG.reproduction,
+      gestationTicks: 2,
+      cooldownTicks: 5,
+      minEnergyFraction: 0.1,
+      // Mate choice off: this sandbox is about what a genome does at birth,
+      // and a female holding out for a better male would only add noise.
+      acceptanceThreshold: 0,
+      suitorMinEnergyFraction: 0.1,
+      suitorCooldownTicks: 5,
+    };
     const engine = sandbox({
+      config: { reproduction },
       systems: [
-        new ReproductionSystem({
-          ...CONFIG.reproduction,
-          gestationTicks: 2,
-          cooldownTicks: 5,
-          minEnergyFraction: 0.1,
-          // Mate choice off: this sandbox is about what a genome does at birth,
-          // and a female holding out for a better male would only add noise.
-          acceptanceThreshold: 0,
-          suitorMinEnergyFraction: 0.1,
-          suitorCooldownTicks: 5,
-          birthMass: CONFIG.aging.birthMass,
-          genetics: CONFIG.genetics,
-        }),
+        new ReproductionSystem({ ...reproduction, birthMass: CONFIG.aging.birthMass, genetics: CONFIG.genetics }),
       ],
     });
 

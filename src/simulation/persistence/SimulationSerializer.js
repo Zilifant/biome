@@ -137,10 +137,20 @@
  *       migration drift does, and for the same reason — the drift is recomputed
  *       on a stagger, so a restore running on a stale null would diverge. v25
  *       saves are invalidated.
+ *  27 — the species schema (Step 29). **No per-entity field changed**, which is
+ *       why this bump is worth explaining: the *config* did. Species now
+ *       resolve their biology against the config blocks (`metabolism`,
+ *       `hydration`, `aging`, `perception`, `traits`, `genetics`, `disease`,
+ *       `reproduction`), and the demo's founding roster moved from
+ *       `demo.animalCount` / `demo.predatorCount` to a `demo.founding` list. A
+ *       v26 save carries the old shape, so restoring one would silently found
+ *       nothing and resolve species against blocks that are no longer where the
+ *       loader looks. Config is saved verbatim and is part of the contract, so
+ *       a change to its shape invalidates saves exactly as a field change does.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 26;
+export const SAVE_FORMAT_VERSION = 27;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

@@ -30,11 +30,15 @@ const PARAMS = {
 
 /** Engine with only reproduction, so pairing/gestation can be checked exactly. */
 function reproEngine(params = {}) {
+  // ⚠ Reproductive parameters are per-species from Step 29, so they go in the
+  // *config* (which the species registry resolves against) as well as into the
+  // system. A species' own block beats the system's constructor options.
+  const reproduction = { ...PARAMS, ...params };
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0 } },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0 }, reproduction },
   });
-  engine.registerSystem(new ReproductionSystem({ ...PARAMS, ...params }));
+  engine.registerSystem(new ReproductionSystem(reproduction));
   return engine;
 }
 
@@ -224,7 +228,7 @@ describe('reproduction: demo integration', () => {
       }
     }
     // Population renewed beyond the founding cohort.
-    assert.ok(engine.entityCount > engine.config.demo.animalCount);
+    assert.ok(engine.entityCount > engine.config.demo.founding.reduce((n, f) => n + f.count, 0));
   });
 
   test('reproduction keeps the demo deterministic', () => {

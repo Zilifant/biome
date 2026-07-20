@@ -1,32 +1,45 @@
 /**
  * Species registry. Species definitions are code (biology-only data), keyed by
  * a stable `speciesId` string that also travels through the protocol. Systems
- * look species up by id rather than branching on species names (invariant:
- * no species-name conditionals in core systems — Step 29 generalizes this).
+ * look species up by id rather than branching on species names — an invariant
+ * since Step 4, and from Step 29 enforced mechanically by a source scan (see
+ * `test/species-schema.test.js`).
+ *
+ * ⚠ **These are the raw definitions, not the resolved species.** From Step 29 a
+ * species inherits most of its biology from the global config and overrides only
+ * what differs (see `schema.js`), so the objects here are *incomplete* — reading
+ * `SPECIES['predator.stalker'].metabolism.massScalingExponent` gives undefined.
+ * Resolution needs the config, which is per-engine, so it happens once at engine
+ * construction and the result is hung on the world:
+ *
+ *     world.species.get(entity.speciesId)   // resolved, frozen, allocation-free
+ *
+ * Systems must use that. This module exists to *declare* the roster; a
+ * module-level singleton of resolved species would be wrong the moment two
+ * engines with different configs share a process, which every sweep and half the
+ * test suite does.
  */
 import { herbivoreGrazer } from './herbivoreGrazer.js';
 import { predatorStalker } from './predatorStalker.js';
-
-/** @type {Readonly<Record<string, object>>} */
-export const SPECIES = Object.freeze({
-  [herbivoreGrazer.id]: herbivoreGrazer,
-  [predatorStalker.id]: predatorStalker,
-});
+import { scavengerCorvid } from './scavengerCorvid.js';
 
 /**
- * Whether `predatorId`'s species hunts `preyId`'s species. The single source
- * of the predator/prey relation, read in both directions: perception uses it to
- * tell a predator what to hunt and to tell prey what to fear, so no system ever
- * branches on a species name.
- * @param {string} predatorSpeciesId
- * @param {string} preySpeciesId
+ * The declared roster, in a fixed order. Iteration order is deterministic
+ * everywhere in this engine by rule, and this list is what founding spawns and
+ * metrics bucketing walk.
+ * @type {ReadonlyArray<object>}
  */
-export function hunts(predatorSpeciesId, preySpeciesId) {
-  return SPECIES[predatorSpeciesId]?.preySpeciesIds?.includes(preySpeciesId) ?? false;
-}
+export const SPECIES_DEFINITIONS = Object.freeze([herbivoreGrazer, predatorStalker, scavengerCorvid]);
+
+/** @type {Readonly<Record<string, object>>} raw definitions by id */
+export const SPECIES = Object.freeze(Object.fromEntries(SPECIES_DEFINITIONS.map((s) => [s.id, s])));
 
 /**
- * Look up a species definition by id.
+ * Look up a raw species definition by id.
+ *
+ * For fixtures and tests that need the declared facts (`bodyMass`, `baseSpeed`,
+ * `id`) before an engine exists. Anything reading *resolved* biology wants
+ * `world.species` instead.
  * @param {string} id
  * @returns {object}
  */
@@ -38,7 +51,7 @@ export function getSpecies(id) {
   return species;
 }
 
-/** @returns {object[]} all species definitions */
+/** @returns {object[]} all raw species definitions */
 export function listSpecies() {
-  return Object.values(SPECIES);
+  return [...SPECIES_DEFINITIONS];
 }

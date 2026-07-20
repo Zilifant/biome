@@ -228,7 +228,7 @@ describe('metrics: selection sandbox', () => {
       config: {
         world: { width: 36, height: 36 },
         terrain: { lakes: 1, ridges: 0, coverPatchDensity: 0.5 },
-        demo: { animalCount: 70, predatorCount: 0, speciesId: 'herbivore.grazer', predatorSpeciesId: 'predator.stalker' },
+        demo: { founding: [{ speciesId: 'herbivore.grazer', count: 70 }] },
         // Sparse food and an expensive body are the pressure, retuned in Step 22
         // (from capacity 1.4 at the default basal rate of 0.04). The old
         // settings barely applied one: breaking the deaths down by cause showed

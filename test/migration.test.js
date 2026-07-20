@@ -17,6 +17,8 @@ import {
 } from '../src/simulation/migration/migration.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
+import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
+import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { LifeEventTypes } from '../src/simulation/systems/lifeEvents.js';
 import { buildFullSnapshot } from '../src/protocol/snapshots.js';
@@ -24,6 +26,8 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 
 const CONFIG = new SimulationEngine().config;
+// Resolved species (Step 29): the accessors take a resolved record, not an id.
+const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
 const GRAZER = getSpecies('herbivore.grazer');
 const STALKER = getSpecies('predator.stalker');
 const TWO_PI = Math.PI * 2;
@@ -275,7 +279,7 @@ describe('migration: what steers a wander', () => {
     const id = spawn(engine, { speciesId: STALKER.id, x: 32.5, y: 32.5, energy: 10 });
     engine.step(1);
     const stalker = engine.world.entities.get(id);
-    assert.equal(migrationOf(STALKER.id).tracksForage, false);
+    assert.equal(migrationOf(REGISTRY.get(STALKER.id)).tracksForage, false);
     assert.equal(stalker.migrationStrength, 0, 'a stalker does not follow the grass');
   });
 
@@ -452,7 +456,7 @@ describe('migration: natal dispersal', () => {
     assert.ok(isDispersing(juvenile, engine.clock.tick), 'and it is walking');
 
     // Now let it walk. The claim is spatial, so it is measured in distance.
-    engine.step(CONFIG.migration.updateInterval + migrationOf(GRAZER.id).dispersalTicks);
+    engine.step(CONFIG.migration.updateInterval + migrationOf(REGISTRY.get(GRAZER.id)).dispersalTicks);
     const settled = engine.world.entities.get(juvenileId);
     const travelled = Math.hypot(settled.x - 32, settled.y - 32);
     assert.ok(travelled > 20, `left the natal range (got ${travelled.toFixed(1)} units)`);
@@ -525,7 +529,7 @@ describe('migration: protocol, persistence, and the demo', () => {
     const details = engine.getEntityDetails(id);
     assert.equal(details.migration.dispersing, true);
     assert.equal(details.migration.tracksForage, true);
-    assert.equal(details.migration.cueRadius, migrationOf(GRAZER.id).cueRadius);
+    assert.equal(details.migration.cueRadius, migrationOf(REGISTRY.get(GRAZER.id)).cueRadius);
     assert.ok(details.migration.drift, 'the live drift is inspectable');
     assert.equal(details.migration.drift.strength, CONFIG.migration.dispersalWeight);
   });

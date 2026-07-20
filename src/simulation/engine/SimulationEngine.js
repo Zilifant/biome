@@ -24,6 +24,8 @@ import { EventTypes } from '../events/EventTypes.js';
 import { CommandProcessor } from '../commands/CommandProcessor.js';
 import { SeededRandom, deriveSeed } from '../random/SeededRandom.js';
 import { defaultSimulationConfig, mergeConfig } from '../config/defaultSimulationConfig.js';
+import { SpeciesRegistry } from '../config/species/schema.js';
+import { SPECIES_DEFINITIONS } from '../config/species/index.js';
 import { recordTombstone, lookupLineageList, lookupLineage } from '../world/lineage.js';
 import { genotypeOf } from '../traits/genetics.js';
 import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js';
@@ -93,8 +95,13 @@ export class SimulationEngine {
     // generation never shifts other streams, and regenerate identically on
     // load. (Vegetation biomass is also persisted, since feeding will make it
     // no longer reproducible from the seed alone.)
+    // Species resolve against the config, so the registry is built here (where
+    // the config exists) and handed to the world rather than being a module
+    // singleton — two engines with different configs must not share one.
+    this.species = new SpeciesRegistry(SPECIES_DEFINITIONS, this.config);
     this.world = new World({
       ...this.config.world,
+      species: this.species,
       terrainSeed: deriveSeed(this.seed, 'terrain'),
       terrain: this.config.terrain,
       vegetationSeed: deriveSeed(this.seed, 'vegetation'),
@@ -374,7 +381,7 @@ export class SimulationEngine {
       // as it goes unmated), and the last animal it actually sized up. Without
       // the threshold beside the quality, a rejection looks arbitrary.
       mateChoice: {
-        preference: matePreferenceFor(entity.speciesId),
+        preference: matePreferenceFor(this.world.species.get(entity.speciesId)),
         choosiness: entity.traits.choosiness ?? null,
         searchingSince: entity.mateSearchSince,
         searchingTicks: entity.mateSearchSince === null ? null : this.clock.tick - entity.mateSearchSince,
@@ -394,7 +401,7 @@ export class SimulationEngine {
       // avoiding this ground" is checkable rather than inferred, and `holding`
       // is how much ground this animal actually owns.
       territory: (() => {
-        const species = territoryOf(entity.speciesId);
+        const species = territoryOf(this.world.species.get(entity.speciesId));
         const owner = this.world.scent.ownerAt(entity.x, entity.y);
         return {
           defends: species?.defends ?? false,
@@ -416,7 +423,7 @@ export class SimulationEngine {
       // `settled` is where this animal last lived, which is the baseline the
       // `entity.migrated` event fires against.
       migration: (() => {
-        const species = migrationOf(entity.speciesId);
+        const species = migrationOf(this.world.species.get(entity.speciesId));
         const habitat =
           species?.tracksForage
             ? forageGradient(this.world, entity, {

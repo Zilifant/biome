@@ -46,7 +46,6 @@
  * fixed-draw-budget convention, and it means migration cannot shift another
  * system's sequence even in principle.
  */
-import { SPECIES } from '../config/species/index.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -75,8 +74,8 @@ function normalizeAngle(angle) {
 }
 
 /** The migration block of a species, or null if it declares none. */
-export function migrationOf(speciesId) {
-  return SPECIES[speciesId]?.migration ?? null;
+export function migrationOf(species) {
+  return species?.migration ?? null;
 }
 
 /**

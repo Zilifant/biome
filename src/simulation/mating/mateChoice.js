@@ -52,7 +52,6 @@
  * There is no randomness: quality is a pure function of traits and condition.
  */
 import { SEXES } from '../../protocol/commands.js';
-import { SPECIES } from '../config/species/index.js';
 
 /** @type {{FEMALE: 'female', MALE: 'male'}} */
 export const Sexes = Object.freeze({ FEMALE: 'female', MALE: 'male' });
@@ -92,8 +91,8 @@ export function isChooser(entity) {
  * every candidate is judged on condition alone).
  * @param {string} speciesId
  */
-export function matePreferenceFor(speciesId) {
-  return SPECIES[speciesId]?.matePreference ?? null;
+export function matePreferenceFor(species) {
+  return species?.matePreference ?? null;
 }
 
 /**

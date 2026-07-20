@@ -11,9 +11,10 @@ import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapsho
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 
 function hydrationOnlyEngine(params = {}) {
-  const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 } } });
+  const hydration = { dehydrationRate: 0.05, drinkRate: 5, drinkRange: 1.5, dehydrationDamage: 0.5, ...params };
+  const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 }, hydration } });
   engine.registerSystem(
-    new HydrationSystem({ dehydrationRate: 0.05, drinkRate: 5, drinkRange: 1.5, dehydrationDamage: 0.5, ...params }),
+    new HydrationSystem(hydration),
   );
   return engine;
 }
@@ -79,10 +80,11 @@ describe('hydration: drinking', () => {
   test('a drinking animal near water gains hydration (net of dehydration)', () => {
     // Perception + decision + hydration on a world with a water cell next to
     // the animal, so it can actually drink.
-    const engine = new SimulationEngine({ seed: 42, config: { world: { width: 128, height: 128 } } });
+    const hydration = { dehydrationRate: 0.05, drinkRate: 5, drinkRange: 1.5 };
+    const engine = new SimulationEngine({ seed: 42, config: { world: { width: 128, height: 128 }, hydration } });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 8 }));
     engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));
-    engine.registerSystem(new HydrationSystem({ dehydrationRate: 0.05, drinkRate: 5, drinkRange: 1.5 }));
+    engine.registerSystem(new HydrationSystem(hydration));
     // Find a water cell and place a thirsty animal right beside it.
     let water = null;
     for (let y = 0; y < 128 && !water; y += 1) {

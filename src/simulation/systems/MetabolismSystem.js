@@ -76,11 +76,17 @@ export class MetabolismSystem extends SimulationSystem {
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
+      // Per-species bioenergetics (Step 29, closing §1.4 B3). Until now every
+      // animal paid the grazer's basal rate and the grazer's cost per unit of
+      // travel, whatever it was. One `Map.get` of a pre-resolved, pre-frozen
+      // record — no merging or defaulting in the loop, per the step's
+      // performance note.
+      const params = world.species.get(entity.speciesId)?.metabolism ?? this;
       // A more efficient individual (Step 14) burns proportionally less for the
       // same mass and the same distance travelled.
-      const massFactor = (entity.bodyMass / this.referenceMass) ** this.massScalingExponent / entity.traits.metabolicEfficiency;
-      const basalCost = this.basalRate * massFactor;
-      const moveCost = this.moveCostFactor * entity.lastMoveDistance * massFactor;
+      const massFactor = (entity.bodyMass / params.referenceMass) ** params.massScalingExponent / entity.traits.metabolicEfficiency;
+      const basalCost = params.basalRate * massFactor;
+      const moveCost = params.moveCostFactor * entity.lastMoveDistance * massFactor;
       // Holding body temperature against the weather (Step 19). Cover shelters
       // an animal from part of the swing, which is what makes seeking it worth
       // the walk. Charged as energy, so cold kills by burning an animal out —
@@ -98,7 +104,7 @@ export class MetabolismSystem extends SimulationSystem {
       }
 
       entity.energy = Math.max(0, entity.energy - basalCost - moveCost - thermalCost);
-      entity.lowEnergy = entity.energy < this.lowEnergyFraction * entity.maxEnergy;
+      entity.lowEnergy = entity.energy < params.lowEnergyFraction * entity.maxEnergy;
 
       if (entity.energy <= 0) {
         // Same mechanism either way — an empty animal dies — but an animal that
@@ -106,7 +112,7 @@ export class MetabolismSystem extends SimulationSystem {
         // and saying so is the difference between a readable ecosystem and a
         // pile of identical "starvation" events.
         const cause = stress >= this.exposureStressThreshold ? 'exposure' : 'starvation';
-        killAnimal(entity, cause, entity.bodyMass * this.edibleMassFraction, context.emit, context.tick);
+        killAnimal(entity, cause, entity.bodyMass * params.edibleMassFraction, context.emit, context.tick);
       }
     }
   }

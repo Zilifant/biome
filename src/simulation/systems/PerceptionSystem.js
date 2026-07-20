@@ -18,7 +18,6 @@
  * vegetation. No randomness.
  */
 import { SimulationSystem } from './SimulationSystem.js';
-import { SPECIES, hunts } from '../config/species/index.js';
 import { TerrainType } from '../world/TerrainGrid.js';
 
 export class PerceptionSystem extends SimulationSystem {
@@ -40,7 +39,7 @@ export class PerceptionSystem extends SimulationSystem {
     perception.clear();
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
-      const radius = SPECIES[entity.speciesId]?.perceptionRadius ?? this.defaultRadius;
+      const radius = world.species.get(entity.speciesId)?.perception?.radius ?? this.defaultRadius;
       perception.set(entity.id, this.#perceive(world, entity, radius));
     }
   }
@@ -100,12 +99,12 @@ export class PerceptionSystem extends SimulationSystem {
       }
       // Predation (Step 16), read from the species relation in both
       // directions in this one pass: what I hunt, and what hunts me.
-      if (hunts(entity.speciesId, other.speciesId) && (nearestPrey === null || distance < nearestPrey.distance)) {
+      if (world.species.hunts(entity.speciesId, other.speciesId) && (nearestPrey === null || distance < nearestPrey.distance)) {
         // `fleeing` is visible to the hunter: prey that has bolted is running,
         // and a predator that keeps walking will never close the gap again.
         nearestPrey = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y, fleeing: other.action === 'flee' };
       }
-      if (hunts(other.speciesId, entity.speciesId) && (nearestThreat === null || distance < nearestThreat.distance)) {
+      if (world.species.hunts(other.speciesId, entity.speciesId) && (nearestThreat === null || distance < nearestThreat.distance)) {
         nearestThreat = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
       }
       // Mate choice (Step 22): sensing a possible mate is sensing, so the

@@ -74,6 +74,18 @@ export const SPECIES_APPEARANCE = Object.freeze({
     priority: 60,
     label: 'stalker',
   }),
+  // Step 29 added this species to the engine with no engine code at all, and
+  // adding it here is the renderer's whole share of that: one entry, no change
+  // to the drawing algorithm. Ranked *below* prey, because a corvid on a
+  // carcass should not hide the carcass — the body is the more informative
+  // glyph, and the bird is only there because of it.
+  'scavenger.corvid': Object.freeze({
+    glyph: 'v',
+    glyphBySex: Object.freeze({ female: 'v', male: 'V' }),
+    colorToken: 'purple',
+    priority: 45,
+    label: 'corvid',
+  }),
 });
 
 /**

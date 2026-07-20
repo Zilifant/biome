@@ -688,21 +688,24 @@ export const defaultSimulationConfig = Object.freeze({
   // biology moved to species definitions (config/species/*); no per-animal
   // tuning lives here anymore.
   demo: Object.freeze({
-    animalCount: 120,
-    speciesId: 'herbivore.grazer',
-    // Predators (Step 16, re-tuned in Step 18). These counts are measured, not
-    // guessed. Step 18 changed the economics fundamentally: before carcasses
-    // decayed, the ever-growing pile of bodies was a free larder that kept
-    // predators fed without hunting, and the old 60/4 balance quietly depended
-    // on it. With decay on, predators must actually hunt, and at those small
-    // numbers the system is bistable — 1–3 predators starve out, 4 wipe the
-    // grazers out. Scaling both cohorts up is what restores a real cycle:
-    // measured over 15k ticks on five seeds, 120/8 leaves both species alive in
-    // all five (roughly 74–255 grazers against 4–13 predators). Nothing
-    // enforces that balance — it emerges from encounter rates, capture odds,
-    // carcass availability, and lifespan.
-    predatorCount: 8,
-    predatorSpeciesId: 'predator.stalker',
+    // The founding roster: which species the demo world starts with and how
+    // many of each, walked in order. From Step 29 this is a *list*, not a pair
+    // of hardcoded species slots — adding a species to the world is a line
+    // here, which is what makes "a species is config, not code" checkable
+    // rather than merely claimed.
+    //
+    // The counts are a measured knife edge; see the Step 16 and 22 notes for
+    // the grazer/stalker sweep behind 120/8, and the Step 29 notes for the
+    // scavenger's 10. §1.4 D14: five seeds cannot resolve a one-seed
+    // difference here, so re-measure on ten before changing any of them.
+    founding: Object.freeze([
+      Object.freeze({ speciesId: 'herbivore.grazer', count: 120 }),
+      Object.freeze({ speciesId: 'predator.stalker', count: 8 }),
+      // A scavenger, added in Step 29 with no engine changes whatsoever — it is
+      // a carnivore that declares no prey, so it can only eat what is already
+      // dead. Small, because carrion is a thin and unreliable living.
+      Object.freeze({ speciesId: 'scavenger.corvid', count: 10 }),
+    ]),
   }),
 });
 

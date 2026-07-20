@@ -23,10 +23,10 @@ function traits(overrides = {}) {
 }
 
 /** Bare open ground, so a hand-placed food patch is the only food anywhere. */
-function sandbox({ seed = 3, size = 44, systems = [] } = {}) {
+function sandbox({ seed = 3, size = 44, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -245,17 +245,18 @@ describe('traits: behavioural consequences', () => {
 describe('traits: reproductive investment', () => {
   function birthWith(investment) {
     const config = new SimulationEngine().config;
+    // ⚠ Per-species from Step 29: reproduction params reach the *config* so the
+    // species registry resolves with them.
+    const reproduction = {
+      ...config.reproduction,
+      gestationTicks: 2,
+      // Mate choice off: the variable under test is investment, and both
+      // parents are built to be identical apart from it.
+      acceptanceThreshold: 0,
+    };
     const engine = sandbox({
-      systems: [
-        new ReproductionSystem({
-          ...config.reproduction,
-          gestationTicks: 2,
-          // Mate choice off: the variable under test is investment, and both
-          // parents are built to be identical apart from it.
-          acceptanceThreshold: 0,
-          birthMass: config.aging.birthMass,
-        }),
-      ],
+      config: { reproduction },
+      systems: [new ReproductionSystem({ ...reproduction, birthMass: config.aging.birthMass })],
     });
     const parentEnergy = GRAZER.maxEnergy;
     const mother = spawnIndividual(engine, { x: 20, y: 20, sex: 'female', energy: parentEnergy, individual: { reproductiveInvestment: investment } });

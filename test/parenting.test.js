@@ -24,10 +24,10 @@ const PARENTING = {
 };
 
 /** Open ground, no lakes or ridges, so distances are the only thing at play. */
-function parentingEngine(params = {}) {
+function parentingEngine({ config = {}, ...params } = {}) {
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
   });
   engine.registerSystem(new ParentingSystem({ ...PARENTING, ...params }));
   return engine;
@@ -240,17 +240,19 @@ describe('parenting: life history', () => {
   });
 
   test('a newborn records "born" and both parents record "birthed" plus the offspring id', () => {
-    const engine = parentingEngine();
+    // ⚠ Per-species from Step 29: reproduction params must reach the *config*
+    // so the species registry resolves with them — a species' own block beats
+    // anything the system was constructed with.
+    const reproduction = {
+      gestationTicks: 2,
+      minEnergyFraction: 0.7,
+      // Mate choice off — this test is about the life-history record a birth
+      // writes, not about who was willing to breed with whom.
+      acceptanceThreshold: 0,
+    };
+    const engine = parentingEngine({ config: { reproduction } });
     engine.registerSystem(
-      new ReproductionSystem({
-        ...engine.config.reproduction,
-        gestationTicks: 2,
-        minEnergyFraction: 0.7,
-        // Mate choice off — this test is about the life-history record a birth
-        // writes, not about who was willing to breed with whom.
-        acceptanceThreshold: 0,
-        birthMass: 5,
-      }),
+      new ReproductionSystem({ ...engine.config.reproduction, ...reproduction, birthMass: 5 }),
     );
     const a = spawn(engine, { x: 10, y: 10, lifeStage: 'adult', sex: 'female', bodyMass: 30, energy: 95 });
     const b = spawn(engine, { x: 11, y: 10, lifeStage: 'adult', sex: 'male', bodyMass: 30, energy: 95 });

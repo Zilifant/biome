@@ -26,10 +26,17 @@ describe('herbivore spawning', () => {
   test('demo animals are configured from the species definition', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const species = getSpecies('herbivore.grazer');
-    const { animalCount, predatorCount } = engine.config.demo;
-    assert.equal(engine.entityCount, animalCount + predatorCount, 'both cohorts are founded');
+    // The founding roster is a list from Step 29, so every cohort in it is
+    // asserted rather than a hardcoded prey/predator pair.
+    const roster = engine.config.demo.founding;
+    const total = roster.reduce((sum, cohort) => sum + cohort.count, 0);
+    assert.equal(engine.entityCount, total, 'every cohort in the roster is founded');
+    for (const cohort of roster) {
+      const members = [...engine.world.entities.all()].filter((e) => e.speciesId === cohort.speciesId);
+      assert.equal(members.length, cohort.count, `${cohort.speciesId} cohort`);
+    }
+    const animalCount = roster.find((c) => c.speciesId === 'herbivore.grazer').count;
     const grazers = [...engine.world.entities.all()].filter((e) => e.speciesId === 'herbivore.grazer');
-    assert.equal(grazers.length, animalCount);
     for (const entity of grazers) {
       assert.equal(entity.kind, 'animal');
       // Body mass follows the growth curve for the animal's (spread) initial

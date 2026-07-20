@@ -4,22 +4,26 @@
  * JSON-serializable data describing how members of the species work, not how
  * they look.
  *
- * The first real herbivore: a generic grazer. Fields marked "(Step N)" are
- * declared now so the species seam is stable, but only mass/speed/energy/
- * health are exercised in Step 4 — behavior, metabolism, and life stages
- * arrive in later steps.
+ * The first real herbivore: a generic grazer, and the animal every global
+ * default in the config was tuned around — so it overrides almost nothing. Read
+ * this file as "the baseline"; the interesting reading is what the *other*
+ * species change about it (see `config/species/schema.js` for how the blocks
+ * fall back to the config).
  */
 export const herbivoreGrazer = Object.freeze({
   id: 'herbivore.grazer',
   kind: 'animal',
   diet: 'herbivore',
-  bodyMass: 30, // kg (adult); individual variation arrives in Step 14
+  bodyMass: 30, // kg (adult)
   baseSpeed: 1.2, // world units per tick
   maxEnergy: 100, // energy units
   maxHealth: 100, // health units
   maxHydration: 100, // hydration units
   maxStamina: 100, // sprint budget, spent fleeing (Step 16)
-  perceptionRadius: 6, // world units the animal can sense around itself
+  // Perception (Step 29, closing §1.4 B4). Was a bare `perceptionRadius`
+  // scalar — a *third* config pattern beside the global sections and the
+  // per-species blocks. Now a block like every other.
+  perception: Object.freeze({ radius: 6 }),
   // Thermal comfort band (Step 19), °C. Outside it the animal pays energy to
   // hold its body temperature; cover takes the edge off.
   comfortMin: 2,
@@ -45,11 +49,7 @@ export const herbivoreGrazer = Object.freeze({
   // beyond what the animal can see, standing in for the coarse long-range cues
   // this world does not simulate; see migration/migration.js, where that
   // assumption is stated rather than buried. `dispersalTicks` is how long a
-  // juvenile holds its outward heading after leaving its guardian. How *hard*
-  // the gradient steers is `migration.biasWeight` in the simulation config, not
-  // here: it is mechanism strength rather than biology, it was tuned against a
-  // five-seed control, and `tracksForage` already decides per species whether
-  // it applies at all.
+  // juvenile holds its outward heading after leaving its guardian.
   migration: Object.freeze({ tracksForage: true, cueRadius: 18, dispersalTicks: 400 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });
