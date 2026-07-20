@@ -117,6 +117,7 @@ export class RendererApp {
           memories: this.#selectedMemories(),
           huntTargetId: this.#huntTargetId(),
           groupId: this.#selectedGroupId(),
+          homeRange: this.#selectedHomeRange(),
         });
         this.#ui.statusPanel.update(this.#store, this.#camera);
       }
@@ -312,6 +313,19 @@ export class RendererApp {
     const activeId = this.#store.selection?.activeId;
     if (activeId == null) return null;
     return this.#store.getEntity(activeId)?.groupId ?? null;
+  }
+
+  /**
+   * The selected animal's settled home range (protocol v23), for the grid
+   * overlay. Inspection-only and therefore live-only, like memories and family
+   * marks: a range moves slowly, so refreshing it with the selection rather
+   * than every tick loses nothing.
+   * @returns {{x: number, y: number, radius: number} | null}
+   */
+  #selectedHomeRange() {
+    const detail = this.#inspectionDetail?.entity;
+    if (!detail || detail.id !== this.#store.selection?.activeId) return null;
+    return detail.territory?.homeRange ?? null;
   }
 
   /**

@@ -233,6 +233,47 @@ function formatSocial(detail) {
   return `<h3>Herd</h3>${rows.join('')}`;
 }
 
+/**
+ * Render territory (protocol v23): where this animal lives, how far it has
+ * strayed, and whose ground it is standing on.
+ *
+ * The home range is shown as a centre and a radius because that is literally
+ * all the simulation keeps — four numbers accumulated in place, not a track.
+ * `standingOn` is the same O(1) lookup the avoidance behaviour reads, so an
+ * animal heading away from good grass has a visible reason.
+ */
+function formatTerritory(detail) {
+  const territory = detail?.territory;
+  if (!territory) return '';
+  const rows = [];
+  const range = territory.homeRange;
+  if (range) {
+    rows.push(
+      `<div class="field"><span>lives around</span><span>${range.x.toFixed(0)},${range.y.toFixed(0)} <span class="dim">r ${range.radius.toFixed(1)}</span></span></div>`,
+    );
+    if (territory.drift != null) {
+      const far = territory.rangeRadius != null && territory.drift > territory.rangeRadius;
+      rows.push(
+        `<div class="field"><span>from centre</span><span class="${far ? 'warn' : ''}">${territory.drift.toFixed(1)}${far ? ' (outside)' : ''}</span></div>`,
+      );
+    }
+  } else {
+    rows.push('<div class="field"><span>home range</span><span class="dim">not settled yet</span></div>');
+  }
+  if (territory.defends) {
+    rows.push(`<div class="field"><span>holds</span><span>${territory.holding} cell${territory.holding === 1 ? '' : 's'}</span></div>`);
+  }
+  const ground = territory.standingOn;
+  if (ground && ground.ownerId !== 0) {
+    rows.push(
+      ground.own
+        ? `<div class="field"><span>standing on</span><span class="ok">own ground <span class="dim">${ground.strength.toFixed(2)}</span></span></div>`
+        : `<div class="field"><span>standing on</span><span class="warn">#${ground.ownerId}'s ground <span class="dim">${ground.strength.toFixed(2)}</span></span></div>`,
+    );
+  }
+  return `<h3>Range</h3>${rows.join('')}`;
+}
+
 /** Render the transient perception summary (protocol v6), or nothing. */
 function formatPerception(perception) {
   if (!perception) return '';
@@ -339,6 +380,7 @@ export class EntityInspector {
       ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
+    const territoryBlock = formatTerritory(liveDetail);
     const socialBlock = formatSocial(liveDetail);
     const mateChoiceBlock = formatMateChoice(liveDetail);
     const familyBlock = formatFamily(liveDetail);
@@ -363,6 +405,7 @@ export class EntityInspector {
       ${traitsBlock}
       ${geneticsBlock}
       ${socialBlock}
+      ${territoryBlock}
       ${mateChoiceBlock}
       ${familyBlock}
       ${utilitiesBlock}

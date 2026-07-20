@@ -34,5 +34,11 @@ export const herbivoreGrazer = Object.freeze({
   // saturates the signal; `conditionWeight` is how much plain body condition
   // counts beside it (see mating/mateChoice.js).
   matePreference: Object.freeze({ trait: 'size', span: 0.3, conditionWeight: 0.4 }),
+  // Territory (Step 24). Grazers have a **home range but do not defend it** —
+  // they are herd animals whose ranges overlap freely, so `defends: false`
+  // buys site fidelity (an animal returns to familiar ground instead of
+  // wandering off forever) without exclusivity. That is the honest split:
+  // every animal lives somewhere, not every animal owns it.
+  territory: Object.freeze({ defends: false, rangeRadius: 14, settleTicks: 900 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

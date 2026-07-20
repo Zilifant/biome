@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–23 are done; Step 24 is next.
+protocol for continuing the work. Steps 1–24 are done; Step 25 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -159,7 +159,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `22`) and is
+Everything a client sees carries `protocolVersion` (currently `23`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -179,7 +179,8 @@ built by `src/protocol/`:
   `mateChoice` block (what its species reads in a mate, its own choosiness, the
   standard it is currently holding, and the last animal it sized up), its
   `social` block (herd, *derived* dominance, alarm state, who it is defending),
-  and the family/life-history block (resolved `lineage`, parenting state, bounded
+  its `territory` block (home range, drift from it, ground held, whose claim it
+  is standing on), and the family/life-history block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
@@ -203,7 +204,9 @@ built by `src/protocol/`:
   travelled from whoever actually saw the predator, so a wave of panic is
   readable), `entity.contested` (`{ entityId, opponentId, winnerId, dominance,
   opponentDominance, escalated }` — both scores, because dominance decides it and
-  there is no roll to report), `entity.defended`, `entity.hunted`
+  there is no roll to report), `entity.disputed` (the same, over ground, plus how
+  many cells actually changed hands — the part an observer could not otherwise
+  see), `entity.defended`, `entity.hunted`
   (`{ entityId, targetId, chance, captured }` — the odds are reported, not
   hidden), `entity.killed`, `entity.escaped`, `entity.injured`
   (`{ entityId, injury, severity, sourceId }`), `entity.recovered`,
@@ -227,7 +230,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `21`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `22`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors.
@@ -270,7 +273,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 448 tests.
+ASCII renderer, committed fixtures, and 480 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -321,6 +324,7 @@ Their full loop is implemented:
 | `CarcassSystem` | physiology | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass |
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
 | `SocialSystem` | decision | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop |
+| `TerritorySystem` | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance |
 | `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
 The result is a **multi-generational, self-sustaining population** with a
@@ -356,6 +360,29 @@ balance — measured over 20k ticks on five seeds, roughly 24–111 grazers agai
 1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
 `config.demo` for the measured sweep behind the founding counts).
+
+**Animals live somewhere, and some of them own it.** Every animal carries a
+*home range* that is nothing more than a running average of where it has
+actually been — a centre and a typical distance from it, four numbers updated in
+place, with no record of the path that produced them. Nobody sets the radius: a
+resident's tightens, a rover's widens, and an animal that moves house drags its
+range along behind it.
+
+A **territory** is a separate thing, and only some species have one. It is a
+mark on the ground — a coarse layer holding who claims each patch and how fresh
+the claim is — and everything else follows from that pair of numbers. Avoidance
+is a lookup. Conflict is standing on somebody else's claim. Losing a territory
+is a stronger claim overwriting a weaker one. And ground whose owner has died or
+moved on needs no rule at all: the claim simply fades and the next animal
+through writes its own. Taking *occupied* ground wears the resident's claim down
+rather than overwriting it, which is what makes a boundary settle where two
+animals' marking rates balance instead of wherever the last passer-by stood.
+When an intruder meets an owner who is present to object, they contest — the
+same dominance contest that settles a mating rivalry — and the loser hands over
+everything it held at once.
+
+Grazers have ranges; stalkers hold ground. That difference — living somewhere
+versus owning it — is the distinction the whole mechanism turns on.
 
 **Animals form herds, and a herd is a label rather than a roster.** Nothing
 anywhere holds a membership list: animals in sight of each other converge on a
@@ -482,12 +509,12 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Territory, disease, migration, disturbances,
+Disease, migration, disturbances,
 ecosystem engineering, a config-driven species schema (beyond today's two
 hand-written species), and profile-driven optimization toward tens of thousands
 of animals.
 
-`PLAN.md` sequences all of these as Steps 24–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 25–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

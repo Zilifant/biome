@@ -63,6 +63,13 @@ function formatEvent(event) {
       return `vs contest #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.opponentId} (${event.opponentDominance?.toFixed(0)}) → #${event.winnerId}${
         event.escalated ? ' FIGHT' : ' yielded'
       }`;
+    case 'entity.disputed':
+      // How much ground actually moved is the payload's whole point: a dispute
+      // that transfers 40 cells is a resident being evicted, one that transfers
+      // 1 is a scuffle at a boundary.
+      return `[] ground #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.ownerId} (${event.ownerDominance?.toFixed(0)}) → #${event.winnerId}${
+        event.escalated ? ' FIGHT' : ''
+      }${event.cellsTransferred ? ` (+${event.cellsTransferred} cells)` : ''}`;
     case 'entity.defended':
       return `# defends #${event.entityId} over #${event.wardId} against #${event.threatId}`;
     case 'entity.lifeEvent':
@@ -87,6 +94,7 @@ function eventClass(event) {
   if (event.type === 'entity.escaped') return 'event-other';
   if (event.type === 'entity.injured') return 'event-died';
   if (event.type === 'entity.alarmed' || event.type === 'entity.contested') return 'event-other';
+  if (event.type === 'entity.disputed') return 'event-other';
   if (event.type === 'entity.defended') return 'event-birth';
   if (event.type === 'entity.recovered') return 'event-created';
   if (event.type === 'entity.decayed') return 'event-removed';

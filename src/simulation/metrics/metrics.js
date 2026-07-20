@@ -112,6 +112,9 @@ export function computeMetrics(world, { tick, windowTicks }) {
         // reason the social system can cap group size without one.
         grouped: 0,
         groupCounts: new Map(),
+        // Home ranges (Step 24): the radii of animals that have settled one.
+        rangeRadii: [],
+        settled: 0,
         // Adults, split by whether they have actually reproduced — the two
         // samples a selection differential is the difference between — and
         // again by sex, because that is the split sexual selection lives in.
@@ -146,6 +149,10 @@ export function computeMetrics(world, { tick, windowTicks }) {
     bucket.living += 1;
     if (entity.lifeStage in bucket.lifeStages) bucket.lifeStages[entity.lifeStage] += 1;
     if (entity.sex !== null && entity.sex in bucket.sexes) bucket.sexes[entity.sex] += 1;
+    if (entity.homeRange !== null) {
+      bucket.settled += 1;
+      bucket.rangeRadii.push(entity.homeRange.radius);
+    }
     if (entity.groupId !== null) {
       bucket.grouped += 1;
       bucket.groupCounts.set(entity.groupId, (bucket.groupCounts.get(entity.groupId) ?? 0) + 1);
@@ -188,6 +195,11 @@ export function computeMetrics(world, { tick, windowTicks }) {
         groups: bucket.groupCounts.size,
         size: describe([...bucket.groupCounts.values()]),
       },
+      // Territory (Step 24). Radii summarized, never the ranges themselves —
+      // a per-animal centre list would be exactly the per-organism record the
+      // observation roadmap rules out, and the inspector already serves the
+      // one-animal question.
+      homeRange: { settled: bucket.settled, radius: describe(bucket.rangeRadii) },
       generation: describe(bucket.generations),
       reproductiveSuccess: describe(bucket.offspringCounts),
       births: bucket.births,
@@ -224,6 +236,10 @@ export function computeMetrics(world, { tick, windowTicks }) {
     windowTicks,
     totalEntities: world.entities.count,
     carcasses,
+    // How much of the world is spoken for, and by how many holders. Cheap
+    // (one pass over a coarse grid) and world-level rather than per-species,
+    // because the claim layer does not distinguish them.
+    territory: world.scent ? world.scent.summary() : null,
     species,
   };
 }

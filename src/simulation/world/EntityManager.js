@@ -54,6 +54,9 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {number | null} alarmedUntil tick this animal stops being alarmed
  * @property {{x: number, y: number} | null} alarmSource where the threat was
  * @property {number | null} lastContestTick tick of the last dominance contest
+ * @property {{x: number, y: number, radius: number, samples: number} | null}
+ *   homeRange bounded running summary of where this animal lives (Step 24)
+ * @property {number | null} lastMarkTick tick it last marked ground
  * @property {Array<{tick: number, type: string}>} lifeEvents bounded life history
  * @property {string | null} sex 'female' | 'male' (Step 22); null for non-animals
  * @property {number | null} gestationUntil tick the pregnancy comes to term
@@ -170,6 +173,13 @@ function createEntity(id, definition) {
     alarmedUntil: definition.alarmedUntil ?? null,
     alarmSource: definition.alarmSource ?? null,
     lastContestTick: definition.lastContestTick ?? null,
+    // Home range (Step 24). Four numbers, not a trajectory: an exponentially
+    // weighted centroid of where this animal has actually been, plus its mean
+    // distance from that centre. Bounded by construction — the step's
+    // performance note rules out occupancy history, and this is the summary
+    // that replaces it. Null until the animal has lived somewhere.
+    homeRange: definition.homeRange ?? null,
+    lastMarkTick: definition.lastMarkTick ?? null,
     // The animal this one has decided to stand over, owned by the decision
     // system exactly as `huntTargetId` is, and read by hunting.
     defendingId: definition.defendingId ?? null,

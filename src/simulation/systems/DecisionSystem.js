@@ -9,6 +9,8 @@
  *   - defend       — a predator is on kin or a groupmate; stand and face it
  *   - flee         — a predator is in sight; sprint away (outranks everything)
  *   - herd         — drifted from the herd's centre; close up and fall in line
+ *   - retreat      — standing on a rival's marked ground; get off it
+ *   - patrol       — outside its own home range; head back to familiar ground
  *   - stalk        — prey sighted but out of range; close at a walk
  *   - chase        — prey within range; sprint (the hunting system resolves it)
  *   - eat          — standing on a food cell (consumption itself is Step 9)
@@ -39,6 +41,7 @@ import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js
 import { thermalStress } from '../world/Environment.js';
 import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateChoice.js';
 import { isKin } from '../social/dominance.js';
+import { territoryOf } from './TerritorySystem.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -76,6 +79,10 @@ export class DecisionSystem extends SimulationSystem {
    * @param {number} [options.herdDistance] no need to close up inside this range
    * @param {number} [options.defendWeight] urgency of facing a threat to kin
    * @param {number} [options.defendRange] how far an adult will go to interpose
+   * @param {number} [options.patrolWeight] pull back toward its own home range
+   * @param {number} [options.patrolSpanFactor] range radii the pull ramps over
+   * @param {number} [options.retreatWeight] pull off a rival's marked ground
+   * @param {number} [options.intrusionThreshold] claim strength that counts as occupied
    * @param {number} [options.huntWeight] how strongly hunger drives a predator to hunt
    * @param {number} [options.stalkDiscount] stalking's utility relative to chasing
    * @param {number} [options.chaseRange] distance at which stalking becomes a sprint
@@ -106,6 +113,10 @@ export class DecisionSystem extends SimulationSystem {
     herdDistance = 3.0,
     defendWeight = 2.6,
     defendRange = 5.0,
+    patrolWeight = 0.55,
+    patrolSpanFactor = 1.5,
+    retreatWeight = 0.7,
+    intrusionThreshold = 0.35,
     huntWeight = 1.4,
     stalkDiscount = 0.8,
     chaseRange = 4.0,
@@ -146,6 +157,10 @@ export class DecisionSystem extends SimulationSystem {
     this.herdDistance = herdDistance;
     this.defendWeight = defendWeight;
     this.defendRange = defendRange;
+    this.patrolWeight = patrolWeight;
+    this.patrolSpanFactor = patrolSpanFactor;
+    this.retreatWeight = retreatWeight;
+    this.intrusionThreshold = intrusionThreshold;
     this.huntWeight = huntWeight;
     this.stalkDiscount = stalkDiscount;
     this.chaseRange = chaseRange;
@@ -271,6 +286,56 @@ export class DecisionSystem extends SimulationSystem {
         social?.centroid && drift > this.herdDistance
           ? this.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - this.herdDistance) / Math.max(this.herdDistance, 1e-6))
           : 0;
+
+      // Territory (Step 24). Two pulls, both read from state the territory
+      // system already wrote — one O(1) grid lookup and four numbers on the
+      // entity, no search of any kind.
+      //
+      // `patrol` is **site fidelity**, and it is what makes a home range a
+      // range rather than a statistic: an animal that has wandered outside its
+      // own settled area heads back toward it, which reinforces the very
+      // summary that produced the pull. That feedback loop is the mechanism by
+      // which a range settles at all.
+      //
+      // `retreat` is avoidance: standing on ground somebody else has marked is
+      // uncomfortable, so get off it. A territorial animal weighs this more —
+      // it has ground of its own to be on — but even a non-defender gives a
+      // strong claim a wide berth.
+      const territory = territoryOf(entity.speciesId);
+      const homeRange = entity.homeRange;
+      const rangeDrift =
+        territory && homeRange ? Math.hypot(entity.x - homeRange.x, entity.y - homeRange.y) : 0;
+      const rangeLimit = territory ? territory.rangeRadius : 0;
+      // The ramp spans *half* the range radius, not all of it. Spanning the
+      // full radius meant patrol only reached full strength at twice the range
+      // — so an animal one range-width from home still preferred to wander,
+      // and site fidelity did nothing until it was already lost.
+      const patrolSpan = Math.max(rangeLimit * this.patrolSpanFactor, 1e-6);
+      // Only a species that *defends* ground goes back to it. Measured: giving
+      // the pull to grazers as well collapsed the demo from 5/5 seeds with both
+      // species alive to 2/5, and the reason is worth stating because it is not
+      // obvious — patrolling competes with **wandering**, and wandering is how
+      // a grazer finds the next patch once it has eaten this one. A herd animal
+      // pulled back to a 14-unit range starves inside it, and the predators go
+      // with the prey. Site fidelity is a real thing for an animal that holds
+      // ground; for one that follows food it is a liability, so the home range
+      // stays descriptive (measured, inspectable) and pulls on nothing.
+      const patrolPull =
+        territory?.defends && homeRange && rangeDrift > rangeLimit
+          ? this.patrolWeight * clamp01((rangeDrift - rangeLimit) / patrolSpan)
+          : 0;
+      const claimOwner = territory ? world.scent.ownerAt(entity.x, entity.y) : 0;
+      const intruding =
+        claimOwner !== 0 &&
+        claimOwner !== entity.id &&
+        world.scent.strengthAt(entity.x, entity.y) >= this.intrusionThreshold;
+      // Retreating needs somewhere to retreat *to*. An animal too young to have
+      // settled a range has nowhere, so it simply tolerates the ground it is
+      // on — which is also the honest behaviour, and which is why this guard is
+      // a condition rather than a null check further down. (Without it a
+      // newborn standing on a claim steered at a null target and crashed the
+      // tick; rare enough that only a 16 000-tick run found it.)
+      const retreatPull = intruding && homeRange ? this.retreatWeight * (territory.defends ? 1 : 0.5) : 0;
       const prey = perceived?.nearestPrey ?? null;
       const recovering = entity.lastHuntTick !== null && context.tick - entity.lastHuntTick < this.huntCooldownTicks;
       const willHunt =
@@ -293,6 +358,8 @@ export class DecisionSystem extends SimulationSystem {
         defend: defendUrgency,
         flee: Math.max(fleeUrgency, alarmFlee),
         herd: herdPull,
+        retreat: retreatPull,
+        patrol: patrolPull,
         chase: chasing ? this.huntWeight * hunger : 0,
         stalk: willHunt && !chasing ? this.huntWeight * hunger * this.stalkDiscount : 0,
         drink: atWater ? this.drinkBias + thirstDrive : 0,
@@ -331,7 +398,13 @@ export class DecisionSystem extends SimulationSystem {
                 ? threat
                 : action === 'herd'
                   ? { ...social.centroid, heading: social.heading, drift }
-                  : null;
+                  : action === 'patrol' || action === 'retreat'
+                    ? // Both head for its own ground: patrolling because it has
+                      // drifted off it, retreating because it is on somebody
+                      // else's. An animal with no range yet simply has nowhere
+                      // to retreat to, and the utilities above never fire.
+                      homeRange
+                    : null;
       const target = followed
         ? // Spread rather than rebuild: `herd` carries the group's mean heading
           // and this animal's drift alongside the position, and a literal that
@@ -472,6 +545,15 @@ export class DecisionSystem extends SimulationSystem {
               );
         return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false };
       }
+      case 'patrol':
+      case 'retreat': {
+        // Straight at its own range centre, at a walk. A separate case rather
+        // than a member of the fallthrough group below because the target here
+        // is a bare {x, y} with no cell — and because §1.4 D9 is what happens
+        // when you add a `case` into a fallthrough chain.
+        const heading = Math.atan2(target.y - entity.y, target.x - entity.x);
+        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false };
+      }
       case 'seekFood':
       case 'seekWater':
       case 'seekMate':
@@ -539,7 +621,14 @@ function argmaxUtility(utilities) {
     // which is what makes a hungry animal willing to graze its way out of the
     // group and a fed one drift back into it.
     'herd',
+    // Getting off a rival's ground beats settling down on it, but never beats
+    // eating, drinking, or running.
+    'retreat',
     'rest',
+    // Patrolling is what an animal does *instead of* wandering aimlessly — the
+    // lowest-ranked directed action there is, and deliberately just above the
+    // undirected one it replaces.
+    'patrol',
     'wander',
   ];
   let best = order[0];

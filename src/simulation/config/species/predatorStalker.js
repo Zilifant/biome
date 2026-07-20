@@ -33,5 +33,11 @@ export const predatorStalker = Object.freeze({
   // knows which species is which — the preference is read generically from
   // here (see mating/mateChoice.js).
   matePreference: Object.freeze({ trait: 'speed', span: 0.22, conditionWeight: 0.4 }),
+  // Territory (Step 24). A solitary ambush predator holds ground: it marks,
+  // it avoids a rival's marks, and it disputes ground it finds occupied. The
+  // range is wide because a predator needs a lot of prey to live off, and it
+  // settles slowly because a territory is a claim built over time, not a
+  // decision taken once.
+  territory: Object.freeze({ defends: true, rangeRadius: 26, settleTicks: 1400 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

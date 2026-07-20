@@ -26,6 +26,7 @@ import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
 import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
+import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
 import { Sexes } from '../simulation/mating/mateChoice.js';
@@ -66,6 +67,10 @@ export function registerDemoSystems(engine) {
       herdDistance: engine.config.decision.herdDistance,
       defendWeight: engine.config.decision.defendWeight,
       defendRange: engine.config.decision.defendRange,
+      patrolWeight: engine.config.decision.patrolWeight,
+      patrolSpanFactor: engine.config.decision.patrolSpanFactor,
+      retreatWeight: engine.config.decision.retreatWeight,
+      intrusionThreshold: engine.config.decision.intrusionThreshold,
     }),
   );
   engine.registerSystem(
@@ -98,6 +103,11 @@ export function registerDemoSystems(engine) {
     }),
   );
   engine.registerSystem(new ParentingSystem(engine.config.parenting));
+  // After movement (so it marks where the animal actually ended up) and after
+  // hunting and mating (so a fight over ground cannot pre-empt one over a mate).
+  engine.registerSystem(
+    new TerritorySystem({ ...engine.config.territory, injuryHealthDamage: engine.config.injury.healthDamage }),
+  );
   engine.registerSystem(
     new MetabolismSystem({
       ...engine.config.metabolism,

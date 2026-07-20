@@ -89,8 +89,10 @@ export class AsciiGridRenderer {
    *        has committed to, marked so a pursuit is legible mid-chase
    * @param {number | null} [options.groupId] the selected animal's herd label
    *        (protocol v22), so its groupmates can be picked out of a crowd
+   * @param {{x: number, y: number, radius: number} | null} [options.homeRange]
+   *        the selected animal's settled range (protocol v23), drawn as a ring
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -165,6 +167,28 @@ export class AsciiGridRenderer {
       ctx.globalAlpha = 0.25 + 0.55 * Math.max(0, Math.min(1, memory.strength));
       ctx.fillStyle = this.#color(appearance.colorToken);
       ctx.fillText(appearance.glyph, px + half, py + half);
+      ctx.globalAlpha = 1;
+    }
+    // Home range (protocol v23), drawn first and faintest of all the overlays:
+    // it is the widest and least specific thing on screen, and it is the one
+    // piece of an animal's state that is genuinely a *place* rather than a
+    // relationship. A ring of faint marks at the range radius rather than a
+    // filled disc, so it frames the ground without obscuring what is on it —
+    // and the centre marked, because "where this animal lives" is the number
+    // the simulation actually keeps.
+    if (homeRange && homeRange.radius > 0.5) {
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = this.#color('purple');
+      const steps = Math.max(12, Math.min(64, Math.round(homeRange.radius * 3)));
+      for (let i = 0; i < steps; i += 1) {
+        const angle = (i / steps) * Math.PI * 2;
+        const cellX = Math.floor(homeRange.x + Math.cos(angle) * homeRange.radius);
+        const cellY = Math.floor(homeRange.y + Math.sin(angle) * homeRange.radius);
+        const { px, py } = projection.cellToScreen(cellX, cellY);
+        ctx.fillText('.', px + half, py + half);
+      }
+      const centre = projection.cellToScreen(Math.floor(homeRange.x), Math.floor(homeRange.y));
+      ctx.fillText('+', centre.px + half, centre.py + half);
       ctx.globalAlpha = 1;
     }
     const activeId = store.selection?.activeId;

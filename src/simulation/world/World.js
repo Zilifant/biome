@@ -3,6 +3,7 @@ import { SpatialGrid } from './SpatialGrid.js';
 import { TerrainGrid, TerrainType } from './TerrainGrid.js';
 import { VegetationGrid } from './VegetationGrid.js';
 import { initialEnvironment } from './Environment.js';
+import { ScentGrid } from './ScentGrid.js';
 
 /**
  * The world aggregates entity storage, the spatial index, the static terrain
@@ -37,6 +38,14 @@ export class World {
       height: Math.floor(config.height),
       seed: (config.terrainSeed ?? 0) >>> 0,
       params: config.terrain ?? {},
+    });
+    // Territorial claims (Step 24): a coarse who-holds-what layer, deliberately
+    // lower resolution than the world grid. Written only by the territory
+    // system; persisted, since a map of claims cannot be recovered from a seed.
+    this.scent = new ScentGrid({
+      worldWidth: config.width,
+      worldHeight: config.height,
+      params: config.territory ?? {},
     });
     // Vegetation suitability is derived from terrain, so terrain comes first.
     this.vegetation = new VegetationGrid({

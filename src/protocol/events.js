@@ -55,6 +55,11 @@ export const EventTypes = Object.freeze({
   // the stronger animal wins. What is reported is *why* — both scores — and
   // whether it escalated into an actual fight rather than a yield.
   ENTITY_CONTESTED: 'entity.contested', // { entityId, opponentId, winnerId, dominance, opponentDominance, escalated, injured }
+  // Two residents and one piece of ground (Step 24). Like `entity.contested`
+  // there are no odds — dominance decides it — so both scores are reported
+  // instead, plus how much ground actually changed hands, which is the part an
+  // observer would otherwise have no way to see.
+  ENTITY_DISPUTED: 'entity.disputed', // { entityId, ownerId, winnerId, dominance, ownerDominance, escalated, cellsTransferred }
   // An adult putting itself between a predator and a groupmate or its own young.
   ENTITY_DEFENDED: 'entity.defended', // { entityId, wardId, threatId }
   // A milestone in one animal's life history. `event` is a life-event type

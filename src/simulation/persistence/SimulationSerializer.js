@@ -100,10 +100,16 @@
  *       perception, is transient and rebuilt on the next tick, and dominance is
  *       derived on read. v20 saves lack the fields and register a different
  *       system lineup, so they are invalidated.
+ *  22 — territories added (Step 24): a per-entity `homeRange` (the running
+ *       summary of where an animal lives) and `lastMarkTick`, a new top-level
+ *       `scent` block holding the claim layer, and the `TerritorySystem`
+ *       descriptor. Both are evolved state: a map of who holds what ground, and
+ *       an average built from a walk nobody recorded, cannot be recovered from
+ *       the seed. v21 saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 21;
+export const SAVE_FORMAT_VERSION = 22;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -125,6 +131,7 @@ export function captureSimulationState(engine) {
     // only the bounded history is stored, so a chart survives a restore.
     metricsHistory: engine.world.metricsHistory,
     vegetation: engine.world.vegetation.serialize(),
+    scent: engine.world.scent.serialize(),
     events: engine.events.serialize(),
     pendingCommands: engine.commands.serialize(),
     systems: engine.scheduler.describeSystems(),
@@ -159,6 +166,7 @@ export function restoreSimulationState(engine, saved) {
   engine.world.metrics = null; // derived; the next metrics tick rebuilds it
   engine.world.rebuildSpatialIndex();
   engine.world.vegetation.restore(saved.vegetation);
+  engine.world.scent.restore(saved.scent);
   engine.events.restore(saved.events);
   engine.commands.restore(saved.pendingCommands);
   return engine;

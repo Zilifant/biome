@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 22,
+  "protocolVersion": 23,
   "kind": "snapshot.full",
   "simulationId": "demo-42",
   "tick": 10,

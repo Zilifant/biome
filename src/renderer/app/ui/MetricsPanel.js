@@ -106,10 +106,17 @@ export class MetricsPanel {
             }, max ${species.grouping.size.max ?? '–'} · ${species.grouping.solitary} alone</span></span></div>`
           : '';
 
+        const ranges = species.homeRange
+          ? `<div class="field"><span>home range</span><span>${species.homeRange.settled} settled <span class="dim">mean r ${
+              species.homeRange.radius.mean?.toFixed(1) ?? '–'
+            }</span></span></div>`
+          : '';
+
         return `
           <h3>${escapeHtml(species.speciesId)} <span class="dim">${species.living} alive ${populationTrend}</span></h3>
           ${sexes}
           ${grouping}
+          ${ranges}
           <div class="field"><span>generation</span><span>mean ${species.generation.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.generation.max ?? '–'}</span></span></div>
           <div class="field"><span>offspring each</span><span>mean ${species.reproductiveSuccess.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.reproductiveSuccess.max ?? '–'}</span></span></div>
           <div class="field"><span>births / deaths</span><span>${species.births} / ${species.deaths} <span class="dim">last ${metrics.windowTicks}t</span></span></div>
@@ -117,8 +124,13 @@ export class MetricsPanel {
       })
       .join('');
 
+    const territory = metrics.territory
+      ? `<div class="field"><span>claimed ground</span><span>${Math.round((metrics.territory.claimed / metrics.territory.cells) * 100)}% <span class="dim">${metrics.territory.holders} holders</span></span></div>`
+      : '';
+
     this.#container.innerHTML = `
       <h2>Population <span class="dim">t${metrics.tick}</span></h2>
+      ${territory}
       ${sections}
       <p class="hint">histogram spans ${metrics.metricsRange ?? '0.5–1.5'} · S = breeder mean − adult mean, then by sex</p>`;
   }

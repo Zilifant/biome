@@ -195,6 +195,16 @@ a renderer exists.
   also shows the sex counts and the selection differential **split by sex**,
   which is the row that distinguishes sexual from natural selection: a mate
   preference moves only the sex being chosen.
+- Territory (protocol v23) is inspection-only. The claim layer is deliberately
+  **not** projected: a per-cell ownership map in every snapshot would rival the
+  vegetation block for something that changes far more slowly and matters for
+  one animal at a time. Instead the selected animal's home range is drawn as a
+  faint purple ring at its radius with a `+` at the centre — a ring rather than
+  a filled disc so it frames the ground without hiding what is standing on it,
+  and drawn under every other overlay because it is the widest and least
+  specific of them. The Range inspector panel adds the numbers: where it lives,
+  how far it has strayed, how much ground it holds, and whose claim it is
+  standing on.
 - Sociality (protocol v22). `groupId` rides in bulk snapshots — a herd you
   cannot see is not a visible result — and selecting an animal brackets its
   groupmates in `comment` grey, *under* the family and hunt marks because a

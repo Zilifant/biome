@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–23)
+## 1.4 Carried-forward deviations and open issues (Steps 1–24)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -145,7 +145,10 @@ correctness bug in shipped code unless marked ⚠.
 | A29 | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | a later step, if runaway is wanted; the species block itself belongs to **Step 29** |
 | A30 | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Step 29**, if a species ever needs the other answer |
 | ⚠ A31 | 23 | **Step 21's selection sandbox has never demonstrated its claim.** Measured over seven seeds: the trait rose in 3, fell in 4, mean change −0.0002, with the selection differential negative in five and uncorrelated with the trait's direction. Cause: the differential compares breeders against *all* adults, and 71 % of adults are breeders there, so the two samples are nearly the same set. Tightening the breeding gate makes it visible but drives the population extinct | an unmet **Step 21** acceptance criterion. The test now claims no direction; a world that demonstrates it must be built, not tuned |
-| A32 | 23 | Juvenile defense fires **once in 12 000 demo ticks** — the geometry it needs (an adult with a living juvenile of its own, nearer the predator than the parent and inside `defendRange`) almost never arises | **Step 24** (territory) may fix it for free by keeping families in one place; otherwise a tuning pass. Relaxing "nearer the predator than I am" to "near enough to interpose" is the named lever |
+| A32 | 23 | Juvenile defense fires **once in 12 000 demo ticks** — the geometry it needs (an adult with a living juvenile of its own, nearer the predator than the parent and inside `defendRange`) almost never arises | still open. Step 24 did **not** fix it as hoped: grazers turned out not to be able to afford site fidelity at all (A34), so families are no more co-located than before. Relaxing "nearer the predator than I am" to "near enough to interpose" remains the named lever |
+| ⚠ A34 | 24 | **Patrolling is near-inert in the demo.** Routine site fidelity competes with wandering — which is how an animal finds its next meal — and cost the demo two seeds in five (4/5 → 2/5). The pull now ramps over six range radii, so it fires only for an animal that is genuinely lost. The mechanism is implemented and tested (the suite tightens the ramp to exercise it) but is not doing visible work in the demo | a future pass could give patrol a *reason* — food that is worth returning to, or a den — rather than making it compete with foraging on equal terms |
+| A35 | 24 | Grazers get a home range but no site fidelity and no claims, so "territory" in the demo is a predator-only phenomenon at ~9 individuals | **Step 29** (species schema) is where a third, genuinely territorial species would land |
+| A36 | 24 | The claim layer is not projected to the renderer — the home-range ring is drawn from inspection for the selected animal only | a later renderer pass, if a territory *map* earns the per-snapshot cost |
 | A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
 | ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
 
@@ -169,7 +172,7 @@ correctness bug in shipped code unless marked ⚠.
 | C3 | 1, 9, 13 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
 | ~~C4~~ | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed) |
 | ~~C5~~ | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). An unchecked herbivore *should* grow until something limits it | **Answered in Step 16** — predation is the limiter. Measured over 20k ticks on five seeds, grazers now oscillate in the 24–111 range instead of growing without bound. Disease (Step 25) can still add a second check |
-| C6 | 7, 23 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes. **Step 23 added a second neighbour walk** (the social pass, +26 ms/tick at large-5k) over the same grid neighbourhood — folding the two into one loop is now the single clearest optimization available | **Step 30** |
+| C6 | 7, 23, 24 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes. **Step 23 added a second neighbour walk** (the social pass, +26 ms/tick at large-5k) over the same grid neighbourhood — folding the two into one loop is now the single clearest optimization available. Step 24 added only ~2 ms (its work is O(1) per animal plus a staggered coarse-grid decay), so it is not part of the problem | **Step 30** |
 | C7 | 5, 9 | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range) | — (settled) |
 
 ### D. Test / benchmark fragility observed
@@ -185,6 +188,8 @@ correctness bug in shipped code unless marked ⚠.
 | D8 | Step 22's first "condition keeps the display honest" assertion over-claimed: at `conditionWeight` 0.4 a large display genuinely does outweigh poor condition | When an assertion about a model fails, decide whether the model or the assertion is wrong — then pin the real behaviour in *both* directions so a future retune is caught in a unit test rather than a five-seed sweep |
 | D9 | Step 23 added `case 'herd'` in the middle of a shared `switch` fallthrough chain, silently redirecting `seekFood` / `seekMate` / `followParent` into it. The result was a `NaN` heading, which fails the passability check, so animals **chose the right action and stood perfectly still** — five suites failed at once with "did not move" | A bare `case` added to a fallthrough group is a silent behaviour change, not an addition. And `JSON.stringify(NaN)` prints `null`, which sends you hunting a null-assignment bug that does not exist — check for `NaN` first when a numeric field reads `null` in a dump |
 | D10 | Step 23's first cuts of both group formation and alarm were unbounded local mechanisms, and both went global: alarm became a self-sustaining chain reaction (106/119 permanently fleeing), and herd labels never dissolved after a split | A local mechanism needs an *explicit* bound — a hop count from the source — to stay local. Population density is not a bound |
+| D11 | Step 24's `intrusionThreshold` was set equal to `markStrength`, so freshly marked ground sat exactly at the "occupied" threshold and decayed below it immediately — avoidance never fired at all | When one parameter is a threshold *on* another, write the relationship down beside them. Equal values are the failure case, not the neutral one |
+| D12 | Two Step 24 tests assumed a resident still held the cell it was spawned on. It does not — it moves. A third asserted a stochastic time-on-claim comparison across two runs whose trajectories diverge from tick one | Ask the world what is true (`heldGround` scans the grid) instead of assuming the setup held; and assert mechanisms, not outcomes compared across diverging runs |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -4347,7 +4352,7 @@ passes to fold together (§1.4 C6 and this step's).
 
 ## Step 24 — Territories and home ranges
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -4410,12 +4415,12 @@ memory (risk register).
 
 ### Acceptance criteria
 
-- [ ] Emergent home ranges/territories with marking + conflict
-- [ ] Ranges observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Emergent home ranges/territories with marking + conflict
+- [x] Ranges observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -4423,7 +4428,156 @@ Global territory partitioning, optimal boundary solving.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Nothing in this step draws a
+boundary or assigns anyone a plot. Two mechanisms run, and every behaviour the
+step lists is a consequence of them.
+
+**A home range is four numbers, not a trajectory.** An exponentially-weighted
+centroid of where an animal has actually been, plus its mean distance from that
+centre, updated in O(1) per tick. That is a direct answer to the step's own
+performance note ("bounded per-animal spatial summary, not full occupancy
+history"): a decaying mean *is* "repeated-use area" without storing a single
+past position. An animal that keeps returning somewhere tightens its range
+around it; a rover reports a wider one; an animal that moves house drags its
+range along behind it. Nobody sets the radius — it is measured. A test asserts
+the record cannot grow with the length of the animal's life, which is the
+property that matters however the rest changes.
+
+**A territory is a mark on the ground.** `world/ScentGrid.js` holds two numbers
+per coarse claim cell — who claims it, how fresh the claim is — and everything
+else falls out of that pair rather than being modelled beside it: **avoidance**
+is an O(1) lookup, **conflict** is standing on someone else's claim,
+**territory loss** is a stronger claim overwriting a weaker one, and the
+**occupation of vacant ground** needs no rule at all, because when an animal
+stops marking (it died, it moved on) its claims fade and the next animal through
+writes its own. The grid is deliberately coarser than the world (4×4): a
+territory is a coarse-grained thing, and a per-world-cell layer would spend
+sixteen times the memory storing the same information at a resolution nothing
+reads.
+
+Taking occupied ground **erodes** the resident's claim rather than overwriting
+it, which is the single rule that makes a boundary sit where two animals'
+marking rates balance instead of wherever the last passer-by happened to stand.
+
+**Disputes are with the claim, not with a search.** An intruder looks up who
+holds the ground (O(1)) and then that animal by id (O(1)) — no spatial query
+anywhere. If the owner is dead or far away, the intruder simply marks over it.
+If it is close enough to answer, they contest, decided by the same
+`resolveContest` that settles mating rivalries, and the loser yields **every
+cell it held** at once — which is what makes losing a territory something you
+can watch rather than a slow fade.
+
+**Which species defends is species data.** Grazers have home ranges and no
+territory (herd animals with overlapping ranges); stalkers hold, mark, avoid,
+and dispute. That distinction — living somewhere versus owning it — is the one
+the whole step turns on.
+
+**The measurement that changed the design.** Territory was the most ecologically
+destructive step yet, and bisecting it was the work. Over 15k ticks on five
+seeds:
+
+| | seeds with both species alive | grazers |
+| --- | --- | --- |
+| territory layer inert | 5/5 | 6–107 |
+| marking + disputes, no patrolling | 4/5 | 52–165 |
+| + routine patrolling (ramp 1.5 radii) | **2/5** | 6–162 |
+| + routine patrolling (ramp 3 radii) | 2/5 | 13–148 |
+| **adopted: ramp 6 radii** | **4/5** | **52–165** |
+
+The culprit was **patrol**, and the reason is worth stating because it is not
+obvious: patrolling competes with **wandering**, and wandering is how an animal
+finds the next patch once it has eaten this one. An animal that keeps going home
+keeps not finding food. My first instinct — that this was grazers being pulled
+inside a 14-unit range — was half right: gating patrol to territorial species
+only still left it at 1/5, because a stalker that walks home is a stalker not
+hunting. Marking and disputes cost about one seed; routine patrolling cost two
+more.
+
+The adopted setting ramps the patrol pull over six range radii, so the behaviour
+still exists — an animal six range-widths from home does turn around — but it
+never fires during normal foraging. That is a real scope reduction stated
+plainly rather than hidden: **patrol is implemented and tested but is
+near-inert in the demo**, and the test suite tightens the ramp to exercise it
+(§1.4 A34).
+
+**What shipped.** `world/ScentGrid.js`; `TerritorySystem` (`interaction`,
+priority 30 — after movement so it marks where the animal actually ended up,
+after hunting and mating so a fight over ground cannot pre-empt one over a
+mate); `patrol` and `retreat` in the decision system; per-species `territory`
+data; **protocol v22 → v23** (`entity.disputed` carrying both dominance scores
+*and* how much ground changed hands, plus a `territory` inspection block);
+**save v21 → v22** (`homeRange`, `lastMarkTick`, and the claim layer — both are
+evolved state that no seed can reproduce); metrics for settled ranges and
+claimed ground; a renderer home-range ring for the selected animal.
+
+**Tests:** `npm test` → **480 passing / 0 failing** (was 448; +32). New
+`test/territory.test.js`: the claim layer (coarse cells, erosion, instant
+takeover of abandoned ground, decay, whole-territory transfer, save round-trip),
+home ranges (a resident settles, a rover reports a wider radius, a mover drags
+its range, and the record never grows with age), who holds ground (only a
+defending species and only adults), conflict (dominance decides; an absent or
+dead owner simply loses; a fixed three-draw budget; the cooldown stops rivals
+grinding each other down), behaviour (patrol, retreat, and the guard below),
+protocol/metrics/persistence, and the residency sandbox.
+
+**Two bugs worth recording.**
+
+1. **A latent crash only a long run found.** `retreat` did not require a home
+   range, so an animal too young to have settled one steered at a `null` target
+   — and because a `NaN` heading fails the passability check, the animal would
+   have stood still rather than crashing, had the target not been null outright.
+   The window is a single tick in a newborn's life; a 16 000-tick probe hit it,
+   the 448-test suite did not. There is now a test for it.
+2. **`intrusionThreshold` equalled `markStrength`.** Freshly marked ground sat
+   exactly at the threshold and decayed below it immediately, so a claim never
+   read as "occupied" and avoidance never fired. The threshold has to sit below
+   what one mark leaves; it is now 0.2 against a mark of 0.35, with the
+   relationship written down in the config so it cannot silently invert again.
+
+**Deterministic demonstration scenario — the residency sandbox.** A resident
+settles a stable range measured **against a control** with the range pull off
+(the resident ends up closer to home and with a tighter radius than the same
+animal without it), and a neighbour placed on the resident's ground leaves it,
+five times out of five. The avoidance half is asserted as a *mechanism*, not as
+time-on-claim across two whole runs: switching avoidance off changes the
+trajectory from tick one, so the two runs wander differently and the tick counts
+would be comparing noise (§1.4 D1).
+
+**Visible result verified.** Against a live server at protocol v23: stalker #121
+holding **5 claim cells**, home range centred on (11.1, 52.9) with radius 16.3
+from 1992 samples, standing on its own ground at claim strength 0.325, drift
+12.2 inside its 26-unit range. World-level, 36 of 1024 claim cells held by 7
+holders. Over 8000 headless ticks, **116 disputes, 26 escalating into fights**,
+reading exactly as intended — `#128 (39) challenged #127 (47) → #127 (+2
+cells)`, the stronger animal keeping the ground and taking more of it. And the
+species split is visible in the metrics: 146 grazers with settled ranges (mean
+radius 22.5) holding **no** ground at all, against 9 stalkers that do.
+
+**Performance.** large-5k **72.01 → 74.33 ms/tick** (+2.3, within the noise this
+scenario shows). Cheap by construction: the range summary is O(1) per animal,
+marking is one grid write on an interval, avoidance is one grid read, and a
+dispute is two id lookups. The only O(cells) work is decay — staggered every 10
+ticks with the rate compensated — and `transfer`, which only a resolved dispute
+calls. The coarse grid is what keeps both affordable: 1024 cells for the demo
+world rather than 16 384.
+
+**Deviations from the step spec (documented):** (1) **`TerritorySystem` runs in
+`interaction`, not `decision`/`observation`** — it needs the post-movement
+position to mark, and its disputes are fights, which belong where the other
+fights are. (2) **Patrolling is near-inert in the demo**, for the measured
+reason above (§1.4 A34). (3) **The claim layer is not projected to the
+renderer.** The step asks only for an inspector panel and an optional
+selected-entity overlay, and a per-cell ownership layer in every snapshot would
+rival the vegetation block for something that changes far more slowly and
+matters for one animal at a time; the home-range ring is drawn from inspection
+instead.
+
+**Follow-on notes for later steps:** Step 25 (disease) has a natural spatial
+substrate here — a claim layer is already a map of who spends time where, which
+is what a contact network is made of. Step 29's species schema now has a fourth
+per-species block to absorb (`territory`, after `matePreference`). And Step 30
+inherits a third neighbour-adjacent cost to look at, though this one is much
+smaller than the other two (§1.4 C6).
 
 ---
 
@@ -5021,6 +5175,7 @@ population counts).
 | 10  | Disturbance sandbox          | fixed | local event → displacement → recovery      | bounded effect; recovery by tick N       | 27    | yes               |
 | 11  | Sexual-selection sandbox     | fixed | females prefer size; the trait rises       | rises *more* than a choice-off control; S positive among males only | 22 | no |
 | 12  | Herd sandbox                 | fixed | a herd holds together; a threat alarms the near side only | tighter than a herding-off control; far side never alarmed | 23 | no |
+| 13  | Residency sandbox            | fixed | a resident settles a range; a neighbour leaves its ground | closer to home than a pull-off control; neighbour leaves 5/5 | 24 | no |
 
 For each: record initial state, seed, expected behavior, stable assertions,
 related steps, and whether a renderer fixture is generated. **Do not assert
@@ -5143,14 +5298,14 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–23
+### Observed status after Steps 1–24
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
 
 | Risk | Observed? | Evidence and outcome |
 | --- | --- | --- |
-| Population explosion | **Yes (three times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. |
+| Population explosion | **Yes (four times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. Step 24 was the most destructive yet (5/5 → 1/5 at first) and had to be *bisected* rather than tuned: the cause was a single behaviour, `patrol`, competing with the wandering animals need to find food. |
 | Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
 | Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. Step 22 followed exactly that: sexes and mate choice were swept on five seeds against a *control with choice off*, which is what showed that a shorter patience selected just as hard while keeping both species alive in 5/5 seeds rather than 4/5. |
 | Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately *weakened* a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. Step 22 found the sharpest case (D7): Step 21's selection sandbox had been passing on drift on a pinned seed, and the fix was to diagnose the mechanism (deaths were *all* age deaths — the pressure was never applied) rather than re-pin, then re-verify on four seeds it had never seen. |

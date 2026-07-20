@@ -28,6 +28,7 @@ import { recordTombstone, lookupLineageList, lookupLineage } from '../world/line
 import { genotypeOf } from '../traits/genetics.js';
 import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js';
 import { dominanceOf } from '../social/dominance.js';
+import { territoryOf } from '../systems/TerritorySystem.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -84,6 +85,7 @@ export class SimulationEngine {
       terrain: this.config.terrain,
       vegetationSeed: deriveSeed(this.seed, 'vegetation'),
       vegetation: this.config.vegetation,
+      territory: this.config.territory,
     });
     this.scheduler = new SystemScheduler();
     this.events = new DomainEventBus({ maxBufferedEvents: this.config.events.maxBufferedEvents });
@@ -351,6 +353,25 @@ export class SimulationEngine {
               }),
         lastCourtship: entity.lastCourtship ? { ...entity.lastCourtship } : null,
       },
+      // Territory (Step 24) — inspection-only. The home range is four numbers,
+      // not a trajectory: an animal's settled centre and how far it typically
+      // strays from it, both accumulated in O(1) per tick. `standingOn` is the
+      // O(1) claim lookup the avoidance behaviour reads, exposed so "it is
+      // avoiding this ground" is checkable rather than inferred, and `holding`
+      // is how much ground this animal actually owns.
+      territory: (() => {
+        const species = territoryOf(entity.speciesId);
+        const owner = this.world.scent.ownerAt(entity.x, entity.y);
+        return {
+          defends: species?.defends ?? false,
+          rangeRadius: species?.rangeRadius ?? null,
+          homeRange: entity.homeRange ? { ...entity.homeRange } : null,
+          drift: entity.homeRange ? Math.hypot(entity.x - entity.homeRange.x, entity.y - entity.homeRange.y) : null,
+          holding: species?.defends ? this.world.scent.countFor(entity.id) : 0,
+          standingOn: { ownerId: owner, strength: this.world.scent.strengthAt(entity.x, entity.y), own: owner === entity.id },
+          lastMarkTick: entity.lastMarkTick,
+        };
+      })(),
       // Sociality (Step 23) — inspection-only apart from the `groupId` label.
       // `dominance` is *derived* on read rather than stored: there is no pecking
       // order in state, so an animal's standing shifts as it grows, starves, and

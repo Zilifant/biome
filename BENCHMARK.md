@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-23)
+## Results (post-Step-24)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→179 | 1.045 | ~957 |
-| small-100 | 256×256 | 107→139 | 0.650 | ~1,538 |
-| medium-1k | 512×512 | 1067→1456 | 9.96 | ~100 |
-| large-5k | 1024×1024 | 5333→7184 | 72.01 | ~14 |
+| demo-default | 128×128 | 128→178 | 1.145 | ~874 |
+| small-100 | 256×256 | 107→147 | 0.686 | ~1,457 |
+| medium-1k | 512×512 | 1067→1462 | 9.91 | ~101 |
+| large-5k | 1024×1024 | 5333→7205 | 74.33 | ~13 |
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -168,6 +168,18 @@ authoritative tick budget.
   instead of one value), still a bounded 7 loci per animal. Every system
   continues to read only the expressed `traits`, exactly as before, so nothing
   in the hot path learned about genetics.
+- **Step 24** (territories and home ranges): large-5k **72.01 → 74.33 ms/tick
+  (+2.3, within this scenario's noise)** — cheap by construction, and
+  deliberately so. The home-range summary is four numbers updated in O(1) per
+  animal (the step's own performance note rules out occupancy history); marking
+  is one grid write on a 20-tick interval; avoidance is one grid read; and a
+  dispute is two id lookups and no spatial query at all. The only O(cells) work
+  is claim decay, staggered every 10 ticks with the rate compensated, and the
+  whole-territory `transfer` that a resolved dispute triggers. The **coarse**
+  claim grid is what keeps both affordable: 4×4 world cells per claim cell means
+  1024 cells for the demo world instead of 16 384, and 65 536 at 1024² instead
+  of a million.
+
 - **Step 23** (social behaviour): large-5k **46.06 → 72.01 ms/tick (+26)** —
   the largest single jump since perception in Step 7, and the same cause. The
   `SocialSystem` runs a **second** `queryRadius` per animal per tick, over

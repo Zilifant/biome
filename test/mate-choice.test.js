@@ -491,13 +491,27 @@ describe('mate choice: what an observer can see', () => {
   });
 
   test('the demo keeps courtship volume far below the routine per-tick events', () => {
+    // Collected tick by tick, deliberately. Stepping 3000 at once and then
+    // asking `eventsSince` measures event **retention**, not emission — the
+    // outbox is bounded, so a run that emits 200k movement events has long
+    // since trimmed everything but the tail. This test used to do that and
+    // passed only because a courtship happened to land in the surviving window;
+    // Step 23's alarms and contests shortened that window and it started
+    // reporting zero courtships in a run that had 280 of them.
     const engine = createDemoSimulation({ seed: 42 });
-    const before = engine.events.lastSeq;
-    engine.step(3000);
-    const events = engine.eventsSince(before);
-    const courtships = events.filter((e) => e.type === 'entity.courted').length;
+    let courtships = 0;
+    let routine = 0;
+    for (let tick = 0; tick < 3000; tick += 1) {
+      const before = engine.events.lastSeq;
+      engine.step(1);
+      for (const event of engine.eventsSince(before)) {
+        if (event.type === 'entity.courted') courtships += 1;
+        if (event.type === 'entity.moved' || event.type === 'entity.fed') routine += 1;
+      }
+    }
     assert.ok(courtships > 0, 'courtship does happen');
     assert.ok(courtships < 3000, `well under one per tick (${courtships} in 3000)`);
+    assert.ok(courtships * 20 < routine, `and far below the routine traffic (${courtships} vs ${routine})`);
   });
 
   test('inspection exposes the basis of the choice, and hands back copies', () => {

@@ -136,6 +136,30 @@ export const defaultSimulationConfig = Object.freeze({
     fightWinnerInjuryFraction: 0.4, // winning a fight is not the same as being unhurt
     birthOffset: 1.0, // how far behind the parent the newborn appears
   }),
+  // Territories and home ranges (see systems/TerritorySystem.js and
+  // world/ScentGrid.js). Nothing here draws a boundary. A home range is a
+  // running summary of where an animal has actually been (four numbers, no
+  // occupancy history — the step's performance note rules that out), and a
+  // territory is whatever ground it has marked most recently and most
+  // strongly. Avoidance, conflict, territory loss, and the occupation of
+  // vacated ground all fall out of that pair of mechanisms rather than being
+  // modelled separately. Which species *defends* ground is species data
+  // (`config/species/*`): grazers have ranges, stalkers hold territories.
+  territory: Object.freeze({
+    cellSize: 4, // world cells per claim cell — a territory is coarse-grained
+    markInterval: 20, // ticks between an animal's marks
+    markStrength: 0.35, // strength one mark writes (≈3 marks to hold a cell)
+    decayPerTick: 0.0025, // ≈400 ticks for an unrenewed claim to fade out
+    decayInterval: 10, // decay is staggered; the rate is compensated, not changed
+    claimFloor: 0.05,
+    disputeRange: 8, // how close an owner must be to answer an intruder
+    disputeCooldownTicks: 120,
+    // Fights over ground are milder than fights over mates: a resident that
+    // yields loses its whole claim, which is punishment enough.
+    contestEscalationChance: 0.3,
+    fightInjurySeverity: 0.2,
+    fightWinnerInjuryFraction: 0.4,
+  }),
   // Sociality (see systems/SocialSystem.js and social/dominance.js). Herds are
   // a *label* propagated between neighbours, never a stored roster: animals in
   // sight of each other converge on the smallest group id around, so herds
@@ -424,6 +448,35 @@ export const defaultSimulationConfig = Object.freeze({
     herdDistance: 2.0, // inside this there is nothing to close
     defendWeight: 2.6,
     defendRange: 5.0, // how far an adult will go to interpose
+    // Territory (Step 24). Patrolling is what an animal does *instead of*
+    // wandering aimlessly, so it sits just above wander and below everything
+    // else; retreating off a rival's ground beats settling down on it but never
+    // beats eating, drinking, or running.
+    patrolWeight: 0.55, // must clear `wanderBias` (0.35) — patrol replaces wander
+    // How many range radii the pull ramps over before reaching full strength,
+    // and the most consequential number in this step. **Patrolling competes
+    // with wandering**, and wandering is how an animal finds the next patch of
+    // food once it has eaten this one — so an animal that keeps going home
+    // keeps not finding food. Measured over 15k ticks on five seeds:
+    //
+    //   patrol effectively off (or ramped over 6 radii)  4/5 seeds alive,
+    //                                                    grazers 52–165
+    //   ramped over 1.5 radii                            2/5, grazers  6–162
+    //   ramped over 3 radii                              2/5, grazers 13–148
+    //
+    // (For reference, with the whole territory layer inert the demo is 5/5, so
+    // marking and disputes cost about one seed and routine patrolling cost two
+    // more.) At 6 the behaviour still exists — an animal that ends up six range
+    // radii from home does turn round — but it never fires in normal foraging,
+    // which is the only setting this two-species demo can afford. The mechanism
+    // is exercised at a tighter ramp in test/territory.test.js.
+    patrolSpanFactor: 6,
+    retreatWeight: 0.7,
+    // Must sit **below** `territory.markStrength` (0.35): a cell holding a
+    // single fresh mark is exactly at that value and starts decaying
+    // immediately, so a threshold equal to it meant newly marked ground did not
+    // read as occupied at all.
+    intrusionThreshold: 0.2,
     huntWeight: 1.4,
     stalkDiscount: 0.8, // stalking is worth slightly less than committing
     chaseRange: 4.0, // inside this, stalking becomes a sprint
