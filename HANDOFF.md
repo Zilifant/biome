@@ -1,5 +1,9 @@
 ## State at handoff
 
+**As of 2026-07-20.** Every figure below, and every measurement quoted in
+`PLAN.md`'s completion notes, is a reading taken on a date — not a standing fact.
+See §5 of `PLAN.md` for why that distinction has already bitten once.
+
 |                       |                                                                     |
 | --------------------- | ------------------------------------------------------------------- |
 | Steps complete        | 1–29 (Step 30 next — the last one)                                  |

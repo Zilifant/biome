@@ -336,6 +336,21 @@ persistence, inspection, and tests in the step that introduces it.
 > testable (`npm test`), and visibly improved. Statuses: `Not started` →
 > `In progress` → `Done`. Fill _Completion notes_ when finishing.
 
+> ⚠ **Date every completion note, and read every figure in one as of its date.**
+> A completion note is a record of what was true when the step shipped, not a
+> live reading — and the numbers in these notes *do* drift, because each step
+> changes the world the previous one was measured in. Step 26 reported juveniles
+> dispersing a median of 70 units; after Step 29's species schema the same
+> unchanged mechanism measures ~60. Neither figure is wrong, and the note is only
+> misleading if you cannot tell which world it describes.
+>
+> So: each step's notes open with **Completed `YYYY-MM-DD`**, absolute and never
+> relative ("recently", "after the next step", "currently" all rot). If you
+> re-measure an old figure, add the new one *with its own date* beside the
+> original rather than overwriting it — the drift between them is usually the
+> interesting part. The same rule applies to `README.md`, which describes the
+> **current** build and must be re-measured rather than inherited.
+
 ---
 
 ## Step 1 — Audit and minimally remediate the completed foundation
@@ -419,6 +434,8 @@ numbers.
 Replacing demo systems, terrain, any new component state.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.)
 
@@ -576,6 +593,8 @@ Geology, hydrology, erosion, elevation, moisture diffusion.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.)
 
 **What shipped.** A static, authoritative terrain layer — `ground`, `water`,
@@ -728,6 +747,8 @@ Soil chemistry, roots, nutrient pools, individual grass entities, moisture
 diffusion.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.)
 
@@ -886,6 +907,8 @@ Behavior beyond existing wander, energy dynamics, multiple species.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.)
 
 **What shipped.** A species-config seam and the first real herbivore
@@ -1029,6 +1052,8 @@ Pathfinding, goal-directed movement, energy cost (next step), perception.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) First major visible-action
 milestone.
 
@@ -1168,6 +1193,8 @@ loop.
 Feeding/energy gain (Steps 8–9), aging (Step 11), decay stages (Step 18).
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Closes the cost side of the
 minimal survival loop (Milestone B's energy arc).
@@ -1319,6 +1346,8 @@ Acting on perception (Step 8), memory (Step 15).
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.)
 
 **What shipped.** Bounded local perception — the input layer decisions
@@ -1465,6 +1494,8 @@ decision ms/tick.
 Actual biomass consumption mechanics (Step 9), water (Step 10), predators.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.)
 
@@ -1617,6 +1648,8 @@ Water, life stages, reproduction, predators.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) **Closes the herbivore
 survival loop** — move → perceive → decide → eat → gain energy → spend → live
 or die (Milestone B's core; Step 10 hydration completes the milestone).
@@ -1761,6 +1794,8 @@ Negligible; one more per-animal scalar.
 Detailed hydrology, moisture diffusion, water depth.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) **Completes Milestone B**
 (self-sustaining herbivore loop, Steps 5–10). Judged worth implementing (the
@@ -1917,6 +1952,8 @@ Reproduction, parenting, inherited traits.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) Begins **Milestone C**
 (complete herbivore life cycle).
 
@@ -2057,6 +2094,8 @@ Mate search via grid only (invariant 17). Benchmark with dense populations.
 Parenting/dependency (Step 13), mate choice (Step 22), genetics (Step 20).
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) The demo population is now
 **multi-generational and self-sustaining**.
@@ -2222,6 +2261,8 @@ events (observation roadmap).
 Genetics, social groups beyond parent-offspring, predators.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Closes Milestone C — the
 herbivore life cycle now runs end to end: born → parented → weaned →
@@ -2411,6 +2452,8 @@ Inheritance (Step 20), mate choice on traits (Step 22).
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) The phenotype seam is in
 place: Step 20 now only has to make these traits heritable, not invent them.
 
@@ -2588,6 +2631,8 @@ Hard cap per animal; O(1) insert/evict. Bounded memory (risk register).
 Predators, social learning, territories.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Animals now learn where things
 are, and act on it when they cannot see.
@@ -2777,6 +2822,8 @@ Injury system (Step 17), scavenging mechanics (Step 18), pack hunting
 (Step 23).
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Milestone D. The world now has
 two species and a working predator/prey oscillation.
@@ -2979,6 +3026,8 @@ Disease (Step 25).
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) Predation now has a middle
 ground between untouched and dead.
 
@@ -3161,6 +3210,8 @@ Carcasses are few; decay staggered. Negligible.
 Decomposition chemistry, microbes, insects.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) The death→nutrient loop opened
 at Step 6 is closed, and the world removes things for the first time.
@@ -3354,6 +3405,8 @@ Atmospheric simulation, wind fields, precise climate.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) The world now has a turning
 year — the first genuinely *global* state in the engine.
 
@@ -3539,6 +3592,8 @@ Genetics only at birth; cheap. Genome size bounded.
 Nucleotide sequences, epistasis networks, sexual selection (Step 22).
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Milestone E. Traits are now
 inherited rather than resampled — and **nothing downstream changed**, which is
@@ -3728,6 +3783,8 @@ Per-organism full histories, mate choice.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) Milestone E is legible:
 selection can now be *measured* rather than assumed.
 
@@ -3903,6 +3960,8 @@ Mate evaluation bounded to perceived candidates via grid.
 Complex courtship displays, ornaments as separate entities.
 
 ### Completion notes
+
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Selection now has a second
 mechanism, and it is measurably distinguishable from the first.
@@ -4181,6 +4240,8 @@ Territory (Step 24), complex politics, multi-level societies.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) Milestone F. Four carried-forward
 debts closed with it (A11, A15, A19, and the last of A9/A10's consequences).
 
@@ -4454,6 +4515,8 @@ Global territory partitioning, optimal boundary solving.
 
 ### Completion notes
 
+**Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) Nothing in this step draws a
 boundary or assigns anyone a plot. Two mechanisms run, and every behaviour the
 step lists is a consequence of them.
@@ -4683,6 +4746,8 @@ Detailed immunology, pathogen evolution, vectors as entities.
 
 ### Completion notes
 
+**Completed 2026-07-20.** Figures below are as of that date; see §5 on reading them.
+
 **Status: Done.** (Node v23.4.0, darwin arm64.) One modelling choice carries the
 whole step, and §1.4 A20 is closed along with it.
 
@@ -4890,6 +4955,8 @@ A\* over the whole map per entity, optimal route solving.
 
 ### Completion notes
 
+**Completed 2026-07-20.** Figures below are as of that date; see §5 on reading them.
+
 **The whole step is one decision: migration is not an action.** §1.4 A34 is the
 evidence. Step 24's `patrol` gave animals a routine reason to move and cost the
 demo two seeds in five, because any new movement action competes with `wander` —
@@ -5028,10 +5095,13 @@ hunger), and its `settled` centre. Over 15 000 ticks on seed 42: **247 dispersal
 with a **median 70.7 units** travelled from the natal centre (max 152) on a
 128-wide map, and **2 832 relocations** — 2 567 following forage, 265 while
 dispersing. Mean drift strength across the population is **0.0995**: a bias, not a
-beeline, which is the number A34 says has to stay small. (Re-measured after Step
-29's species schema the median is ~60 rather than 70 — the mechanism is unchanged;
-the world it runs in is not. Figures in a completion note are a record of what
-was true at that step, not a live reading.)
+beeline, which is the number A34 says has to stay small.
+
+**Re-measured 2026-07-20** (after Step 29's species schema): the median is **~60
+units**, not 70. The mechanism is untouched — `dispersalTicks` is still 400 and no
+migration code changed — but the world it runs in is not the world it was measured
+in. Both figures stand, each as of its own date; the drift between them is what a
+third species and a per-species metabolism cost a juvenile's outward walk.
 
 **Performance.** large-5k **79.78 → 79.19 ms/tick** — flat, and within run-to-run
 noise. Habitat evaluation is 16 O(1) vegetation reads per animal per evaluation
@@ -5133,6 +5203,8 @@ Bounded region iteration; infrequent. Cheap.
 Global catastrophes, fire spread physics, fluid simulation.
 
 ### Completion notes
+
+**Completed 2026-07-20.** Figures below are as of that date; see §5 on reading them.
 
 **A disturbance is a record, and its effects are derived from it on read.** That
 one choice is the whole step, and it is what makes recovery nearly free:
@@ -5360,6 +5432,8 @@ Feature writes are sparse/local. Cheap.
 A generic scriptable environment-modification engine.
 
 ### Completion notes
+
+**Completed 2026-07-20.** Figures below are as of that date; see §5 on reading them.
 
 **Wear is the only state, and the shape is Step 27's with the clock removed.**
 Two enumerated features — a **trail** worn by traffic, a **burrow** dug by
@@ -5591,6 +5665,8 @@ params. Benchmark multi-species tick.
 A biological scripting language; runtime species authoring UI.
 
 ### Completion notes
+
+**Completed 2026-07-20.** Figures below are as of that date; see §5 on reading them.
 
 **A species overrides; the config supplies defaults.** That one decision is the
 whole schema. Eight blocks — `metabolism`, `hydration`, `aging`, `perception`,

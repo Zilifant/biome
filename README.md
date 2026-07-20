@@ -10,6 +10,11 @@ with completion notes, carried-forward issues (§1.4), and the execution
 protocol for continuing the work. Steps 1–29 are done; Step 30 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
+Measurements in this file describe the **current** build and were taken on
+**2026-07-20**. They are re-measured when they change rather than inherited —
+`PLAN.md`'s completion notes keep the historical readings, each dated to the step
+that took it.
+
 ## Install and run
 
 ```bash
@@ -434,8 +439,8 @@ Stamina is what actually decides most chases: both sides trade it for speed and
 recover it only at rest.
 
 The demo holds grazer and stalker in a genuine oscillation rather than a fixed
-balance, and it is **a knife edge rather than a guarantee**. Measured over 15k
-ticks on ten seeds with all three species present: roughly 8–75 grazers against
+balance, and it is **a knife edge rather than a guarantee**. Measured 2026-07-20
+over 15k ticks on ten seeds with all three species present: roughly 8–75 grazers against
 0–2 stalkers, with both still alive in 5 of 10 seeds and all three species
 coexisting in 4. Nothing enforces any of that — it emerges from encounter rates,
 capture odds, lifespan, and now competition for carrion — and the honest reading
@@ -522,7 +527,8 @@ which is what makes dispersal spatial rather than bookkeeping: a range is a
 running average of where an animal has been, so a juvenile that kept its natal
 one would spend its life being drawn back to its mother's ground. In the demo,
 young grazers end up a median of **~60 units** from where they were born, on a map
-128 across.
+128 across (measured 2026-07-20; the same mechanism read 70 before the species
+schema landed, which is the sort of drift `PLAN.md` §5 exists to keep honest).
 
 **Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
 bounded region on a clock — a few numbers saying where it is, how wide, and when
@@ -580,12 +586,12 @@ channel migration uses, because a fourth step running has confirmed that anythin
 competing with foraging loses.
 
 The feedback loop is the point: a trail is faster, faster ground attracts
-traffic, traffic deepens the trail. Measured on the demo, 96% of trail cells
-touch another one — these are connected paths, not a scatter of worn dots. When
-trails landed they made the population *steadier* rather than larger, lifting its
-worst case across ten seeds from 1 surviving grazer to 26; that figure was taken
-against the two-species world of the time, before the species schema and a third
-species changed what the demo is.
+traffic, traffic deepens the trail. Measured 2026-07-20 on the demo, 96% of trail
+cells touch another one — these are connected paths, not a scatter of worn dots.
+When trails landed they made the population *steadier* rather than larger, lifting
+its worst case across ten seeds from 1 surviving grazer to 26; that reading is
+from earlier the same day, against the two-species world of the time, before the
+species schema and a third species changed what the demo is.
 
 It also revealed something nobody had looked for. Because worn ground is a
 picture of where animals actually spend their time, and because most of the
