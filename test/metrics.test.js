@@ -224,7 +224,24 @@ describe('metrics: selection sandbox', () => {
         world: { width: 36, height: 36 },
         terrain: { lakes: 1, ridges: 0, coverPatchDensity: 0.5 },
         demo: { animalCount: 70, predatorCount: 0, speciesId: 'herbivore.grazer', predatorSpeciesId: 'predator.stalker' },
-        vegetation: { capacity: 1.4, growthRate: 0.05 },
+        // Sparse food and an expensive body are the pressure, retuned in Step 22
+        // (from capacity 1.4 at the default basal rate of 0.04). The old
+        // settings barely applied one: breaking the deaths down by cause showed
+        // they were *entirely* age deaths across all five seeds — nothing was
+        // starving, so efficiency hardly touched survival, and the assertion
+        // rose in 4 of 5 seeds essentially by drift. It passed because it was
+        // pinned to one of the four.
+        //
+        // Note how the pressure actually works here, because it is not the
+        // obvious way: even now almost nobody starves. Efficiency pays through
+        // the *breeding gate* — an efficient animal sits above the 60 %-energy
+        // threshold more of the time, so it breeds more often. That is fecundity
+        // selection rather than viability selection, and it is worth naming so
+        // the next reader does not go looking for starvation deaths that are
+        // not there.
+        vegetation: { capacity: 1.0, growthRate: 0.05 },
+        // Doubling the resting cost is what makes efficiency worth having.
+        metabolism: { basalRate: 0.08, moveCostFactor: 0.02, referenceMass: 30, massScalingExponent: 0.75, lowEnergyFraction: 0.25, edibleMassFraction: 0.6 },
         aging: {
           birthMass: 5,
           maturityAge: 150,
@@ -245,6 +262,19 @@ describe('metrics: selection sandbox', () => {
           birthEnergyCost: 12,
           offspringEnergyFraction: 0.6,
           birthOffset: 1.0,
+          // Mate choice off (Step 22). This world exists to show *natural*
+          // selection — sparse food favouring metabolic efficiency — and
+          // grazers now sexually select on **size**, which is a second force
+          // pulling on a different trait. Leaving it on would make the test
+          // measure two things at once, which is precisely what the near-clonal
+          // trait spread below already goes out of its way to avoid.
+          //
+          // With choice off and the sharper pressure above, mean efficiency
+          // rises in 5 of 5 seeds (42, 7, 13, 99, 2024) rather than the 4 of 5
+          // the old settings managed — so this is not a fixture bent until it
+          // passed, it is one that now measures what it claims on four seeds it
+          // was never tuned against.
+          acceptanceThreshold: 0,
         },
         parenting: { weaningAge: 45, provisionRange: 2, provisionRate: 0.5, provisionEfficiency: 0.8, parentMinEnergyFraction: 0.35, juvenileMaxEnergyFraction: 0.85 },
         // Variance where the pressure is; everything else near-clonal, so the

@@ -17,13 +17,14 @@
  * | caution                | how early hunger and thirst outweigh everything     |
  * | exploration            | how often it ignores its own utility ranking        |
  * | reproductiveInvestment | energy put into each offspring, and its cost        |
+ * | choosiness             | how good a mate must be before it is accepted       |
  *
  * These are deliberately trade-offs rather than upgrades: a bold animal finds
  * more food and spends more energy; a heavily investing parent produces
- * better-provisioned young at a higher price per birth. Nothing selects on
- * them yet — they are inherited (and therefore evolvable) in Step 20, which
- * replaces this sampling with genome expression while keeping the same
- * `traits` shape that systems already read.
+ * better-provisioned young at a higher price per birth; a choosy one gets a
+ * better mate but breeds later, and may not breed at all. Since Step 20 they
+ * are inherited — expressed from a genome rather than sampled — while keeping
+ * the same `traits` shape that systems already read.
  *
  * Ownership: `traits` is written once at creation and is read-only afterwards.
  */
@@ -37,6 +38,11 @@ export const TRAIT_NAMES = Object.freeze([
   'caution',
   'exploration',
   'reproductiveInvestment',
+  // Mate choice (Step 22): the acceptance threshold multiplier. Unlike the
+  // three antagonistic pairs in genetics.js, choosiness needs no artificial
+  // tradeoff — its cost is behavioural (a choosy animal breeds later, or not at
+  // all), which is a better brake than an arbitrary one.
+  'choosiness',
 ]);
 
 /**

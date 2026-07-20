@@ -242,10 +242,18 @@ describe('parenting: life history', () => {
   test('a newborn records "born" and both parents record "birthed" plus the offspring id', () => {
     const engine = parentingEngine();
     engine.registerSystem(
-      new ReproductionSystem({ ...engine.config.reproduction, gestationTicks: 2, minEnergyFraction: 0.7, birthMass: 5 }),
+      new ReproductionSystem({
+        ...engine.config.reproduction,
+        gestationTicks: 2,
+        minEnergyFraction: 0.7,
+        // Mate choice off — this test is about the life-history record a birth
+        // writes, not about who was willing to breed with whom.
+        acceptanceThreshold: 0,
+        birthMass: 5,
+      }),
     );
-    const a = spawn(engine, { x: 10, y: 10, lifeStage: 'adult', bodyMass: 30, energy: 95 });
-    const b = spawn(engine, { x: 11, y: 10, lifeStage: 'adult', bodyMass: 30, energy: 95 });
+    const a = spawn(engine, { x: 10, y: 10, lifeStage: 'adult', sex: 'female', bodyMass: 30, energy: 95 });
+    const b = spawn(engine, { x: 11, y: 10, lifeStage: 'adult', sex: 'male', bodyMass: 30, energy: 95 });
     engine.step(4);
 
     const child = [...engine.world.entities.all()].find((e) => e.parents.length === 2);

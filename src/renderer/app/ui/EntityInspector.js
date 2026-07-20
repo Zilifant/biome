@@ -153,6 +153,45 @@ function formatFamily(detail) {
   return `<h3>Family</h3>${rows.join('')}${timeline ? `<ul class="entity-events">${timeline}</ul>` : ''}`;
 }
 
+/**
+ * Render mate choice (protocol v21): what this species reads in a mate, how
+ * hard this individual weighs it, the standard it is holding right now, and the
+ * last animal it sized up.
+ *
+ * The threshold is shown beside the quality deliberately — a rejection with no
+ * visible standard just looks like the simulation being capricious, whereas
+ * "0.66 against a standard of 0.71" is a decision you can check. The standard
+ * falls as the animal goes unmated, so watching it drop *is* watching the cost
+ * of being choosy get paid.
+ */
+function formatMateChoice(detail) {
+  const mate = detail?.mateChoice;
+  if (!mate || (mate.choosiness === null && !mate.lastCourtship)) return '';
+  const rows = [];
+  if (mate.preference?.trait) {
+    rows.push(
+      `<div class="field"><span>prefers</span><span>${escapeHtml(mate.preference.trait)} <span class="dim">+ condition ${Math.round((mate.preference.conditionWeight ?? 0) * 100)}%</span></span></div>`,
+    );
+  }
+  if (mate.choosiness !== null && mate.choosiness !== undefined) {
+    rows.push(`<div class="field"><span>choosiness</span><span>${mate.choosiness.toFixed(2)}</span></div>`);
+  }
+  if (mate.threshold !== null && mate.threshold !== undefined) {
+    rows.push(
+      `<div class="field"><span>accepts</span><span>≥ ${mate.threshold.toFixed(2)} <span class="dim">searching ${mate.searchingTicks}t</span></span></div>`,
+    );
+  }
+  const last = mate.lastCourtship;
+  if (last) {
+    const verdict = last.accepted ? '<span class="ok">accepted</span>' : '<span class="warn">rejected</span>';
+    rows.push(
+      `<div class="field"><span>last courted</span><span>#${last.candidateId} ${last.quality.toFixed(2)}/${last.threshold.toFixed(2)} ${verdict} <span class="dim">t${last.tick}</span></span></div>`,
+    );
+  }
+  if (rows.length === 0) return '';
+  return `<h3>Mate choice</h3>${rows.join('')}`;
+}
+
 /** Render the transient perception summary (protocol v6), or nothing. */
 function formatPerception(perception) {
   if (!perception) return '';
@@ -241,6 +280,7 @@ export class EntityInspector {
         <div class="field"><span>kind</span><span>${escapeHtml(active.kind)}</span></div>
         <div class="field"><span>species</span><span>${escapeHtml(active.speciesId)} <span class="dim">(${escapeHtml(appearance.label)})</span></span></div>
         ${active.lifeStage ? `<div class="field"><span>life stage</span><span>${escapeHtml(active.lifeStage)}</span></div>` : ''}
+        ${active.sex ? `<div class="field"><span>sex</span><span>${escapeHtml(active.sex)}</span></div>` : ''}
         ${active.action ? `<div class="field"><span>action</span><span>${escapeHtml(active.action)}</span></div>` : ''}
         <div class="field"><span>position</span><span>${active.x.toFixed(2)}, ${active.y.toFixed(2)}</span></div>
         <div class="field"><span>heading</span><span>${formatHeading(active.heading)}</span></div>
@@ -258,6 +298,7 @@ export class EntityInspector {
       ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
+    const mateChoiceBlock = formatMateChoice(liveDetail);
     const familyBlock = formatFamily(liveDetail);
     const traitsBlock = formatTraits(liveDetail);
     const geneticsBlock = formatGenetics(liveDetail);
@@ -279,6 +320,7 @@ export class EntityInspector {
       ${memoriesBlock}
       ${traitsBlock}
       ${geneticsBlock}
+      ${mateChoiceBlock}
       ${familyBlock}
       ${utilitiesBlock}
       ${perceptionBlock}

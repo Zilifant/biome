@@ -11,6 +11,7 @@ import {
   ENTITY_KINDS,
   MAX_MANUAL_STEP_TICKS,
   MAX_SPEED_MULTIPLIER,
+  SEXES,
 } from './commands.js';
 
 /**
@@ -72,6 +73,12 @@ function validateSpawnEntity(entity, errors) {
   }
   if (entity.maxHydration !== undefined && requireFiniteNumber(entity.maxHydration, 'entity.maxHydration', errors) && entity.maxHydration <= 0) {
     errors.push({ path: 'entity.maxHydration', message: 'must be > 0' });
+  }
+  // Sex is optional (an unsexed spawn simply never breeds), but if it is given
+  // it has to be one the engine understands — a typo'd sex would silently
+  // produce an animal no mate search can ever match.
+  if (entity.sex !== undefined && entity.sex !== null && !SEXES.includes(entity.sex)) {
+    errors.push({ path: 'entity.sex', message: `must be one of: ${SEXES.join(', ')}` });
   }
 }
 

@@ -81,14 +81,26 @@ export class MetricsPanel {
           .map((trait) => {
             const entry = species.traits[trait];
             const mean = entry.phenotype.mean;
+            // The pooled differential, then the same figure within each sex —
+            // which is the split that shows sexual selection, since a mate
+            // preference moves only the sex being chosen while natural
+            // selection moves both.
+            const bySex = entry.selectionDifferentialBySex
+              ? ` <span class="dim">f</span>${signed(entry.selectionDifferentialBySex.female, 2)}<span class="dim">/m</span>${signed(entry.selectionDifferentialBySex.male, 2)}`
+              : '';
             return `<div class="field"><span>${escapeHtml(trait)}</span><span><span class="dim">${drawHistogram(entry.histogram)}</span> ${
               mean === null ? '–' : mean.toFixed(3)
-            } <span class="dim">±${entry.phenotype.stdev?.toFixed(3) ?? '–'}</span> S ${signed(entry.selectionDifferential)} <span class="dim">${trendFor(trait)}</span></span></div>`;
+            } <span class="dim">±${entry.phenotype.stdev?.toFixed(3) ?? '–'}</span> S ${signed(entry.selectionDifferential)}${bySex} <span class="dim">${trendFor(trait)}</span></span></div>`;
           })
           .join('');
 
+        const sexes = species.sexes
+          ? `<div class="field"><span>sexes</span><span>${species.sexes.female ?? 0} f / ${species.sexes.male ?? 0} m</span></div>`
+          : '';
+
         return `
           <h3>${escapeHtml(species.speciesId)} <span class="dim">${species.living} alive ${populationTrend}</span></h3>
+          ${sexes}
           <div class="field"><span>generation</span><span>mean ${species.generation.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.generation.max ?? '–'}</span></span></div>
           <div class="field"><span>offspring each</span><span>mean ${species.reproductiveSuccess.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.reproductiveSuccess.max ?? '–'}</span></span></div>
           <div class="field"><span>births / deaths</span><span>${species.births} / ${species.deaths} <span class="dim">last ${metrics.windowTicks}t</span></span></div>
@@ -99,6 +111,6 @@ export class MetricsPanel {
     this.#container.innerHTML = `
       <h2>Population <span class="dim">t${metrics.tick}</span></h2>
       ${sections}
-      <p class="hint">histogram spans ${metrics.metricsRange ?? '0.5–1.5'} · S = breeder mean − adult mean</p>`;
+      <p class="hint">histogram spans ${metrics.metricsRange ?? '0.5–1.5'} · S = breeder mean − adult mean, then by sex</p>`;
   }
 }

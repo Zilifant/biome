@@ -246,11 +246,20 @@ describe('traits: reproductive investment', () => {
   function birthWith(investment) {
     const config = new SimulationEngine().config;
     const engine = sandbox({
-      systems: [new ReproductionSystem({ ...config.reproduction, gestationTicks: 2, birthMass: config.aging.birthMass })],
+      systems: [
+        new ReproductionSystem({
+          ...config.reproduction,
+          gestationTicks: 2,
+          // Mate choice off: the variable under test is investment, and both
+          // parents are built to be identical apart from it.
+          acceptanceThreshold: 0,
+          birthMass: config.aging.birthMass,
+        }),
+      ],
     });
     const parentEnergy = GRAZER.maxEnergy;
-    const mother = spawnIndividual(engine, { x: 20, y: 20, energy: parentEnergy, individual: { reproductiveInvestment: investment } });
-    spawnIndividual(engine, { x: 21, y: 20, energy: parentEnergy, individual: { reproductiveInvestment: investment } });
+    const mother = spawnIndividual(engine, { x: 20, y: 20, sex: 'female', energy: parentEnergy, individual: { reproductiveInvestment: investment } });
+    spawnIndividual(engine, { x: 21, y: 20, sex: 'male', energy: parentEnergy, individual: { reproductiveInvestment: investment } });
     engine.step(4);
     const child = [...engine.world.entities.all()].find((e) => e.parents.length === 2);
     assert.ok(child, 'a child was born');

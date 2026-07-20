@@ -16,6 +16,16 @@ const PARAMS = {
   cooldownTicks: 800,
   birthOffset: 1.0,
   birthMass: 5,
+  // Mate choice is deliberately switched off in this suite (Step 22). These
+  // tests are about pairing, gestation, cost, and timing; a declining
+  // acceptance threshold would make their exact-tick assertions depend on
+  // courtship too, and a test that fails for two reasons tells you neither.
+  // A threshold of 0 is "accept anyone", i.e. the pre-Step-22 rule. Choice has
+  // its own suite (test/mate-choice.test.js). The suitor bars are set equal to
+  // the chooser's for the same reason: this suite tests one gate, not two.
+  acceptanceThreshold: 0,
+  suitorMinEnergyFraction: 0.7,
+  suitorCooldownTicks: 800,
 };
 
 /** Engine with only reproduction, so pairing/gestation can be checked exactly. */
@@ -28,6 +38,11 @@ function reproEngine(params = {}) {
   return engine;
 }
 
+/**
+ * One adult. `sex` defaults to female (the gestating sex since Step 22), so a
+ * pair is spawned as `spawnAdult(...)` then `spawnAdult(..., { sex: 'male' })`
+ * — an unsexed pair can no longer mate at all, by design.
+ */
 function spawnAdult(engine, x, y, overrides = {}) {
   const id = engine.world.entities.queueSpawn({
     kind: 'animal',
@@ -36,6 +51,7 @@ function spawnAdult(engine, x, y, overrides = {}) {
     y,
     heading: 0,
     lifeStage: 'adult',
+    sex: 'female',
     bodyMass: 30,
     maxEnergy: 100,
     energy: 90,
@@ -47,11 +63,18 @@ function spawnAdult(engine, x, y, overrides = {}) {
   return id;
 }
 
+/** A female and a male, adjacent and both ready. */
+function spawnPair(engine, overrides = {}) {
+  return [
+    spawnAdult(engine, 10, 10, { sex: 'female', ...overrides }),
+    spawnAdult(engine, 11, 10, { sex: 'male', ...overrides }),
+  ];
+}
+
 describe('reproduction: eligibility gating', () => {
   test('two well-fed adults in range mate; both pay the cost and enter cooldown', () => {
     const engine = reproEngine();
-    const a = spawnAdult(engine, 10, 10, { energy: 90 });
-    const b = spawnAdult(engine, 11, 10, { energy: 90 });
+    const [a, b] = spawnPair(engine, { energy: 90 });
     const before = engine.events.lastSeq;
     engine.step(1);
     const ea = engine.world.entities.get(a);
@@ -60,7 +83,7 @@ describe('reproduction: eligibility gating', () => {
     assert.equal(eb.energy, 82, 'partner paid the mating cost');
     assert.equal(ea.lastMatedTick, 1);
     assert.equal(eb.lastMatedTick, 1);
-    // The lower id carries the pregnancy.
+    // The female carries the pregnancy (Step 22 — it used to be the lower id).
     assert.equal(ea.gestationUntil, 1 + PARAMS.gestationTicks);
     assert.equal(eb.gestationUntil, null);
     assert.equal(ea.pendingMateId, b);
@@ -70,8 +93,10 @@ describe('reproduction: eligibility gating', () => {
 
   test('juveniles and subadults never mate (maturity gate)', () => {
     const engine = reproEngine();
-    const a = spawnAdult(engine, 10, 10, { lifeStage: 'juvenile', energy: 100 });
-    const b = spawnAdult(engine, 11, 10, { lifeStage: 'subadult', energy: 100 });
+    const [a, b] = [
+      spawnAdult(engine, 10, 10, { sex: 'female', lifeStage: 'juvenile', energy: 100 }),
+      spawnAdult(engine, 11, 10, { sex: 'male', lifeStage: 'subadult', energy: 100 }),
+    ];
     engine.step(5);
     assert.equal(engine.world.entities.get(a).gestationUntil, null);
     assert.equal(engine.world.entities.get(b).gestationUntil, null);
@@ -79,8 +104,7 @@ describe('reproduction: eligibility gating', () => {
 
   test('under-fed adults never mate (energy gate)', () => {
     const engine = reproEngine();
-    const a = spawnAdult(engine, 10, 10, { energy: 50 }); // below 70% threshold
-    const b = spawnAdult(engine, 11, 10, { energy: 50 });
+    const [a, b] = spawnPair(engine, { energy: 50 }); // below the 70% threshold
     engine.step(5);
     assert.equal(engine.world.entities.get(a).gestationUntil, null);
     assert.equal(engine.world.entities.get(b).gestationUntil, null);
@@ -88,8 +112,8 @@ describe('reproduction: eligibility gating', () => {
 
   test('adults out of range never mate', () => {
     const engine = reproEngine();
-    const a = spawnAdult(engine, 5, 5);
-    const b = spawnAdult(engine, 25, 25); // far beyond matingRange
+    const a = spawnAdult(engine, 5, 5, { sex: 'female' });
+    const b = spawnAdult(engine, 25, 25, { sex: 'male' }); // far beyond matingRange
     engine.step(5);
     assert.equal(engine.world.entities.get(a).gestationUntil, null);
     assert.equal(engine.world.entities.get(b).gestationUntil, null);
@@ -97,8 +121,7 @@ describe('reproduction: eligibility gating', () => {
 
   test('the cooldown prevents immediate re-mating', () => {
     const engine = reproEngine({ gestationTicks: 1 });
-    const a = spawnAdult(engine, 10, 10, { energy: 100 });
-    spawnAdult(engine, 11, 10, { energy: 100 });
+    const [a] = spawnPair(engine, { energy: 100 });
     engine.step(1); // mate
     const firstMated = engine.world.entities.get(a).lastMatedTick;
     engine.step(20); // gestation ends, but cooldown (800) blocks re-mating
@@ -113,14 +136,26 @@ describe('reproduction: eligibility gating', () => {
     assert.equal(isReproductivelyReady({ ...entity, energy: 60 }, 100, params), false);
     assert.equal(isReproductivelyReady({ ...entity, gestationUntil: 500 }, 100, params), false);
     assert.equal(isReproductivelyReady({ ...entity, lastMatedTick: 99 }, 100, params), false);
+
+    // Since Step 22 the bar depends on the role: the gestating sex must be well
+    // fed and off a long cooldown, the seeking sex needs far less of both. That
+    // asymmetry is the point, not a tuning convenience — so it is asserted.
+    const sexed = { ...params, suitorMinEnergyFraction: 0.45, suitorCooldownTicks: 200 };
+    const lean = { ...entity, energy: 50 };
+    assert.equal(isReproductivelyReady({ ...lean, sex: 'female' }, 100, sexed), false, 'a lean female is not ready');
+    assert.equal(isReproductivelyReady({ ...lean, sex: 'male' }, 100, sexed), true, 'the same male is');
+    const recent = { ...entity, lastMatedTick: 600 };
+    assert.equal(isReproductivelyReady({ ...recent, sex: 'female' }, 1000, sexed), false, 'she is still on cooldown');
+    assert.equal(isReproductivelyReady({ ...recent, sex: 'male' }, 1000, sexed), true, 'he has recovered');
+    // With no suitor bars given, both roles fall back to the one rule.
+    assert.equal(isReproductivelyReady({ ...lean, sex: 'male' }, 100, params), false);
   });
 });
 
 describe('reproduction: gestation and birth', () => {
   test('birth happens exactly at term, with valid parent ids and a juvenile newborn', () => {
     const engine = reproEngine();
-    const a = spawnAdult(engine, 10, 10);
-    const b = spawnAdult(engine, 11, 10);
+    const [a, b] = spawnPair(engine);
     engine.step(1); // mate at tick 1 → term at tick 51
     assert.equal(engine.entityCount, 2, 'no offspring yet');
     engine.step(PARAMS.gestationTicks - 1); // tick 50 — still gestating
@@ -149,8 +184,7 @@ describe('reproduction: gestation and birth', () => {
 
   test('the newborn is placed on a passable cell near the parent', () => {
     const engine = reproEngine();
-    spawnAdult(engine, 10, 10);
-    spawnAdult(engine, 11, 10);
+    spawnPair(engine);
     engine.step(1 + PARAMS.gestationTicks);
     const child = [...engine.world.entities.all()].find((e) => e.parents.length === 2);
     assert.ok(engine.world.isPassableAt(child.x, child.y), 'newborn on passable terrain');

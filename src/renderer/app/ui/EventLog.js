@@ -24,9 +24,15 @@ function formatEvent(event) {
     case 'entity.fed':
       return `= fed #${event.entityId}${event.cell ? ` @${event.cell.cellX},${event.cell.cellY}` : ''}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
     case 'entity.mated':
-      return `& mated #${event.entityId} + #${event.partnerId}`;
+      return `& mated #${event.entityId} + #${event.partnerId}${event.quality !== undefined ? ` (${event.quality.toFixed(2)})` : ''}`;
+    case 'entity.courted':
+      // Quality against the standard it was held to, for the same reason
+      // `entity.hunted` shows its odds: the verdict should be checkable.
+      return `? courted #${event.entityId} → #${event.candidateId} ${event.accepted ? 'accepted' : 'rejected'}${
+        event.quality !== undefined ? ` (${event.quality.toFixed(2)} vs ${event.threshold.toFixed(2)})` : ''
+      }`;
     case 'entity.born':
-      return `* born #${event.entityId}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
+      return `* born #${event.entityId}${event.sex ? ` ${event.sex}` : ''}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
     case 'entity.provisioned':
       return `^ fed #${event.entityId} by #${event.guardianId}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
     case 'entity.hunted':
@@ -69,7 +75,12 @@ function eventClass(event) {
   if (event.type === 'entity.recovered') return 'event-created';
   if (event.type === 'entity.decayed') return 'event-removed';
   if (event.type === 'environment.changed') return 'event-created';
-  if (event.type === 'entity.mated' || event.type === 'entity.born' || event.type === 'entity.lifeEvent') {
+  if (
+    event.type === 'entity.mated' ||
+    event.type === 'entity.born' ||
+    event.type === 'entity.courted' ||
+    event.type === 'entity.lifeEvent'
+  ) {
     return 'event-birth';
   }
   return 'event-other';

@@ -86,10 +86,17 @@
  *       The metrics *report* is derived and deliberately not saved — it is
  *       recomputed on the next metrics tick — but the history is, so a chart
  *       survives a restore. v18 saves are invalidated.
+ *  20 — sexes and mate choice added (Step 22): a per-entity `sex` (fixed for
+ *       life), `mateSearchSince` (how long this animal has been receptive,
+ *       which is what makes a choosy one's standard decline), and
+ *       `lastCourtship`. Genomes also gained a `choosiness` locus. None of it
+ *       is recoverable from the seed once a population has turned over — and a
+ *       v19 population has no sexes at all, so its animals could never pair.
+ *       v19 saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 19;
+export const SAVE_FORMAT_VERSION = 20;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

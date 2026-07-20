@@ -18,7 +18,12 @@
  *     adults that actually reproduced, minus the mean among all adults. A
  *     positive value means breeders are above average for that trait, which is
  *     selection *in progress* rather than a claim about what will happen. It is
- *     computed, never scripted.
+ *     computed, never scripted. Since Step 22 it is also reported **per sex**,
+ *     and that split matters more than it looks: sexual selection acts on the
+ *     sex being chosen, so pooling the sexes dilutes the very signal it is
+ *     there to detect — every female breeds on her own condition regardless of
+ *     the trait males are picked for, and averaging her in washes the effect
+ *     out.
  *
  * Everything is O(N) in the population — one pass, no pairwise work — and every
  * output is bounded: fixed bins per histogram, fixed traits per species.
@@ -26,6 +31,20 @@
 import { SPECIES } from '../config/species/index.js';
 import { TRAIT_NAMES } from '../traits/traits.js';
 import { genotypeOf } from '../traits/genetics.js';
+import { SEX_VALUES } from '../mating/mateChoice.js';
+
+/**
+ * The cohorts a selection differential is computed within: the whole adult
+ * population, and each sex on its own.
+ */
+const COHORTS = Object.freeze(['all', ...SEX_VALUES]);
+
+/** An empty {cohort: {trait: []}} sample store. */
+function emptyCohortSamples() {
+  return Object.fromEntries(
+    COHORTS.map((cohort) => [cohort, Object.fromEntries(TRAIT_NAMES.map((name) => [name, []]))]),
+  );
+}
 
 /** Bins per trait histogram, and the range they span. */
 export const HISTOGRAM_BINS = 9;
@@ -87,10 +106,12 @@ export function computeMetrics(world, { tick, windowTicks }) {
         offspringCounts: [],
         traitValues: Object.fromEntries(TRAIT_NAMES.map((name) => [name, []])),
         genotypeValues: Object.fromEntries(TRAIT_NAMES.map((name) => [name, []])),
+        sexes: Object.fromEntries(SEX_VALUES.map((sex) => [sex, 0])),
         // Adults, split by whether they have actually reproduced — the two
-        // samples a selection differential is the difference between.
-        breederTraits: Object.fromEntries(TRAIT_NAMES.map((name) => [name, []])),
-        adultTraits: Object.fromEntries(TRAIT_NAMES.map((name) => [name, []])),
+        // samples a selection differential is the difference between — and
+        // again by sex, because that is the split sexual selection lives in.
+        breederTraits: emptyCohortSamples(),
+        adultTraits: emptyCohortSamples(),
         births: 0,
         deaths: 0,
         deathsByCause: {},
@@ -119,18 +140,23 @@ export function computeMetrics(world, { tick, windowTicks }) {
 
     bucket.living += 1;
     if (entity.lifeStage in bucket.lifeStages) bucket.lifeStages[entity.lifeStage] += 1;
+    if (entity.sex !== null && entity.sex in bucket.sexes) bucket.sexes[entity.sex] += 1;
     bucket.generations.push(entity.generation);
     bucket.offspringCounts.push(entity.offspring.length);
     // Young enough to have been born inside the window.
     if (entity.age < windowTicks) bucket.births += 1;
 
     const genotype = genotypeOf(entity.genome);
+    const breeding = entity.lifeStage === 'adult' || entity.lifeStage === 'senescent';
+    // Its own sex's cohort, when it has one; 'all' always.
+    const cohorts = entity.sex !== null && COHORTS.includes(entity.sex) ? ['all', entity.sex] : ['all'];
     for (const name of TRAIT_NAMES) {
       bucket.traitValues[name].push(entity.traits[name]);
       bucket.genotypeValues[name].push(genotype[name]);
-      if (entity.lifeStage === 'adult' || entity.lifeStage === 'senescent') {
-        bucket.adultTraits[name].push(entity.traits[name]);
-        if (entity.offspring.length > 0) bucket.breederTraits[name].push(entity.traits[name]);
+      if (!breeding) continue;
+      for (const cohort of cohorts) {
+        bucket.adultTraits[cohort][name].push(entity.traits[name]);
+        if (entity.offspring.length > 0) bucket.breederTraits[cohort][name].push(entity.traits[name]);
       }
     }
   }
@@ -142,6 +168,7 @@ export function computeMetrics(world, { tick, windowTicks }) {
       diet: SPECIES[bucket.speciesId]?.diet ?? null,
       living: bucket.living,
       lifeStages: { ...bucket.lifeStages },
+      sexes: { ...bucket.sexes },
       generation: describe(bucket.generations),
       reproductiveSuccess: describe(bucket.offspringCounts),
       births: bucket.births,
@@ -157,7 +184,17 @@ export function computeMetrics(world, { tick, windowTicks }) {
             // Positive ⇒ the animals that bred are above the adult average for
             // this trait. Null when nothing has bred yet — an honest "unknown"
             // rather than a misleading zero.
-            selectionDifferential: selectionDifferential(bucket.breederTraits[name], bucket.adultTraits[name]),
+            selectionDifferential: selectionDifferential(bucket.breederTraits.all[name], bucket.adultTraits.all[name]),
+            // The same figure within each sex (Step 22). Sexual selection acts
+            // on the chosen sex, so this is where a mate preference shows up —
+            // and where it can be told apart from natural selection, which
+            // moves both sexes together.
+            selectionDifferentialBySex: Object.fromEntries(
+              SEX_VALUES.map((sex) => [
+                sex,
+                selectionDifferential(bucket.breederTraits[sex][name], bucket.adultTraits[sex][name]),
+              ]),
+            ),
           },
         ]),
       ),

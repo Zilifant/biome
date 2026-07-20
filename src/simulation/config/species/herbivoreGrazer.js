@@ -24,5 +24,15 @@ export const herbivoreGrazer = Object.freeze({
   // hold its body temperature; cover takes the edge off.
   comfortMin: 2,
   comfortMax: 27,
+  // Mate choice (Step 22). Females gestate and therefore choose; what they read
+  // is this species fact, how hard they weigh it is the individual's heritable
+  // `choosiness`. Grazers display **size** — deliberately a trait natural
+  // selection pushes the other way, since a bigger grazer is slower (the
+  // size→speed tradeoff) and burns more energy at rest. Preferring it therefore
+  // makes sexual and natural selection pull against each other, which is what
+  // lets the metrics tell them apart. `span` is the trait deviation that
+  // saturates the signal; `conditionWeight` is how much plain body condition
+  // counts beside it (see mating/mateChoice.js).
+  matePreference: Object.freeze({ trait: 'size', span: 0.3, conditionWeight: 0.4 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

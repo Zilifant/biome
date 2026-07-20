@@ -40,6 +40,7 @@ export const DRACULA_COLORS = Object.freeze({
 /**
  * @typedef {object} Appearance
  * @property {string} glyph single ASCII character
+ * @property {Record<string, string>} [glyphBySex] per-sex glyph override (protocol v21)
  * @property {string} colorToken key into DRACULA_COLORS
  * @property {number} priority higher wins when a cell has multiple occupants
  * @property {string} label human-readable category for the inspector
@@ -57,10 +58,22 @@ export const KIND_APPEARANCE = Object.freeze({
  * touching the grid-rendering algorithm.
  */
 export const SPECIES_APPEARANCE = Object.freeze({
-  'herbivore.grazer': Object.freeze({ glyph: 'g', colorToken: 'yellow', priority: 50, label: 'grazer' }),
+  'herbivore.grazer': Object.freeze({
+    glyph: 'g',
+    glyphBySex: Object.freeze({ female: 'g', male: 'G' }),
+    colorToken: 'yellow',
+    priority: 50,
+    label: 'grazer',
+  }),
   // Predators outrank prey in a shared cell, so a hunt reads as the hunter's
   // glyph rather than disappearing behind the animal it is standing on.
-  'predator.stalker': Object.freeze({ glyph: 'S', colorToken: 'red', priority: 60, label: 'stalker' }),
+  'predator.stalker': Object.freeze({
+    glyph: 's',
+    glyphBySex: Object.freeze({ female: 's', male: 'S' }),
+    colorToken: 'red',
+    priority: 60,
+    label: 'stalker',
+  }),
 });
 
 /**
@@ -184,9 +197,17 @@ const cache = new Map();
 
 /**
  * Deterministic appearance lookup for an entity. Cached per
- * (kind, speciesId, alive, decayStage) — repeated lookups return the same
- * object. `decayStage` only varies for carcasses, so the cache stays small.
- * @param {{kind?: string, speciesId?: string, alive?: boolean, decayStage?: number}} entity
+ * (kind, speciesId, alive, decayStage, sex) — repeated lookups return the same
+ * object. `decayStage` only varies for carcasses and `sex` takes three values,
+ * so the cache stays small.
+ *
+ * Sex (protocol v21) is drawn by letter case — lowercase female, uppercase
+ * male — so a herd's composition reads straight off the grid, which is what
+ * makes mate choice something you can watch. Colour still says species, and a
+ * species that maps no `glyphBySex` (or an animal with no sex) simply keeps its
+ * base glyph.
+ *
+ * @param {{kind?: string, speciesId?: string, alive?: boolean, decayStage?: number, sex?: string|null}} entity
  * @returns {Appearance}
  */
 export function resolveAppearance(entity) {
@@ -194,13 +215,16 @@ export function resolveAppearance(entity) {
   const speciesId = entity?.speciesId ?? '';
   const alive = entity?.alive !== false;
   const decayStage = kind === 'carcass' ? (entity?.decayStage ?? 0) : 0;
-  const key = `${kind}|${speciesId}|${alive}|${decayStage}`;
+  const sex = entity?.sex ?? '';
+  const key = `${kind}|${speciesId}|${alive}|${decayStage}|${sex}`;
   let appearance = cache.get(key);
   if (!appearance) {
     if (kind === 'carcass' || (!alive && kind === 'animal')) {
       appearance = CARCASS_DECAY_APPEARANCE[decayStage] ?? CARCASS_DECAY_APPEARANCE.at(-1);
     } else {
-      appearance = SPECIES_APPEARANCE[speciesId] ?? KIND_APPEARANCE[kind] ?? UNKNOWN_APPEARANCE;
+      const base = SPECIES_APPEARANCE[speciesId] ?? KIND_APPEARANCE[kind] ?? UNKNOWN_APPEARANCE;
+      const sexed = base.glyphBySex?.[sex];
+      appearance = sexed && sexed !== base.glyph ? Object.freeze({ ...base, glyph: sexed }) : base;
     }
     cache.set(key, appearance);
   }

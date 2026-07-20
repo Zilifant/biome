@@ -232,6 +232,11 @@ describe('genetics: inheritance sandbox', () => {
           gestationTicks: 2,
           cooldownTicks: 5,
           minEnergyFraction: 0.1,
+          // Mate choice off: this sandbox is about what a genome does at birth,
+          // and a female holding out for a better male would only add noise.
+          acceptanceThreshold: 0,
+          suitorMinEnergyFraction: 0.1,
+          suitorCooldownTicks: 5,
           birthMass: CONFIG.aging.birthMass,
           genetics: CONFIG.genetics,
         }),
@@ -241,8 +246,8 @@ describe('genetics: inheritance sandbox', () => {
     // Two parents at opposite ends of the size range, repeatedly bred.
     const small = uniformGenome(0.7);
     const large = uniformGenome(1.35);
-    spawnAdult(engine, { x: 10, y: 10, genome: small, traits: expressGenome(small) });
-    spawnAdult(engine, { x: 11, y: 10, genome: large, traits: expressGenome(large) });
+    spawnAdult(engine, { x: 10, y: 10, sex: 'female', genome: small, traits: expressGenome(small) });
+    spawnAdult(engine, { x: 11, y: 10, sex: 'male', genome: large, traits: expressGenome(large) });
 
     engine.step(120);
     const children = [...engine.world.entities.all()].filter((e) => e.parents.length > 0);

@@ -30,6 +30,12 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   'bodyMass',
   'healthFraction',
   'lifeStage',
+  // Sex (Step 22). Bulk-projected: it is one short string, fixed for life (so
+  // it never dirties a delta after the entity is created), and it is what lets
+  // the renderer show a herd's sexes at a glance — which is how mate choice
+  // becomes something you can watch rather than only read about. `null` on
+  // anything unsexed.
+  'sex',
   'action',
   'alive',
   // Carcass decay (Step 18). Bulk-projected because the renderer ramps the

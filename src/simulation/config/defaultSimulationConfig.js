@@ -67,25 +67,62 @@ export const defaultSimulationConfig = Object.freeze({
   perception: Object.freeze({
     defaultRadius: 5,
     foodMinLevel: 1,
+    maxMateCandidates: 6, // bounded set of possible mates sensed (Step 22)
     updateInterval: 1,
   }),
-  // Reproduction (see systems/ReproductionSystem.js). Two adult conspecifics
-  // within `matingRange`, both well fed and off cooldown, pair; the initiator
-  // gestates and gives birth after `gestationTicks`. Nothing guarantees a
-  // replacement rate — births emerge from encounters, energy, and lifespan.
+  // Reproduction and mate choice (see systems/ReproductionSystem.js and
+  // mating/mateChoice.js). A receptive female assesses the eligible males
+  // within `matingRange` and takes the best one that clears the standard she is
+  // currently holding; she gestates and gives birth after `gestationTicks`.
+  // Nothing guarantees a replacement rate — births emerge from encounters,
+  // choice, energy, and lifespan.
   reproduction: Object.freeze({
-    matingRange: 2.0, // distance within which two ready adults pair
+    matingRange: 2.0, // distance within which a female assesses the males present
     // Reproduction is deliberately expensive and slow: ~37 energy per offspring
     // and a ~2600-tick inter-birth interval against a ~5000-tick adult life.
     // These are cost parameters, not a population cap — with food abundant and
     // no predators yet (Step 16), the herbivore population still grows; cheaper
     // settings made it explode exponentially.
-    minEnergyFraction: 0.8, // both parents must be at least this full
+    minEnergyFraction: 0.8, // the gestating sex must be at least this full
     matingEnergyCost: 12, // energy each parent spends at mating
     gestationTicks: 800, // delay from mating to birth
     birthEnergyCost: 25, // extra energy the gestating parent spends at birth
     offspringEnergyFraction: 0.6, // newborn energy as a fraction of its max
-    cooldownTicks: 1800, // ticks before an animal may mate again
+    cooldownTicks: 1800, // ticks before the gestating sex may mate again
+    // The seeking sex clears a much lower bar and recovers quickly, because it
+    // pays for one mating rather than a pregnancy (Step 22). This asymmetry is
+    // the whole basis of mate choice: it keeps most males available and most
+    // females not, so it is females that males effectively compete for. Note
+    // that it leaves the *birth rate* roughly where it was — the old rule
+    // consumed both partners for a full cooldown to make one pregnancy, this
+    // one consumes only the female.
+    suitorMinEnergyFraction: 0.45,
+    suitorCooldownTicks: 200,
+    // Mate choice (see mating/mateChoice.js). A chooser insists on quality
+    // `acceptanceThreshold × her choosiness`, declining linearly to zero over
+    // `choosinessPatienceTicks`. 0.72 sits inside the band that healthy adults
+    // actually score (roughly 0.6–0.8), which is what makes it discriminate
+    // rather than accept or reject everyone; the decline is what makes
+    // choosiness cost time instead of risking a population that never breeds.
+    //
+    // Both numbers are measured, over 15k ticks on five seeds, against a
+    // control with choice switched off (`acceptanceThreshold: 0`):
+    //
+    //   choice off      5/5 seeds alive, grazers 138–247, mean size genotype
+    //                   0.997 → 1.012, selection differential on size +0.004
+    //                   among males and −0.001 among females
+    //   patience 700    4/5 seeds alive, grazers  17–326, size → 1.035, S +0.012 / −0.002
+    //   patience 400    5/5 seeds alive, grazers  75–351, size → 1.040, S +0.012 / −0.002
+    //
+    // So 400 is not a compromise — it selects just as hard as 700 (the trait
+    // moves three times as far as the control either way) while leaving both
+    // species alive in every seed rather than four of five. Being choosy for
+    // longer bought nothing except a thinner margin. Note the signature in that
+    // last column: the differential is positive among males and flat among
+    // females, which is what sexual selection looks like when only one sex is
+    // being chosen — natural selection would move both together.
+    acceptanceThreshold: 0.72,
+    choosinessPatienceTicks: 400, // ~22% of the female cooldown
     birthOffset: 1.0, // how far behind the parent the newborn appears
   }),
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
@@ -229,6 +266,10 @@ export const defaultSimulationConfig = Object.freeze({
       caution: 0.3,
       exploration: 0.4,
       reproductiveInvestment: 0.2,
+      // Mate choice (Step 22). Behavioural, so it varies widely like the other
+      // temperaments — and it needs real variance for choosiness itself to be
+      // selectable rather than a constant wearing a trait's clothes.
+      choosiness: 0.3,
     }),
   }),
   // Parental care (see systems/ParentingSystem.js). A newborn depends on the
@@ -305,6 +346,11 @@ export const defaultSimulationConfig = Object.freeze({
     restBias: 0.3, // rest attractiveness, scaled by fullness
     wanderBias: 0.35, // baseline exploration utility
     mateWeight: 0.55, // seeking a mate when reproductively ready
+    // Mate choice (Step 22): quality forfeited per unit of distance when the
+    // choosing sex picks which perceived candidate to walk toward. Small, so a
+    // slightly better mate a few cells further off is worth the walk and a
+    // marginally better one at the edge of perception is not.
+    mateDistanceWeight: 0.04,
     followWeight: 0.7, // a dependent juvenile keeping up with its guardian
     followDistance: 1.5, // inside this distance there is nothing to close
     // Predation (Step 16). Fleeing outranks everything — a grazing animal that

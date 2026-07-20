@@ -16,8 +16,15 @@ export const EventTypes = Object.freeze({
   ENTITY_DIED: 'entity.died', //       { entityId, cause }
   ENTITY_REMOVED: 'entity.removed', // { entityId }
   ENTITY_FED: 'entity.fed', //         { entityId, cell: {cellX, cellY}, amount }
-  ENTITY_MATED: 'entity.mated', //     { entityId, partnerId, gestationUntil }
-  ENTITY_BORN: 'entity.born', //       { entityId, parents: [id, id] }
+  ENTITY_MATED: 'entity.mated', //     { entityId, partnerId, gestationUntil, quality }
+  ENTITY_BORN: 'entity.born', //       { entityId, parents: [id, id], sex }
+  // Mate choice (Step 22). One assessment: who was looked over, how good they
+  // scored, the standard they were held to, and which way it went. Rejections
+  // are reported too — "she sized him up and walked on" is a behaviour, and
+  // reporting only the successes would make choice invisible. The threshold is
+  // published alongside the quality for the same reason `entity.hunted`
+  // publishes its odds: the outcome should be checkable, not taken on trust.
+  ENTITY_COURTED: 'entity.courted', // { entityId, candidateId, quality, threshold, accepted }
   ENTITY_PROVISIONED: 'entity.provisioned', // { entityId, guardianId, amount }
   // Predation (Step 16). `entity.hunted` reports one capture attempt and the
   // odds it was made at, so an observer can see that a hunt is resolved from

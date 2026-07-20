@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-21)
+## Results (post-Step-22)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→174 | 0.564 | ~1,770 |
-| small-100 | 256×256 | 107→136 | 0.469 | ~2,130 |
-| medium-1k | 512×512 | 1067→1428 | 5.74 | ~174 |
-| large-5k | 1024×1024 | 5333→7060 | 41.42 | ~24 |
+| demo-default | 128×128 | 128→177 | 0.604 | ~1,655 |
+| small-100 | 256×256 | 107→142 | 0.465 | ~2,150 |
+| medium-1k | 512×512 | 1067→1450 | 6.14 | ~163 |
+| large-5k | 1024×1024 | 5333→7233 | 46.06 | ~22 |
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -168,6 +168,20 @@ authoritative tick budget.
   instead of one value), still a bounded 7 loci per animal. Every system
   continues to read only the expressed `traits`, exactly as before, so nothing
   in the hot path learned about genetics.
+- **Step 22** (mate choice and sexual selection): large-5k **41.42 → 46.06
+  ms/tick**. Within the run-to-run band this scenario has shown all along (it
+  has bounced 41–46 since Step 19), and the added work is genuinely small:
+  assessment is a handful of arithmetic per receptive female per tick, it runs
+  only inside `matingRange` on a grid query reproduction was already making,
+  and it consumes no randomness at all. Perception gained a bounded
+  (`maxMateCandidates: 6`) candidate list built in the neighbour pass it was
+  already walking, so it costs a comparison per neighbour rather than a second
+  scan. End entity count rose 7060 → 7233, which accounts for part of it.
+  Courtship *events* were the one real cost and were fixed rather than
+  absorbed: emitting one per assessment produced ~1.7 events/tick across the
+  demo (26k over 15k ticks), so the system now reports only a new candidate or
+  a changed verdict — ~1.4k over the same run, a 20× cut.
+
 - **Step 21** (evolutionary observation): large-5k **41.34 → 41.42 ms/tick** (no
   measurable change). Aggregation is a single O(N) pass — no pairwise work —
   staggered to every 50 ticks, so its amortized cost is a fiftieth of one walk

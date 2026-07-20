@@ -27,6 +27,7 @@ import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
+import { Sexes } from '../simulation/mating/mateChoice.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
 
 const TWO_PI = Math.PI * 2;
@@ -54,6 +55,8 @@ export function registerDemoSystems(engine) {
       reproduction: {
         minEnergyFraction: engine.config.reproduction.minEnergyFraction,
         cooldownTicks: engine.config.reproduction.cooldownTicks,
+        suitorMinEnergyFraction: engine.config.reproduction.suitorMinEnergyFraction,
+        suitorCooldownTicks: engine.config.reproduction.suitorCooldownTicks,
       },
     }),
   );
@@ -157,6 +160,13 @@ function spawnCohort(engine, species, count, draw) {
       age,
       genome,
       traits,
+      // Founding sexes alternate rather than being drawn (Step 22). A founding
+      // cohort is scenario setup, not biology — the same judgement that spreads
+      // founder ages across life stages so no cohort is synchronized. Drawing
+      // them would put an 8-strong predator cohort one unlucky seed away from a
+      // sex ratio that cannot breed, which would be a measurement artifact and
+      // not an ecological finding. Everything born in-world draws its sex.
+      sex: i % 2 === 0 ? Sexes.FEMALE : Sexes.MALE,
       adultMass,
       bodyMass: bodyMassForAge(age, { birthMass: engine.config.aging.birthMass, adultMass, maturityAge: engine.config.aging.maturityAge }),
       lifeStage: lifeStageForAge(age, engine.config.aging),

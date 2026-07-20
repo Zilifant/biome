@@ -38,6 +38,14 @@ export const ENGINE_COMMAND_TYPES = new Set([
  * is a recognized kind (and spawnable for tests). */
 export const ENTITY_KINDS = Object.freeze(['animal', 'plant', 'carcass']);
 
+/**
+ * Protocol-visible sexes (Step 22). Part of the contract rather than a
+ * simulation detail, because `sex` rides in every bulk snapshot — the renderer
+ * draws it, so it needs a vocabulary it can rely on. Non-animals (and animals
+ * created without one) carry `null`, which consumers must tolerate.
+ */
+export const SEXES = Object.freeze(['female', 'male']);
+
 export const MAX_SPEED_MULTIPLIER = 64;
 export const MAX_MANUAL_STEP_TICKS = 10000;
 

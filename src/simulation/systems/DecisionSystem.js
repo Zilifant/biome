@@ -14,6 +14,7 @@
  *   - recallFood   — nothing in sight, but it remembers eating somewhere
  *   - recallWater  — nothing in sight, but it remembers drinking somewhere
  *   - shelter      — the weather is biting; head for cover
+ *   - seekMate     — reproductively ready; close on the best candidate in sight
  *   - followParent — a dependent juvenile keeping up with its guardian
  *   - rest         — stay put (attractive when satiated, never near danger)
  *   - wander       — undirected exploration with a committed heading
@@ -21,7 +22,8 @@
  * Runs in the `decision` phase (after perception, before movement). Ownership:
  * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
  * `world.perception`, physiology, vegetation, bounded `memories` (Step 15),
- * and the `boldness` / `caution` / `exploration` traits. Determinism: exactly two
+ * and the `boldness` / `caution` / `exploration` / `choosiness` traits (the last
+ * via mating/mateChoice.js, which the reproduction system shares). Determinism: exactly two
  * draws per animal per tick on the `decision` stream (an exploration/tiebreak
  * roll and a candidate wander heading), regardless of which action wins.
  */
@@ -30,6 +32,7 @@ import { isReproductivelyReady } from './ReproductionSystem.js';
 import { SPECIES } from '../config/species/index.js';
 import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js';
 import { thermalStress } from '../world/Environment.js';
+import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateChoice.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -50,6 +53,8 @@ export class DecisionSystem extends SimulationSystem {
    * @param {number} [options.restBias]
    * @param {number} [options.wanderBias]
    * @param {number} [options.explorationRate]
+   * @param {number} [options.mateWeight] pull toward a mate when reproductively ready
+   * @param {number} [options.mateDistanceWeight] mate quality forfeited per unit of distance
    * @param {number} [options.followWeight] pull toward a dependent's guardian
    * @param {number} [options.followDistance] no need to follow inside this range
    * @param {number} [options.recallWeight] how much a memory counts against sight
@@ -83,6 +88,7 @@ export class DecisionSystem extends SimulationSystem {
     explorationRate = 0.05,
     drinkRange = 1.5,
     mateWeight = 0.55,
+    mateDistanceWeight = 0.04,
     followWeight = 0.7,
     followDistance = 1.5,
     fleeWeight = 2.0,
@@ -118,6 +124,7 @@ export class DecisionSystem extends SimulationSystem {
     this.explorationRate = explorationRate;
     this.drinkRange = drinkRange;
     this.mateWeight = mateWeight;
+    this.mateDistanceWeight = mateDistanceWeight;
     this.followWeight = followWeight;
     this.followDistance = followDistance;
     this.fleeWeight = fleeWeight;
@@ -167,13 +174,18 @@ export class DecisionSystem extends SimulationSystem {
       const nearestFood = carnivore ? carcass : (perceived?.nearestFood ?? null);
       const nearestWater = perceived?.nearestWater ?? null;
       const atWater = nearestWater !== null && nearestWater.distance <= this.drinkRange;
-      // A perceived conspecific is a mate candidate when this animal is ready;
-      // whether the pair actually mates is the reproduction system's call.
-      const nearestAnimal = perceived?.nearestAnimal ?? null;
-      const mateCandidate =
-        nearestAnimal && nearestAnimal.speciesId === entity.speciesId && isReproductivelyReady(entity, context.tick, this.reproduction)
-          ? nearestAnimal
-          : null;
+      // Mate choice (Step 22). A ready animal heads for a perceived candidate of
+      // the opposite sex — and *which* one is where preference becomes visible:
+      // the choosing sex walks toward the best animal it can see rather than the
+      // closest, and pays for that in the ground it covers. Whether the pair
+      // actually mates is still the reproduction system's call.
+      const mateCandidate = isReproductivelyReady(entity, context.tick, this.reproduction)
+        ? bestMateCandidate(perceived?.mateCandidates ?? [], (id) => world.entities.get(id), {
+            preference: matePreferenceFor(entity.speciesId),
+            distanceWeight: this.mateDistanceWeight,
+            assess: isChooser(entity),
+          })
+        : null;
       // A dependent juvenile is pulled toward its guardian, more strongly the
       // further it has drifted — half weight the moment it loses contact,
       // rising to full weight at the edge of perception, so keeping up always
@@ -264,7 +276,7 @@ export class DecisionSystem extends SimulationSystem {
       // rather than a cell.
       const followed =
         action === 'seekMate'
-          ? mateCandidate
+          ? mateCandidate.candidate
           : action === 'followParent'
             ? guardian
             : action === 'chase' || action === 'stalk'

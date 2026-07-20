@@ -26,6 +26,7 @@ import { SeededRandom, deriveSeed } from '../random/SeededRandom.js';
 import { defaultSimulationConfig, mergeConfig } from '../config/defaultSimulationConfig.js';
 import { recordTombstone, lookupLineageList, lookupLineage } from '../world/lineage.js';
 import { genotypeOf } from '../traits/genetics.js';
+import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -44,6 +45,7 @@ function publicEntityView(entity) {
     bodyMass: entity.bodyMass,
     healthFraction: entity.maxHealth > 0 ? entity.health / entity.maxHealth : 0,
     lifeStage: entity.lifeStage,
+    sex: entity.sex,
     action: entity.action,
     alive: entity.alive,
     decayStage: entity.decayStage,
@@ -327,6 +329,25 @@ export class SimulationEngine {
         gestating: entity.gestationUntil !== null,
         gestationUntil: entity.gestationUntil,
         lastMatedTick: entity.lastMatedTick,
+      },
+      // Mate choice (Step 22) — inspection-only. The *basis* of the choice, not
+      // just its outcome: what this species reads in a mate, how hard this
+      // individual weighs it, the standard it is holding right now (which falls
+      // as it goes unmated), and the last animal it actually sized up. Without
+      // the threshold beside the quality, a rejection looks arbitrary.
+      mateChoice: {
+        preference: matePreferenceFor(entity.speciesId),
+        choosiness: entity.traits.choosiness ?? null,
+        searchingSince: entity.mateSearchSince,
+        searchingTicks: entity.mateSearchSince === null ? null : this.clock.tick - entity.mateSearchSince,
+        threshold:
+          entity.mateSearchSince === null
+            ? null
+            : acceptanceThreshold(entity, this.clock.tick, {
+                baseThreshold: this.config.reproduction.acceptanceThreshold,
+                patienceTicks: this.config.reproduction.choosinessPatienceTicks,
+              }),
+        lastCourtship: entity.lastCourtship ? { ...entity.lastCourtship } : null,
       },
       // Family and life history (Step 13) — inspection-only, both bounded:
       // `offspring` is sparse (a handful per lifetime) and `lifeEvents` is

@@ -27,5 +27,11 @@ export const predatorStalker = Object.freeze({
   // better and the heat worse (Step 19), °C.
   comfortMin: -3,
   comfortMax: 24,
+  // Mate choice (Step 22). A different species, a different display: stalkers
+  // read **speed**, the trait their whole living depends on, and weigh it more
+  // sharply (a smaller `span`) than grazers weigh size. Nothing in the code
+  // knows which species is which — the preference is read generically from
+  // here (see mating/mateChoice.js).
+  matePreference: Object.freeze({ trait: 'speed', span: 0.22, conditionWeight: 0.4 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

@@ -112,6 +112,14 @@ The first herbivore, `herbivore.grazer`, maps to `g`/yellow. Nothing in the
 grid-rendering algorithm changes. `colorToken` must be a key of
 `DRACULA_COLORS` (rendered from the `--dracula-<token>` CSS variable).
 
+**Sex is drawn by letter case** (protocol v21): lowercase female, uppercase
+male — `g`/`G` grazer, `s`/`S` stalker — via an optional `glyphBySex` map on the
+appearance entry. Colour still says species and priority still decides who wins
+a shared cell, so a hunt reads as the predator either way; case is a third,
+independent channel, which is what lets a herd's composition read off the grid
+at a glance. A species with no `glyphBySex`, or an animal the protocol sends
+with `sex: null`, simply keeps its base glyph.
+
 **To show a new protocol-visible field in the inspector**: once the
 simulation protocol actually provides the field on snapshot entities or
 `entity.inspection` responses, add one `<div class="field">` row in
@@ -183,7 +191,17 @@ a renderer exists.
   species would dwarf the per-tick payload, and a summary view needs nothing
   like tick resolution. `MetricsPanel` draws histograms, trends, and selection
   differentials from numbers the engine computed; the only arithmetic it does
-  is scaling bars to the tallest bin, which is layout.
+  is scaling bars to the tallest bin, which is layout. Since protocol v21 it
+  also shows the sex counts and the selection differential **split by sex**,
+  which is the row that distinguishes sexual from natural selection: a mate
+  preference moves only the sex being chosen.
+- Mate choice (protocol v21) is inspection-only apart from `sex`, which rides in
+  every bulk snapshot. The inspector panel shows what the species reads in a
+  mate, this individual's choosiness, the standard it is holding right now
+  (which falls as it goes unmated), and the last animal it sized up — with the
+  quality *and* the threshold, since a rejection with no visible standard just
+  looks capricious. `entity.courted` in the event log is formatted the same way,
+  for the same reason `entity.hunted` shows its odds.
 - Heredity (protocol v19) is inspection-only: the panel lists each locus with
   its two alleles, the genotype they average to, the phenotype actually
   expressed, and the same locus in whichever parents are still resolvable. The

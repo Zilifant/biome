@@ -4,9 +4,9 @@
  * Each tick, every living animal builds a bounded summary of what it can sense
  * within its species' perception radius: nearby animals (via the spatial
  * index), its parent if it still depends on one (Step 13), the nearest animal
- * it hunts and the nearest one that hunts it (Step 16), and the nearest food
- * cell, water cell, and obstacle (via a local scan of the cell
- * neighborhood). Perception is strictly local — an animal never reads global
+ * it hunts and the nearest one that hunts it (Step 16), a bounded set of
+ * possible mates (Step 22), and the nearest food cell, water cell, and obstacle
+ * (via a local scan of the cell neighborhood). Perception is strictly local — an animal never reads global
  * world state (invariant 17): neighbors come from `SpatialGrid.queryRadius`,
  * and cell features from a radius-bounded scan.
  *
@@ -28,10 +28,11 @@ export class PerceptionSystem extends SimulationSystem {
    * @param {number} [options.foodMinLevel] vegetation level that counts as food
    * @param {number} [options.updateInterval]
    */
-  constructor({ defaultRadius = 5, foodMinLevel = 1, updateInterval = 1 } = {}) {
+  constructor({ defaultRadius = 5, foodMinLevel = 1, maxMateCandidates = 6, updateInterval = 1 } = {}) {
     super({ id: 'perception', phase: 'perception', priority: 0, updateInterval });
     this.defaultRadius = defaultRadius;
     this.foodMinLevel = foodMinLevel;
+    this.maxMateCandidates = maxMateCandidates;
   }
 
   update(world) {
@@ -59,6 +60,8 @@ export class PerceptionSystem extends SimulationSystem {
     let nearestPrey = null;
     let nearestThreat = null;
     let nearestCarcass = null;
+    /** @type {Array<{id: number, distance: number, x: number, y: number, sex: string}>} */
+    const mateCandidates = [];
     for (const otherId of world.grid.queryRadius(entity.x, entity.y, radius)) {
       if (otherId === entity.id) continue;
       const other = world.entities.get(otherId);
@@ -105,6 +108,28 @@ export class PerceptionSystem extends SimulationSystem {
       if (hunts(other.speciesId, entity.speciesId) && (nearestThreat === null || distance < nearestThreat.distance)) {
         nearestThreat = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
       }
+      // Mate choice (Step 22): sensing a possible mate is sensing, so the
+      // candidate set is gathered here in the pass that is already running.
+      // Whether any of them is *good enough* is not perception's business —
+      // that is scored from traits and condition by mating/mateChoice.js, which
+      // the decision and reproduction systems both call. Adults of the opposite
+      // sex only; the list is trimmed to the nearest few below, so a crowded
+      // cell cannot make this grow.
+      if (
+        other.speciesId === entity.speciesId &&
+        other.lifeStage === 'adult' &&
+        other.sex !== null &&
+        entity.sex !== null &&
+        other.sex !== entity.sex
+      ) {
+        mateCandidates.push({ id: otherId, distance, x: other.x, y: other.y, sex: other.sex });
+      }
+    }
+    // Nearest first, ties by ascending id (grid queries already return ids in
+    // ascending order, and sort is stable) — so the trim is deterministic.
+    if (mateCandidates.length > this.maxMateCandidates) {
+      mateCandidates.sort((a, b) => a.distance - b.distance);
+      mateCandidates.length = this.maxMateCandidates;
     }
 
     // --- Cell features: a local scan of the radius neighborhood (bounded, not
@@ -150,6 +175,7 @@ export class PerceptionSystem extends SimulationSystem {
       nearestPrey,
       nearestThreat,
       nearestCarcass,
+      mateCandidates,
       nearestFood: finalizeCell(nearestFood),
       nearestWater: finalizeCell(nearestWater),
       nearestObstacle: finalizeCell(nearestObstacle),

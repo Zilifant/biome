@@ -1,48 +1,75 @@
 /**
- * Reproduction (Step 12): the first population-renewal mechanism.
+ * Reproduction (Step 12), with sexes and mate choice (Step 22).
  *
- * Two adult conspecifics that are within `matingRange`, well fed, not already
- * gestating, and off cooldown pair up. Both pay a mating energy cost; the
- * initiator (deterministically the lower entity id) gestates, and after
- * `gestationTicks` gives birth to a juvenile placed just behind it, carrying
- * both parent ids. Nothing guarantees a replacement rate — births emerge from
- * encounters, energy, and lifespan, so populations may grow, shrink, or die
- * out.
+ * A receptive female assesses the eligible males within `matingRange` and pairs
+ * with the best of them **if he clears the standard she is currently holding**
+ * — a standard that starts at her heritable choosiness and declines the longer
+ * she goes unmated (see mating/mateChoice.js, which owns the whole preference
+ * model and explains why this simulation has sexes at all). Both pay a mating
+ * energy cost, she gestates, and after `gestationTicks` gives birth to a
+ * juvenile placed just behind her, carrying both parent ids. Nothing guarantees
+ * a replacement rate — births emerge from encounters, choice, energy, and
+ * lifespan, so populations may grow, shrink, or die out.
+ *
+ * The two sexes clear different bars, which is the asymmetry the whole thing
+ * rests on: she must be near-full and waits out a long cooldown because she
+ * pays for the pregnancy; he needs far less and recovers quickly because he
+ * pays for one mating. So males are usually available and females usually are
+ * not, and it is females that males are effectively competing for.
  *
  * Runs in the `interaction` phase (after movement, so pairing uses this tick's
  * positions; before metabolism, so the costs are charged the same tick).
  * Mate search is grid-local (`queryRadius`), never a global pairwise scan
  * (invariant 17). Ownership: writes the reproductive fields
- * (`gestationUntil`, `pendingMateId`, `lastMatedTick`), appends to each
- * parent's `offspring` list, spends `energy`, and creates offspring at the
- * deferred-spawn boundary. The newborn's `guardianId` is part of its spawn
- * definition; the parenting system (Step 13) owns it thereafter. Mating and
- * gestation timing use no randomness at all — they are fully determined by
- * encounters and the fixed gestation; the only draws are the newborn's
- * inheritance (Step 20), on the separate `genetics` stream.
+ * (`gestationUntil`, `pendingMateId`, `lastMatedTick`, `mateSearchSince`,
+ * `lastCourtship`), appends to each parent's `offspring` list, spends `energy`,
+ * and creates offspring at the deferred-spawn boundary. The newborn's
+ * `guardianId` is part of its spawn definition; the parenting system (Step 13)
+ * owns it thereafter. Mating, assessment, and gestation timing use no
+ * randomness at all — quality is a pure function of traits and condition; the
+ * only draws are the newborn's inheritance (`genetics` stream) and its sex (the
+ * `sex` stream), one each per birth.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { SPECIES } from '../config/species/index.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
 import { inheritGenome, expressGenome } from '../traits/genetics.js';
+import {
+  acceptanceThreshold,
+  drawSex,
+  isChooser,
+  mateQuality,
+  matePreferenceFor,
+} from '../mating/mateChoice.js';
 
 /**
  * Reproductive readiness — the single source of truth, shared by the
  * reproduction system (which pairs animals) and the decision system (which
  * decides whether to go looking for a mate), so the rule never drifts.
+ *
+ * The bar depends on the role (Step 22): the gestating sex must be well fed and
+ * off a long cooldown, the seeking sex needs much less of both. That difference
+ * is not a tuning convenience — it is the investment asymmetry that makes
+ * choosing worth anything.
+ *
  * @param {object} entity
  * @param {number} tick
- * @param {{minEnergyFraction: number, cooldownTicks: number}} params
+ * @param {{minEnergyFraction: number, cooldownTicks: number,
+ *   suitorMinEnergyFraction?: number, suitorCooldownTicks?: number}} params
  */
-export function isReproductivelyReady(entity, tick, { minEnergyFraction, cooldownTicks }) {
+export function isReproductivelyReady(entity, tick, params) {
+  const { minEnergyFraction, cooldownTicks, suitorMinEnergyFraction, suitorCooldownTicks } = params;
+  const gestates = isChooser(entity);
+  const energyBar = gestates ? minEnergyFraction : (suitorMinEnergyFraction ?? minEnergyFraction);
+  const cooldown = gestates ? cooldownTicks : (suitorCooldownTicks ?? cooldownTicks);
   return (
     entity.kind === 'animal' &&
     entity.alive &&
     entity.lifeStage === 'adult' &&
     entity.gestationUntil === null &&
-    entity.energy >= minEnergyFraction * entity.maxEnergy &&
-    (entity.lastMatedTick === null || tick - entity.lastMatedTick >= cooldownTicks)
+    entity.energy >= energyBar * entity.maxEnergy &&
+    (entity.lastMatedTick === null || tick - entity.lastMatedTick >= cooldown)
   );
 }
 
@@ -55,7 +82,11 @@ export class ReproductionSystem extends SimulationSystem {
    * @param {number} [options.gestationTicks]
    * @param {number} [options.birthEnergyCost]
    * @param {number} [options.offspringEnergyFraction]
-   * @param {number} [options.cooldownTicks]
+   * @param {number} [options.cooldownTicks] the gestating sex's refractory period
+   * @param {number} [options.suitorMinEnergyFraction] the seeking sex's energy bar
+   * @param {number} [options.suitorCooldownTicks] the seeking sex's refractory period
+   * @param {number} [options.acceptanceThreshold] base quality a chooser insists on
+   * @param {number} [options.choosinessPatienceTicks] ticks over which that standard falls to zero
    * @param {number} [options.birthOffset]
    * @param {number} [options.birthMass] newborn body mass (from the aging curve)
    * @param {object} [options.genetics] mutation rate and step (see traits/genetics.js)
@@ -69,6 +100,10 @@ export class ReproductionSystem extends SimulationSystem {
     birthEnergyCost = 15,
     offspringEnergyFraction = 0.6,
     cooldownTicks = 800,
+    suitorMinEnergyFraction = 0.45,
+    suitorCooldownTicks = 200,
+    acceptanceThreshold: baseAcceptanceThreshold = 0.72,
+    choosinessPatienceTicks = 400,
     birthOffset = 1.0,
     birthMass = 5,
     genetics = {},
@@ -82,6 +117,10 @@ export class ReproductionSystem extends SimulationSystem {
     this.birthEnergyCost = birthEnergyCost;
     this.offspringEnergyFraction = offspringEnergyFraction;
     this.cooldownTicks = cooldownTicks;
+    this.suitorMinEnergyFraction = suitorMinEnergyFraction;
+    this.suitorCooldownTicks = suitorCooldownTicks;
+    this.acceptanceThreshold = baseAcceptanceThreshold;
+    this.choosinessPatienceTicks = choosinessPatienceTicks;
     this.birthOffset = birthOffset;
     this.birthMass = birthMass;
     this.genetics = genetics;
@@ -110,7 +149,12 @@ export class ReproductionSystem extends SimulationSystem {
       }
 
       const maxEnergy = species?.maxEnergy ?? entity.maxEnergy;
+      // `parents[0]` is always the parent that carried the pregnancy.
       const parents = mateId === null ? [entity.id] : [entity.id, mateId];
+      // Sex (Step 22) is drawn on its own stream, one draw per birth, so adding
+      // it never shifted the `genetics` sequence — and so a run with a different
+      // birth history cannot desynchronize inheritance.
+      const sex = drawSex(context.random('sex'));
       // Heredity (Step 20): the newborn's genome comes from its parents —
       // one allele per locus from each, then mutation — and its traits are
       // expressed from that genome rather than drawn fresh. The carrying
@@ -132,6 +176,7 @@ export class ReproductionSystem extends SimulationSystem {
         adultMass: (species?.bodyMass ?? entity.adultMass) * traits.size,
         genome,
         traits,
+        sex,
         speed: (species?.baseSpeed ?? entity.speed) * traits.speed,
         maxEnergy,
         energy: Math.min(maxEnergy, maxEnergy * this.offspringEnergyFraction * investment),
@@ -163,39 +208,105 @@ export class ReproductionSystem extends SimulationSystem {
       entity.energy = Math.max(0, entity.energy - this.birthEnergyCost * investment);
       entity.gestationUntil = null;
       entity.pendingMateId = null;
-      context.emit(EventTypes.ENTITY_BORN, { entityId: offspringId, parents });
+      context.emit(EventTypes.ENTITY_BORN, { entityId: offspringId, parents, sex });
     }
   }
 
-  /** Pair eligible adults that are close enough this tick. */
+  /**
+   * Receptive females assess the males in range and pair with the best one that
+   * clears their current standard.
+   *
+   * Only the gestating sex drives this loop: it is the one whose consent
+   * actually gates a pregnancy, so making it the initiator keeps a mating from
+   * being resolved twice from opposite ends. A rejection is not a no-op — it is
+   * recorded and emitted, because "she looked him over and walked on" is a
+   * behaviour an observer should be able to see, not infer.
+   */
   #matings(world, context) {
     const matedThisTick = new Set();
     for (const entity of world.entities.all()) {
-      if (matedThisTick.has(entity.id) || !this.#eligible(entity, context.tick)) continue;
+      if (!isChooser(entity) || matedThisTick.has(entity.id)) continue;
+      if (!this.#eligible(entity, context.tick)) {
+        // Not receptive: the search clock stops, so a female who spends a
+        // gestation unavailable starts her next search at full standards.
+        entity.mateSearchSince = null;
+        continue;
+      }
+      // Receptive from this tick onward — the clock the declining threshold
+      // reads, and the concrete form of "choosiness costs time".
+      if (entity.mateSearchSince === null) entity.mateSearchSince = context.tick;
 
+      const preference = matePreferenceFor(entity.speciesId);
+      let best = null;
+      let bestQuality = -1;
       for (const otherId of world.grid.queryRadius(entity.x, entity.y, this.matingRange)) {
         if (otherId === entity.id || matedThisTick.has(otherId)) continue;
         const other = world.entities.get(otherId);
+        // A partner must be a sexed conspecific of the *other* role. Testing
+        // `other.sex !== entity.sex` alone would let an unsexed animal (a
+        // hand-spawned one, or an externally submitted `entity.spawn`) count as
+        // a mate, since `null !== 'female'`.
         if (!other || other.speciesId !== entity.speciesId) continue;
+        if (other.sex === null || isChooser(other)) continue;
         if (!this.#eligible(other, context.tick)) continue;
-
-        // Pair: both pay the cost; the initiator (lower id, since entities are
-        // iterated in ascending id order) carries the pregnancy.
-        entity.energy = Math.max(0, entity.energy - this.matingEnergyCost);
-        other.energy = Math.max(0, other.energy - this.matingEnergyCost);
-        entity.lastMatedTick = context.tick;
-        other.lastMatedTick = context.tick;
-        entity.pendingMateId = other.id;
-        entity.gestationUntil = context.tick + this.gestationTicks;
-        matedThisTick.add(entity.id);
-        matedThisTick.add(other.id);
-        context.emit(EventTypes.ENTITY_MATED, {
-          entityId: entity.id,
-          partnerId: other.id,
-          gestationUntil: entity.gestationUntil,
-        });
-        break;
+        const quality = mateQuality(other, preference);
+        // Strictly greater, over ids in ascending order: ties go to the lowest id.
+        if (quality > bestQuality) {
+          bestQuality = quality;
+          best = other;
+        }
       }
+      if (best === null) continue;
+
+      const threshold = acceptanceThreshold(entity, context.tick, {
+        baseThreshold: this.acceptanceThreshold,
+        patienceTicks: this.choosinessPatienceTicks,
+      });
+      const accepted = bestQuality >= threshold;
+      // Report the *verdict*, not the re-checking. A female standing beside a
+      // male reassesses him every tick — her standard is falling, so she must —
+      // but emitting that every tick produced ~1.7 events per tick across the demo,
+      // which is pure noise competing for the bounded retention window (§1.4
+      // C3). One event when she sizes up someone new, and one when her answer
+      // changes, is the whole story: "looked over #57, walked on" then later
+      // "looked over #57, accepted".
+      const previous = entity.lastCourtship;
+      const worthReporting =
+        previous === null || previous.candidateId !== best.id || previous.accepted !== accepted;
+      entity.lastCourtship = {
+        tick: context.tick,
+        candidateId: best.id,
+        quality: bestQuality,
+        threshold,
+        accepted,
+      };
+      if (worthReporting) {
+        context.emit(EventTypes.ENTITY_COURTED, {
+          entityId: entity.id,
+          candidateId: best.id,
+          quality: bestQuality,
+          threshold,
+          accepted,
+        });
+      }
+      if (!accepted) continue;
+
+      // Pair: both pay the mating cost, she carries the pregnancy.
+      entity.energy = Math.max(0, entity.energy - this.matingEnergyCost);
+      best.energy = Math.max(0, best.energy - this.matingEnergyCost);
+      entity.lastMatedTick = context.tick;
+      best.lastMatedTick = context.tick;
+      entity.pendingMateId = best.id;
+      entity.gestationUntil = context.tick + this.gestationTicks;
+      entity.mateSearchSince = null;
+      matedThisTick.add(entity.id);
+      matedThisTick.add(best.id);
+      context.emit(EventTypes.ENTITY_MATED, {
+        entityId: entity.id,
+        partnerId: best.id,
+        gestationUntil: entity.gestationUntil,
+        quality: bestQuality,
+      });
     }
   }
 
@@ -204,6 +315,8 @@ export class ReproductionSystem extends SimulationSystem {
     return isReproductivelyReady(entity, tick, {
       minEnergyFraction: this.minEnergyFraction,
       cooldownTicks: this.cooldownTicks,
+      suitorMinEnergyFraction: this.suitorMinEnergyFraction,
+      suitorCooldownTicks: this.suitorCooldownTicks,
     });
   }
 

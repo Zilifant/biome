@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–21)
+## 1.4 Carried-forward deviations and open issues (Steps 1–22)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -123,13 +123,13 @@ correctness bug in shipped code unless marked ⚠.
 | A6 | 8 | `approachFood` folded into `seekFood` (identical mechanics) | — (settled) |
 | A7 | 8 | Action glyph *tint* deferred (`action` is in the bulk snapshot, so it is available) | later renderer pass |
 | A8 | 10 | Optional `entity.drank` event skipped (redundant with the public `action` field) | — (settled) |
-| A9 | 12 | No sexes: either adult may initiate, the lower id gestates | **Step 22** |
-| A10 | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Step 22** |
+| ~~A9~~ | 12 | No sexes: either adult may initiate, the lower id gestates | **Done in Step 22** — females gestate and choose, males clear a lower energy bar and a shorter refractory period. The asymmetry is the point, not a convenience |
+| ~~A10~~ | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Done in Step 22** — it now steers toward the *best* perceived candidate (distance-discounted), and the reproduction system accepts or rejects against a declining standard |
 | A11 | 13 | Juvenile *protection* omitted from the parenting strategy — a guardian does not defend or shield its young | **still open.** Step 16 shipped predators without it; a parent that fought or interposed belongs with **Step 23** (social behaviour, where fights land) |
 | A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **still open.** Predation (Step 16) did make orphaning common and the mercy was left in place deliberately; revisit only if juvenile survival needs to bite |
 | A13 | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
-| A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Step 22** (mate choice) / **Step 23** (social groups), where kin *recognition* actually has a reader |
+| A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | still open — Step 22 turned out **not** to need it (mate choice never has to avoid relatives), so **Step 23** (social groups) or inbreeding avoidance is the first real reader |
 | ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
 | A17 | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Step 29** (species schema) |
 | A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
@@ -142,6 +142,8 @@ correctness bug in shipped code unless marked ⚠.
 | A26 | 20 | Genetics is a module called by reproduction, not a registered `GeneticsSystem` — inheritance happens at one instant that reproduction already owns | — (settled; a system would need a per-tick newborn scan) |
 | A27 | 21 | Metrics are polled over HTTP rather than streamed in snapshots/deltas — a full aggregate would dwarf the per-tick payload | — (settled; a summary view needs no tick resolution) |
 | A28 | 21 | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash | a later observability pass, if it earns its keep |
+| A29 | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | a later step, if runaway is wanted; the species block itself belongs to **Step 29** |
+| A30 | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Step 29**, if a species ever needs the other answer |
 | ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
 
 ### B. Configuration / structural debt
@@ -176,6 +178,8 @@ correctness bug in shipped code unless marked ⚠.
 | D3 | Vegetation biomass is a `Float32Array`, so measured deltas carry ~1e-6 error | Use float32-appropriate tolerances (1e-5), not 1e-9 |
 | D5 | Step 20's first "siblings differ" test bred *homozygous* parents, where recombination is invisible and the assertion was vacuous | When testing a mechanism, first ask what setup would make it *unobservable* — and make sure the fixture is not that |
 | D6 | Step 20's boundary scan rejected a file for the word "window." inside a doc comment | Source scans must strip comments: a guard that fires on prose teaches people to word around it rather than trust it |
+| D7 | Step 21's selection sandbox broke under Step 22 and the cause was **not** the new step: breaking deaths down by cause showed they were entirely age deaths, so the "sparse food favours efficiency" pressure had never really been applied and the assertion had been passing on drift, pinned to a lucky seed | When a seeded assertion breaks, ask what the fixture is *actually* measuring before re-pinning the seed. Check the mechanism (here: deaths by cause), then re-verify on seeds it was never tuned against |
+| D8 | Step 22's first "condition keeps the display honest" assertion over-claimed: at `conditionWeight` 0.4 a large display genuinely does outweigh poor condition | When an assertion about a model fails, decide whether the model or the assertion is wrong — then pin the real behaviour in *both* directions so a future retune is caught in a unit test rather than a five-seed sweep |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -3784,15 +3788,16 @@ would only matter for a query that walks ancestry.
 
 ## Step 22 — Mate choice and sexual selection
 
-**Status:** Not started
+**Status:** Done
 
-**Carried forward (see §1.4):** **A9** — there are no sexes; either adult may
-initiate and the lower entity id carries the pregnancy. **A10** — the
-`seekMate` action steers toward a perceived conspecific but performs no
-assessment. Both were deferred here deliberately: preference only becomes
-meaningful once traits are heritable (Step 20). Decide here whether to
-introduce sexes at all, or keep hermaphroditic pairing and put all the
-selection pressure in preferences.
+**Carried forward (see §1.4):** **A9** — there were no sexes; either adult could
+initiate and the lower entity id carried the pregnancy. **A10** — the
+`seekMate` action steered toward a perceived conspecific but assessed nothing.
+Both were deferred here deliberately: preference only becomes meaningful once
+traits are heritable (Step 20). The open question this step had to answer was
+whether to introduce sexes at all, or keep hermaphroditic pairing and put all
+the selection pressure in preferences. **Both are now resolved — sexes were
+introduced; see the completion notes for the reasoning.**
 
 ### Objective
 
@@ -3850,12 +3855,12 @@ Mate evaluation bounded to perceived candidates via grid.
 
 ### Acceptance criteria
 
-- [ ] Trait-based mate choice with costs
-- [ ] Sexual-selection effect observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Trait-based mate choice with costs
+- [x] Sexual-selection effect observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -3863,7 +3868,202 @@ Complex courtship displays, ornaments as separate entities.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Selection now has a second
+mechanism, and it is measurably distinguishable from the first.
+
+**The decision the step asked for: this simulation has sexes.**
+
+The alternative was hermaphroditic pairing with all the pressure in mutual
+preference, and I rejected it for one reason. Sexual selection is not really
+about preference — it is about an **asymmetry in reproductive investment**.
+One sex's output is limited by resources and time; the other's is limited by
+access to the first. Without that asymmetry there is no principled reason for
+either party to be choosy, and mate choice degenerates into two animals
+filtering each other for no stake. So females gestate and therefore choose;
+males clear a much lower energy bar (0.45 vs 0.8) and a much shorter refractory
+period (200 vs 1800 ticks) because they pay for one mating rather than a
+pregnancy. That also retires §1.4 A9's arbitrary "the lower entity id
+gestates", which only ever worked because nothing cared who was who.
+
+The thing I expected to be the problem turned out not to be. Sexes look like
+they should halve the birth rate, and they do not: under the old rule a mating
+consumed *both* adults for a full cooldown to produce one pregnancy, so
+pregnancies per adult per cooldown are unchanged — the male was never the
+limiting resource. What actually changes is that a female now needs a *male* in
+range rather than any adult, and that is precisely the pressure that makes
+choosing worth something.
+
+**Preference is split deliberately in two.** *What* is preferred is species data
+(`species.matePreference`: the displayed trait, how sharply it discriminates,
+how much plain condition counts), read generically so no system branches on a
+species name — grazers display **size**, stalkers display **speed**. *How hard*
+it is weighed is the individual's new heritable **`choosiness`** trait, so the
+strength of sexual selection evolves rather than being a constant I picked.
+Grazers displaying size is the load-bearing choice: size costs speed (the Step
+20 tradeoff) and burns more energy at rest, so sexual and natural selection pull
+against each other and the metrics can tell them apart.
+
+**Choosiness costs, via a declining threshold.** A chooser insists on quality
+`acceptanceThreshold × choosiness`, falling linearly to zero over
+`choosinessPatienceTicks`. That is the classic sequential-search rule, and it
+does two jobs: holding out for better costs breeding-window time she cannot get
+back, and nobody holds out *forever*, so the mechanism cannot quietly starve a
+small population to extinction on a threshold I chose.
+
+**What shipped.**
+
+- **`mating/mateChoice.js`** — sexes, `mateQuality`, `acceptanceThreshold`,
+  `bestMateCandidate`. Not a system: assessment happens at the instant two
+  animals are in range and reproduction already owns that instant (same
+  convention as `killAnimal`, `recordMemory`, `applyInjury`, `inheritGenome`).
+  Quality is half **signal** (the displayed trait against the species mean) and
+  half **condition** (energy, health, freedom from injury) — condition is what
+  keeps the signal honest, since an animal cannot fake being well fed.
+- **`ReproductionSystem`** — receptive females drive the pairing loop, score the
+  eligible males in `matingRange`, and take the best that clears the standard.
+  Rejections are recorded and emitted, not silently dropped.
+- **`DecisionSystem` / `PerceptionSystem`** — `seekMate` now steers toward the
+  *best* perceived candidate rather than the nearest (discounted by distance),
+  which is where choice becomes visible: a female walks past a scrawny
+  neighbour toward a better animal and pays for it in ground covered. The
+  seeking sex takes the nearest and assesses nothing — the same asymmetry, in
+  behaviour. Perception gained a bounded `mateCandidates` list built inside the
+  neighbour pass it was already walking.
+- **Protocol (v20 → v21):** `sex` added to `PUBLIC_ENTITY_FIELDS` (one short
+  string, fixed for life, so it never dirties a delta after creation); new
+  `entity.courted` event carrying quality *and* the threshold it was judged
+  against — the same discipline as `entity.hunted` publishing its odds, so a
+  verdict is checkable rather than taken on trust; `entity.mated` gained
+  `quality`, `entity.born` gained `sex`; inspection gained a `mateChoice` block;
+  spawn validation rejects an unknown sex.
+- **Metrics:** per-species sex counts, and a **per-sex selection differential**.
+  That split matters more than it looks — sexual selection acts on the sex being
+  chosen, so pooling the sexes dilutes the very signal the number exists to
+  detect.
+- **Renderer:** sex by letter case (`g`/`G`, `s`/`S`) so a herd's composition
+  reads off the grid; an inspector mate-choice panel showing preference,
+  choosiness, the current standard, and the last animal sized up; courtship in
+  the event log; per-sex differentials in the metrics panel.
+- **Persistence (save v19 → v20):** `sex`, `mateSearchSince`, `lastCourtship`,
+  and the new `choosiness` locus. v19 saves are invalidated — their animals have
+  no sexes and could never pair.
+
+**Tuning is measured (five seeds, 15k ticks, against a control with choice
+off).** Sexes plus choice are an energy/mortality-adjacent change, so the
+handoff's rule applied:
+
+| | seeds alive | grazers | size genotype | mean S(size) male / female |
+| --- | --- | --- | --- | --- |
+| choice off (control) | 5/5 | 138–247 | 0.997 → 1.012 | +0.004 / −0.001 |
+| patience 700 | 4/5 | 17–326 | 0.997 → 1.035 | +0.012 / −0.002 |
+| **patience 400 (adopted)** | **5/5** | **75–351** | **0.997 → 1.040** | **+0.012 / −0.002** |
+
+400 is not a compromise: it selects exactly as hard as 700 while leaving both
+species alive in every seed instead of four of five. Being choosy for longer
+bought nothing but a thinner margin. Note the signature in the last column —
+positive among males, flat among females. That is what sexual selection looks
+like when only one sex is being chosen; natural selection moves both together.
+
+**Deterministic demonstration scenario — the sexual-selection sandbox.** The
+measurement is deliberately **comparative**: the same seeded world run with
+choice on and with choice off. Asserting only that size rose would prove
+nothing, since size drifts and a run is one sample; asserting it rose *further
+with choice than without* isolates the mechanism, and the per-sex differential
+says which sex it acted on. Measured: **0.976 → 1.051 with choice against 0.976
+→ 0.998 without** — three and a half times the movement. Direction only, as the
+step asks; no magnitude is pinned.
+
+**Tests:** `npm test` → **406 passing / 0 failing** (was 369; +37). New
+`test/mate-choice.test.js`: the sexes (vocabulary shared with the protocol, the
+sex stream, balanced founding cohorts), what makes a good mate (display,
+condition, saturation, a species with no preference), the cost of choosiness
+(higher standard, monotonic decline, no deadlock), who an animal walks toward
+(the chooser passes a poor neighbour, but not across the meadow; the seeker
+takes the nearest; perception's bounded candidate set), pairing (only
+opposite-sex pairs; **the female gestates even when the male holds the lower
+id**; best-not-nearest; same standard, different verdicts; a picky female waits
+longer; nobody holds out forever), observability (the event carries the numbers
+behind the verdict; re-checking is not re-reported; inspection returns copies;
+bulk snapshots stay clean), metrics per sex checked against a brute-force pass,
+determinism and persistence, and the sandbox.
+
+**Three things worth recording because they were not what I expected.**
+
+1. **A test that failed for the right reason.** My first "condition keeps the
+   display honest" assertion said a starving animal always scores below a
+   healthy average one. It does not: at `conditionWeight` 0.4, a starving animal
+   near the top of the size range still wins. That is the handicap reading of
+   the signal rather than a gap in it, so the assertion now pins the real
+   behaviour *in both directions* — a modest display loses to condition, a large
+   one does not — and anyone who retunes the weight finds out in a unit test
+   rather than in a five-seed sweep.
+2. **Step 22 invalidated Step 21's selection sandbox**, exactly as the risk
+   register predicts for consecutive steps. Diagnosing it rather than re-pinning
+   the seed was the whole value: breaking the deaths down by cause showed they
+   were *entirely* age deaths on all five seeds. The "sparse food favouring
+   efficiency" pressure had never really been applied — the assertion rose in 4
+   of 5 seeds by drift, and passed because it was pinned to one of the four.
+   Retuned (capacity 1.4 → 1.0, basal rate 0.04 → 0.08, mate choice off so it
+   measures one force) it now rises in **5 of 5**, four of them seeds it was
+   never tuned against. Worth naming: even now almost nothing starves —
+   efficiency pays through the *breeding gate*, so this is fecundity selection,
+   not viability selection.
+3. **Event volume was a real cost, fixed rather than absorbed.** Emitting one
+   `entity.courted` per assessment produced ~1.7 events per tick across the demo
+   (26k over 15k ticks), competing for the bounded retention window (§1.4 C3) —
+   because a female beside a male must reassess him every tick as her standard
+   falls. Reporting only a *new candidate or a changed verdict* cut it 20× to
+   ~1.4k, and reads better: "sized up #57, walked on", then later "sized up #57,
+   accepted".
+
+**Also fixed along the way:** `test/species.test.js` asserted spawned speed
+against the *speed* trait spread alone, which silently ignored the Step 20
+size→speed tradeoff and only held while no founder sat far out on both loci at
+once. It now asserts the identity (`speed === baseSpeed × traits.speed`) rather
+than a distribution outcome — §1.4 D1's lesson.
+
+**Visible result verified.** Against a live server at protocol v21: 130 animals
+projecting `sex` (63 female / 67 male) with no internal fields leaking into the
+bulk snapshot, and grazer **#290** courting four males over a single WebSocket
+window — rejecting #180 (quality 0.521 against a standard of 0.718), #171
+(0.566), #158 (0.632), and #160 (0.667 vs 0.733) — and then **mating with #160**
+once her standard had fallen below him. Another female accepted at a standard of
+0.000, her patience fully spent. Inspection shows the basis of the choice
+(preference `size`, choosiness 1.020, the last courtship and its numbers), and
+`GET /api/metrics` reported the signature live: selection differential on size
+**+0.021 among males, −0.002 among females**.
+
+**Performance.** large-5k **41.42 → 46.06 ms/tick**, inside the 41–46 band this
+scenario has bounced through since Step 19, with the end population up 7060 →
+7233. Assessment is a little arithmetic per receptive female, inside a grid
+query reproduction was already making, consuming **no randomness at all** — a
+test asserts that a run where a female rejects a male leaves every stream
+exactly where a run where she accepts one does, which is the fixed-draw-budget
+rule applied to a system whose budget is zero.
+
+**Deviations from the step spec (documented):** (1) **Preference direction is
+species data, not a heritable preference locus** — only its *strength*
+(`choosiness`) is inherited. Full Fisherian runaway needs a heritable preference
+and would multiply the model; this keeps the "what" a species fact and lets the
+"how much" evolve, which is enough for sexual selection to act and be measured.
+(2) **`GESTATING_SEX` is one model-wide constant rather than per-species data** —
+declaring it per species when every species would set it identically is the
+"over-generalized abstraction" the risk register warns about; Step 29 can make
+it data if a species ever needs the other answer. (3) **Founding cohorts are
+dealt alternating sexes rather than drawing them** — a founding cohort is
+scenario setup (the same judgement that already spreads founder ages), and
+drawing would leave an 8-strong predator cohort one unlucky seed from a sex
+ratio that cannot breed, which would be a measurement artifact rather than an
+ecological finding. Everything born in-world draws its sex.
+
+**Follow-on notes for later steps:** `sex` is now available to Step 23 (social
+behaviour), where dominance and fights are the obvious consumers, and to Step 24
+(territory), where holding ground is usually about mate access. §1.4 A15 (kin
+identity omitted from memory) is still open and still points at Step 23 — mate
+choice did not need kin *recognition*, since it never had to avoid relatives;
+inbreeding avoidance would be the first real reader for it. The `matePreference`
+block is another per-species field that Step 29's species schema should absorb
+alongside B3/B4/A13.
 
 ---
 
@@ -4623,10 +4823,17 @@ population counts).
 | 8   | Inheritance sandbox          | fixed | short generations; kids resemble parents   | parent-offspring trait correlation       | 20    | no                |
 | 9   | Selection sandbox            | fixed | a pressure shifts a trait distribution     | mean trait moves expected direction      | 21    | no                |
 | 10  | Disturbance sandbox          | fixed | local event → displacement → recovery      | bounded effect; recovery by tick N       | 27    | yes               |
+| 11  | Sexual-selection sandbox     | fixed | females prefer size; the trait rises       | rises *more* than a choice-off control; S positive among males only | 22 | no |
 
 For each: record initial state, seed, expected behavior, stable assertions,
 related steps, and whether a renderer fixture is generated. **Do not assert
 exact final populations for stochastic runs.**
+
+Scenario 11 is the pattern to copy whenever a step adds a *second* force acting
+on something already being measured: run the same seeded world with the new
+mechanism on and off, and assert the difference between them. "The trait rose"
+proves nothing when the trait also drifts on its own; "it rose further than the
+control did" isolates the mechanism.
 
 ---
 
@@ -4739,7 +4946,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–21
+### Observed status after Steps 1–22
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
@@ -4748,8 +4955,8 @@ prediction:
 | --- | --- | --- |
 | Population explosion | **Yes (three times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. |
 | Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
-| Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. |
-| Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately *weakened* a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. |
+| Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. Step 22 followed exactly that: sexes and mate choice were swept on five seeds against a *control with choice off*, which is what showed that a shorter patience selected just as hard while keeping both species alive in 5/5 seeds rather than 4/5. |
+| Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately *weakened* a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. Step 22 found the sharpest case (D7): Step 21's selection sandbox had been passing on drift on a pinned seed, and the fix was to diagnose the mechanism (deaths were *all* age deaths — the pressure was never applied) rather than re-pin, then re-verify on four seeds it had never seen. |
 | Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal and Step 17's injuries at 4, both enforced in their insert helpers so no future writer can bypass them. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |

@@ -50,9 +50,13 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {number | null} guardianId the parent this juvenile depends on
  * @property {boolean} weaned whether parental provisioning has ended
  * @property {Array<{tick: number, type: string}>} lifeEvents bounded life history
+ * @property {string | null} sex 'female' | 'male' (Step 22); null for non-animals
  * @property {number | null} gestationUntil tick the pregnancy comes to term
  * @property {number | null} pendingMateId the other parent, recorded at mating
  * @property {number | null} lastMatedTick for the mating cooldown
+ * @property {number | null} mateSearchSince tick this animal became receptive
+ * @property {{tick: number, candidateId: number, quality: number,
+ *   threshold: number, accepted: boolean} | null} lastCourtship last assessment
  * @property {{heading: number, ttl: number, moving: boolean} | null} moveIntent movement intent
  * @property {number} lastMoveDistance distance travelled this tick (movement → metabolism)
  * @property {boolean} lowEnergy set by metabolism when energy is low
@@ -127,6 +131,16 @@ function createEntity(id, definition) {
     gestationUntil: definition.gestationUntil ?? null,
     pendingMateId: definition.pendingMateId ?? null,
     lastMatedTick: definition.lastMatedTick ?? null,
+    // Sex and mate choice (Step 22). `sex` is fixed for life — drawn at birth,
+    // dealt out to the founders — and is the one reproductive field that is
+    // never written again; null means "not a sexed animal", which consumers
+    // must tolerate. `mateSearchSince` is when this animal became receptive,
+    // and is what makes a choosy one's standard decline as it waits;
+    // `lastCourtship` is the last assessment it made, kept purely so the choice
+    // is inspectable rather than something an observer has to infer.
+    sex: definition.sex ?? null,
+    mateSearchSince: definition.mateSearchSince ?? null,
+    lastCourtship: definition.lastCourtship ?? null,
     // Parenting (Step 13). `offspring` is the sparse inverse of `parents`,
     // appended at birth. `guardianId` is the parent a dependent juvenile
     // follows and is provisioned by — set once in the newborn's spawn

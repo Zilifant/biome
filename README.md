@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–21 are done; Step 22 is next.
+protocol for continuing the work. Steps 1–22 are done; Step 23 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -158,7 +158,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `20`) and is
+Everything a client sees carries `protocolVersion` (currently `21`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -168,13 +168,15 @@ built by `src/protocol/`:
   `{ ok, ... }` or `{ ok: false, error: { code, message } }`.
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
-  energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage,
+  energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
   action, alive, decayStage) — internal records never leak, and every snapshot
   is freshly cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
   `adultMass`, its `genome` / `genotype` / parent traits, its bounded
   `memories`, its `injuries` and derived
-  `impairment`, its `stamina` and hunt target, its carcass detail, and the
+  `impairment`, its `stamina` and hunt target, its carcass detail, its
+  `mateChoice` block (what its species reads in a mate, its own choosiness, the
+  standard it is currently holding, and the last animal it sized up), and the
   family/life-history block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
@@ -191,8 +193,10 @@ built by `src/protocol/`:
   `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`,
   `predation`, `injury`, `exposure`),
   `entity.removed`, `entity.fed` (`{ entityId, cell, amount }`),
-  `entity.mated` (`{ entityId, partnerId }`), `entity.born`
-  (`{ entityId, parents }`), `entity.hunted`
+  `entity.mated` (`{ entityId, partnerId, quality }`), `entity.courted`
+  (`{ entityId, candidateId, quality, threshold, accepted }` — the standard is
+  reported beside the score, so a rejection is checkable rather than arbitrary),
+  `entity.born` (`{ entityId, parents, sex }`), `entity.hunted`
   (`{ entityId, targetId, chance, captured }` — the odds are reported, not
   hidden), `entity.killed`, `entity.escaped`, `entity.injured`
   (`{ entityId, injury, severity, sourceId }`), `entity.recovered`,
@@ -216,7 +220,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `19`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `20`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors.
@@ -259,7 +263,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 369 tests.
+ASCII renderer, committed fixtures, and 406 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -273,10 +277,11 @@ the predator/prey relation is itself data on the species (`preySpeciesIds`),
 read in both directions — so no system anywhere branches on a species name.
 
 No two animals are identical. Each carries trait multipliers fixed for life —
-size, speed, metabolic efficiency, boldness, caution, exploration, and
-reproductive investment — and every one changes something real: a bold animal
+size, speed, metabolic efficiency, boldness, caution, exploration, reproductive
+investment, and choosiness — and every one changes something real: a bold animal
 covers more ground and burns more energy; a heavily investing parent raises
-better-stocked young at a higher price per birth.
+better-stocked young at a higher price per birth; a choosy one gets a better
+mate but breeds later.
 
 Those traits are **inherited**. Each animal carries a diploid genome
 (`traits/genetics.js`) with one locus per trait; a founder's is sampled, but
@@ -298,10 +303,10 @@ Their full loop is implemented:
 | `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
 | `MemorySystem` | perception | Fades each remembered place on its own schedule and forgets it once too faint (staggered) |
 | `HuntingSystem` | interaction | Resolves a capture attempt from the two animals' relative speed, stamina, and condition; a kill leaves a carcass, a miss costs energy and teaches the prey the place is dangerous |
-| `DecisionSystem` | decision | Scores `flee` / `chase` / `stalk` / `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, temperament, and threat; sets the movement intent |
+| `DecisionSystem` | decision | Scores `flee` / `chase` / `stalk` / `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, temperament, and threat; sets the movement intent. `seekMate` steers toward the *best* candidate in sight, not the nearest |
 | `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water and by injury, refuses impassable cells; sprints for chases and escapes, spending stamina |
 | `FeedingSystem` | interaction | Converts what the species' diet allows into energy — grass from the cell for herbivores, edible mass from a carcass for carnivores — remembering where it ate (or found nothing) |
-| `ReproductionSystem` | interaction | Pairs well-fed adults in range, gestates, births a juvenile carrying both parent ids |
+| `ReproductionSystem` | interaction | A receptive female sizes up the males in range and takes the best one that clears the standard she is holding; she gestates and births a juvenile carrying both parent ids |
 | `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
 | `MetabolismSystem` | physiology | Mass-scaled basal + movement + thermoregulation energy cost, divided by individual efficiency; recovers stamina when not sprinting; starvation or exposure → carcass |
 | `HydrationSystem` | physiology | Dehydration, drinking at water (remembering where), health damage → carcass |
@@ -344,11 +349,37 @@ balance — measured over 20k ticks on five seeds, roughly 24–111 grazers agai
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
 `config.demo` for the measured sweep behind the founding counts).
 
+**There are two sexes, and one of them chooses.** Females gestate; males clear a
+much lower energy bar and a much shorter refractory period, because they pay for
+one mating rather than a pregnancy. That asymmetry is the whole basis of mate
+choice — without a difference in what a bad mate *costs*, neither party has a
+reason to be choosy. It leaves the birth rate roughly where it was (the old
+rule consumed both partners for a full cooldown to make one pregnancy; this one
+consumes only the female), while making a female need a *male* in range rather
+than merely another adult.
+
+What she reads is a species fact — grazers display **size**, stalkers display
+**speed** — half signal and half plain condition, since an animal cannot fake
+being well fed. How hard she weighs it is her own heritable **choosiness**, so
+the strength of sexual selection evolves rather than being a constant. And it
+costs: her standard starts high and falls to nothing as she goes unmated, so
+holding out for better spends breeding time she cannot get back, and nobody
+holds out forever. Watch one long enough and you can see the whole thing — a
+female turning down four males in turn and then settling for the fourth once her
+standard has dropped below him. Because grazers are selected for size while size
+also costs speed and burns energy, sexual and natural selection genuinely pull
+against each other here.
+
 **Selection is measured, not asserted.** A `MetricsSystem` runs in the
 `observation` phase and aggregates the population into trait distributions
 (with histograms), generation depth, reproductive success, birth and death
 rates by cause, and a **selection differential** per trait — the mean among
-adults that actually bred, minus the mean among all adults. It writes no
+adults that actually bred, minus the mean among all adults, reported both
+overall and **per sex**. That split is what separates the two kinds of
+selection: a mate preference moves only the sex being chosen, while natural
+selection moves both together. In the demo it reads exactly that way — the
+differential on size runs positive among male grazers and flat among females.
+It writes no
 organism state whatsoever; a test runs the demo with and without it and asserts
 the populations are byte-identical, because a metrics layer that nudged
 anything would be measuring itself. Rates are derived from state (ages and
@@ -404,12 +435,12 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Mate choice, social groups, territory, disease, migration, disturbances,
+Social groups, territory, disease, migration, disturbances,
 ecosystem engineering, a config-driven species schema (beyond today's two
 hand-written species), and profile-driven optimization toward tens of thousands
 of animals.
 
-`PLAN.md` sequences all of these as Steps 22–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 23–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

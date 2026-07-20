@@ -37,9 +37,15 @@ describe('herbivore spawning', () => {
       // birth mass and this individual's adult mass.
       assert.ok(entity.bodyMass >= engine.config.aging.birthMass - 1e-6 && entity.bodyMass <= entity.adultMass + 1e-6);
       // Speed and adult mass are the species mean scaled by this individual's
-      // traits, so they vary around — but stay bounded by — the species value.
-      const { size, speed } = engine.config.traits.spread;
-      assert.ok(Math.abs(entity.speed / species.baseSpeed - 1) <= speed + 1e-9, 'speed within the trait spread');
+      // expressed traits. Assert that relationship directly rather than a
+      // numeric envelope around it: the old bound compared speed against the
+      // *speed* spread alone, which quietly ignored the size→speed tradeoff
+      // (Step 20) and therefore only held as long as no founder sat far enough
+      // out on both loci at once. The contract is the identity; the spread is a
+      // distribution outcome, and §1.4 D1 is about not asserting those.
+      assert.ok(Math.abs(entity.speed - species.baseSpeed * entity.traits.speed) < 1e-9, 'speed is the species mean scaled by the trait');
+      assert.ok(Math.abs(entity.adultMass - species.bodyMass * entity.traits.size) < 1e-9, 'adult mass likewise');
+      const { size } = engine.config.traits.spread;
       assert.ok(Math.abs(entity.adultMass / species.bodyMass - 1) <= size + 1e-9, 'adult mass within the trait spread');
       assert.equal(entity.maxHealth, species.maxHealth);
       assert.equal(entity.health, species.maxHealth);
