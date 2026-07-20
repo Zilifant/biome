@@ -80,8 +80,19 @@ function formatEvent(event) {
       return `!! sickened #${event.entityId}`;
     case 'entity.cured':
       return `++ recovered #${event.entityId}${event.immuneUntil != null ? ` <immune to t${event.immuneUntil}>` : ''}`;
+    case 'entity.migrated':
+      // Where it moved *from* and *to*, because "moved house" is a claim about
+      // two places. The distance is the part that says whether this was a shift
+      // next door or an animal crossing the map.
+      return `=> moved #${event.entityId} (${event.from?.x?.toFixed(0)},${event.from?.y?.toFixed(0)}) → (${event.to?.x?.toFixed(0)},${event.to?.y?.toFixed(0)}) ${event.distance?.toFixed(0)}u${
+        event.reason ? ` [${event.reason}]` : ''
+      }`;
     case 'entity.lifeEvent':
-      return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}`;
+      // A dispersal carries the natal centre it is leaving, so the log shows
+      // where an animal grew up rather than only that it left.
+      return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}${
+        event.x !== undefined ? ` (born ${event.x.toFixed(0)},${event.y.toFixed(0)})` : ''
+      }`;
     default: {
       const extra = Object.entries(event)
         .filter(([key]) => !['seq', 'tick', 'type'].includes(key))
@@ -102,7 +113,7 @@ function eventClass(event) {
   if (event.type === 'entity.escaped') return 'event-other';
   if (event.type === 'entity.injured') return 'event-died';
   if (event.type === 'entity.alarmed' || event.type === 'entity.contested') return 'event-other';
-  if (event.type === 'entity.disputed') return 'event-other';
+  if (event.type === 'entity.disputed' || event.type === 'entity.migrated') return 'event-other';
   if (event.type === 'entity.infected' || event.type === 'entity.sickened') return 'event-died';
   if (event.type === 'entity.cured') return 'event-created';
   if (event.type === 'entity.defended') return 'event-birth';

@@ -26,6 +26,7 @@ import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
 import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
+import { MigrationSystem } from '../simulation/systems/MigrationSystem.js';
 import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
 import { DiseaseSystem } from '../simulation/systems/DiseaseSystem.js';
 import { infect } from '../simulation/disease/disease.js';
@@ -51,6 +52,13 @@ export function registerDemoSystems(engine) {
   // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision
   // system, which consumes the group summary it builds.
   engine.registerSystem(new SocialSystem(engine.config.social));
+  // Priority -5: after sociality, still ahead of the decision system. It writes
+  // no action — only the drift the decision system folds into a wander. Skipped
+  // entirely when migration is disabled, which (with `disperses` below) is the
+  // Step 25 control the step was measured against.
+  if (engine.config.migration.enabled) {
+    engine.registerSystem(new MigrationSystem(engine.config.migration));
+  }
   engine.registerSystem(
     new DecisionSystem({
       ...engine.config.decision,
@@ -109,7 +117,9 @@ export function registerDemoSystems(engine) {
       maxMemories: engine.config.memory.maxMemories,
     }),
   );
-  engine.registerSystem(new ParentingSystem(engine.config.parenting));
+  engine.registerSystem(
+    new ParentingSystem({ ...engine.config.parenting, disperses: engine.config.migration.enabled }),
+  );
   // After movement (so it marks where the animal actually ended up) and after
   // hunting and mating (so a fight over ground cannot pre-empt one over a mate).
   engine.registerSystem(

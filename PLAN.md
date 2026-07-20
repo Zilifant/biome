@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–25)
+## 1.4 Carried-forward deviations and open issues (Steps 1–26)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -152,6 +152,10 @@ correctness bug in shipped code unless marked ⚠.
 | ⚠ A34 | 24 | **Patrolling is near-inert in the demo.** Routine site fidelity competes with wandering — which is how an animal finds its next meal — and cost the demo two seeds in five (4/5 → 2/5). The pull now ramps over six range radii, so it fires only for an animal that is genuinely lost. The mechanism is implemented and tested (the suite tightens the ramp to exercise it) but is not doing visible work in the demo | a future pass could give patrol a *reason* — food that is worth returning to, or a den — rather than making it compete with foraging on equal terms |
 | A35 | 24 | Grazers get a home range but no site fidelity and no claims, so "territory" in the demo is a predator-only phenomenon at ~9 individuals | **Step 29** (species schema) is where a third, genuinely territorial species would land |
 | A36 | 24 | The claim layer is not projected to the renderer — the home-range ring is drawn from inspection for the selected animal only | a later renderer pass, if a territory *map* earns the per-snapshot cost |
+| A40 | 26 | **Remembered routes are not implemented.** The step named them, but Step 15 already stores remembered *places* and `recallFood` already steers to them; a route is a trajectory, and the codebase deliberately stores no trajectory anywhere (a home range is four numbers for exactly this reason) | a later step, if a *sequence* of places ever earns the storage a single place does not |
+| A41 | 26 | Migration is a **grazer-only** phenomenon: a stalker's food is the grazer, which it already follows through perception and the hunt pipeline, so a vegetation gradient would point it at grass it cannot eat. Letting stalkers track forage as a prey proxy was tried and measured *worse* (stalkers 0–3). Both species do disperse | **Step 29** (species schema), alongside A35's mirror-image note about territory |
+| A42 | 26 | The forage cue reaches **beyond perception** (18 units against 6) and is a stated modelling convenience standing in for coarse long-range cues this world does not simulate — the smell of green ground, the lie of the land. Bounded by being a *difference* (a flat world produces no pull) and by a strength cap well below 1 | — (settled; the same kind of honest stand-in as A39's spillover) |
+| A43 | 26 | **Population fragmentation is enabled, not asserted.** Herd labels already split by hop count and separate forage patches already pull herds apart, but no test claims a fragmentation outcome | a later observability pass, if a fragmentation *measure* earns its keep |
 | A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
 | ~~⚠ A20~~ | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from *any* source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
 
@@ -194,6 +198,9 @@ correctness bug in shipped code unless marked ⚠.
 | D11 | Step 24's `intrusionThreshold` was set equal to `markStrength`, so freshly marked ground sat exactly at the "occupied" threshold and decayed below it immediately — avoidance never fired at all | When one parameter is a threshold *on* another, write the relationship down beside them. Equal values are the failure case, not the neutral one |
 | D12 | Two Step 24 tests assumed a resident still held the cell it was spawned on. It does not — it moves. A third asserted a stochastic time-on-claim comparison across two runs whose trajectories diverge from tick one | Ask the world what is true (`heldGround` scans the grid) instead of assuming the setup held; and assert mechanisms, not outcomes compared across diverging runs |
 | D13 | A Step 22 test measured event *retention* rather than emission: it stepped 3000 ticks at once and then asked `eventsSince`, so the bounded outbox had long since trimmed everything but the tail. It passed only because a courtship happened to land in the surviving window, and Step 23's new events shortened that window until it reported **zero** courtships in a run that had 280 | Collect events tick by tick when counting them. `eventsSince` after a long `step(n)` measures what survived retention, not what happened |
+| D14 | Step 26 measured **3/5 seeds** against a 4/5 control and would have been ramped down for it. Bisecting the strength gave 1/5, 2/5, 3/5, 3/5 — non-monotonic, which is the tell. At **ten** seeds both read 4/10: the gap was noise and the canonical five seeds flatter the control | The demo's two-species balance is a knife edge at ~3–9 stalkers. **Five seeds cannot resolve a one-seed difference.** When a sweep disagrees with a control by one seed, add seeds before touching a parameter — and treat a non-monotonic bisection as evidence you are tuning noise |
+| D15 | Step 26's end-to-end test was written twice and was a bad test both times: first measuring diffusion across a small box (the control arrived just as fast), then measuring a ~1-unit displacement against a mechanism deliberately built to be gentle | Before asserting an outcome, ask what the *control* would score. If the control scores the same, the test measures the world and not the change. Prefer asserting the mechanism (here: the distribution of chosen headings) over the outcome it accumulates into |
+| D16 | Step 26's "at zero strength nothing changes" guarantee was false by one ulp: `normalizeAngle(1.2)` is `1.2000000000000002`, and a fed animal on a real gradient does pass through the blend at strength 0 | An identity path must be *exactly* the identity. If a feature's safety argument is "at zero it does nothing", assert `===` on the untouched input — float-normalizing a pass-through silently makes it a different value, and it compounds |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -4793,7 +4800,7 @@ walk, so the optimization owed to Step 30 is still just perception + sociality.
 
 ## Step 26 — Migration and dispersal
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -4855,12 +4862,12 @@ Habitat evaluation bounded/staggered; no global search. Benchmark.
 
 ### Acceptance criteria
 
-- [ ] Dispersal, seasonal migration, recolonization via local heuristics
-- [ ] Movement patterns observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked (no global pathfinding)
+- [x] Dispersal, seasonal migration, recolonization via local heuristics
+- [x] Movement patterns observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked (no global pathfinding)
 
 ### Explicitly out of scope
 
@@ -4868,7 +4875,170 @@ A\* over the whole map per entity, optimal route solving.
 
 ### Completion notes
 
-_(fill on completion)_
+**The whole step is one decision: migration is not an action.** §1.4 A34 is the
+evidence. Step 24's `patrol` gave animals a routine reason to move and cost the
+demo two seeds in five, because any new movement action competes with `wander` —
+and wandering is how a grazing animal finds its next meal. So this step adds
+nothing to the utility table. It steers the heading `wander` was going to pick
+anyway, and only at the moment a fresh wander commitment is made.
+
+Three properties follow, and they are why the shape was chosen rather than
+pleasant side effects:
+
+1. **Foraging cannot lose.** An animal that can see food still runs `seekFood`;
+   one that remembers food still runs `recallFood`. Migration only ever replaces
+   a *random* heading with a *directed* one, so it spends no tick that was doing
+   anything useful.
+2. **At zero strength the behaviour is bit-identical to Step 25** — so the
+   mechanism is off unless the world says otherwise. This turned out to need
+   defending: see the ulp bug below.
+3. **Distance comes from commitment, not from range.** The cue is local and
+   shallow; the wander commitment holds a heading for 8–24 ticks and re-picks the
+   same direction while the gradient persists. Nothing searches, plans, or
+   routes.
+
+**Nothing in the step is seasonal.** Season reaches migration through the
+vegetation ceiling (Step 19) and the herd's own grazing: a green spring flattens
+the gradient to nothing, a grazed-out winter sharpens it. There is no seasonal
+branch anywhere in the code, which is the honest way to get seasonal movement out
+of a world whose climate is global (§1.4 A24 — no per-cell microclimate exists,
+so there is no "warmer south" to migrate toward, and inventing one would have
+been a fake layer).
+
+**Recolonization is not implemented anywhere.** Nothing in the engine knows a
+region was vacated. It falls out of the same gradient: ground nobody is eating
+grows back to capacity and therefore becomes the best thing on the compass. The
+test asserts that consequence rather than a feature.
+
+**Dispersal is the one thing that overrides the gradient.** A juvenile that
+outgrows its guardian holds an outward heading for a bounded spell whatever the
+forage says — an animal that turned back at the first green patch would never
+leave. `beginDispersal` also **clears the home range**, which is what makes
+dispersal spatial rather than bookkeeping: Step 24's range is a running average
+of where an animal has been, so a juvenile that kept its natal range would spend
+its life being pulled back toward its mother's ground.
+
+**Randomness: none at all.** Sampling is deterministic and a dispersal heading is
+geometry (straight out from the natal centre), so this step adds not one draw to
+any stream — it cannot shift another system's sequence even in principle. A test
+asserts every stream is byte-identical across a step with and without the system.
+
+**Three findings from running it.**
+
+1. **The five-seed sweep lied, in both directions.** Against the Step 25 control
+   (4/5 seeds with both species alive, grazers 7–75) migration read **3/5**,
+   which by the standard every step since 22 has used would have meant ramping it
+   down. Bisecting `biasWeight` gave 1/5, 2/5, 3/5, 3/5 at 0.2/0.3/0.4/0.5 —
+   *non-monotonic*, which is itself the tell. Re-run at **ten** seeds:
+
+   | | both alive | grazers | stalkers |
+   | --- | --- | --- | --- |
+   | migration off (control) | **4/10** | 6–107 | 0–7 |
+   | migration on | **4/10** | 16–96 | 0–15 |
+
+   Identical seed survival; one seed lost and one gained. The 4/5→3/5 gap was
+   noise, and the original five seeds simply happen to flatter the control. On
+   the measures that are not a five-sample binary, migration is *better*: the
+   grazer floor rises 6→16 (fewer near-collapses) and the stalker ceiling 7→15.
+   This is §1.4 D7 exactly — check what the fixture is measuring before re-pinning
+   anything.
+2. **A diagnosis that was wrong, and cheap to falsify.** Hunts *fall* when
+   migration is on even as prey numbers rise (seed 13: grazers 21→96, hunts
+   231→141) with capture rate flat at ~0.34 — so predators were finding prey less
+   often, not failing to catch them. The obvious cause was a stalker pinned to
+   empty ground by site fidelity, and a hunger-gated `patrol` was written to fix
+   it. Then `patrolSpanFactor` turned out to be **6** — patrol is ramped almost
+   out of existence (A34 again), so nothing was pinning anything. The change was
+   reverted unshipped. The real mechanism is plainer: aggregated prey are harder
+   for a random searcher to find, which is landscape-scale dilution and genuine
+   ecology. A second attempt — letting stalkers track forage as a prey proxy —
+   made stalker numbers *worse* (0–3) and was also reverted.
+3. **The drift is weak over short distances, and that is by design.** Two cuts of
+   the end-to-end test measured position and both were bad tests. The first
+   painted a bare desert with a rich band beyond it; the control reached it just
+   as fast, because a random walk crosses a small box easily and because a cue
+   reaching 18 units reads *nothing* across bare ground — it was measuring
+   diffusion and would have passed with migration deleted. The second used a
+   smooth ramp, where the effect was real but ~1 unit, because `biasWeight` 0.5 ×
+   hunger × gradient is deliberately gentle. Migration's effect on position is
+   **cumulative**; pinning a small displacement in a sandbox would be pinning
+   noise. The shipped test asserts the *mechanism* — mean cos(heading) over
+   hundreds of wander commitments, which is 0 for a random walk and clearly
+   positive when the gradient points east.
+
+**One real defect, caught by its own test.** `blendHeadings(1.2, bias, 0)`
+returned `1.2000000000000002` — `normalizeAngle` wobbling the float. Property 2
+above was therefore false: a *fed* animal standing on a real gradient carries a
+non-null heading at strength 0 and does come through the blend, so every such
+animal got a one-ulp course change compounding over 15 000 ticks. The endpoints
+now return their input untouched (both callers already pass normalized angles).
+
+**What shipped.** `migration/migration.js` (the forage gradient, `beginDispersal`
+/ `isDispersing`, and `blendHeadings`, as a shared helper in the established
+pattern); `MigrationSystem` (`decision`, priority −5, staggered) owning the two
+drift numbers and the relocation event; a six-line change in `DecisionSystem`'s
+`wander` case and nothing else in it; dispersal wired into the one instant
+`ParentingSystem` already owns; **protocol v24 → v25** (`dispersing` in bulk
+snapshots so a leaving juvenile is watchable, `entity.migrated`, the natal centre
+on the `dispersed` life event, and an inspection block showing the live habitat
+reading beside the drift it produced); **save v23 → v24**; a `migration.enabled`
+switch that makes the control reproducible rather than hand-assembled; and
+renderer event formatting plus a Migration panel.
+
+**Tests:** `npm test` → **535 passing / 0 failing** (was 507; +28). New
+`test/migration.test.js`: the blend (including the wrap point, the opposed-vector
+degenerate case, and the zero-weight identity that the ulp bug broke), habitat
+evaluation (flat world → no pull, nowhere-better → no pull, direction, strength
+as a ratio, the cap, and an assertion that it is exactly `SAMPLE_DIRECTIONS × 2 +
+1` grid reads and **zero** spatial queries), the hunger throttle, the stagger,
+the zero-draw budget, dispersal (outward heading, range cleared, bounded, the
+degenerate on-centre case, the inert zero-tick control path, precedence over
+forage, and that orphans are *not* dispersed — §1.4 A12), recolonization,
+protocol/persistence/determinism, and the `enabled: false` control pinned so it
+stays a control.
+
+**Deterministic demonstration scenario — the gradient sandbox.** Bare ground with
+rich forage due east, inside the 18-unit cue and well outside the 6-unit
+perception radius so `seekFood` cannot be what steers them. Asserted as a
+*direction*: mean cos(heading) over 300 ticks of wander commitments is < 0.1
+without migration and > 0.15 with it. The recolonization companion puts 16 animals
+on bare western ground with the whole lush east half empty of animals and asserts
+they arrive.
+
+**Visible result verified.** Against a live server at protocol v25: `dispersing`
+present in the bulk entity projection, and an inspected grazer reporting
+`tracksForage: true`, a live `habitat` reading (0.54 better within 18 units) beside
+the weaker `drift` it produced (0.067 — the gradient scaled by `biasWeight` and
+hunger), and its `settled` centre. Over 15 000 ticks on seed 42: **247 dispersals**
+with a **median 70.7 units** travelled from the natal centre (max 152) on a
+128-wide map, and **2 832 relocations** — 2 567 following forage, 265 while
+dispersing. Mean drift strength across the population is **0.0995**: a bias, not a
+beeline, which is the number A34 says has to stay small.
+
+**Performance.** large-5k **79.78 → 79.19 ms/tick** — flat, and within run-to-run
+noise. Habitat evaluation is 16 O(1) vegetation reads per animal per evaluation
+divided by a stagger of 10, and touches no spatial query at all, so §1.4 C6 still
+owes Step 30 exactly two neighbour walks rather than three.
+
+**Deviations from the step spec (documented):** (1) **No `MigrationSystem`
+movement bias as a competing intent** — it writes a drift the decision system
+folds into `wander`, for the A34 reasons above. (2) **"Remembered routes" are not
+implemented**; Step 15's memory already stores remembered *places* and
+`recallFood` already steers to them, and a route is a trajectory, which the
+codebase deliberately does not store anywhere (see A40). (3) **Migration is a
+grazer-only phenomenon** — a stalker's food is the grazer, which it already
+follows through perception and the hunt pipeline; both species do disperse
+(A41). (4) **Population fragmentation is not asserted**, only enabled: herd
+labels already split by hop count (Step 23) and separate forage patches already
+pull herds apart, but no test claims a specific fragmentation outcome.
+
+**Follow-on notes for later steps:** Step 27 (local disturbances) inherits the
+mechanism that makes recovery from a disturbance work — a burnt patch is
+low-forage ground animals drift *off*, and regrown ground is what draws them
+back, with no recolonization code to write. Step 29's species schema gains a
+sixth block (`migration`). And the honest caveat for anyone tuning later: the
+demo's two-species balance is a knife edge at ~3–9 stalkers, so **five seeds
+cannot resolve a one-seed difference** — use ten.
 
 ---
 

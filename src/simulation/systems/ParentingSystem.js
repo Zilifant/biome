@@ -34,6 +34,7 @@
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
+import { beginDispersal, migrationOf } from '../migration/migration.js';
 
 export class ParentingSystem extends SimulationSystem {
   /**
@@ -44,6 +45,7 @@ export class ParentingSystem extends SimulationSystem {
    * @param {number} [options.provisionEfficiency] fraction that reaches the juvenile
    * @param {number} [options.parentMinEnergyFraction] guardian floor, below which it stops giving
    * @param {number} [options.juvenileMaxEnergyFraction] juvenile ceiling, above which it stops taking
+   * @param {boolean} [options.disperses] whether dispersal is also spatial (Step 26)
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -53,10 +55,12 @@ export class ParentingSystem extends SimulationSystem {
     provisionEfficiency = 0.8,
     parentMinEnergyFraction = 0.35,
     juvenileMaxEnergyFraction = 0.85,
+    disperses = true,
     updateInterval = 1,
   } = {}) {
     super({ id: 'parenting', phase: 'interaction', priority: 20, updateInterval });
     this.weaningAge = weaningAge;
+    this.disperses = disperses;
     this.provisionRange = provisionRange;
     this.provisionRate = provisionRate;
     this.provisionEfficiency = provisionEfficiency;
@@ -90,13 +94,38 @@ export class ParentingSystem extends SimulationSystem {
     }
   }
 
-  /** Clear the parent bond, recording why. */
+  /**
+   * Clear the parent bond, recording why.
+   *
+   * Dispersal is the one reason that is also a *spatial* event (Step 26): an
+   * animal that has outgrown its guardian leaves, rather than merely stopping
+   * being provisioned. `beginDispersal` is a shared mutation helper in the
+   * established pattern — the same shape as `killAnimal` and `infect` — because
+   * leaving home happens at one instant that this system already owns, and the
+   * migration system has no business scanning for it. It draws no randomness:
+   * the outward heading is geometry (straight out from the natal centre), which
+   * is what lets this system keep its "no randomness" guarantee intact.
+   *
+   * Orphaning deliberately does *not* disperse. An orphan is weaned on the spot
+   * and has enough problems (§1.4 A12); sending it walking as well would move
+   * two variables at once.
+   */
   #endBond(entity, reason, context) {
     const guardianId = entity.guardianId;
     entity.guardianId = null;
     entity.weaned = true;
-    recordLifeEvent(entity, context.tick, reason, { guardianId });
-    context.emit(EventTypes.ENTITY_LIFE_EVENT, { entityId: entity.id, event: reason, guardianId });
+
+    let natal = null;
+    if (this.disperses && reason === LifeEventTypes.DISPERSED) {
+      const migration = migrationOf(entity.speciesId);
+      natal = migration ? beginDispersal(entity, context.tick, migration.dispersalTicks) : null;
+    }
+    // The natal centre rides in the life event rather than on the entity: it is
+    // a fact about one moment, the life history is already bounded and already
+    // inspected, and a second copy on the entity would be state that can drift.
+    const data = natal ? { guardianId, x: natal.x, y: natal.y } : { guardianId };
+    recordLifeEvent(entity, context.tick, reason, data);
+    context.emit(EventTypes.ENTITY_LIFE_EVENT, { entityId: entity.id, event: reason, ...data });
   }
 
   /**

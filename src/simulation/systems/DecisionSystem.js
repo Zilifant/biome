@@ -42,6 +42,7 @@ import { thermalStress } from '../world/Environment.js';
 import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateChoice.js';
 import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
+import { blendHeadings } from '../migration/migration.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -575,8 +576,22 @@ export class DecisionSystem extends SimulationSystem {
       default: {
         const intent = entity.moveIntent;
         if (!intent || !intent.moving || intent.ttl <= 0) {
+          // Migration (Step 26) enters here and **only** here. A fresh wander
+          // commitment is the one heading in the whole system that was going to
+          // be arbitrary, so bending it costs nothing that was doing any work —
+          // which is exactly why migration is not an action (§1.4 A34, and see
+          // migration/migration.js). At strength 0 `blendHeadings` returns
+          // `candidateHeading` untouched, so an animal with no reason to be
+          // going anywhere behaves precisely as it did before this step.
+          //
+          // The commitment is what turns a shallow local cue into real
+          // distance: the heading is held for 8–24 ticks and re-picked toward
+          // the same gradient while it persists, so an animal migrates by
+          // drifting rather than by routing. Nothing here searches.
+          const drift = entity.migrationHeading;
           return {
-            heading: candidateHeading,
+            heading:
+              drift === null ? candidateHeading : blendHeadings(candidateHeading, drift, entity.migrationStrength),
             ttl: this.minCommitTicks + Math.floor(roll * this.commitTickSpan),
             moving: true,
             sprint: false,

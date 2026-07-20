@@ -30,11 +30,17 @@ import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js'
 import { dominanceOf } from '../social/dominance.js';
 import { territoryOf } from '../systems/TerritorySystem.js';
 import { diseaseSeverity, isInfectious, isSymptomatic } from '../disease/disease.js';
+import { forageGradient, isDispersing, migrationOf } from '../migration/migration.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
-/** @param {import('../world/EntityManager.js').Entity} entity */
-function publicEntityView(entity) {
+/**
+ * @param {import('../world/EntityManager.js').Entity} entity
+ * @param {number} tick needed only for `dispersing`, which is derived from the
+ *   clock rather than stored — the same "derive rather than store" rule disease
+ *   severity and dominance follow, so the flag can never outlive the walk.
+ */
+function publicEntityView(entity, tick) {
   return {
     id: entity.id,
     kind: entity.kind,
@@ -51,6 +57,7 @@ function publicEntityView(entity) {
     sex: entity.sex,
     groupId: entity.groupId,
     diseaseState: entity.diseaseState,
+    dispersing: isDispersing(entity, tick),
     action: entity.action,
     alive: entity.alive,
     decayStage: entity.decayStage,
@@ -216,7 +223,7 @@ export class SimulationEngine {
       ) {
         continue;
       }
-      entities.push(publicEntityView(entity));
+      entities.push(publicEntityView(entity, this.clock.tick));
     }
     return {
       simulationId: this.simulationId,
@@ -267,7 +274,7 @@ export class SimulationEngine {
     const entity = this.world.entities.get(entityId);
     if (!entity) return null;
     return {
-      ...publicEntityView(entity),
+      ...publicEntityView(entity, this.clock.tick),
       energy: entity.energy,
       maxEnergy: entity.maxEnergy,
       hydration: entity.hydration,
@@ -372,6 +379,35 @@ export class SimulationEngine {
           holding: species?.defends ? this.world.scent.countFor(entity.id) : 0,
           standingOn: { ownerId: owner, strength: this.world.scent.strengthAt(entity.x, entity.y), own: owner === entity.id },
           lastMarkTick: entity.lastMarkTick,
+        };
+      })(),
+      // Migration (Step 26) — inspection-only apart from the `dispersing` flag.
+      // The `drift` block is what the animal is *currently* being steered by,
+      // and it is reported beside the live `habitat` reading it was computed
+      // from so a bias is checkable rather than mysterious — the same reasoning
+      // that puts a courtship's threshold beside its quality. `habitat` is
+      // recomputed here rather than cached: it is 16 O(1) grid reads for one
+      // animal on demand, and a cached copy would be stale between staggers.
+      // `settled` is where this animal last lived, which is the baseline the
+      // `entity.migrated` event fires against.
+      migration: (() => {
+        const species = migrationOf(entity.speciesId);
+        const habitat =
+          species?.tracksForage
+            ? forageGradient(this.world, entity, {
+                cueRadius: species.cueRadius,
+                reference: this.config.migration.cueReference,
+              })
+            : null;
+        return {
+          tracksForage: species?.tracksForage ?? false,
+          cueRadius: species?.cueRadius ?? null,
+          dispersing: isDispersing(entity, this.clock.tick),
+          dispersalUntil: entity.dispersalUntil,
+          dispersalHeading: entity.dispersalHeading,
+          drift: entity.migrationHeading === null ? null : { heading: entity.migrationHeading, strength: entity.migrationStrength },
+          habitat: habitat ? { ...habitat } : null,
+          settled: entity.settledX === null ? null : { x: entity.settledX, y: entity.settledY },
         };
       })(),
       // Disease (Step 25) — the compartment itself rides in bulk snapshots (an

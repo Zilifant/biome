@@ -57,6 +57,12 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {{x: number, y: number, radius: number, samples: number} | null}
  *   homeRange bounded running summary of where this animal lives (Step 24)
  * @property {number | null} lastMarkTick tick it last marked ground
+ * @property {number | null} migrationHeading direction it is drifting (Step 26)
+ * @property {number} migrationStrength how hard, 0…1 (0 = no drift at all)
+ * @property {number | null} dispersalHeading outward heading held after leaving home
+ * @property {number | null} dispersalUntil tick that outward walk ends
+ * @property {number | null} settledX centre of the range it last lived in
+ * @property {number | null} settledY
  * @property {string} diseaseState susceptible | incubating | symptomatic | recovered
  * @property {number | null} diseaseSince tick the current stage began
  * @property {number | null} diseaseUntil tick the current stage ends
@@ -183,6 +189,21 @@ function createEntity(id, definition) {
     // that replaces it. Null until the animal has lived somewhere.
     homeRange: definition.homeRange ?? null,
     lastMarkTick: definition.lastMarkTick ?? null,
+    // Migration and dispersal (Step 26; see migration/migration.js). Six flat
+    // scalars, deliberately not an object: `serialize` shallow-copies entities,
+    // so a nested block would be shared by reference between a save and the
+    // live world. `migrationHeading`/`migrationStrength` are the drift the
+    // decision system folds into a wander — at strength 0 the animal behaves
+    // exactly as it did before this step. `dispersalHeading`/`dispersalUntil`
+    // are a juvenile's bounded outward walk after it leaves its guardian.
+    // `settledX`/`settledY` mark where this animal last *lived*, so "it has
+    // moved house" can be noticed once rather than re-derived every tick.
+    migrationHeading: definition.migrationHeading ?? null,
+    migrationStrength: definition.migrationStrength ?? 0,
+    dispersalHeading: definition.dispersalHeading ?? null,
+    dispersalUntil: definition.dispersalUntil ?? null,
+    settledX: definition.settledX ?? null,
+    settledY: definition.settledY ?? null,
     // Disease (Step 25; see disease/disease.js). Three fields hold the whole
     // compartmental state: which compartment, when it was entered, and when it
     // ends. Severity is *derived* from the compartment rather than stored, so

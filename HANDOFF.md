@@ -2,12 +2,12 @@
 
 |                       |                                                                     |
 | --------------------- | ------------------------------------------------------------------- |
-| Steps complete        | 1–25 (Step 26 next)                                                 |
-| Tests                 | 507 passing / 0 failing, 143 suites                                 |
-| `PROTOCOL_VERSION`    | 24                                                                  |
-| `SAVE_FORMAT_VERSION` | 23                                                                  |
-| Benchmark (large-5k)  | ~80 ms/tick, 5333→7228 entities                                     |
-| Git                   | Steps 22–25 are **uncommitted** (the user handles git)              |
+| Steps complete        | 1–26 (Step 27 next)                                                 |
+| Tests                 | 535 passing / 0 failing, 149 suites                                 |
+| `PROTOCOL_VERSION`    | 25                                                                  |
+| `SAVE_FORMAT_VERSION` | 24                                                                  |
+| Benchmark (large-5k)  | ~79 ms/tick, 5333→7219 entities                                     |
+| Git                   | Step 26 is **uncommitted** (the user handles git)                   |
 
 Verify with: `npm test`, `npm run benchmark`, `npm run headless -- --ticks=2000 --seed=42`.
 
@@ -20,12 +20,15 @@ live in a module the owning system calls: `killAnimal`, `recordLifeEvent`,
 `recordMemory`, `applyInjury`, `inheritGenome`, `mateQuality` /
 `acceptanceThreshold` (mating/mateChoice.js), `dominanceOf` / `isKin` /
 `resolveContest` (social/dominance.js — used by both mating rivalries *and*
-territorial disputes), and `infect` / `recover` (disease/disease.js).
+territorial disputes), `infect` / `recover` (disease/disease.js), and
+`beginDispersal` (migration/migration.js, called by parenting at the one instant
+a bond ends).
 
-**Derive rather than store, where you can.** Dominance (Step 23) and disease
-severity (Step 25) are both computed from state on read, so they cannot drift out
-of step with the thing they describe. A home range (Step 24) is the same idea for
-space: four numbers accumulated in place, never a trajectory.
+**Derive rather than store, where you can.** Dominance (23), disease severity
+(25), and the `dispersing` flag (26) are all computed on read, so they cannot
+drift out of step with the thing they describe. A home range (24) is the same
+idea for space: four numbers accumulated in place, never a trajectory — and
+Step 26 declined to add "remembered routes" for exactly that reason (§1.4 A40).
 
 **All action selection lives in `DecisionSystem`.** `flee`, `chase`, `stalk`,
 `shelter`, `followParent`, `seekMate`, `herd`, `defend`, `patrol`, `retreat` are
@@ -39,13 +42,15 @@ stood perfectly still" — and `JSON.stringify(NaN)` prints `null`.
 
 ⚠ **A new movement behaviour competes with foraging, and foraging must win.**
 Step 24's `patrol` cost the demo two seeds in five before it was ramped almost
-out of existence (§1.4 A34). Step 25 took the lesson and implemented social
-avoidance of illness as a *subtraction* — sick animals are left out of the herd's
-centroid — rather than a new action. Prefer that shape.
+out of existence (§1.4 A34). **Steps 25 and 26 both took the lesson and added no
+action at all**: disease avoidance is a *subtraction* (sick animals are left out
+of the herd centroid) and migration is a *bias on the heading `wander` was going
+to pick anyway*. Prefer those shapes over a new entry in the utility table.
 
 **Fixed RNG draw budgets.** Same draws regardless of outcome. `resolveContest` is
-three, always; mate assessment is zero; disease spillover is two per tick flat,
-whatever the population.
+three, always; mate assessment is zero; disease spillover is two per tick flat;
+**migration is zero** — sampling is deterministic and a dispersal heading is
+geometry.
 
 **Bounded everything, and bound it explicitly.** Per-entity structures are capped
 in their insert helper (memories 8, life events 12, injuries 4, tombstones 256,
@@ -64,42 +69,62 @@ verdict*, not every tick the condition holds. And when counting events in a test
 collect them tick by tick — `eventsSince` after a long `step(n)` measures what
 survived the bounded outbox, not what happened (§1.4 D13).
 
-**Tuning is measured against a control, and bisected when it breaks.** Every step
-since 22 has needed a 5-seed, 15–20k-tick sweep with the new mechanism disabled
-as the control. Step 24 needed more: 5/5 → 1/5, bisected factor by factor to find
-one behaviour was the whole cause. Diagnose before tuning — Step 25's disease has
-300+ infections and only 1–5 deaths per run, so mortality was never the lever.
+⚠ **Five seeds cannot resolve a one-seed difference.** New in Step 26 (§1.4 D14)
+and the most expensive thing on this list. The demo's two-species balance is a
+knife edge at ~3–9 stalkers. Step 26 measured **3/5 against a 4/5 control** and
+would have been ramped down for it; bisecting the strength gave 1/5, 2/5, 3/5,
+3/5 — *non-monotonic*, which is the tell that you are tuning noise. At **ten**
+seeds both configurations read 4/10. Add seeds before touching a parameter.
+There is a `migration.enabled` config switch precisely so the control is
+reproducible rather than hand-assembled; do the same for the next mechanism.
 
-**Assert invariants, not population outcomes.** §1.4 D1–D13.
+**Before asserting an outcome, ask what the control would score** (§1.4 D15). If
+the control scores the same, the test is measuring the world rather than the
+change. Prefer asserting the mechanism over the outcome it accumulates into —
+Step 26 ships "the distribution of chosen headings" instead of "where the animals
+ended up", because the displacement is real but small.
 
-## Step 26 specifics
+**Assert invariants, not population outcomes.** §1.4 D1–D16.
 
-Migration and dispersal. Groundwork in place:
+## Step 27 specifics
 
-- **Density now has a real cost** (disease, Step 25), which is one of the classic
-  reasons to leave — and `homeRange` (Step 24) is already the "where I live"
-  summary a migration would move.
-- Seasons (Step 19) are the other classic driver and are already a pure function
-  of the tick, so a seasonal trigger needs no new state.
-- Juvenile **dispersal** already exists in name (`LifeEventTypes.DISPERSED`, when
-  a juvenile outgrows its guardian) but does nothing spatial. That is the obvious
-  first thread to pull.
-- ⚠ Heed A34: a migration *pull* will compete with foraging exactly as `patrol`
-  did. Consider making it a seasonal override of the home range rather than a
-  new competing action.
+Local disturbances — bounded events (drought, fire, flood, storm, severe winter)
+that sweep a region, hurt it, and let it recover. Groundwork in place:
+
+- **Recovery is already solved.** Step 26's forage gradient means animals drift
+  *off* low-forage ground and back onto ground that has regrown, with no
+  recolonization code to write. A burnt patch should need only to lower biomass;
+  the response is emergent. This is the strongest reason Step 27 follows 26.
+- Weather (19) already draws stochastic spells with season-dependent odds and is
+  the obvious model to copy for a disturbance's arrival and duration.
+- The vegetation field already has a per-cell capacity separate from biomass, so
+  a fire can burn standing crop without permanently changing what the land can
+  hold — or change both, if a disturbance should scar.
+- ⚠ Hazards are still **not** an injury source (§1.4 A19 records the partial
+  close — fights are, hazards are not). A disturbance that hurts animals would be
+  the natural writer.
+- ⚠ Heed A34/D14 both: if a disturbance needs animals to *flee* it, prefer
+  biasing an existing behaviour over adding an action, and measure on ten seeds.
 
 ## Things deliberately left undone
 
 Recorded in `PLAN.md` §1.4 with reasoning; the ones most likely to matter next:
 
-- **⚠ A34** (24) — patrolling is near-inert in the demo; routine site fidelity
-  cost two seeds in five. Giving patrol a *reason* (a den, food worth returning
-  to) is the way out.
-- **⚠ A31** (23) — Step 21's selection sandbox has never demonstrated its claim;
+- **⚠ A31** (21) — Step 21's selection sandbox has never demonstrated its claim;
   the test now claims no direction. An unmet **Step 21** acceptance criterion.
+- **⚠ A34** (24) — patrolling is near-inert in the demo (`patrolSpanFactor` is
+  **6**, so it effectively never fires). Step 26 briefly wrote a fix for a
+  problem it assumed patrol was causing before discovering this; check the
+  ramp before theorizing about site fidelity.
 - **C6** (7, 23, 24) — perception and sociality each walk the same grid
-  neighbourhood separately (+26 ms/tick for the second). Step 25 deliberately did
-  *not* add a third. Folding the two is the clearest optimization; **Step 30**.
+  neighbourhood separately (+26 ms/tick for the second). Steps 25 and 26 both
+  deliberately declined to add a third (migration samples the vegetation field
+  with O(1) reads and touches no spatial query). Folding the two is the clearest
+  optimization; **Step 30**.
+- **A40/A41/A42/A43** (26) — no remembered routes (a route is a trajectory);
+  migration is grazer-only; the forage cue deliberately reaches beyond perception
+  as a stated stand-in for long-range cues; fragmentation is enabled but not
+  asserted.
 - **A32** (23) — juvenile defense fires about once in 12 000 ticks.
 - **A37/A38/A39** (25) — disease does not cross species, its parameters are
   global rather than per species, and an environmental spillover stands in for a
@@ -107,8 +132,9 @@ Recorded in `PLAN.md` §1.4 with reasoning; the ones most likely to matter next:
 - **A35/A36** (24) — territory is a predator-only phenomenon at ~9 individuals,
   and the claim layer is not drawn on the grid.
 - **A22** (18) — tombstones bounded at 256, so ancestry cannot be walked far.
-- **A12** (13) — orphan mercy, left alone on purpose.
-- **B3/B4/A13/A29/A30/A38** — metabolism, hydration, aging, trait spread,
-  mutation, `matePreference`, `territory`, disease parameters, and
+- **A12** (13) — orphan mercy, left alone on purpose (and Step 26 deliberately
+  does *not* disperse orphans, for the same reason).
+- **B3/B4/A13/A29/A30/A38/A41** — metabolism, hydration, aging, trait spread,
+  mutation, `matePreference`, `territory`, disease parameters, `migration`, and
   `GESTATING_SEX` all live in global config or ad-hoc species fields rather than
-  one species schema. **Step 29** unifies them.
+  one species schema. **Step 29** unifies them; it now has six blocks to absorb.

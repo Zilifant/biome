@@ -111,10 +111,19 @@
  *       currently carrying what, and how far through it they are, is exactly
  *       the kind of thing no seed can reproduce once a population has been
  *       exposed. v22 saves are invalidated.
+ *  24 — migration added (Step 26): per-entity `migrationHeading` /
+ *       `migrationStrength` (the drift a wander is steered by),
+ *       `dispersalHeading` / `dispersalUntil` (a juvenile's bounded outward
+ *       walk), `settledX` / `settledY` (where it last lived), plus the new
+ *       `MigrationSystem` descriptor. The drift is *derived* from the vegetation
+ *       field and would normally be rebuilt rather than saved — but habitat
+ *       evaluation is staggered, so a restore would run up to `updateInterval`
+ *       ticks on a stale null and diverge from an uninterrupted run. Two numbers
+ *       are cheaper than the divergence. v23 saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 23;
+export const SAVE_FORMAT_VERSION = 24;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

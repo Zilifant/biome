@@ -39,5 +39,13 @@ export const predatorStalker = Object.freeze({
   // settles slowly because a territory is a claim built over time, not a
   // decision taken once.
   territory: Object.freeze({ defends: true, rangeRadius: 26, settleTicks: 1400 }),
+  // Migration (Step 26). A stalker does **not** track forage: its food is the
+  // grazer, and it already follows that through perception and the hunt
+  // pipeline — a vegetation gradient would point it at grass it cannot eat.
+  // What it does share is **natal dispersal**, and for a territorial species
+  // that is the important half: a young stalker cannot inherit its parent's
+  // ground, so it must leave and found its own. It walks out for longer than a
+  // grazer does, because it has further to go before the ground is unclaimed.
+  migration: Object.freeze({ tracksForage: false, cueRadius: 0, dispersalTicks: 700 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

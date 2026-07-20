@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 24,
+  "protocolVersion": 25,
   "kind": "snapshot.delta",
   "simulationId": "demo-42",
   "baseTick": 10,
@@ -22,6 +22,7 @@
       "sex": "female",
       "groupId": 1,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -42,6 +43,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -62,6 +64,7 @@
       "sex": "female",
       "groupId": 3,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -70,9 +73,9 @@
       "id": 4,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 56.94969752028515,
-      "y": 80.39575544039606,
-      "heading": 3.6037520234226106,
+      "x": 56.95827839163568,
+      "y": 80.37889034458514,
+      "heading": 3.620750462391861,
       "age": 249,
       "energyFraction": 0.8151150707504524,
       "hydrationFraction": 0.9961500000000004,
@@ -82,6 +85,7 @@
       "sex": "male",
       "groupId": 4,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -102,6 +106,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -122,6 +127,7 @@
       "sex": "male",
       "groupId": 3,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -142,6 +148,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -162,6 +169,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -182,6 +190,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -202,6 +211,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -222,6 +232,7 @@
       "sex": "female",
       "groupId": 11,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -242,6 +253,7 @@
       "sex": "male",
       "groupId": 12,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -250,9 +262,9 @@
       "id": 13,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 93.0685873878533,
-      "y": 50.94598414621011,
-      "heading": 3.7820756806493545,
+      "x": 93.04708854118982,
+      "y": 50.981880833843725,
+      "heading": 3.7637819391699683,
       "age": 1105,
       "energyFraction": 0.8275362760178999,
       "hydrationFraction": 0.9961500000000004,
@@ -262,6 +274,7 @@
       "sex": "female",
       "groupId": 13,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -282,6 +295,7 @@
       "sex": "male",
       "groupId": 14,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -302,6 +316,7 @@
       "sex": "female",
       "groupId": 15,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -322,6 +337,7 @@
       "sex": "male",
       "groupId": 16,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -330,9 +346,9 @@
       "id": 17,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 3.8339464000205457,
-      "y": 117.41593774341787,
-      "heading": 0.9041534931412691,
+      "x": 3.8331369614675257,
+      "y": 117.41672210740468,
+      "heading": 0.90462113909809,
       "age": 255,
       "energyFraction": 0.9353113527882192,
       "hydrationFraction": 0.9961500000000004,
@@ -342,6 +358,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -362,6 +379,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -382,6 +400,7 @@
       "sex": "female",
       "groupId": 19,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -402,6 +421,7 @@
       "sex": "male",
       "groupId": 20,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -422,6 +442,7 @@
       "sex": "female",
       "groupId": 12,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -442,6 +463,7 @@
       "sex": "male",
       "groupId": 22,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -462,6 +484,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -482,6 +505,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -490,9 +514,9 @@
       "id": 25,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 111.10439944433938,
-      "y": 31.053923835200735,
-      "heading": 0.9438823234966822,
+      "x": 111.10227507306043,
+      "y": 31.055688543497034,
+      "heading": 0.9450181576109751,
       "age": 562,
       "energyFraction": 0.8703975343987902,
       "hydrationFraction": 0.9961500000000004,
@@ -502,6 +526,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -522,6 +547,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -542,6 +568,7 @@
       "sex": "female",
       "groupId": 27,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -562,6 +589,7 @@
       "sex": "male",
       "groupId": 12,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -582,6 +610,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -602,6 +631,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -622,6 +652,7 @@
       "sex": "female",
       "groupId": 14,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -642,6 +673,7 @@
       "sex": "male",
       "groupId": 32,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -662,6 +694,7 @@
       "sex": "female",
       "groupId": 15,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -682,6 +715,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -702,6 +736,7 @@
       "sex": "female",
       "groupId": 3,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -722,6 +757,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -730,9 +766,9 @@
       "id": 37,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 14.861966048405014,
-      "y": 66.1640800193729,
-      "heading": 3.1149802883736744,
+      "x": 14.859818487280322,
+      "y": 66.13606773425353,
+      "heading": 3.1266120227296472,
       "age": 68,
       "energyFraction": 0.8862922259493557,
       "hydrationFraction": 0.9961500000000004,
@@ -742,6 +778,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -750,9 +787,9 @@
       "id": 38,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 60.61279560036232,
-      "y": 80.01375973203537,
-      "heading": 5.596309392766475,
+      "x": 60.69237904750922,
+      "y": 80.10698422203144,
+      "heading": 5.64859521006392,
       "age": 1209,
       "energyFraction": 0.8340309147278359,
       "hydrationFraction": 0.9961500000000004,
@@ -762,6 +799,7 @@
       "sex": "male",
       "groupId": 4,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -782,6 +820,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -802,6 +841,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -822,6 +862,7 @@
       "sex": "female",
       "groupId": 32,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -842,6 +883,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -862,6 +904,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -882,6 +925,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -902,6 +946,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -922,6 +967,7 @@
       "sex": "male",
       "groupId": 46,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -930,9 +976,9 @@
       "id": 47,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 69.80075325223015,
-      "y": 34.61318837067846,
-      "heading": 2.242226894184048,
+      "x": 70.36572273234368,
+      "y": 34.76305550664794,
+      "heading": 1.3309751581343257,
       "age": 72,
       "energyFraction": 0.7272675611467696,
       "hydrationFraction": 0.9961500000000004,
@@ -942,7 +988,8 @@
       "sex": "female",
       "groupId": 27,
       "diseaseState": "susceptible",
-      "action": "wander",
+      "dispersing": false,
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -962,6 +1009,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -970,9 +1018,9 @@
       "id": 49,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 51.68352307894928,
-      "y": 48.19339137329358,
-      "heading": 1.384293526616093,
+      "x": 51.61852108831501,
+      "y": 48.20378884943677,
+      "heading": 1.440073874730829,
       "age": 926,
       "energyFraction": 0.8331641527931041,
       "hydrationFraction": 0.9961500000000004,
@@ -982,6 +1030,7 @@
       "sex": "female",
       "groupId": 22,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1002,6 +1051,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1022,6 +1072,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1042,6 +1093,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1050,9 +1102,9 @@
       "id": 53,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 107.80218328453253,
-      "y": 28.85605753674465,
-      "heading": 2.7191779152804094,
+      "x": 107.78103639487895,
+      "y": 28.805763050531393,
+      "heading": 2.7679671256220537,
       "age": 1366,
       "energyFraction": 0.8333088989108971,
       "hydrationFraction": 0.9961500000000004,
@@ -1062,6 +1114,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1082,6 +1135,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1102,6 +1156,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1122,6 +1177,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1130,9 +1186,9 @@
       "id": 57,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 47.49605241016513,
-      "y": 61.22926067975903,
-      "heading": 4.246484727522462,
+      "x": 47.48636029772714,
+      "y": 61.234185614483415,
+      "heading": 4.238018973700036,
       "age": 389,
       "energyFraction": 0.9166268088409911,
       "hydrationFraction": 0.9961500000000004,
@@ -1142,6 +1198,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1162,6 +1219,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1182,6 +1240,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1202,6 +1261,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1222,6 +1282,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -1242,6 +1303,7 @@
       "sex": "male",
       "groupId": 19,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1262,6 +1324,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1282,6 +1345,7 @@
       "sex": "male",
       "groupId": 22,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -1302,6 +1366,7 @@
       "sex": "female",
       "groupId": 13,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1322,6 +1387,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1342,6 +1408,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1362,6 +1429,7 @@
       "sex": "male",
       "groupId": 1,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1382,6 +1450,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1402,6 +1471,7 @@
       "sex": "male",
       "groupId": 19,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1422,6 +1492,7 @@
       "sex": "female",
       "groupId": 16,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1442,6 +1513,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -1462,6 +1534,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1482,6 +1555,7 @@
       "sex": "male",
       "groupId": 13,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1502,6 +1576,7 @@
       "sex": "female",
       "groupId": 27,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1510,9 +1585,9 @@
       "id": 76,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 5.392013349743807,
-      "y": 94.42148492274256,
-      "heading": 4.502007898813907,
+      "x": 5.295432664604268,
+      "y": 94.44600712695318,
+      "heading": 4.425471158553453,
       "age": 1356,
       "energyFraction": 0.832194458266317,
       "hydrationFraction": 0.9961500000000004,
@@ -1522,6 +1597,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1542,6 +1618,7 @@
       "sex": "female",
       "groupId": 27,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -1562,6 +1639,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1570,9 +1648,9 @@
       "id": 79,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 124.43198368985516,
-      "y": 16.368107595769928,
-      "heading": 5.043172001522395,
+      "x": 124.43547664851809,
+      "y": 16.369313593688613,
+      "heading": 5.046507439518906,
       "age": 980,
       "energyFraction": 0.8938131611208248,
       "hydrationFraction": 0.9961500000000004,
@@ -1582,6 +1660,7 @@
       "sex": "female",
       "groupId": 15,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1602,6 +1681,7 @@
       "sex": "male",
       "groupId": 27,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1622,6 +1702,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1642,6 +1723,7 @@
       "sex": "male",
       "groupId": 14,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1662,6 +1744,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1670,9 +1753,9 @@
       "id": 84,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 7.405648543818743,
-      "y": 95.84770451885328,
-      "heading": 3.579499309611161,
+      "x": 7.383562081181809,
+      "y": 95.89815488485199,
+      "heading": 3.528986892268155,
       "age": 857,
       "energyFraction": 0.7149196067010982,
       "hydrationFraction": 0.9961500000000004,
@@ -1682,6 +1765,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1690,9 +1774,9 @@
       "id": 85,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 90.20164584423448,
-      "y": 24.059948662678583,
-      "heading": 1.481787906812798,
+      "x": 90.30108005818664,
+      "y": 24.0571252474359,
+      "heading": 1.3997142144192862,
       "age": 1104,
       "energyFraction": 0.7565553166287624,
       "hydrationFraction": 0.9961500000000004,
@@ -1702,6 +1786,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1722,6 +1807,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1742,6 +1828,7 @@
       "sex": "female",
       "groupId": 1,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1762,6 +1849,7 @@
       "sex": "male",
       "groupId": 4,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1782,6 +1870,7 @@
       "sex": "female",
       "groupId": 16,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1790,9 +1879,9 @@
       "id": 90,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 89.42554019893014,
-      "y": 24.853023544644536,
-      "heading": 1.6979040420893305,
+      "x": 89.51205018283603,
+      "y": 24.867735755912378,
+      "heading": 1.6243132897560635,
       "age": 786,
       "energyFraction": 0.7650998516752271,
       "hydrationFraction": 0.9961500000000004,
@@ -1802,6 +1891,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1822,6 +1912,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -1842,6 +1933,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1862,6 +1954,7 @@
       "sex": "female",
       "groupId": 20,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "seekMate",
       "alive": true,
       "decayStage": 0
@@ -1882,6 +1975,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "eat",
       "alive": true,
       "decayStage": 0
@@ -1902,6 +1996,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1922,6 +2017,7 @@
       "sex": "male",
       "groupId": 22,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1942,6 +2038,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "incubating",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -1950,9 +2047,9 @@
       "id": 98,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 59.26895485295003,
-      "y": 82.64929318832161,
-      "heading": 2.984284698019167,
+      "x": 59.270866533017696,
+      "y": 82.66096924887474,
+      "heading": 2.9743274500984622,
       "age": 139,
       "energyFraction": 0.8472744695243122,
       "hydrationFraction": 0.9961500000000004,
@@ -1962,6 +2059,7 @@
       "sex": "male",
       "groupId": 4,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -1982,6 +2080,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2002,6 +2101,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2022,6 +2122,7 @@
       "sex": "female",
       "groupId": 1,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2042,6 +2143,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -2062,6 +2164,7 @@
       "sex": "female",
       "groupId": 4,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "rest",
       "alive": true,
       "decayStage": 0
@@ -2082,6 +2185,7 @@
       "sex": "male",
       "groupId": 14,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2102,6 +2206,7 @@
       "sex": "female",
       "groupId": 3,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2122,6 +2227,7 @@
       "sex": "male",
       "groupId": 27,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2142,6 +2248,7 @@
       "sex": "female",
       "groupId": 11,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2150,9 +2257,9 @@
       "id": 108,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 8.07015703194244,
-      "y": 33.137124878652784,
-      "heading": 2.6244205273405687,
+      "x": 8.061026267912597,
+      "y": 33.120785718342,
+      "heading": 2.6395749523679584,
       "age": 1205,
       "energyFraction": 0.8518430502527314,
       "hydrationFraction": 0.9961500000000004,
@@ -2162,6 +2269,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2182,6 +2290,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2190,9 +2299,9 @@
       "id": 110,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 46.40049762809435,
-      "y": 35.830931415822526,
-      "heading": 2.740092955161486,
+      "x": 46.40330863806367,
+      "y": 35.8375009113387,
+      "heading": 2.7344633935351865,
       "age": 1125,
       "energyFraction": 0.8619219027170882,
       "hydrationFraction": 0.9961500000000004,
@@ -2202,6 +2311,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2222,6 +2332,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -2242,6 +2353,7 @@
       "sex": "male",
       "groupId": 1,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2262,6 +2374,7 @@
       "sex": "female",
       "groupId": 22,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "herd",
       "alive": true,
       "decayStage": 0
@@ -2270,9 +2383,9 @@
       "id": 114,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 48.302205820396296,
-      "y": 65.59671652867353,
-      "heading": 1.9977476935525047,
+      "x": 48.248609419368904,
+      "y": 65.56584613562225,
+      "heading": 2.0228653239199375,
       "age": 168,
       "energyFraction": 0.8784719633683227,
       "hydrationFraction": 0.9961500000000004,
@@ -2282,6 +2395,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2302,6 +2416,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2322,6 +2437,7 @@
       "sex": "male",
       "groupId": 3,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2342,6 +2458,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2362,6 +2479,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "flee",
       "alive": true,
       "decayStage": 0
@@ -2382,6 +2500,7 @@
       "sex": "female",
       "groupId": 15,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2402,6 +2521,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2422,6 +2542,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2442,6 +2563,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2462,6 +2584,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "chase",
       "alive": true,
       "decayStage": 0
@@ -2482,6 +2605,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2502,6 +2626,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2522,6 +2647,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "chase",
       "alive": true,
       "decayStage": 0
@@ -2542,6 +2668,7 @@
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2562,6 +2689,7 @@
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
+      "dispersing": false,
       "action": "wander",
       "alive": true,
       "decayStage": 0
@@ -2657,8 +2785,8 @@
         "y": 80.89211422933163
       },
       "to": {
-        "x": 56.94969752028515,
-        "y": 80.39575544039606
+        "x": 56.95827839163568,
+        "y": 80.37889034458514
       }
     },
     {
@@ -2765,12 +2893,12 @@
       "type": "entity.moved",
       "entityId": 13,
       "from": {
-        "x": 93.98943475030099,
-        "y": 51.632286973765744
+        "x": 93.98033616833044,
+        "y": 51.65122402121037
       },
       "to": {
-        "x": 93.0685873878533,
-        "y": 50.94598414621011
+        "x": 93.04708854118982,
+        "y": 50.981880833843725
       }
     },
     {
@@ -2807,12 +2935,12 @@
       "type": "entity.moved",
       "entityId": 17,
       "from": {
-        "x": 3.08477603045918,
-        "y": 116.46376911903069
+        "x": 3.0844119516163957,
+        "y": 116.46420324065215
       },
       "to": {
-        "x": 3.8339464000205457,
-        "y": 117.41593774341787
+        "x": 3.8331369614675257,
+        "y": 117.41672210740468
       }
     },
     {
@@ -2919,12 +3047,12 @@
       "type": "entity.moved",
       "entityId": 25,
       "from": {
-        "x": 110.38959904980008,
-        "y": 30.067173985337245
+        "x": 110.38859592351066,
+        "y": 30.068127435647455
       },
       "to": {
-        "x": 111.10439944433938,
-        "y": 31.053923835200735
+        "x": 111.10227507306043,
+        "y": 31.055688543497034
       }
     },
     {
@@ -3059,12 +3187,12 @@
       "type": "entity.moved",
       "entityId": 37,
       "from": {
-        "x": 16.07108704199975,
-        "y": 66.1318948515039
+        "x": 16.069232047309207,
+        "y": 66.11794860070545
       },
       "to": {
-        "x": 14.861966048405014,
-        "y": 66.1640800193729
+        "x": 14.859818487280322,
+        "y": 66.13606773425353
       }
     },
     {
@@ -3073,12 +3201,12 @@
       "type": "entity.moved",
       "entityId": 38,
       "from": {
-        "x": 59.70539350587593,
-        "y": 80.75791787263968
+        "x": 59.74732581067783,
+        "y": 80.80270275625377
       },
       "to": {
-        "x": 60.61279560036232,
-        "y": 80.01375973203537
+        "x": 60.69237904750922,
+        "y": 80.10698422203144
       }
     },
     {
@@ -3171,12 +3299,12 @@
       "type": "entity.moved",
       "entityId": 47,
       "from": {
-        "x": 70.18149111597306,
-        "y": 34.13402287235136
+        "x": 70.22035175643617,
+        "y": 34.16855725178232
       },
       "to": {
-        "x": 69.80075325223015,
-        "y": 34.61318837067846
+        "x": 70.36572273234368,
+        "y": 34.76305550664794
       }
     },
     {
@@ -3203,8 +3331,8 @@
         "y": 47.03357164576078
       },
       "to": {
-        "x": 51.68352307894928,
-        "y": 48.19339137329358
+        "x": 51.61852108831501,
+        "y": 48.20378884943677
       }
     },
     {
@@ -3259,8 +3387,8 @@
         "y": 28.397562540642614
       },
       "to": {
-        "x": 107.80218328453253,
-        "y": 28.85605753674465
+        "x": 107.78103639487895,
+        "y": 28.805763050531393
       }
     },
     {
@@ -3315,8 +3443,8 @@
         "y": 62.37657743368524
       },
       "to": {
-        "x": 47.49605241016513,
-        "y": 61.22926067975903
+        "x": 47.48636029772714,
+        "y": 61.234185614483415
       }
     },
     {
@@ -3539,8 +3667,8 @@
         "y": 95.69501654357636
       },
       "to": {
-        "x": 5.392013349743807,
-        "y": 94.42148492274256
+        "x": 5.295432664604268,
+        "y": 94.44600712695318
       }
     },
     {
@@ -3553,8 +3681,8 @@
         "y": 17.415936005091197
       },
       "to": {
-        "x": 124.43198368985516,
-        "y": 16.368107595769928
+        "x": 124.43547664851809,
+        "y": 16.369313593688613
       }
     },
     {
@@ -3623,8 +3751,8 @@
         "y": 96.31008490955588
       },
       "to": {
-        "x": 7.405648543818743,
-        "y": 95.84770451885328
+        "x": 7.383562081181809,
+        "y": 95.89815488485199
       }
     },
     {
@@ -3633,12 +3761,12 @@
       "type": "entity.moved",
       "entityId": 85,
       "from": {
-        "x": 90.14748265469797,
-        "y": 23.453038911799634
+        "x": 90.19734376958986,
+        "y": 23.456698832926275
       },
       "to": {
-        "x": 90.20164584423448,
-        "y": 24.059948662678583
+        "x": 90.30108005818664,
+        "y": 24.0571252474359
       }
     },
     {
@@ -3689,12 +3817,12 @@
       "type": "entity.moved",
       "entityId": 90,
       "from": {
-        "x": 89.50136848026723,
-        "y": 24.259672695115583
+        "x": 89.54404749510265,
+        "y": 24.270415631611364
       },
       "to": {
-        "x": 89.42554019893014,
-        "y": 24.853023544644536
+        "x": 89.51205018283603,
+        "y": 24.867735755912378
       }
     },
     {
@@ -3777,8 +3905,8 @@
         "y": 82.4631440060548
       },
       "to": {
-        "x": 59.26895485295003,
-        "y": 82.64929318832161
+        "x": 59.270866533017696,
+        "y": 82.66096924887474
       }
     },
     {
@@ -3903,8 +4031,8 @@
         "y": 32.526452117568105
       },
       "to": {
-        "x": 8.07015703194244,
-        "y": 33.137124878652784
+        "x": 8.061026267912597,
+        "y": 33.120785718342
       }
     },
     {
@@ -3917,8 +4045,8 @@
         "y": 35.33488731134568
       },
       "to": {
-        "x": 46.40049762809435,
-        "y": 35.830931415822526
+        "x": 46.40330863806367,
+        "y": 35.8375009113387
       }
     },
     {
@@ -3969,12 +4097,12 @@
       "type": "entity.moved",
       "entityId": 114,
       "from": {
-        "x": 48.8138319130627,
-        "y": 64.47210613667325
+        "x": 48.78831870727697,
+        "y": 64.45443996457682
       },
       "to": {
-        "x": 48.302205820396296,
-        "y": 65.59671652867353
+        "x": 48.248609419368904,
+        "y": 65.56584613562225
       }
     },
     {

@@ -40,5 +40,16 @@ export const herbivoreGrazer = Object.freeze({
   // wandering off forever) without exclusivity. That is the honest split:
   // every animal lives somewhere, not every animal owns it.
   territory: Object.freeze({ defends: false, rangeRadius: 14, settleTicks: 900 }),
+  // Migration (Step 26). A grazer follows the grass, so it tracks the forage
+  // gradient. `cueRadius` is 18 against a perception radius of 6 — deliberately
+  // beyond what the animal can see, standing in for the coarse long-range cues
+  // this world does not simulate; see migration/migration.js, where that
+  // assumption is stated rather than buried. `dispersalTicks` is how long a
+  // juvenile holds its outward heading after leaving its guardian. How *hard*
+  // the gradient steers is `migration.biasWeight` in the simulation config, not
+  // here: it is mechanism strength rather than biology, it was tuned against a
+  // five-seed control, and `tracksForage` already decides per species whether
+  // it applies at all.
+  migration: Object.freeze({ tracksForage: true, cueRadius: 18, dispersalTicks: 400 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

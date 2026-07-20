@@ -48,6 +48,14 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // protocol does not hide who is carrying it, the renderer simply cannot make
   // an animal look ill before it is.
   'diseaseState',
+  // Dispersal (Step 26). One boolean, true for a bounded spell twice in a
+  // lifetime at most, so it costs a delta nothing — and without it the step's
+  // visible result is not visible: a juvenile walking out of its natal range
+  // looks exactly like a juvenile wandering unless the protocol says which it
+  // is. The *forage* drift is deliberately not here; it is a continuous number
+  // that would dirty a delta for every animal every tick, and it is inspection
+  // detail rather than something to draw.
+  'dispersing',
   'action',
   'alive',
   // Carcass decay (Step 18). Bulk-projected because the renderer ramps the

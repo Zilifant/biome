@@ -275,6 +275,50 @@ function formatTerritory(detail) {
 }
 
 /**
+ * Render migration (protocol v25): which way this animal is drifting and why.
+ *
+ * The live habitat reading is shown beside the drift it produced, for the same
+ * reason a courtship shows its threshold beside the quality — otherwise a bias
+ * is just an arrow with no argument behind it. A dispersing juvenile is called
+ * out separately because that drive *overrides* the habitat reading rather than
+ * competing with it, and showing both without saying which is winning would be
+ * misleading.
+ */
+function formatMigration(detail) {
+  const migration = detail?.migration;
+  if (!migration) return '';
+  const rows = [];
+  if (migration.dispersing) {
+    rows.push(
+      `<div class="field"><span>dispersing</span><span class="warn">leaving home${
+        migration.dispersalUntil != null ? ` <span class="dim">until t${migration.dispersalUntil}</span>` : ''
+      }</span></div>`,
+    );
+  }
+  const drift = migration.drift;
+  if (drift) {
+    const compass = ['E', 'NE', 'N', 'NW', 'W', 'SW', 'S', 'SE'];
+    const heading = compass[Math.round((drift.heading / (Math.PI * 2)) * 8) % 8];
+    rows.push(
+      `<div class="field"><span>drifting</span><span>${heading} <span class="dim">${Math.round(drift.strength * 100)}%</span></span></div>`,
+    );
+  } else if (migration.tracksForage) {
+    rows.push('<div class="field"><span>drifting</span><span class="dim">nowhere better</span></div>');
+  }
+  if (migration.habitat) {
+    rows.push(
+      `<div class="field"><span>better forage</span><span class="dim">${(migration.habitat.strength * 100).toFixed(0)}% better within ${migration.cueRadius}u</span></div>`,
+    );
+  }
+  if (migration.settled) {
+    rows.push(
+      `<div class="field"><span>settled from</span><span class="dim">${migration.settled.x.toFixed(0)},${migration.settled.y.toFixed(0)}</span></div>`,
+    );
+  }
+  return rows.length ? `<h3>Migration</h3>${rows.join('')}` : '';
+}
+
+/**
  * Render disease (protocol v24). `infectious` is shown separately from
  * `symptomatic` because the two genuinely differ — an incubating animal is
  * spreading it while looking perfectly well, and that gap is the whole model.
@@ -406,6 +450,7 @@ export class EntityInspector {
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
     const diseaseBlock = formatDisease(liveDetail);
     const territoryBlock = formatTerritory(liveDetail);
+    const migrationBlock = formatMigration(liveDetail);
     const socialBlock = formatSocial(liveDetail);
     const mateChoiceBlock = formatMateChoice(liveDetail);
     const familyBlock = formatFamily(liveDetail);
@@ -432,6 +477,7 @@ export class EntityInspector {
       ${diseaseBlock}
       ${socialBlock}
       ${territoryBlock}
+      ${migrationBlock}
       ${mateChoiceBlock}
       ${familyBlock}
       ${utilitiesBlock}

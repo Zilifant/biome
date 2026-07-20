@@ -160,6 +160,43 @@ export const defaultSimulationConfig = Object.freeze({
     fightInjurySeverity: 0.2,
     fightWinnerInjuryFraction: 0.4,
   }),
+  // Migration and dispersal (see migration/migration.js and
+  // systems/MigrationSystem.js). The step's whole design decision is that
+  // migration is **not an action**: it adds nothing to the utility table and
+  // instead steers the heading `wander` was going to pick anyway, so foraging
+  // can never lose to it. §1.4 A34 is why — Step 24's `patrol` competed with
+  // wandering and cost the demo two seeds in five.
+  //
+  // Nothing here is seasonal. Season reaches migration through the vegetation
+  // ceiling (Step 19) and the herd's own grazing, so a green spring flattens the
+  // gradient to nothing and a grazed-out winter sharpens it. Which species
+  // tracks forage, how far its cue reaches, and how long its young walk before
+  // settling are all species data (`config/species/*`).
+  migration: Object.freeze({
+    // The whole step, on one switch. It exists because every step since 22 has
+    // had to be measured against a control with the new mechanism disabled, and
+    // a control assembled by hand is a control that can be assembled wrongly.
+    // False leaves the migration system unregistered *and* dispersal inert, so
+    // the demo behaves exactly as it did at Step 25.
+    enabled: true,
+    // Biomass difference that reads as a full-strength signal. Set against the
+    // vegetation reference capacity (8), so roughly "half a full cell better
+    // than here" saturates the cue.
+    cueReference: 4,
+    // Cap on how hard the forage gradient may steer a wander. Deliberately well
+    // below 1 — this bends an aimless walk, it does not aim it. Measured; see
+    // the sweep recorded in PLAN.md's Step 26 completion notes.
+    biasWeight: 0.5,
+    // A dispersing juvenile holds its outward heading hard — not at 1, because
+    // an animal that ignored terrain entirely would walk into a lake and stand
+    // there (the movement system refuses impassable cells, so the residual
+    // randomness is what lets it get around one).
+    dispersalWeight: 0.9,
+    // Habitat evaluation is staggered: 16 O(1) vegetation reads per animal per
+    // evaluation, so at 10 this is under two grid reads per animal per tick and
+    // no spatial query at all.
+    updateInterval: 10,
+  }),
   // Disease (see disease/disease.js and systems/DiseaseSystem.js). A
   // compartmental model — susceptible → incubating → symptomatic → recovered —
   // whose one load-bearing choice is that **an incubating animal is infectious

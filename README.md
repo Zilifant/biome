@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–25 are done; Step 26 is next.
+protocol for continuing the work. Steps 1–26 are done; Step 27 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -65,8 +65,8 @@ Headless Simulation Engine           src/simulation
    ├── Spatial Grid     (uniform grid for local queries)
    ├── Systems          (weather, vegetation, perception, memory, social,
    │                     decision, movement, feeding, hunting, reproduction,
-   │                     parenting, territory, metabolism, hydration, injury,
-   │                     disease, carcass, aging, metrics)
+   │                     parenting, territory, migration, metabolism,
+   │                     hydration, injury, disease, carcass, aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
@@ -159,7 +159,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `24`) and is
+Everything a client sees carries `protocolVersion` (currently `25`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -170,7 +170,7 @@ built by `src/protocol/`:
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
-  groupId, diseaseState, action, alive, decayStage) — internal records never leak, and every snapshot
+  groupId, diseaseState, dispersing, action, alive, decayStage) — internal records never leak, and every snapshot
   is freshly cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
   `adultMass`, its `genome` / `genotype` / parent traits, its bounded
@@ -182,7 +182,9 @@ built by `src/protocol/`:
   its `territory` block (home range, drift from it, ground held, whose claim it
   is standing on), its `disease` block (compartment, whether it is infectious —
   which is *not* the same as whether it looks ill — and how far through it is),
-  and the family/life-history block (resolved `lineage`, parenting state, bounded
+  its `migration` block (the drift it is currently being steered by, beside the
+  live habitat reading that drift was computed from, so a bias is checkable
+  rather than mysterious), and the family/life-history block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
@@ -215,8 +217,14 @@ built by `src/protocol/`:
   `entity.decayed`, `environment.changed`
   (`{ season, weather, temperature, … }` — the one world-level event, emitted
   on a turn rather than every tick), `entity.provisioned`
-  (`{ entityId, guardianId, amount }`), and `entity.lifeEvent`
-  (`{ entityId, event, guardianId }` — `weaned` | `dispersed` | `orphaned`)
+  (`{ entityId, guardianId, amount }`), `entity.migrated`
+  (`{ entityId, from, to, distance, reason }` — an animal has moved *house*: its
+  home range has shifted a full range radius from where it last lived, which is a
+  different claim from "it walked a long way", and `reason` says whether it was
+  following forage or still walking out from where it was born), and
+  `entity.lifeEvent`
+  (`{ entityId, event, guardianId, x?, y? }` — `weaned` | `dispersed` |
+  `orphaned`; a dispersal carries the natal centre it is leaving)
   — facts with `{ seq, tick }`, never presentation instructions. A dead animal
   (whatever the cause) becomes a `carcass`-kind entity **in place** — a kind
   change carried as a delta update, not a removal. It is removed later, once
@@ -232,10 +240,13 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `23`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `24`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
-event outbox, pending commands, and system descriptors.
+event outbox, pending commands, and system descriptors. The migration drift is
+saved rather than rebuilt, unusually for derived state: habitat evaluation is
+staggered, so a restore would otherwise run on a stale value until the next
+evaluation and diverge from an uninterrupted run.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
 simulation continues **identically** to an uninterrupted one (tested).
 
@@ -275,7 +286,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 507 tests.
+ASCII renderer, committed fixtures, and 535 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -327,6 +338,7 @@ Their full loop is implemented:
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
 | `SocialSystem` | decision | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop |
 | `TerritorySystem` | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance |
+| `MigrationSystem` | decision | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered) |
 | `DiseaseSystem` | physiology | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well |
 | `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
@@ -404,6 +416,43 @@ everything it held at once.
 
 Grazers have ranges; stalkers hold ground. That difference — living somewhere
 versus owning it — is the distinction the whole mechanism turns on.
+
+**And animals move house.** Migration here is deliberately **not something an
+animal decides to do** — there is no `migrate` action, and nothing was added to
+the utility table. An animal that can see food still goes to the food; one that
+remembers food still walks back to it. What migration touches is the one heading
+in the whole system that was going to be arbitrary anyway: when a wander
+commitment runs out and the animal picks a fresh random direction, that direction
+is bent toward better forage. Foraging therefore cannot lose to it, because it
+never spends a tick that was doing anything else — the hard-won lesson of the
+previous step, where a competing movement behaviour cost the demo two seeds in
+five.
+
+The cue is shallow and local — eight directions sampled, no search, no route, no
+map. Distance comes from **commitment** instead: a heading is held for a dozen or
+so ticks and re-chosen the same way while the gradient persists, so a weak
+preference integrated over a long walk carries an animal a long way. That is how
+an animal migrates without knowing where it is going.
+
+Nothing in it is seasonal, and nothing in it knows what a season is. Season
+arrives through the grass: a green spring flattens the gradient to nothing and
+animals scatter, while a grazed-out winter sharpens it and they concentrate onto
+the ground that still carries forage. **Recolonization is not implemented at
+all** — nothing anywhere knows a region was emptied. Ground that nobody is eating
+simply grows back to capacity and becomes the best thing on the compass, so
+animals drift into it. The behaviour the step wanted is a consequence of the
+mechanism rather than a feature beside it.
+
+**Leaving home is the one thing that overrides all of that.** A juvenile that
+outgrows its guardian takes an outward heading — straight out from the centre of
+the range it grew up in, so it costs no randomness — and holds it for a bounded
+spell whatever the forage says, because an animal that turned back at the first
+green patch would never leave. Its home range is *cleared* at the same moment,
+which is what makes dispersal spatial rather than bookkeeping: a range is a
+running average of where an animal has been, so a juvenile that kept its natal
+one would spend its life being drawn back to its mother's ground. In the demo,
+young grazers end up a median of **70 units** from where they were born, on a map
+128 across.
 
 **Animals form herds, and a herd is a label rather than a roster.** Nothing
 anywhere holds a membership list: animals in sight of each other converge on a
@@ -530,12 +579,12 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Migration, disturbances,
+Disturbances,
 ecosystem engineering, a config-driven species schema (beyond today's two
 hand-written species), and profile-driven optimization toward tens of thousands
 of animals.
 
-`PLAN.md` sequences all of these as Steps 26–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 27–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

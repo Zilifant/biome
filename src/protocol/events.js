@@ -72,9 +72,20 @@ export const EventTypes = Object.freeze({
   ENTITY_INFECTED: 'entity.infected', // { entityId, sourceId }
   ENTITY_SICKENED: 'entity.sickened', // { entityId }
   ENTITY_CURED: 'entity.cured', //      { entityId, immuneUntil }
+  // An animal has moved house (Step 26) — its *home range* has shifted a full
+  // range radius from where it last lived, which is a different claim from "it
+  // walked a long way" and the reason this is reported on the range rather than
+  // on position. Rare by construction, so it costs the event budget almost
+  // nothing (§1.4 C3). `reason` says which drive did it: `dispersal` for a
+  // juvenile still holding its outward heading, `forage` for an adult that
+  // followed the grass.
+  ENTITY_MIGRATED: 'entity.migrated', // { entityId, from: {x,y}, to: {x,y}, distance, reason }
   // A milestone in one animal's life history. `event` is a life-event type
   // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
-  ENTITY_LIFE_EVENT: 'entity.lifeEvent', //    { entityId, event, guardianId }
+  // `dispersed` additionally carries the natal centre the animal is leaving
+  // (`x`, `y`), which is what makes dispersal checkable as a spatial fact
+  // rather than only a bookkeeping one.
+  ENTITY_LIFE_EVENT: 'entity.lifeEvent', //    { entityId, event, guardianId, x?, y? }
 });
 
 /**
