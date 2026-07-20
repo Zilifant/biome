@@ -171,7 +171,7 @@ correctness bug in shipped code unless marked ⚠.
 | # | From | Item | Owed to |
 | --- | --- | --- | --- |
 | B1 | 4 | `fixtures/createDemoSimulation.js` not renamed to `createEcosystem.js` (rename was pure churn) | cosmetic cleanup |
-| B2 | 4 | `config.demo` retained for *scenario* selection (count + species id); biology did move to `config/species/*` | — (settled) |
+| ~~B2~~ | 4 | `config.demo` retained for *scenario* selection (count + species id); biology did move to `config/species/*` | **Done in Step 29** — `config.demo` is now a `founding` **roster** (`[{ speciesId, count }]`) walked in order, so adding a species to the world is a line of config rather than a third hardcoded slot. The benchmark scenarios use the same shape |
 | ~~B3~~ | 6, 10, 11 | Metabolism, hydration, and aging parameters live in **global config sections** rather than per-species | **Done in Step 29** — metabolism, hydration, and aging are per-species blocks resolved against the config defaults |
 | ~~B4~~ | 7 | Perception radius resolved per-species from the registry (no entity field) — a *different* pattern from B3 | **Done in Step 29** — `perceptionRadius` became a `perception` block, so the third config pattern is gone and all species biology resolves one way |
 | B5 | 8, 14 | `utilityBreakdown` persisted on the entity rather than kept transient — could bloat saves at 25k animals; Step 14's per-entity `traits` object adds to the same pressure (though it is genuinely non-derivable and must persist) | **Step 30** (if save size bites) |
@@ -5028,7 +5028,10 @@ hunger), and its `settled` centre. Over 15 000 ticks on seed 42: **247 dispersal
 with a **median 70.7 units** travelled from the natal centre (max 152) on a
 128-wide map, and **2 832 relocations** — 2 567 following forage, 265 while
 dispersing. Mean drift strength across the population is **0.0995**: a bias, not a
-beeline, which is the number A34 says has to stay small.
+beeline, which is the number A34 says has to stay small. (Re-measured after Step
+29's species schema the median is ~60 rather than 70 — the mechanism is unchanged;
+the world it runs in is not. Figures in a completion note are a record of what
+was true at that step, not a live reading.)
 
 **Performance.** large-5k **79.78 → 79.19 ms/tick** — flat, and within run-to-run
 noise. Habitat evaluation is 16 O(1) vegetation reads per animal per evaluation

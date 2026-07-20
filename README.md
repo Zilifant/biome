@@ -186,7 +186,10 @@ built by `src/protocol/`:
   which is *not* the same as whether it looks ill — and how far through it is),
   its `migration` block (the drift it is currently being steered by, beside the
   live habitat reading that drift was computed from, so a bias is checkable
-  rather than mysterious), and the family/life-history block (resolved `lineage`, parenting state, bounded
+  rather than mysterious), `caughtIn` (the disturbance covering this animal, or
+  null — the active regions already ride in every snapshot, so what inspection
+  adds is the geometry answer rather than the list), and the family/life-history
+  block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
@@ -261,8 +264,9 @@ built by `src/protocol/`:
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
 (`SAVE_FORMAT_VERSION`, currently `27`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
-season/weather record, the tombstone registry, the bounded metrics history, the
-event outbox, pending commands, and system descriptors. The migration drift is
+season/weather record, the territorial claim layer, the active disturbances, the
+worn-ground feature layer, the tombstone registry, the bounded metrics history,
+the event outbox, pending commands, and system descriptors. The migration drift is
 saved rather than rebuilt, unusually for derived state: habitat evaluation is
 staggered, so a restore would otherwise run on a stale value until the next
 evaluation and diverge from an uninterrupted run.
@@ -290,6 +294,29 @@ documented in `SimulationSerializer.js`.
    (`registerDemoSystems` today). Saves record system descriptors, so a
    changed system lineup won't silently restore old saves.
 4. Test determinism: two runs with the same seed must match.
+
+## Adding a species
+
+A species is **data**, and adding one is a config edit. There is no engine change
+to make, and a test will fail if you make one.
+
+1. Add a definition to `src/simulation/config/species/` — biology only, never
+   glyphs or colors. State only what differs from the defaults: every block
+   (`metabolism`, `hydration`, `aging`, `perception`, `traits`, `genetics`,
+   `disease`, `reproduction`) falls back to the same-named section of the
+   simulation config, so a species file reads as a list of what makes that animal
+   unusual.
+2. Add it to the roster in `config/species/index.js` and to `config.demo.founding`
+   if it should exist in the demo world.
+3. Give it an appearance entry in the renderer's `SPECIES_APPEARANCE` — the only
+   place presentation lives.
+4. Do **not** add a species-name conditional anywhere in `src/simulation`;
+   `test/species-schema.test.js` scans for that and fails. Express behaviour as
+   data instead: `diet`, `preySpeciesIds`, `territory.defends`,
+   `migration.tracksForage`.
+
+The scavenger is the worked example — a carnivore with an empty `preySpeciesIds`,
+which is an entire trophic level expressed by leaving a field empty.
 
 ## Building a renderer
 
@@ -407,10 +434,17 @@ Stamina is what actually decides most chases: both sides trade it for speed and
 recover it only at rest.
 
 The demo holds grazer and stalker in a genuine oscillation rather than a fixed
-balance — measured over 20k ticks on five seeds, roughly 24–111 grazers against
-1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
-from encounter rates, capture odds, and lifespan, and it is a knife edge (see
-`config.demo` for the measured sweep behind the founding counts).
+balance, and it is **a knife edge rather than a guarantee**. Measured over 15k
+ticks on ten seeds with all three species present: roughly 8–75 grazers against
+0–2 stalkers, with both still alive in 5 of 10 seeds and all three species
+coexisting in 4. Nothing enforces any of that — it emerges from encounter rates,
+capture odds, lifespan, and now competition for carrion — and the honest reading
+is that predators go extinct about half the time.
+
+That number is measured on **ten** seeds for a reason. Five cannot resolve a
+one-seed difference here, and every tuning decision from Step 26 onward has been
+made against ten (see `config.demo` for the founding counts and `PLAN.md` §1.4
+D14 for what happens when you trust five).
 
 **Disease travels ahead of its own symptoms.** An animal that has caught
 something spreads it for a couple of hundred ticks while looking perfectly
@@ -487,7 +521,7 @@ green patch would never leave. Its home range is *cleared* at the same moment,
 which is what makes dispersal spatial rather than bookkeeping: a range is a
 running average of where an animal has been, so a juvenile that kept its natal
 one would spend its life being drawn back to its mother's ground. In the demo,
-young grazers end up a median of **70 units** from where they were born, on a map
+young grazers end up a median of **~60 units** from where they were born, on a map
 128 across.
 
 **Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
@@ -547,9 +581,11 @@ competing with foraging loses.
 
 The feedback loop is the point: a trail is faster, faster ground attracts
 traffic, traffic deepens the trail. Measured on the demo, 96% of trail cells
-touch another one — these are connected paths, not a scatter of worn dots — and
-the population gets *steadier* rather than larger, its worst case across ten
-seeds rising from 1 surviving grazer to 26.
+touch another one — these are connected paths, not a scatter of worn dots. When
+trails landed they made the population *steadier* rather than larger, lifting its
+worst case across ten seeds from 1 surviving grazer to 26; that figure was taken
+against the two-species world of the time, before the species schema and a third
+species changed what the demo is.
 
 It also revealed something nobody had looked for. Because worn ground is a
 picture of where animals actually spend their time, and because most of the

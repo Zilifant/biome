@@ -28,6 +28,15 @@ The config is what the registry resolves against. This inverted 23 tests in one
 go (§1.4 D23) — they kept compiling and quietly stopped meaning anything, which
 is worse than a break. Configure through the config.
 
+⚠ **No species-name literal may appear in `src/simulation`.** An invariant since
+Step 4, mechanically enforced from Step 29 by a source scan in
+`test/species-schema.test.js` (comments stripped first, per §1.4 D6). Express
+behaviour as *data* — `diet`, `preySpeciesIds`, `territory.defends`,
+`migration.tracksForage` — not as a name check. A companion scan requires every
+`'herbivore'` / `'carnivore'` literal to sit beside a `.diet` read. Adding a
+species is then a config edit: definition file, roster entry,
+`config.demo.founding` line, and one renderer appearance entry.
+
 **Shared mutation helpers, not systems.** Things that happen at one _instant_
 live in a module the owning system calls: `killAnimal`, `recordLifeEvent`,
 `recordMemory`, `applyInjury`, `inheritGenome`, `mateQuality` /
