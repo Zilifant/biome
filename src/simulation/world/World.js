@@ -58,6 +58,14 @@ export class World {
     // world. Owned by the weather system; everything else reads it. Derived
     // from the tick + one stochastic weather state, so it is restored by
     // replaying the weather stream rather than stored piecemeal.
+    // Derived population metrics (Step 21). Written only by the metrics system
+    // and never read back by anything that affects behaviour. The report itself
+    // is recomputed on the next metrics tick after a load; the bounded history
+    // is persisted, since a chart that resets on every restore is useless.
+    /** @type {object | null} */
+    this.metrics = null;
+    /** @type {object[]} */
+    this.metricsHistory = [];
     this.environment = initialEnvironment(config.environment ?? { ticksPerYear: 8000, meanTemperature: 14, temperatureAmplitude: 14 });
   }
 

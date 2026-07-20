@@ -32,14 +32,14 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-19)
+## Results (post-Step-21)
 
 | Scenario | World | Start→end entities | ms/tick | ticks/sec |
 | --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→166 | 0.651 | ~1,540 |
-| small-100 | 256×256 | 107→144 | 0.526 | ~1,900 |
-| medium-1k | 512×512 | 1067→1401 | 6.38 | ~157 |
-| large-5k | 1024×1024 | 5333→7067 | 46.11 | ~22 |
+| demo-default | 128×128 | 128→174 | 0.564 | ~1,770 |
+| small-100 | 256×256 | 107→136 | 0.469 | ~2,130 |
+| medium-1k | 512×512 | 1067→1428 | 5.74 | ~174 |
+| large-5k | 1024×1024 | 5333→7060 | 41.42 | ~24 |
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -160,6 +160,21 @@ authoritative tick budget.
   one more multiply inside the cell loop it already ran, still staggered every
   5 ticks. The `environment` block adds ~7 scalars to each snapshot and delta,
   which is negligible beside the entity array.
+- **Step 20** (genetics): large-5k **46.11 → 41.34 ms/tick** (within run-to-run
+  noise at this population; genetics does no per-tick work at all). Inheritance
+  runs once, at birth: 4 draws per locus and one expression pass, against a
+  birth rate measured in tens per thousand ticks. The cost is memory rather than
+  time — the genome doubles what Step 14's traits held (two alleles per locus
+  instead of one value), still a bounded 7 loci per animal. Every system
+  continues to read only the expressed `traits`, exactly as before, so nothing
+  in the hot path learned about genetics.
+- **Step 21** (evolutionary observation): large-5k **41.34 → 41.42 ms/tick** (no
+  measurable change). Aggregation is a single O(N) pass — no pairwise work —
+  staggered to every 50 ticks, so its amortized cost is a fiftieth of one walk
+  over the entity list. Everything it produces is bounded: fixed bins per
+  histogram, fixed traits per species, and a 120-sample history. Metrics never
+  enter the per-tick payload; they are fetched through `GET /api/metrics`,
+  which is the reason a full aggregate can afford to be this detailed.
 
 ## Step 1 remediation recorded here
 

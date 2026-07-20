@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–19)
+## 1.4 Carried-forward deviations and open issues (Steps 1–21)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -127,7 +127,7 @@ correctness bug in shipped code unless marked ⚠.
 | A10 | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Step 22** |
 | A11 | 13 | Juvenile *protection* omitted from the parenting strategy — nothing threatens juveniles until predators exist | **Step 16** (predation) |
 | A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **Step 16** — worth revisiting once orphaning is common |
-| A13 | 14 | Trait spread lives in `config.traits`, not per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) / **Step 20** (genetics ranges) |
+| A13 | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Step 29** (species schema) |
 | A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
 | A15 | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Step 22** (mate choice) / **Step 23** (social groups), where kin *recognition* actually has a reader |
 | ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
@@ -135,9 +135,13 @@ correctness bug in shipped code unless marked ⚠.
 | A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
 | A19 | 17 | Hazards and fights are not injury sources — failed captures are the only writer, because nothing else in the world is dangerous | **Step 19** (weather) / **Step 23** (fights) |
 | A21 | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Step 29** (species schema) |
-| A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | **Step 21** (observation/metrics), which is the natural consumer |
+| A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | still open — Step 21 measured lineage *depth* (`generation`) instead, which needs no tombstones; a deeper query would need them |
 | A23 | 19 | Snow is a weather state, not an accumulating snowpack layer | — (settled; a layer needs a reason to exist) |
 | A24 | 19 | No per-cell microclimate — temperature is global and cover is the only spatial modifier | needs terrain elevation, which does not exist |
+| A25 | 20 | No dominance or epistasis — expression is purely additive | — (settled; "quantitative traits only" per the step, and it keeps genotype→phenotype legible) |
+| A26 | 20 | Genetics is a module called by reproduction, not a registered `GeneticsSystem` — inheritance happens at one instant that reproduction already owns | — (settled; a system would need a per-tick newborn scan) |
+| A27 | 21 | Metrics are polled over HTTP rather than streamed in snapshots/deltas — a full aggregate would dwarf the per-tick payload | — (settled; a summary view needs no tick resolution) |
+| A28 | 21 | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash | a later observability pass, if it earns its keep |
 | ⚠ A20 | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carries that damage for life while a mauled one heals. Invisible before injuries existed, conspicuous now | a general condition/recovery pass, or **Step 25** (disease) |
 
 ### B. Configuration / structural debt
@@ -170,6 +174,8 @@ correctness bug in shipped code unless marked ⚠.
 | D1 | The determinism "benchmark-style" assertion had to be rewritten **four times** as biology landed (all survive → all carcasses → `entityCount === N` → `>= N`) | Assert invariants that survive biology changes, not population outcomes |
 | D2 | `seekWater` is seed-dependent (seed 42 shows none in 3000 ticks; seed 7 does) — the test is pinned to a seed that exercises it | Prefer controlled scenarios over demo-behaviour assertions; pin the seed and say why |
 | D3 | Vegetation biomass is a `Float32Array`, so measured deltas carry ~1e-6 error | Use float32-appropriate tolerances (1e-5), not 1e-9 |
+| D5 | Step 20's first "siblings differ" test bred *homozygous* parents, where recombination is invisible and the assertion was vacuous | When testing a mechanism, first ask what setup would make it *unobservable* — and make sure the fixture is not that |
+| D6 | Step 20's boundary scan rejected a file for the word "window." inside a doc comment | Source scans must strip comments: a guard that fires on prose teaches people to word around it rather than trust it |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -3419,7 +3425,7 @@ otherwise.
 
 ## Step 20 — Genetics and inherited quantitative traits
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -3481,12 +3487,12 @@ Genetics only at birth; cheap. Genome size bounded.
 
 ### Acceptance criteria
 
-- [ ] Heritable quantitative traits with recombination + mutation
-- [ ] Visible parent-offspring resemblance
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Heritable quantitative traits with recombination + mutation
+- [x] Visible parent-offspring resemblance
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -3494,13 +3500,117 @@ Nucleotide sequences, epistasis networks, sexual selection (Step 22).
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Milestone E. Traits are now
+inherited rather than resampled — and **nothing downstream changed**, which is
+the payoff for having built the phenotype seam in Step 14. Every system still
+reads only `entity.traits`.
+
+**What shipped.**
+
+- **New `traits/genetics.js`** — a diploid genome with one locus per heritable
+  trait (all seven), and four operations: `sampleGenome` (founders only),
+  `inheritGenome`, `expressGenome`, `genotypeOf`. Deliberately the simplest
+  model that makes recombination *mean* something:
+  - **Additive expression** — a trait's raw value is the mean of its two
+    alleles, so a child sits between its parents rather than picking a side.
+    No dominance; that is a different model, not a missing feature.
+  - **Independent assortment per locus** — one allele from each parent, chosen
+    independently at every locus, so siblings genuinely differ.
+  - **Bounded mutation** — a small perturbation with a fixed draw budget.
+- **Tradeoffs, because without them selection has nothing to push against.**
+  This was the part worth getting right: with no antagonism every trait would
+  ratchet toward its maximum forever — bigger, faster, bolder, all at once.
+  Expression charges three antagonistic pairs (mass costs speed, speed costs
+  efficiency, boldness costs caution), computed from the **raw** genotype
+  rather than sequentially, so the order of the table cannot change the result.
+  A test pins that specifically.
+- **Not a registered system.** The spec says "`GeneticsSystem` at birth (in
+  reproduction/`interaction`)". Inheritance happens at one instant, and the
+  reproduction system already owns that instant — so this is a module it calls,
+  not a scheduled pass that would have to hunt for newborns each tick. Same
+  call the spec describes, one fewer scan; consistent with `killAnimal`,
+  `recordMemory`, `applyInjury`.
+- **Protocol (v18 → v19):** inspection gained `genome` (the allele pairs),
+  `genotype` (raw, pre-tradeoff), and `parentTraits` — which reuses Step 18's
+  lineage lookup, so a parent that has decayed away reports its status instead
+  of vanishing. Bulk snapshots are untouched.
+- **Renderer:** a genetics panel showing alleles · genotype → phenotype ·
+  parents, with the arrow drawn *only* where the two differ — which is exactly
+  where a tradeoff was paid, turning an otherwise mysterious gap into the
+  explanation.
+- **Persistence (save v17 → v18):** the genome persists (it cannot be recovered
+  from the seed once a population has turned over); v17 saves invalidated.
+
+**A boundary-scan false positive, fixed properly.** `test/engine.test.js`
+rejected `genetics.js` for a "forbidden browser API" — the pattern `\bwindow\.`
+matched the prose *"the mutation window. The magnitude…"* in a doc comment.
+The tempting fix is to reword the comment. The right fix is that a scan about
+what code *does* should not read prose: it now strips comments before matching.
+Verified both ways — the prose no longer trips it, and real `window.` /
+`Math.random` still do. A guard that fires on documentation teaches people to
+word around it rather than to trust it.
+
+**A test that could not have failed.** My first "siblings differ" test bred two
+*homozygous* parents — where every child is identical no matter which allele is
+picked, so recombination is invisible and the assertion was vacuous. Rewritten
+with heterozygous parents, and strengthened to assert that assortment is **per
+locus** (some sibling inherits differently at one locus than another), which a
+single whole-genome coin flip could never produce.
+
+**Tests:** `npm test` → **354 passing / 0 failing** (was 331; +23). New
+`test/genetics.test.js`: the genome (one diploid locus per trait, deterministic
+sampling, neutral genome → neutral phenotype, additive expression), tradeoffs
+(every pair names real loci; investing in one is paid out of another; genotype
+and phenotype differ exactly where one applies; order-independence; expressed
+values never reach zero, since several systems divide by them), inheritance
+(alleles trace to parents, offspring inside the parental envelope plus one
+mutation step, siblings differ, same parents + same stream → same child, fixed
+draw budget, mutation bounded and absent at rate zero, single-parent births),
+the inheritance sandbox, and protocol/persistence/determinism.
+
+**Deterministic demonstration scenario.** Two parents at opposite ends of the
+size range, bred repeatedly in a sandbox: every child's size genotype lands
+inside the parental range plus one mutation step, and the offspring cluster
+*between* the parents — which is precisely the difference between inheritance
+and the Step 14 resampling it replaced. The demo-scale test measures
+midparent–offspring correlation and asserts it is real but not perfect
+(qualitative resemblance, as the step asks).
+
+**Visible result verified.** Against a live server (protocol v19), child #129
+of parents #89 and #99, locus by locus: alleles `1.04/0.97` averaging to a size
+genotype of 1.01 against a parent at 0.98; `1.05/0.90` → speed 0.97 from a
+parent at 1.06. Measured across the demo at 9000 ticks, midparent–offspring
+correlations of **0.70 (size), 0.55 (speed), 0.57 (boldness)** — real
+resemblance, pulled below 1 by Mendelian sampling and mutation exactly as it
+should be. And a tradeoff caught in the act: animal #239 with a size genotype
+of 0.853 expressing 1.071 speed against a 0.998 genotype — credited 0.073 of
+speed for being small.
+
+**Performance.** large-5k **46.11 → 41.34 ms/tick** (run-to-run noise; genetics
+does no per-tick work). Inheritance runs once at birth: 4 draws per locus plus
+one expression pass, against a birth rate in the tens per thousand ticks. The
+cost is memory — two alleles per locus instead of one value — still bounded.
+
+**Deviations from the step spec (documented):** (1) no registered
+`GeneticsSystem`, for the reason above. (2) No dominance or epistasis —
+expression is purely additive, which the spec's "quantitative traits only"
+framing allows and which keeps the genotype→phenotype map legible. (3) The
+species mean is still the *founding* distribution; there is no separate
+"developmental influence" term, since the environment already shapes outcomes
+through survival rather than through expression.
+
+**Follow-on notes for later steps:** everything Step 21 needs is now in place —
+genotype, phenotype, lineage, and cause of death — so trait distributions can
+be tracked over generations and selection actually measured. Mate choice
+(Step 22) has a genome to choose on. The three tradeoff pairs are the knob to
+watch if Step 21 shows a trait ratcheting anyway; §1.4 A13 (trait spread living
+in `config.traits` rather than per species) now also covers `config.genetics`.
 
 ---
 
 ## Step 21 — Evolutionary observation
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -3565,12 +3675,12 @@ Aggregation staggered; O(N) not O(N²). Bounded time-series (risk register).
 
 ### Acceptance criteria
 
-- [ ] Trait distributions, lineages, selection metrics observable
-- [ ] Selection emerges (not hard-coded)
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol version)
-- [ ] Performance checked
+- [x] Trait distributions, lineages, selection metrics observable
+- [x] Selection emerges (not hard-coded)
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -3578,7 +3688,97 @@ Per-organism full histories, mate choice.
 
 ### Completion notes
 
-_(fill on completion)_
+**Status: Done.** (Node v23.4.0, darwin arm64.) Milestone E is legible:
+selection can now be *measured* rather than assumed.
+
+**What shipped.**
+
+- **`metrics/metrics.js`** — a pure aggregation pass: trait distributions
+  (mean, spread, extremes, and a fixed-bin histogram, for both phenotype and
+  genotype), generation depth, reproductive success, births and deaths by
+  cause, and a **selection differential** per trait: the mean among adults that
+  actually bred minus the mean among all adults. Positive means breeders are
+  above average for that trait — selection *in progress*, computed, never
+  scripted. It reports `null` rather than `0` when nothing has bred yet, which
+  is an honest "unknown" instead of a misleading "no selection".
+- **`MetricsSystem`** in the `observation` phase — the last phase, after
+  deferred spawns and removals flush, so it always sees settled state.
+  Staggered every 50 ticks, because a summary view needs nothing like tick
+  resolution.
+- **Rates are derived from state, not from events.** Births in a window are the
+  animals young enough to have been born inside it; deaths are the carcasses
+  stamped with a `diedTick` inside it. Reading the event bus instead would
+  couple metrics to event *retention* (the buffer is bounded and gets trimmed)
+  and would double-count on replay. A test pins the window behaviour directly.
+- **New `generation` field** — lineage *depth*, one deeper than the deepest
+  parent, written once at birth. Deliberately not a global cohort counter.
+- **Protocol (v19 → v20):** a `metrics` query at `GET /api/metrics`, returning
+  the aggregate plus the bounded history. Deliberately **not** in snapshots or
+  deltas: histograms for every trait of every species would dwarf the entity
+  array, and a test asserts snapshots stay clean.
+- **Renderer:** a `MetricsPanel` polled on an interval, drawing histograms,
+  trends, and selection differentials from numbers the engine computed. Its
+  only arithmetic is scaling bars to the tallest bin, which is layout.
+- **Persistence (save v18 → v19):** the *report* is derived and deliberately
+  not saved — it rebuilds on the next metrics tick — but the bounded history
+  is, because a chart that resets on every restore is useless. That split is
+  exactly what the step called for, and a test asserts both halves.
+
+**The invariant that mattered most: observation must not perturb.** A metrics
+layer that nudged anything would be measuring itself. The test that pins this
+runs the demo twice — once with metrics on the normal cadence, once with the
+system effectively disabled — and asserts the populations are **byte-identical**
+after 600 ticks. A companion test asserts every animal's `traits` still exactly
+equal `expressGenome(its genome)` after 1500 ticks of a selection run, so
+nothing anywhere is quietly writing traits post-birth.
+
+**Deterministic demonstration scenario — the selection sandbox.** A world where
+efficiency is the thing that matters: scarce food, fast generations, no
+predators, no seasons (a cycling food supply would confound the signal), and
+genetic variance concentrated in `metabolicEfficiency` with everything else
+near-clonal so the measurement is not polluted by other traits drifting.
+Measured: mean efficiency **genotype** rose from 1.008 → 1.030 (seed 42) and
+0.999 → 1.053 (seed 7) across ~19 generations in 5000 ticks. The assertion is
+**directional only**, as the step asks — no magnitude, no exact value.
+
+I also cut this test's runtime 50s → 21s after first writing it, by shrinking
+the world and founder count rather than the tick count: the signal comes from
+generations elapsed, not from population size, and 450 animals was simply
+buying nothing.
+
+**Tests:** `npm test` → **369 passing / 0 failing** (was 354; +15). New
+`test/metrics.test.js`: the summary primitives (empty samples report nulls;
+histograms count everything and clamp outliers in rather than dropping them),
+aggregates **checked against a brute-force pass over the entities themselves**,
+the window behaviour of birth/death rates, the selection differential computed
+by hand on a rigged population, the system (stagger, bounded history,
+observation-does-not-perturb, history summary stays small), the selection
+sandbox, and protocol/persistence/determinism.
+
+**Visible result verified.** Against the live demo at 9000 ticks: grazers at
+generation depth 5 (mean 2.65), 1.03 offspring each, life stages
+17/16/99/13, size distribution `[0,0,0,28,102,15,0,0,0]` around a mean of
+0.993 ± 0.055, and 120 history samples retained. Deaths broken out by cause
+(age 3, dehydration 3, predation 1 in the window). The predator row tells its
+own story — 3 alive, mean efficiency 0.940, well below the grazers'.
+
+**Performance.** No measurable change: aggregation is one O(N) pass every 50
+ticks, and the history is capped at 120 small samples. Metrics never enter the
+per-tick payload.
+
+**Deviations from the step spec (documented):** (1) metrics are polled over
+HTTP rather than carried in snapshots — recorded as §1.4 A27. (2) "Bottlenecks"
+are left to the caller: the bounded history carries population per species over
+time, which is the data a bottleneck is visible *in*, but nothing computes a
+minimum or raises a flag. Detecting one is a judgement about what counts as a
+crash, and inventing that threshold now would be guessing (§1.4 A28).
+
+**Follow-on notes for later steps:** mate choice (Step 22) can select on the
+genome that Step 20 added and this step made observable — and the selection
+differential is exactly the number that will show whether it is doing anything.
+§1.4 A22 (tombstones bounded at 256) turned out **not** to bite here, because
+lineage depth is carried on the entity as `generation` and needs no lookup; it
+would only matter for a query that walks ancestry.
 
 ---
 
@@ -4535,7 +4735,7 @@ Each step's dedicated sections state exactly what changes. Rules:
 | AI-generated duplication                      | Medium     | Medium | near-identical systems/utilities                            | reuse existing abstractions; review before adding new modules              |
 | Tests overfitting stochastic results          | Medium     | Medium | flaky tests on exact counts                                 | assert invariants/directions, never exact long-term populations            |
 
-### Observed status after Steps 1–19
+### Observed status after Steps 1–21
 
 What has actually happened, so the register reflects evidence rather than
 prediction:
@@ -4545,11 +4745,11 @@ prediction:
 | Population explosion | **Yes (three times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. |
 | Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
 | Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. |
-| Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. |
+| Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately *weakened* a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. |
 | Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal and Step 17's injuries at 4, both enforced in their insert helpers so no future writer can bypass them. |
 | Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
 | Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 18 protocol and 17 save-format bumps, each with fixtures regenerated and invalidation notes. |
+| Protocol/save incompatibility | **No (by discipline)** | 20 protocol and 19 save-format bumps, each with fixtures regenerated and invalidation notes. |
 | Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
 | AI-generated duplication | **No (actively countered)** | Shared `killAnimal` (Step 10), `isReproductivelyReady` (Step 12), `recordLifeEvent` (Step 13), `recordMemory` (Step 15), and `applyInjury` (Step 17) helpers extracted instead of duplicating. Step 13 put `followParent` in the decision system rather than building a second action-selection path, and Step 16 did the same for `flee`/`stalk`/`chase`. Step 17 reused the existing `health <= 0` death path and the already-projected `healthFraction` rather than adding either. |
 | Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads. |

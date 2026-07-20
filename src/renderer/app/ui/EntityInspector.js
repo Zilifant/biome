@@ -1,9 +1,9 @@
 /**
  * Entity inspector panel. Shows every occupant of the selected cell, the
  * active occupant's protocol-visible fields, optional live inspection
- * detail (absolute energy, injuries, remembered places, traits, family links,
- * and the bounded life-history timeline from the entity.inspection endpoint),
- * and recent domain events involving the entity. Only fields the protocol
+ * detail (absolute energy, injuries, remembered places, traits, genome, family
+ * links, and the bounded life-history timeline from the entity.inspection
+ * endpoint), and recent domain events involving the entity. Only fields the protocol
  * actually provides are shown — no invented biology.
  */
 import { resolveAppearance } from '../rendering/EntityAppearance.js';
@@ -67,6 +67,36 @@ function formatMemories(detail) {
     })
     .join('');
   return `<h3>Remembers <span class="dim">${memories.length} place${memories.length === 1 ? '' : 's'}</span></h3>${rows}`;
+}
+
+/**
+ * Render heredity (protocol v19): what the genome codes for, what it actually
+ * expresses, and what the parents looked like. Showing genotype beside
+ * phenotype is the point — where they differ, a tradeoff is being paid.
+ */
+function formatGenetics(detail) {
+  if (!detail?.genome || !detail?.genotype) return '';
+  const parents = (detail.parentTraits ?? []).filter((p) => p.traits);
+  const rows = Object.entries(detail.genotype)
+    .map(([locus, raw]) => {
+      const expressed = detail.traits?.[locus];
+      const alleles = (detail.genome[locus] ?? []).map((a) => a.toFixed(2)).join('/');
+      // Only call out the gap where a tradeoff actually moved the value.
+      const traded =
+        typeof expressed === 'number' && Math.abs(expressed - raw) > 0.005
+          ? ` <span class="${expressed < raw ? 'warn' : 'ok'}">→ ${expressed.toFixed(2)}</span>`
+          : '';
+      const kin = parents.length
+        ? ` <span class="dim">| kin ${parents.map((p) => p.traits[locus].toFixed(2)).join(' ')}</span>`
+        : '';
+      return `<div class="field"><span>${escapeHtml(locus)}</span><span><span class="dim">${alleles}</span> ${raw.toFixed(2)}${traded}${kin}</span></div>`;
+    })
+    .join('');
+  const missing = (detail.parentTraits ?? []).filter((p) => !p.traits);
+  const note = missing.length
+    ? `<div class="field"><span class="dim">parents</span><span class="dim">${missing.map((p) => `#${p.id} ${p.status}`).join(', ')}</span></div>`
+    : '';
+  return `<h3>Genome <span class="dim">alleles · genotype → phenotype${parents.length ? ' | parents' : ''}</span></h3>${rows}${note}`;
 }
 
 /**
@@ -230,6 +260,7 @@ export class EntityInspector {
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
     const familyBlock = formatFamily(liveDetail);
     const traitsBlock = formatTraits(liveDetail);
+    const geneticsBlock = formatGenetics(liveDetail);
     const memoriesBlock = formatMemories(liveDetail);
     const injuriesBlock = formatInjuries(liveDetail);
 
@@ -247,6 +278,7 @@ export class EntityInspector {
       ${injuriesBlock}
       ${memoriesBlock}
       ${traitsBlock}
+      ${geneticsBlock}
       ${familyBlock}
       ${utilitiesBlock}
       ${perceptionBlock}

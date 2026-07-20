@@ -12,6 +12,7 @@
  * entity appears or disappears while a system is iterating.
  */
 import { NEUTRAL_TRAITS } from '../traits/traits.js';
+import { NEUTRAL_GENOME } from '../traits/genetics.js';
 
 /**
  * @typedef {object} Entity
@@ -39,11 +40,13 @@ import { NEUTRAL_TRAITS } from '../traits/traits.js';
  * @property {number | null} lastHuntTick tick of the last capture attempt
  * @property {string} lifeStage juvenile | subadult | adult | senescent
  * @property {Array<{kind: string, cellX: number, cellY: number, tick: number, strength: number}>} memories bounded, decaying places
- * @property {Record<string, number>} traits individual multipliers, fixed at birth
+ * @property {Record<string, [number, number]>} genome diploid alleles, fixed at birth
+ * @property {Record<string, number>} traits expressed phenotype, derived from the genome
  * @property {number | null} adultMass mass this individual grows toward, or
  *   null to use the species mean (kg)
  * @property {number[]} parents parent entity ids ([] for the founding population)
  * @property {number[]} offspring ids of this entity's own offspring (sparse)
+ * @property {number} generation 0 for founders, parent's + 1 for the born
  * @property {number | null} guardianId the parent this juvenile depends on
  * @property {boolean} weaned whether parental provisioning has ended
  * @property {Array<{tick: number, type: string}>} lifeEvents bounded life history
@@ -111,6 +114,10 @@ function createEntity(id, definition) {
     // trait-derived value worth precomputing — the aging system reads it every
     // tick to grow the animal toward its own adult size, falling back to the
     // species mean when an entity was created without one.
+    // Genetics (Step 20). The genome is the heritable thing; `traits` is what
+    // it expresses, and every system still reads only `traits`. Both are
+    // written once at creation and read-only after.
+    genome: definition.genome ?? NEUTRAL_GENOME,
     traits: definition.traits ?? NEUTRAL_TRAITS,
     adultMass: definition.adultMass ?? null,
     // Reproduction (Step 12). Owned by the reproduction system. `parents` holds
@@ -127,6 +134,9 @@ function createEntity(id, definition) {
     // guardian's death) by the parenting system. Founders have no guardian and
     // are therefore already weaned.
     offspring: definition.offspring ?? [],
+    // Lineage depth (Step 21): founders are generation 0, everything born
+    // in-world is one deeper than its deepest parent. Written once at birth.
+    generation: definition.generation ?? 0,
     guardianId: definition.guardianId ?? null,
     weaned: definition.weaned ?? definition.guardianId == null,
     // Bounded life history (see systems/lifeEvents.js).

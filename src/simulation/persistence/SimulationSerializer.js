@@ -77,10 +77,19 @@
  *       the tick, but the *weather* is a held stochastic state, so it must be
  *       stored — recomputing it would need the whole roll history. v16 saves
  *       are invalidated.
+ *  18 — heredity added (Step 20): a per-entity `genome`, from which `traits`
+ *       are now expressed rather than sampled. The genome is the heritable
+ *       state and cannot be recovered from the seed once a population has
+ *       turned over, so it persists; v17 saves lack it and are invalidated.
+ *  19 — evolutionary observation added (Step 21): a per-entity `generation`,
+ *       the new `MetricsSystem` descriptor, and a bounded `metricsHistory`.
+ *       The metrics *report* is derived and deliberately not saved — it is
+ *       recomputed on the next metrics tick — but the history is, so a chart
+ *       survives a restore. v18 saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 17;
+export const SAVE_FORMAT_VERSION = 19;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -98,6 +107,9 @@ export function captureSimulationState(engine) {
     entities: engine.world.entities.serialize(),
     tombstones: engine.world.serializeTombstones(),
     environment: { ...engine.world.environment },
+    // The report itself is derived and recomputed on the next metrics tick;
+    // only the bounded history is stored, so a chart survives a restore.
+    metricsHistory: engine.world.metricsHistory,
     vegetation: engine.world.vegetation.serialize(),
     events: engine.events.serialize(),
     pendingCommands: engine.commands.serialize(),
@@ -129,6 +141,8 @@ export function restoreSimulationState(engine, saved) {
   engine.world.entities.restore(saved.entities);
   engine.world.restoreTombstones(saved.tombstones);
   if (saved.environment) engine.world.environment = { ...saved.environment };
+  engine.world.metricsHistory = saved.metricsHistory ? structuredClone(saved.metricsHistory) : [];
+  engine.world.metrics = null; // derived; the next metrics tick rebuilds it
   engine.world.rebuildSpatialIndex();
   engine.world.vegetation.restore(saved.vegetation);
   engine.events.restore(saved.events);

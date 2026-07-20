@@ -138,6 +138,11 @@ describe('engine independence', () => {
   });
 
   test('simulation and protocol source never reference hosts, presentation, or Math.random', () => {
+    // Strip comments before scanning. These patterns are about what the code
+    // *does*, and prose that happens to contain "window." or "Math.random"
+    // is not a boundary violation — a scan that fires on documentation trains
+    // people to word around it rather than to trust it.
+    const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
     const roots = ['src/simulation', 'src/protocol'];
     const forbidden = [
       { pattern: /from\s+['"]express['"]/, label: 'express import' },
@@ -159,7 +164,7 @@ describe('engine independence', () => {
     for (const root of roots) walk(path.join(projectRoot, root));
     assert.ok(files.length >= 15, 'expected to scan the simulation and protocol sources');
     for (const file of files) {
-      const source = readFileSync(file, 'utf8');
+      const source = stripComments(readFileSync(file, 'utf8'));
       for (const { pattern, label } of forbidden) {
         assert.ok(!pattern.test(source), `${path.relative(projectRoot, file)} contains forbidden ${label}`);
       }

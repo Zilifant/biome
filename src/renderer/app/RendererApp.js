@@ -30,6 +30,10 @@ export class RendererApp {
   #simPaused = null;
   /** @type {object | null} last entity.inspection payload */
   #inspectionDetail = null;
+  /** @type {object | null} last metrics query payload */
+  #metrics = null;
+  #metricsTimer = null;
+  #metricsIntervalMs;
 
   /**
    * @param {object} options
@@ -38,10 +42,12 @@ export class RendererApp {
    * @param {import('./transports/HttpRendererTransport.js').HttpRendererTransport | null} options.http
    *        query/recovery channel (live mode only)
    * @param {HTMLCanvasElement} options.canvas
-   * @param {{statusPanel: object, inspector: object, eventLog: object, controls: object}} options.ui
+   * @param {{statusPanel: object, inspector: object, metricsPanel: object,
+   *          eventLog: object, controls: object}} options.ui
    * @param {'live' | 'fixture'} options.mode
+   * @param {number} [options.metricsIntervalMs] metrics poll cadence (live only)
    */
-  constructor({ store, transport, http, canvas, ui, mode }) {
+  constructor({ store, transport, http, canvas, ui, mode, metricsIntervalMs = 3000 }) {
     this.#store = store;
     this.#transport = transport;
     this.#http = http;
@@ -50,6 +56,7 @@ export class RendererApp {
     this.#camera = new Camera();
     this.#ui = ui;
     this.#mode = mode;
+    this.#metricsIntervalMs = metricsIntervalMs;
   }
 
   get camera() {
@@ -79,6 +86,24 @@ export class RendererApp {
           this.#simPaused = status.paused ?? null;
         })
         .catch(() => {});
+    }
+
+    // Metrics are a summary view, so they are polled rather than streamed —
+    // histograms for every trait of every species would dwarf the per-tick
+    // payload, and nothing here needs tick resolution.
+    if (this.#http) {
+      const pollMetrics = async () => {
+        try {
+          this.#metrics = await this.#http.requestMetrics();
+          this.#ui.metricsPanel.render(this.#metrics);
+        } catch {
+          // Optional enrichment; the rest of the view stands alone.
+        }
+      };
+      pollMetrics();
+      this.#metricsTimer = setInterval(pollMetrics, this.#metricsIntervalMs);
+    } else {
+      this.#ui.metricsPanel.render(null);
     }
 
     this.#transport.connect();

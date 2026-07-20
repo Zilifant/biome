@@ -194,13 +194,32 @@ export const defaultSimulationConfig = Object.freeze({
       danger: 0.001, // ~1000 ticks
     }),
   }),
+  // Population metrics (see metrics/metrics.js and systems/MetricsSystem.js).
+  // Pure observation: aggregates the population into distributions, rates, and
+  // selection differentials, and writes no organism state. Staggered, because
+  // a full aggregate is an O(N) pass and a summary view needs nothing like
+  // tick resolution.
+  metrics: Object.freeze({
+    windowTicks: 500, // how far back births and deaths are counted
+    historyLength: 120, // bounded time-series samples kept (≈ 6000 ticks)
+    updateInterval: 50,
+  }),
+  // Heredity (see traits/genetics.js). Founders sample a genome; every animal
+  // born in-world inherits one allele per locus from each parent, with a chance
+  // of mutation. Expression charges antagonistic traits against each other
+  // (bigger costs speed, faster costs efficiency, bolder costs caution) —
+  // without that, selection would ratchet every trait toward its maximum.
+  genetics: Object.freeze({
+    mutationRate: 0.08, // chance an inherited allele is perturbed
+    mutationStep: 0.12, // largest single perturbation
+  }),
   // Individual variation (see traits/traits.js). Each animal's traits are
   // sampled once at birth as multipliers around the species mean; `spread` is
   // the half-width of each trait's triangular distribution, so 0.15 means
   // roughly ±15% at the extremes and most individuals much nearer average.
   // Behavioural traits vary more widely than physiological ones — a herd's
-  // temperaments differ more visibly than its body plans. Step 20 replaces
-  // this sampling with inheritance and moves the ranges into a genetics layer.
+  // temperaments differ more visibly than its body plans. Since Step 20 this
+  // spread seeds the *founding* genomes; everything after inherits.
   traits: Object.freeze({
     spread: Object.freeze({
       size: 0.18,

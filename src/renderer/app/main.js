@@ -12,6 +12,7 @@ import { HttpRendererTransport } from './transports/HttpRendererTransport.js';
 import { FixtureRendererTransport } from './transports/FixtureRendererTransport.js';
 import { StatusPanel } from './ui/StatusPanel.js';
 import { EntityInspector } from './ui/EntityInspector.js';
+import { MetricsPanel } from './ui/MetricsPanel.js';
 import { EventLog } from './ui/EventLog.js';
 import { Controls } from './ui/Controls.js';
 
@@ -43,6 +44,7 @@ const ui = {
     onCycle: () => appRef.current.cycleSelection(),
     onFollowToggle: () => appRef.current.toggleFollow(),
   }),
+  metricsPanel: new MetricsPanel(document.getElementById('metrics-panel')),
   eventLog: new EventLog(document.getElementById('event-log-panel'), {
     onFilterChanged: () => ui.eventLog.render(store),
   }),

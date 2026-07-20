@@ -18,14 +18,14 @@
  * deferred-spawn boundary. The newborn's `guardianId` is part of its spawn
  * definition; the parenting system (Step 13) owns it thereafter. Mating and
  * gestation timing use no randomness at all — they are fully determined by
- * encounters and the fixed gestation; the only draws are the newborn's traits
- * (Step 14), on the separate `traits` stream.
+ * encounters and the fixed gestation; the only draws are the newborn's
+ * inheritance (Step 20), on the separate `genetics` stream.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { SPECIES } from '../config/species/index.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
-import { sampleTraits } from '../traits/traits.js';
+import { inheritGenome, expressGenome } from '../traits/genetics.js';
 
 /**
  * Reproductive readiness — the single source of truth, shared by the
@@ -58,7 +58,7 @@ export class ReproductionSystem extends SimulationSystem {
    * @param {number} [options.cooldownTicks]
    * @param {number} [options.birthOffset]
    * @param {number} [options.birthMass] newborn body mass (from the aging curve)
-   * @param {Record<string, number>} [options.traitSpread] per-trait variation
+   * @param {object} [options.genetics] mutation rate and step (see traits/genetics.js)
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -71,7 +71,7 @@ export class ReproductionSystem extends SimulationSystem {
     cooldownTicks = 800,
     birthOffset = 1.0,
     birthMass = 5,
-    traitSpread = {},
+    genetics = {},
     updateInterval = 1,
   } = {}) {
     super({ id: 'reproduction', phase: 'interaction', priority: 10, updateInterval });
@@ -84,7 +84,7 @@ export class ReproductionSystem extends SimulationSystem {
     this.cooldownTicks = cooldownTicks;
     this.birthOffset = birthOffset;
     this.birthMass = birthMass;
-    this.traitSpread = traitSpread;
+    this.genetics = genetics;
   }
 
   update(world, context) {
@@ -111,11 +111,14 @@ export class ReproductionSystem extends SimulationSystem {
 
       const maxEnergy = species?.maxEnergy ?? entity.maxEnergy;
       const parents = mateId === null ? [entity.id] : [entity.id, mateId];
-      // Individual variation (Step 14): the newborn draws its own traits, and
-      // the carrying parent's `reproductiveInvestment` sets how much it puts
-      // into this offspring — a better-stocked newborn for a higher birth cost.
-      // Step 20 replaces this sampling with inheritance from both parents.
-      const traits = sampleTraits(context.random('traits'), this.traitSpread);
+      // Heredity (Step 20): the newborn's genome comes from its parents —
+      // one allele per locus from each, then mutation — and its traits are
+      // expressed from that genome rather than drawn fresh. The carrying
+      // parent's `reproductiveInvestment` still sets how much it puts into
+      // this offspring: a better-stocked newborn for a higher birth cost.
+      const parentGenomes = parents.map((id) => world.entities.get(id)?.genome).filter(Boolean);
+      const genome = inheritGenome(parentGenomes, context.random('genetics'), this.genetics);
+      const traits = expressGenome(genome);
       const investment = entity.traits.reproductiveInvestment;
       const offspringId = context.queueSpawn({
         kind: 'animal',
@@ -127,6 +130,7 @@ export class ReproductionSystem extends SimulationSystem {
         lifeStage: 'juvenile',
         bodyMass: this.birthMass,
         adultMass: (species?.bodyMass ?? entity.adultMass) * traits.size,
+        genome,
         traits,
         speed: (species?.baseSpeed ?? entity.speed) * traits.speed,
         maxEnergy,
@@ -136,6 +140,9 @@ export class ReproductionSystem extends SimulationSystem {
         maxHydration: species?.maxHydration ?? entity.maxHydration,
         hydration: species?.maxHydration ?? entity.maxHydration,
         parents,
+        // One deeper than the deepest parent (Step 21) — so "generation" is
+        // lineage depth, not a global cohort counter.
+        generation: Math.max(...parents.map((id) => world.entities.get(id)?.generation ?? 0)) + 1,
         // Parenting (Step 13): the newborn depends on the parent that carried
         // it. The bond is part of the spawn definition; from here on it is the
         // parenting system's to hold and to break.

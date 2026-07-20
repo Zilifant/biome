@@ -68,6 +68,11 @@ export class HttpRendererTransport extends RendererTransport {
    * terrain, so this is only for tools or diagnostics.
    * @returns {Promise<object>} protocol terrain response
    */
+  /** Population metrics (protocol v20). Aggregates only, fetched on demand. */
+  async requestMetrics() {
+    return this.#getJson('/api/metrics');
+  }
+
   async requestTerrain() {
     return this.#getJson('/api/terrain');
   }

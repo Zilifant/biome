@@ -64,6 +64,7 @@ app/
   ui/
     StatusPanel.js            connection/tick/entities/camera/zoom bar
     EntityInspector.js        occupants, protocol fields, memories, traits, family + life history, action + utilities, perception, events
+    MetricsPanel.js           population histograms, generations, selection differentials (polled)
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
   styles/
@@ -177,6 +178,17 @@ a renderer exists.
   remains reserved for future individual plants.
 - Inspector's absolute energy is fetched once per selection (live mode) and
   labeled with its tick; the percentage updates live from deltas.
+- Population metrics (protocol v20) come from `GET /api/metrics`, **polled on
+  an interval** rather than streamed — histograms for every trait of every
+  species would dwarf the per-tick payload, and a summary view needs nothing
+  like tick resolution. `MetricsPanel` draws histograms, trends, and selection
+  differentials from numbers the engine computed; the only arithmetic it does
+  is scaling bars to the tallest bin, which is layout.
+- Heredity (protocol v19) is inspection-only: the panel lists each locus with
+  its two alleles, the genotype they average to, the phenotype actually
+  expressed, and the same locus in whichever parents are still resolvable. The
+  genotype→phenotype arrow is only drawn where the two differ, which is exactly
+  where a tradeoff was paid — a mysterious gap made legible rather than hidden.
 - Season and weather (protocol v18) ride whole on both full snapshots and
   deltas — a handful of scalars, so no diffing. The status bar shows
   `season · weather · temperature`, with a renderer-owned tone per weather

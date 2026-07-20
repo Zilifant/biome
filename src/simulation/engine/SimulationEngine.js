@@ -24,7 +24,8 @@ import { EventTypes } from '../events/EventTypes.js';
 import { CommandProcessor } from '../commands/CommandProcessor.js';
 import { SeededRandom, deriveSeed } from '../random/SeededRandom.js';
 import { defaultSimulationConfig, mergeConfig } from '../config/defaultSimulationConfig.js';
-import { recordTombstone, lookupLineageList } from '../world/lineage.js';
+import { recordTombstone, lookupLineageList, lookupLineage } from '../world/lineage.js';
+import { genotypeOf } from '../traits/genetics.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -292,6 +293,19 @@ export class SimulationEngine {
       // readable long before it gets there.
       traits: { ...entity.traits },
       adultMass: entity.adultMass,
+      // Heredity (Step 20) — inspection-only. Genotype beside phenotype is what
+      // makes a tradeoff legible: a genome coding for a big animal expresses
+      // less speed, and seeing both numbers explains the gap rather than
+      // leaving it mysterious. Parent traits come from whichever parents are
+      // still in the world; the rest carry their lineage status (Step 18).
+      genome: Object.fromEntries(Object.entries(entity.genome).map(([locus, alleles]) => [locus, [...alleles]])),
+      genotype: genotypeOf(entity.genome),
+      parentTraits: entity.parents.map((id) => {
+        const parent = this.world.entities.get(id);
+        return parent
+          ? { id, status: parent.alive ? 'alive' : 'carcass', traits: { ...parent.traits } }
+          : { ...lookupLineage(this.world, id), traits: null };
+      }),
       // Bounded spatial memory (Step 15) — inspection-only, strongest first, so
       // what an animal is currently acting on reads at the top. Copied, and
       // already capped by the memory helper, so this can never be large.

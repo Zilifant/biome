@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–19 are done; Step 20 is next.
+protocol for continuing the work. Steps 1–21 are done; Step 22 is next.
 
 ## Install and run
 
@@ -29,7 +29,7 @@ Environment variables for the server: `PORT` (default 3000), `SIM_SEED`
 
 HTTP API: `GET /api/status`, `GET /api/snapshot`
 (`?minX=&minY=&maxX=&maxY=` for a region), `GET /api/terrain`,
-`GET /api/entities/:id`, `POST /api/commands`. WebSocket at `/ws` (full
+`GET /api/entities/:id`, `GET /api/metrics`, `POST /api/commands`. WebSocket at `/ws` (full
 snapshot on connect, then per-tick deltas carrying domain events; commands
 accepted).
 
@@ -66,7 +66,8 @@ Headless Simulation Engine           src/simulation
    │                     movement, feeding, hunting, reproduction, parenting,
    │                     metabolism, hydration, injury, carcass, aging)
    ├── Environment      (season, weather, temperature — the one global state)
-   ├── Traits           (per-individual variation, fixed at birth)
+   ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
+   ├── Metrics          (derived population aggregates; writes no state)
    ├── Memory           (bounded, decaying places each animal has learned)
    ├── Deterministic Randomness (seeded named streams)
    └── Persistence      (versioned save/load)
@@ -156,7 +157,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `18`) and is
+Everything a client sees carries `protocolVersion` (currently `20`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -170,7 +171,8 @@ built by `src/protocol/`:
   action, alive) — internal records never leak, and every snapshot is freshly
   cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
-  `adultMass`, its bounded `memories`, its `injuries` and derived
+  `adultMass`, its `genome` / `genotype` / parent traits, its bounded
+  `memories`, its `injuries` and derived
   `impairment`, its `stamina` and hunt target, its carcass detail, and the
   family/life-history block (resolved `lineage`, parenting state, bounded
   `lifeEvents`) are inspection-only (`GET /api/entities/:id`). Full snapshots also embed a static **terrain** block
@@ -210,7 +212,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `17`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `19`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 event outbox, pending commands, and system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
@@ -251,7 +253,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 331 tests.
+ASCII renderer, committed fixtures, and 354 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -261,13 +263,21 @@ temperature, and weather spells that modulate both.
 **Two species.** Animals come from configured species definitions
 (`config/species/*` — biology only, never glyphs or colors; looked up by id,
 never branched on by name), but no two are identical: each carries a set of trait multipliers
-(`traits/traits.js`) sampled around the species mean when it comes into
-existence and fixed for life — size, speed, metabolic efficiency, boldness,
-caution, exploration, and reproductive investment. Every one is a trade-off
-rather than an upgrade, and every one changes something real: a bold animal
-covers more ground and burns more energy; a heavily investing parent raises
-better-stocked young at a higher price per birth. Step 20 makes these
-heritable. The world holds a **grazer** and the **stalker** that hunts it; the
+fixed for life — size, speed, metabolic efficiency, boldness, caution,
+exploration, and reproductive investment. Every one changes something real: a
+bold animal covers more ground and burns more energy; a heavily investing
+parent raises better-stocked young at a higher price per birth.
+
+Those traits are **inherited**. Each animal carries a diploid genome
+(`traits/genetics.js`) with one locus per trait; a founder's is sampled, but
+everything born in-world takes one allele per locus from each parent and may
+mutate. Expression is additive, so a child sits between its parents rather than
+picking a side, and siblings differ because assortment is per locus. Crucially,
+expression also charges **antagonistic traits against each other** — bigger
+costs speed, faster costs efficiency, bolder costs caution — because without
+that, selection would simply ratchet every trait toward its maximum forever.
+The inspector shows genotype beside phenotype, and where they differ is exactly
+where a tradeoff is being paid. The world holds a **grazer** and the **stalker** that hunts it; the
 predator/prey relation is data on the species (`preySpeciesIds`), read in both
 directions, so no system ever branches on a species name. Their full loop is
 implemented:
@@ -289,6 +299,7 @@ implemented:
 | `InjurySystem` | physiology | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass |
 | `CarcassSystem` | physiology | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass |
 | `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
+| `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
 The result is a **multi-generational, self-sustaining population** with a
 complete life cycle: an animal is born, is fed by the parent that bore it, is
@@ -323,6 +334,19 @@ balance — measured over 20k ticks on five seeds, roughly 24–111 grazers agai
 1–9 stalkers, with neither side wiped out. Nothing enforces that; it emerges
 from encounter rates, capture odds, and lifespan, and it is a knife edge (see
 `config.demo` for the measured sweep behind the founding counts).
+
+**Selection is measured, not asserted.** A `MetricsSystem` runs in the
+`observation` phase and aggregates the population into trait distributions
+(with histograms), generation depth, reproductive success, birth and death
+rates by cause, and a **selection differential** per trait — the mean among
+adults that actually bred, minus the mean among all adults. It writes no
+organism state whatsoever; a test runs the demo with and without it and asserts
+the populations are byte-identical, because a metrics layer that nudged
+anything would be measuring itself. Rates are derived from state (ages and
+death ticks) rather than from the event bus, so they cannot double-count on
+replay or drift when events are trimmed. Available at `GET /api/metrics` —
+a query rather than per-tick state, since histograms for every trait of every
+species would dwarf the entity array.
 
 **The year turns.** Season and baseline temperature are pure functions of the
 tick — no stored history, so they reproduce exactly across a save or a fresh
@@ -371,12 +395,11 @@ writes one until predators arrive in Step 16.
 
 ## Not built yet
 
-Genetics and inheritance, evolutionary metrics, mate
-choice, social groups, territory, disease, migration, disturbances, ecosystem
+Mate choice, social groups, territory, disease, migration, disturbances, ecosystem
 engineering, multiple species, and profile-driven optimization toward tens of
 thousands of animals.
 
-`PLAN.md` sequences all of these as Steps 20–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 22–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

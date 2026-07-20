@@ -4,7 +4,7 @@
  * exposed.
  */
 import express from 'express';
-import { buildStatusReport, buildEntityInspection, buildTerrainResponse, parseBoundsQuery } from '../../protocol/queries.js';
+import { buildStatusReport, buildEntityInspection, buildTerrainResponse, parseBoundsQuery, buildMetricsReport } from '../../protocol/queries.js';
 import { formatErrors } from '../../protocol/validation.js';
 
 /**
@@ -29,6 +29,16 @@ export function createHttpRouter(runner) {
 
   router.get('/terrain', (_req, res) => {
     res.json(buildTerrainResponse({ simulationId: runner.engine.simulationId, terrain: runner.getTerrain() }));
+  });
+
+  router.get('/metrics', (_req, res) => {
+    res.json(
+      buildMetricsReport({
+        simulationId: runner.engine.simulationId,
+        metrics: runner.engine.world.metrics,
+        history: runner.engine.world.metricsHistory,
+      }),
+    );
   });
 
   router.get('/entities/:id', (req, res) => {

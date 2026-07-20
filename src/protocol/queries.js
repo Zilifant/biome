@@ -9,6 +9,7 @@ export const QueryKinds = Object.freeze({
   STATUS: 'status',
   ENTITY_INSPECTION: 'entity.inspection',
   TERRAIN: 'terrain',
+  METRICS: 'metrics',
 });
 
 /**
@@ -25,6 +26,29 @@ export function buildTerrainResponse({ simulationId, terrain }) {
     kind: QueryKinds.TERRAIN,
     simulationId,
     terrain,
+  };
+}
+
+/**
+ * Wrap a population metrics report in a versioned message (Step 21).
+ *
+ * Aggregates only — counts, distributions, and rates. Never per-organism
+ * histories (observation roadmap, PLAN §10), and never presentation: the
+ * histogram is bin counts and a range, and the renderer decides how to draw it.
+ *
+ * @param {object} options
+ * @param {string} options.simulationId
+ * @param {object|null} options.metrics latest report, or null before the first
+ * @param {object[]} [options.history] bounded time series
+ */
+export function buildMetricsReport({ simulationId, metrics, history = [] }) {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    kind: QueryKinds.METRICS,
+    simulationId,
+    available: metrics != null,
+    metrics: metrics != null ? structuredClone(metrics) : null,
+    history: structuredClone(history),
   };
 }
 

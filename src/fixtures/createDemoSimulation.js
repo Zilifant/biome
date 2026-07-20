@@ -24,8 +24,9 @@ import { HuntingSystem } from '../simulation/systems/HuntingSystem.js';
 import { InjurySystem } from '../simulation/systems/InjurySystem.js';
 import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
 import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
+import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { getSpecies } from '../simulation/config/species/index.js';
-import { sampleTraits } from '../simulation/traits/traits.js';
+import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
 
 const TWO_PI = Math.PI * 2;
@@ -70,7 +71,7 @@ export function registerDemoSystems(engine) {
     new ReproductionSystem({
       ...engine.config.reproduction,
       birthMass: engine.config.aging.birthMass,
-      traitSpread: engine.config.traits.spread,
+      genetics: engine.config.genetics,
     }),
   );
   engine.registerSystem(
@@ -100,6 +101,7 @@ export function registerDemoSystems(engine) {
   // Adult mass comes from the species; the rest of the life curve from config.
   const species = getSpecies(engine.config.demo.speciesId);
   engine.registerSystem(new AgingSystem({ ...engine.config.aging, adultMass: species.bodyMass }));
+  engine.registerSystem(new MetricsSystem(engine.config.metrics));
 }
 
 /**
@@ -133,7 +135,7 @@ function passableSpawnPosition(engine, random) {
  * @param {SimulationEngine} engine
  * @param {object} species
  * @param {number} count
- * @param {{position: Function, age: Function, traits: Function}} draw
+ * @param {{position: Function, age: Function, genome: Function}} draw
  */
 function spawnCohort(engine, species, count, draw) {
   for (let i = 0; i < count; i += 1) {
@@ -141,7 +143,10 @@ function spawnCohort(engine, species, count, draw) {
     // Ages are spread across juvenile→adult so no cohort is synchronized;
     // body mass follows the growth curve toward this individual's adult size.
     const age = draw.age();
-    const traits = draw.traits();
+    // Founders have no parents, so their genome is sampled rather than
+    // inherited (Step 20); every later generation descends from these.
+    const genome = draw.genome();
+    const traits = expressGenome(genome);
     const adultMass = species.bodyMass * traits.size;
     engine.world.entities.queueSpawn({
       kind: species.kind,
@@ -150,6 +155,7 @@ function spawnCohort(engine, species, count, draw) {
       y,
       heading,
       age,
+      genome,
       traits,
       adultMass,
       bodyMass: bodyMassForAge(age, { birthMass: engine.config.aging.birthMass, adultMass, maturityAge: engine.config.aging.maturityAge }),
@@ -171,10 +177,10 @@ function spawnCohort(engine, species, count, draw) {
 function populateDemoWorld(engine) {
   const random = engine.randomStream('worldgen');
   const { animalCount, speciesId, predatorCount, predatorSpeciesId } = engine.config.demo;
-  // Initial ages and traits come from their own streams, so adding either never
-  // shifts the worldgen positions (which draw in a fixed order).
+  // Initial ages and genomes come from their own streams, so adding either
+  // never shifts the worldgen positions (which draw in a fixed order).
   const ageRandom = engine.randomStream('demogen.age');
-  const traitRandom = engine.randomStream('traits');
+  const geneRandom = engine.randomStream('genetics');
   const traitSpread = engine.config.traits.spread;
 
   const draw = (species) => ({
@@ -188,7 +194,7 @@ function populateDemoWorld(engine) {
       };
     },
     age: () => Math.floor(ageRandom.float(0, 1500)),
-    traits: () => sampleTraits(traitRandom, traitSpread),
+    genome: () => sampleGenome(geneRandom, traitSpread),
   });
 
   const prey = getSpecies(speciesId);
