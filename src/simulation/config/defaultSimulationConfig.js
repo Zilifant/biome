@@ -160,6 +160,49 @@ export const defaultSimulationConfig = Object.freeze({
     fightInjurySeverity: 0.2,
     fightWinnerInjuryFraction: 0.4,
   }),
+  // Local disturbances (see disturbance/disturbances.js and
+  // systems/DisturbanceSystem.js). Fire, flood, and storm as bounded events: a
+  // record holding where, how big, and until when, with every effect derived
+  // from it on read. Nothing here makes animals flee — a burnt region is
+  // low-forage ground Step 26's drift carries them off, and a fire writes a
+  // `danger` memory (Step 15) they already avoid. This step adds a reason for
+  // behaviour that exists rather than new behaviour (§1.4 A34, D14).
+  //
+  // Drought and severe winter are deliberately absent: both already exist as
+  // *global* weather states (Step 19), and a local copy would be the same
+  // mechanism at a different scale (§1.4 A44).
+  disturbance: Object.freeze({
+    // The whole step, on one switch — the reproducible control, as Step 26's
+    // `migration.enabled` is. False leaves the demo exactly as Step 26 left it.
+    enabled: true,
+    // One check every `updateInterval` ticks, each spending a flat five draws
+    // whatever happens. The first cut (0.35 every 100 ticks) left something
+    // burning, flooding, or blowing **91% of ticks** — that is a climate, not a
+    // disturbance regime, and it made "recovery" unobservable because nothing
+    // ever finished recovering. At one ignition per ~1200 ticks against a median
+    // duration around 300, roughly a quarter of ticks have something running
+    // somewhere, and the rest of the time the world is quiet enough that
+    // recovery is a thing you can watch happen.
+    ignitionChance: 0.25,
+    updateInterval: 300,
+    // A burn is applied on this interval rather than every tick — see the
+    // effect table: per-tick severities below `HEALED_BELOW` are silently
+    // discarded by `applyInjury`, and it also keeps the event volume sane.
+    burnInterval: 25,
+    // Hard cap on simultaneous disturbances. Bounds both the per-animal cost
+    // (which is O(animals × active)) and the snapshot payload.
+    maxActive: 3,
+    // Bounded in space as well as number: a disturbance is a local event, and
+    // 16 units on a 128-wide map is about 1.5% of it. "Global catastrophes" are
+    // explicitly out of scope for this step.
+    minRadius: 6,
+    maxRadius: 16,
+    // One draw sets radius *and* duration together, so a bigger disturbance
+    // lasts longer; each kind then scales that (a fire is short and violent, a
+    // flood drains slowly).
+    minDurationTicks: 200,
+    maxDurationTicks: 700,
+  }),
   // Migration and dispersal (see migration/migration.js and
   // systems/MigrationSystem.js). The step's whole design decision is that
   // migration is **not an action**: it adds nothing to the utility table and

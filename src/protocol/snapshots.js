@@ -112,6 +112,14 @@ export function buildFullSnapshot(data) {
   if (data.environment) {
     snapshot.environment = { ...data.environment };
   }
+  // Active local disturbances (Step 27): a bounded list of small records, so
+  // both full snapshots and deltas carry it whole rather than diffing it — the
+  // same call the environment block gets, and for the same reason. This is a
+  // *list of circles*, not a per-cell layer, which is why it can ride in every
+  // message where the territorial claim grid (§1.4 A36) cannot.
+  if (data.disturbances) {
+    snapshot.disturbances = data.disturbances.map((d) => ({ ...d }));
+  }
   return snapshot;
 }
 
@@ -221,6 +229,12 @@ export function buildDeltaSnapshot(previous, next, events = []) {
   if (next.environment) {
     delta.environment = { ...next.environment };
   }
+  // Carried whenever the producer supplies it — including as an empty list,
+  // which is the message that everything has stopped. Omitting it when empty
+  // would leave a renderer drawing a fire that went out.
+  if (next.disturbances) {
+    delta.disturbances = next.disturbances.map((d) => ({ ...d }));
+  }
   return delta;
 }
 
@@ -262,6 +276,13 @@ export function applyDeltaSnapshot(fullSnapshot, delta) {
   // takes the newer one (falling back to the base when a delta omits it).
   if (delta.environment || fullSnapshot.environment) {
     reconstructed.environment = { ...(delta.environment ?? fullSnapshot.environment) };
+  }
+  // Disturbances likewise. `??` rather than `||` deliberately: an empty array is
+  // falsy-adjacent enough to invite the bug where a delta saying "nothing is
+  // burning any more" is discarded in favour of the base snapshot's fire.
+  const disturbances = delta.disturbances ?? fullSnapshot.disturbances;
+  if (disturbances) {
+    reconstructed.disturbances = disturbances.map((d) => ({ ...d }));
   }
   // Terrain is static and not carried by deltas, so it persists from the base
   // snapshot unchanged. Carrying it forward makes applying a delta reproduce

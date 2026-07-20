@@ -80,6 +80,15 @@ export const EventTypes = Object.freeze({
   // juvenile still holding its outward heading, `forage` for an adult that
   // followed the grass.
   ENTITY_MIGRATED: 'entity.migrated', // { entityId, from: {x,y}, to: {x,y}, distance, reason }
+  // Local disturbances (Step 27). Two events, one at each end, because a
+  // disturbance is a *region over a span of ticks* and both boundaries matter:
+  // `disturbed` says where it is and when it will stop, `settled` says how long
+  // it actually lasted — the one fact an observer cannot reconstruct once the
+  // record is gone. Nothing is emitted per tick while it burns; the region rides
+  // in every snapshot instead, so a running disturbance costs the event budget
+  // exactly two events for its whole life (§1.4 C3).
+  ENVIRONMENT_DISTURBED: 'environment.disturbed', // { disturbanceId, kind, x, y, radius, until }
+  ENVIRONMENT_SETTLED: 'environment.settled', //    { disturbanceId, kind, x, y, radius, durationTicks }
   // A milestone in one animal's life history. `event` is a life-event type
   // (weaned | dispersed | orphaned); consumers must tolerate unknown ones.
   // `dispersed` additionally carries the natal centre the animal is leaving

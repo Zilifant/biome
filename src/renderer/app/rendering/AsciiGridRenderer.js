@@ -17,6 +17,7 @@ import {
   TERRAIN_APPEARANCE,
   resolveTerrainAppearance,
   resolveVegetationAppearance,
+  resolveDisturbanceAppearance,
   resolveMemoryAppearance,
   resolveColorToken,
 } from './EntityAppearance.js';
@@ -131,6 +132,29 @@ export class AsciiGridRenderer {
         const { px, py } = projection.cellToScreen(cellX, cellY);
         ctx.fillStyle = this.#color(appearance.colorToken);
         ctx.fillText(appearance.glyph, px + half, py + half);
+      }
+    }
+
+    // --- Disturbance pass (protocol v26): fires, floods, and storms drawn over
+    // the ground and under the animals. A bounded list of circles, so this
+    // walks the visible cells of each active region rather than the whole grid,
+    // and costs nothing at all when nothing is happening.
+    for (const disturbance of store.disturbances ?? []) {
+      const appearance = resolveDisturbanceAppearance(disturbance.kind);
+      if (!appearance) continue;
+      const minCellX = Math.max(cells.minCellX, Math.floor(disturbance.x - disturbance.radius));
+      const maxCellX = Math.min(cells.maxCellX, Math.ceil(disturbance.x + disturbance.radius));
+      const minCellY = Math.max(cells.minCellY, Math.floor(disturbance.y - disturbance.radius));
+      const maxCellY = Math.min(cells.maxCellY, Math.ceil(disturbance.y + disturbance.radius));
+      ctx.fillStyle = this.#color(appearance.colorToken);
+      for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
+        for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+          const dx = cellX + 0.5 - disturbance.x;
+          const dy = cellY + 0.5 - disturbance.y;
+          if (dx * dx + dy * dy > disturbance.radius * disturbance.radius) continue;
+          const { px, py } = projection.cellToScreen(cellX, cellY);
+          ctx.fillText(appearance.glyph, px + half, py + half);
+        }
       }
     }
 

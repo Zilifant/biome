@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 25,
+  "protocolVersion": 26,
   "kind": "snapshot.delta",
   "simulationId": "demo-42",
   "baseTick": 10,
@@ -4405,5 +4405,6 @@
     "temperature": 6.289313450779922,
     "growthModifier": 1.35,
     "capacityModifier": 0.9
-  }
+  },
+  "disturbances": []
 }

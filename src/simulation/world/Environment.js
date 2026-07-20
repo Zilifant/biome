@@ -23,6 +23,7 @@
  */
 
 import { SPECIES } from '../config/species/index.js';
+import { temperatureShiftAt } from '../disturbance/disturbances.js';
 
 /** Seasons in cycle order, starting at the year boundary. */
 export const SEASONS = Object.freeze(['spring', 'summer', 'autumn', 'winter']);
@@ -149,7 +150,12 @@ export function thermalStress(world, entity, shelterRelief) {
   const species = SPECIES[entity.speciesId];
   const min = species?.comfortMin;
   const max = species?.comfortMax;
-  const temperature = environment.temperature;
+  // A storm (Step 27) is a *local* shift on the global temperature, applied
+  // here so its whole bite lands on machinery that already exists: the
+  // metabolism system charges for the stress, and the decision system reads the
+  // same number when deciding to walk to cover. That is why a storm needed no
+  // behaviour of its own — being cold is already something animals respond to.
+  const temperature = environment.temperature + temperatureShiftAt(world.disturbances ?? [], entity.x, entity.y);
   let stress = 0;
   if (min !== undefined && temperature < min) stress = min - temperature;
   else if (max !== undefined && temperature > max) stress = temperature - max;

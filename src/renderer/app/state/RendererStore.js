@@ -16,7 +16,7 @@
 import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 25;
+export const SUPPORTED_PROTOCOL_VERSION = 26;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {
@@ -160,6 +160,14 @@ export class RendererStore {
    * @type {{season: string, weather: string, temperature: number} | null}
    */
   environment = null;
+  /**
+   * Active local disturbances (protocol v26): a bounded list of `{ id, kind, x,
+   * y, radius, startedTick, until }` circles, carried whole by both snapshots
+   * and deltas. Empty when nothing is happening — which is a *reported* state,
+   * not an absent one.
+   * @type {object[]}
+   */
+  disturbances = [];
   connection = { state: 'disconnected', detail: '' };
   /** 'live' | 'fixture' */
   mode = 'live';
@@ -246,6 +254,7 @@ export class RendererStore {
     // Vegetation is carried in full by full snapshots and patched by deltas.
     this.vegetation = snapshot.vegetation ? decodeVegetation(snapshot.vegetation) : null;
     this.environment = snapshot.environment ? { ...snapshot.environment } : null;
+    this.disturbances = Array.isArray(snapshot.disturbances) ? snapshot.disturbances.map((d) => ({ ...d })) : [];
     // A snapshot may jump the event stream forward (recovery); events skipped
     // over are gone — never invent them, just move the dedupe watermark.
     this.#lastBufferedEventSeq = Math.max(this.#lastBufferedEventSeq, 0);
@@ -314,6 +323,10 @@ export class RendererStore {
     const counts = applyDeltaToEntities(this.entities, delta);
     this.#applyVegetationChanges(delta.vegetation);
     if (delta.environment) this.environment = { ...delta.environment };
+    // `Array.isArray` rather than a truthiness check: an empty list is the
+    // message that everything has stopped, and treating it as "no update" would
+    // leave a fire drawn on the grid after it went out.
+    if (Array.isArray(delta.disturbances)) this.disturbances = delta.disturbances.map((d) => ({ ...d }));
     this.tick = delta.tick;
     this.lastEventSeq = delta.lastEventSeq ?? this.lastEventSeq;
     if (Array.isArray(delta.events)) {
@@ -382,6 +395,7 @@ export class RendererStore {
     this.terrain = null;
     this.vegetation = null;
     this.environment = null;
+    this.disturbances = [];
     this.selection = null;
     this.followedEntityId = null;
     this.#emit('reset');

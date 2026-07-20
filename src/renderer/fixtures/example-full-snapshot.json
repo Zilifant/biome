@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 25,
+  "protocolVersion": 26,
   "kind": "snapshot.full",
   "simulationId": "demo-42",
   "tick": 10,
@@ -36552,5 +36552,6 @@
     "temperature": 6.283154316520587,
     "growthModifier": 1.35,
     "capacityModifier": 0.9
-  }
+  },
+  "disturbances": []
 }

@@ -7,7 +7,7 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–26 are done; Step 27 is next.
+protocol for continuing the work. Steps 1–27 are done; Step 28 is next.
 `HANDOFF.md` is the short version for picking the work back up.
 
 ## Install and run
@@ -65,8 +65,9 @@ Headless Simulation Engine           src/simulation
    ├── Spatial Grid     (uniform grid for local queries)
    ├── Systems          (weather, vegetation, perception, memory, social,
    │                     decision, movement, feeding, hunting, reproduction,
-   │                     parenting, territory, migration, metabolism,
-   │                     hydration, injury, disease, carcass, aging, metrics)
+   │                     parenting, territory, migration, disturbance,
+   │                     metabolism, hydration, injury, disease, carcass,
+   │                     aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
    ├── Genetics         (diploid genome → expressed traits, with tradeoffs)
    ├── Metrics          (derived population aggregates; writes no state)
@@ -159,7 +160,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `25`) and is
+Everything a client sees carries `protocolVersion` (currently `26`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -189,7 +190,11 @@ built by `src/protocol/`:
   (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`) —
   renderer-neutral cell codes + a legend with authoritative passability, RLE
   encoded. Full snapshots also embed a **vegetation** block (quantized biomass
-  levels `0..maxLevel`, RLE, with a `revision`). Region-bounded snapshots
+  levels `0..maxLevel`, RLE, with a `revision`). Both full snapshots and deltas
+  also carry the active **disturbances** — a bounded list of
+  `{ id, kind, x, y, radius, startedTick, until }` circles, carried whole rather
+  than diffed because there are never many; an **empty** list is the message
+  that everything has stopped, not the absence of one. Region-bounded snapshots
   supported.
 - **Deltas**: `created` / `updated` (complete public entities) / `removed`
   (ids) plus the domain events of the window; `applyDeltaSnapshot` is the
@@ -198,7 +203,7 @@ built by `src/protocol/`:
   level]] }` list, gated by the revision so unchanged ticks cost nothing.
 - **Events** (`events.js`): `entity.created`, `entity.moved`,
   `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`,
-  `predation`, `injury`, `exposure`),
+  `predation`, `injury`, `exposure`, `disease`, `disturbance`),
   `entity.removed`, `entity.fed` (`{ entityId, cell, amount }`),
   `entity.mated` (`{ entityId, partnerId, quality }`), `entity.courted`
   (`{ entityId, candidateId, quality, threshold, accepted }` — the standard is
@@ -224,7 +229,12 @@ built by `src/protocol/`:
   following forage or still walking out from where it was born), and
   `entity.lifeEvent`
   (`{ entityId, event, guardianId, x?, y? }` — `weaned` | `dispersed` |
-  `orphaned`; a dispersal carries the natal centre it is leaving)
+  `orphaned`; a dispersal carries the natal centre it is leaving),
+  `environment.disturbed` (`{ disturbanceId, kind, x, y, radius, until }`) and
+  `environment.settled` (the same, plus `durationTicks` — how long it *actually*
+  lasted, the one fact that is gone once the record is). Nothing is emitted per
+  tick while a disturbance runs; the region rides in every snapshot instead, so
+  a fire costs the event budget exactly two events for its whole life
   — facts with `{ seq, tick }`, never presentation instructions. A dead animal
   (whatever the cause) becomes a `carcass`-kind entity **in place** — a kind
   change carried as a delta update, not a removal. It is removed later, once
@@ -240,7 +250,7 @@ built by `src/protocol/`:
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `24`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `25`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the tombstone registry, the bounded metrics history, the
 event outbox, pending commands, and system descriptors. The migration drift is
@@ -286,7 +296,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 535 tests.
+ASCII renderer, committed fixtures, and 561 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -339,6 +349,7 @@ Their full loop is implemented:
 | `SocialSystem` | decision | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop |
 | `TerritorySystem` | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance |
 | `MigrationSystem` | decision | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered) |
+| `DisturbanceSystem` | environment | Raises fires, floods, and storms as bounded regions on a clock, burns the forage inside one once, hurts whatever is standing in it, and drops the record when it ends. Every other effect is derived from that record on read |
 | `DiseaseSystem` | physiology | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well |
 | `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
 
@@ -453,6 +464,43 @@ running average of where an animal has been, so a juvenile that kept its natal
 one would spend its life being drawn back to its mother's ground. In the demo,
 young grazers end up a median of **70 units** from where they were born, on a map
 128 across.
+
+**Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
+bounded region on a clock — a few numbers saying where it is, how wide, and when
+it stops — and *everything it does is read off that record rather than written
+into the world*. That is the whole design. A flooded cell is never marked
+flooded; it is slow **while a flood covers it**, and the instant the record
+expires it is ordinary ground again. There is no un-flooding pass to forget, and
+no way to leave the world stuck half-changed. Terrain itself is never touched:
+it regenerates from the seed on load, so an edit to it would quietly disappear
+the first time anyone reloaded a save.
+
+The one thing that really is destroyed is grass, because burnt grass should not
+come back when the fire goes out — it should *grow back*, and the vegetation
+already knows how. A fire takes the standing crop inside its circle once, and
+recovery is simply logistic regrowth doing what it always does. Measured: a
+radius-8 fire removes about four fifths of a region's forage, which is back to
+99% of where it started within 300 ticks while unburnt ground a map away barely
+moves.
+
+And **no animal was taught to flee**. Nothing was added to the utility table at
+all — that lesson has been learned twice now. A burnt region is simply ground
+that stopped being worth anything, so the forage drift carries animals off it,
+and a fire writes the same kind of `danger` memory a failed hunt does, which
+animals already refuse to rest near. When the grass returns, the drift brings
+them back. Displacement, avoidance, and recolonization are all behaviour that
+already existed; this only gave it a reason. What being caught in one *does* add
+is the first hazard in the world that can wound an animal — until now, only a
+predator or a rival could.
+
+It is deliberately a small pressure. A disturbance covers about one percent of
+the map and something is running maybe a quarter of the time, so across ten
+seeds it produces hundreds of burns and a handful of deaths without visibly
+moving the population — local and sublethal, the same shape disease turned out
+to have. An earlier version had something burning or flooding 91% of the time,
+which was not a disturbance regime but a climate, and it had a subtler cost than
+over-pressuring the demo: nothing ever finished recovering, so the recovery you
+were supposed to be able to watch never happened.
 
 **Animals form herds, and a herd is a label rather than a roster.** Nothing
 anywhere holds a membership list: animals in sight of each other converge on a
@@ -579,12 +627,11 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Disturbances,
-ecosystem engineering, a config-driven species schema (beyond today's two
+Ecosystem engineering, a config-driven species schema (beyond today's two
 hand-written species), and profile-driven optimization toward tens of thousands
 of animals.
 
-`PLAN.md` sequences all of these as Steps 27–30, and §1.4 records the
+`PLAN.md` sequences all of these as Steps 28–30, and §1.4 records the
 deviations and open issues carried forward from the completed steps.
 
 ## Architectural invariants (do not violate)

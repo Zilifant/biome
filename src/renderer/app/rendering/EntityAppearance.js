@@ -144,6 +144,27 @@ export function resolveVegetationAppearance(level) {
 }
 
 /**
+ * Local disturbances (protocol v26). Renderer-owned, like every other
+ * appearance here: the protocol sends a kind, a centre, and a radius, and says
+ * nothing about how any of it should look.
+ *
+ * Drawn *over* terrain and vegetation but under entities, because a disturbance
+ * is something happening to the ground rather than something standing on it —
+ * and an animal caught in one has to stay visible, which is the whole point of
+ * being able to watch it get caught.
+ */
+export const DISTURBANCE_APPEARANCE = Object.freeze({
+  fire: Object.freeze({ glyph: '^', colorToken: 'orange' }),
+  flood: Object.freeze({ glyph: '~', colorToken: 'cyan' }),
+  storm: Object.freeze({ glyph: '*', colorToken: 'purple' }),
+});
+
+/** Appearance for a disturbance kind, or null for one this renderer predates. */
+export function resolveDisturbanceAppearance(kind) {
+  return DISTURBANCE_APPEARANCE[kind] ?? null;
+}
+
+/**
  * Marks for the places an animal remembers (protocol v14). These are drawn
  * only for the selected entity — one animal's private map of the world, not
  * world state — and faded by the memory's strength. Renderer-owned: the

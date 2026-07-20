@@ -104,7 +104,7 @@ narrow Step 1 remediation gate.**
 
 ---
 
-## 1.4 Carried-forward deviations and open issues (Steps 1–26)
+## 1.4 Carried-forward deviations and open issues (Steps 1–27)
 
 Consolidated from the completion notes of the finished steps. Each item is
 either **debt** (something deliberately deferred or simplified) or a **known
@@ -156,6 +156,9 @@ correctness bug in shipped code unless marked ⚠.
 | A41 | 26 | Migration is a **grazer-only** phenomenon: a stalker's food is the grazer, which it already follows through perception and the hunt pipeline, so a vegetation gradient would point it at grass it cannot eat. Letting stalkers track forage as a prey proxy was tried and measured *worse* (stalkers 0–3). Both species do disperse | **Step 29** (species schema), alongside A35's mirror-image note about territory |
 | A42 | 26 | The forage cue reaches **beyond perception** (18 units against 6) and is a stated modelling convenience standing in for coarse long-range cues this world does not simulate — the smell of green ground, the lie of the land. Bounded by being a *difference* (a flat world produces no pull) and by a strength cap well below 1 | — (settled; the same kind of honest stand-in as A39's spillover) |
 | A43 | 26 | **Population fragmentation is enabled, not asserted.** Herd labels already split by hop count and separate forage patches already pull herds apart, but no test claims a fragmentation outcome | a later observability pass, if a fragmentation *measure* earns its keep |
+| A44 | 27 | **Drought and severe winter are not local disturbances.** Both already exist as *global* weather states (Step 19), so a spatially bounded copy would be the same mechanism at a different scale rather than a new one. Fire, flood, and storm have no global analogue, which is why they are the three that shipped | — (settled; a kind is a row in the effect table if one is ever wanted) |
+| A45 | 27 | **A disturbance never modifies terrain.** Terrain is derived — regenerated from the seed on load and deliberately unsaved — so an edit would vanish on restore. "Affected terrain" is expressed as a derived traversal penalty plus a renderer overlay, and the disturbance list is its own protocol layer | — (settled; mutable terrain would need terrain to become saved state) |
+| A46 | 27 | Disturbance **mortality is rare in the demo** (0–12 deaths across ten seeds): a region covers ~1% of the map and animals walk out of it. The lethal path is real and exercised in a controlled test, but the demo-level cost is sublethal — 852 burns across those seeds — exactly as Step 25's disease turned out to be | — (settled; making it demographically significant would mean bigger or more frequent events, which the 91% experiment showed breaks recovery) |
 | A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
 | ~~⚠ A20~~ | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from *any* source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
 
@@ -201,6 +204,8 @@ correctness bug in shipped code unless marked ⚠.
 | D14 | Step 26 measured **3/5 seeds** against a 4/5 control and would have been ramped down for it. Bisecting the strength gave 1/5, 2/5, 3/5, 3/5 — non-monotonic, which is the tell. At **ten** seeds both read 4/10: the gap was noise and the canonical five seeds flatter the control | The demo's two-species balance is a knife edge at ~3–9 stalkers. **Five seeds cannot resolve a one-seed difference.** When a sweep disagrees with a control by one seed, add seeds before touching a parameter — and treat a non-monotonic bisection as evidence you are tuning noise |
 | D15 | Step 26's end-to-end test was written twice and was a bad test both times: first measuring diffusion across a small box (the control arrived just as fast), then measuring a ~1-unit displacement against a mechanism deliberately built to be gentle | Before asserting an outcome, ask what the *control* would score. If the control scores the same, the test measures the world and not the change. Prefer asserting the mechanism (here: the distribution of chosen headings) over the outcome it accumulates into |
 | D16 | Step 26's "at zero strength nothing changes" guarantee was false by one ulp: `normalizeAngle(1.2)` is `1.2000000000000002`, and a fed animal on a real gradient does pass through the blend at strength 0 | An identity path must be *exactly* the identity. If a feature's safety argument is "at zero it does nothing", assert `===` on the untouched input — float-normalizing a pass-through silently makes it a different value, and it compounds |
+| ⚠ D17 | Step 27's fire recorded **no injuries at all** while still killing animals: `injuryPerTick` was 0.006 and `applyInjury` silently discards anything at or below `HEALED_BELOW` (0.02), so every call returned `null`. Visible only because a diagnostic happened to print burn counts *and* deaths-by-cause side by side | A shared helper with a **threshold** silently discards sub-threshold input, and a per-tick rate is exactly the shape that trips it. Before feeding a small value into an accumulator helper, check its floor — and when adding a new caller, assert the effect landed rather than assuming the call did something |
+| D18 | Step 27's first parameters left a disturbance running **91% of ticks**. Beyond over-pressuring the demo, it made the step's own acceptance criterion untestable: nothing ever finished recovering, so "recovery" could not be observed | For a mechanism whose visible result is *recovery*, the quiet interval is part of the design, not slack. Tune the duty cycle before tuning the severity, and sanity-check "what fraction of the time is this running?" — a mechanism that is always on has become the background rather than an event |
 | D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
 
 ---
@@ -5044,7 +5049,7 @@ cannot resolve a one-seed difference** — use ten.
 
 ## Step 27 — Local disturbances
 
-**Status:** Not started
+**Status:** Done
 
 ### Objective
 
@@ -5103,12 +5108,12 @@ Bounded region iteration; infrequent. Cheap.
 
 ### Acceptance criteria
 
-- [ ] Bounded disturbances with terrain/vegetation/mortality + recovery
-- [ ] Disturbance + recovery observable
-- [ ] Tests pass
-- [ ] Visible result verified
-- [ ] Documentation updated (protocol + save version)
-- [ ] Performance checked
+- [x] Bounded disturbances with terrain/vegetation/mortality + recovery
+- [x] Disturbance + recovery observable
+- [x] Tests pass
+- [x] Visible result verified
+- [x] Documentation updated (protocol + save version)
+- [x] Performance checked
 
 ### Explicitly out of scope
 
@@ -5116,7 +5121,155 @@ Global catastrophes, fire spread physics, fluid simulation.
 
 ### Completion notes
 
-_(fill on completion)_
+**A disturbance is a record, and its effects are derived from it on read.** That
+one choice is the whole step, and it is what makes recovery nearly free:
+
+  - a flooded cell is not *marked* flooded; it is slow **while a flood covers
+    it**, and the instant the record expires it is ordinary ground again. There
+    is no un-flooding pass, and therefore no way to leave the world stuck
+    half-flooded because a cleanup was missed;
+  - **terrain is never mutated.** Terrain is derived — regenerated from the seed
+    on load and deliberately not saved — so a disturbance that edited it would
+    silently vanish on restore. Disturbances are their own protocol layer
+    instead, exactly as vegetation is. A bounded list of *circles* is not a
+    per-cell field, which is why it can ride in every snapshot where the
+    territorial claim grid (§1.4 A36) cannot.
+
+The one destructive effect is vegetation, because burnt grass should not
+reappear when the fire goes out — it should grow back, and Step 3's logistic
+regrowth already does that. A fire consumes biomass once, at ignition, and
+recovery is the vegetation system doing what it always does.
+
+**No behaviour was added, and that was the point.** §1.4 A34 and D14 both say a
+new action competes with foraging and loses. Displacement is two existing
+mechanisms given a reason: a burnt region is low-forage ground that Step 26's
+drift carries animals *off*, and a fire writes a `danger` memory (Step 15) that
+animals already avoid resting near and already refuse to recall food from.
+Recolonization when the grass returns is Step 26's, unchanged. Step 26's handoff
+note predicted this would be the payoff of ordering 26 before 27, and it was.
+
+Effects live in a **declarative table** rather than a switch, so a kind is a row
+rather than a code path — which is also what made the per-kind attribution below
+possible at all.
+
+**Three findings from running it.**
+
+1. **⚠ A silent discard: fire recorded no wounds whatsoever.** `injuryPerTick`
+   was set to a plausible-looking 0.006, and `applyInjury` discards anything at
+   or below `HEALED_BELOW` (0.02) — so every burn returned `null` and vanished,
+   while animals still burned to death from the separate health drain. The
+   symptom was a diagnostic reading **0 burn injuries alongside 5 deaths by
+   `disturbance`**, which is only suspicious if you happen to print both. A burn
+   is now a discrete wound on an interval (0.12 every 25 ticks), which clears
+   the floor, and the interval doubles as the event-volume bound. Recorded as
+   §1.4 D17.
+2. **The first cut was a climate, not a disturbance regime.** At one ignition
+   check per 100 ticks with a 0.35 chance, something was burning, flooding, or
+   blowing **91% of ticks** — which not only over-pressured the demo but made
+   *recovery unobservable*, because nothing ever finished recovering. Now one
+   ignition per ~1200 ticks against a median duration near 300, so roughly a
+   quarter of ticks have something running somewhere and the rest are quiet
+   enough to watch the land come back.
+3. **The cost is local, not demographic — and per-kind attribution proved it.**
+   A `kinds` config knob was added so each could be measured alone. Over ten
+   seeds and 15k ticks:
+
+   | | both alive | grazers | stalkers | deaths by disturbance |
+   | --- | --- | --- | --- | --- |
+   | off (control) | 4/10 | 16–96 | 0–15 | 0 |
+   | fire only | 5/10 | 0–117 | 0–4 | 12 |
+   | flood only | 3/10 | 3–96 | 0–5 | 0 |
+   | storm only | 5/10 | 14–108 | 0–6 | 0 |
+   | all three | 3/10 | 1–128 | 0–6 | 6 |
+
+   Seed survival spans **±1 of the control in both directions** and the death
+   causes barely move (exposure 140–184, predation 492–565 across every row).
+   At ten seeds the demo cannot distinguish these configurations, which is the
+   honest reading and also the expected one: a disturbance covering ~1% of the
+   map a quarter of the time should not move a population aggregate. The effect
+   it *does* have is local and sublethal — 852 burns across the ten seeds — which
+   is the same shape as Step 25's disease finding, where mortality was never the
+   lever either.
+
+**Recovery, measured.** In a controlled world with an unburnt control region: a
+radius-8 fire removed **78%** of the regional biomass, which was back to **48%
+of pre-fire at +100 ticks, 99% at +300, and 100% at +600**, while the control
+region moved less than 1%. Recovery is asserted against that control in the test
+suite so a turning season can never be mistaken for it.
+
+**Two deliberate model choices worth stating.** A flood makes ground **slow
+rather than impassable**: the movement system refuses impassable target cells, so
+a region of them would wall in any animal standing where the water arrived, with
+no way out — a trap rather than a hazard. And overlapping disturbances take the
+**first match** rather than stacking, because multiplying two effect rows
+together produces a combination neither kind describes.
+
+**What shipped.** `disturbance/disturbances.js` (kinds, the declarative effect
+table, geometry, and the derived accessors, as a shared helper in the
+established pattern); `DisturbanceSystem` (`environment`, priority 10 — after
+weather, before vegetation growth, so a fire burns the field before the same
+tick regrows it) owning ignition, expiry, the bounded scour, and affliction;
+disturbance effects folded into the two chokepoints that already existed
+(`world.speedModifierAt` and `thermalStress`) so no system had to learn what a
+disturbance is; `InjuryKinds.BURN`, closing the *hazard* half of §1.4 A19, which
+has been carried since Step 17; **protocol v25 → v26** (a `disturbances` block in
+snapshots and deltas, `environment.disturbed` / `environment.settled`, and a
+`caughtIn` inspection field); **save v24 → v25**; `enabled` and `kinds` config
+switches so the control is reproducible rather than hand-assembled; and a
+renderer overlay drawn over the ground and under the animals, plus event
+formatting.
+
+**Tests:** `npm test` → **561 passing / 0 failing** (was 535; +26). New
+`test/disturbance.test.js`: geometry (including that the corner of a bounding box
+is *not* inside the disc), the empty-list early exit pinned so quiet ticks stay
+cheap, first-match overlap, the fixed draw budget (proved by two worlds whose
+ignition outcomes differ completely landing on the same stream state, plus a
+direct count against `IGNITION_DRAWS`), expiry announced exactly once with its
+real duration, the active cap, an invariant that nothing ever ignites on water or
+rock, per-kind worlds, vegetation loss bounded to the region asserted **cell by
+cell against an identical unburnt world**, the recovery curve against an in-world
+control, burn/memory/mortality inside and untouched animals outside, event volume
+bounded by the burn interval, a flood slowing movement and releasing it on
+expiry, an animal always being able to struggle out of a flood, a storm's local
+thermal bite, protocol round-tripping (including that an **empty** delta list
+clears a fire rather than being treated as absent), save/load with a disturbance
+actually running, and the `enabled: false` control pinned so it stays a control.
+
+**Deterministic demonstration scenario — the burn-and-recover sandbox.** A seeded
+fire at a known centre in a flat world, asserted as loss then recovery against an
+unburnt control region in the same world: most of the forage gone, and back above
+90% of pre-fire within 600 ticks while the control barely moves.
+
+**Visible result verified.** At protocol v26: a snapshot carrying two concurrent
+disturbances (a flood at 12,97 r9 and a fire at 103,64 r15), **3 animals caught
+in the fire**, and inspection reporting `caughtIn` for one of them. The event log
+reads as a lifecycle — `t2400 disturbed fire @103,64 r15` … `t2718 settled fire
+(318 ticks)` — with the per-kind duration scaling visible in it: fires last
+205–318 ticks, floods 537–1015.
+
+**Performance.** large-5k **79.19 → ~80.1 ms/tick** (+1). medium-1k is noisy
+across runs (11.1–15.2 against Step 26's 10.4); a second run put it at 11.1, so
+the first reading was variance rather than a regression. Ignition is five draws
+every 300 ticks, the scour is πr² cell writes *once* per disturbance, and the
+per-animal pass runs only while something is active — everything else costs one
+array-length check.
+
+**Deviations from the step spec (documented):** (1) **Drought and severe winter
+are not implemented** — both already exist as *global* weather states (Step 19),
+so a local copy would be the same mechanism at a different scale rather than a
+new one (A44). (2) **Terrain is not modified**, for the persistence reason above;
+"affected terrain" is expressed as a derived traversal penalty and a renderer
+overlay (A45). (3) **Mortality is rare in the demo** — 0–12 deaths across ten
+seeds — because a region covers ~1% of the map and animals walk out of it; the
+lethal path is exercised in a controlled test instead (A46).
+
+**Follow-on notes for later steps:** Step 28 (ecosystem engineering) inherits the
+pattern this step establishes — a bounded record whose effects are derived on
+read, layered over static terrain — which is exactly the shape a beaver dam or a
+wallow needs, with the difference that engineering *persists* rather than
+expiring. Step 29's species schema is untouched by this step (disturbances are
+world state, not biology). And §1.4 C6 is still unchanged at two neighbour walks:
+the affliction pass is O(animals × active) with no spatial query.
 
 ---
 

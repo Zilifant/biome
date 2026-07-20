@@ -27,6 +27,7 @@ import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
 import { MigrationSystem } from '../simulation/systems/MigrationSystem.js';
+import { DisturbanceSystem } from '../simulation/systems/DisturbanceSystem.js';
 import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
 import { DiseaseSystem } from '../simulation/systems/DiseaseSystem.js';
 import { infect } from '../simulation/disease/disease.js';
@@ -47,6 +48,15 @@ export function registerDemoSystems(engine) {
   const { growthRate, seedFloor, diebackRate, updateInterval } = engine.config.vegetation;
   engine.registerSystem(new WeatherSystem(engine.config.environment));
   engine.registerSystem(new VegetationSystem({ growthRate, seedFloor, diebackRate, updateInterval }));
+  // Priority 10 in `environment`: after weather (-10), before vegetation growth
+  // (0), so a fire burns the field before the same tick regrows it.
+  engine.registerSystem(
+    new DisturbanceSystem({
+      ...engine.config.disturbance,
+      edibleMassFraction: engine.config.metabolism.edibleMassFraction,
+      maxMemories: engine.config.memory.maxMemories,
+    }),
+  );
   engine.registerSystem(new PerceptionSystem(engine.config.perception));
   engine.registerSystem(new MemorySystem(engine.config.memory));
   // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision

@@ -80,6 +80,11 @@ function formatEvent(event) {
       return `!! sickened #${event.entityId}`;
     case 'entity.cured':
       return `++ recovered #${event.entityId}${event.immuneUntil != null ? ` <immune to t${event.immuneUntil}>` : ''}`;
+    case 'environment.disturbed':
+      return `*! ${event.kind} at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} r${event.radius?.toFixed(0)} <until t${event.until}>`;
+    case 'environment.settled':
+      // How long it lasted is the fact the record no longer holds.
+      return `*. ${event.kind} ended at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} <${event.durationTicks} ticks>`;
     case 'entity.migrated':
       // Where it moved *from* and *to*, because "moved house" is a claim about
       // two places. The distance is the part that says whether this was a shift
@@ -120,6 +125,8 @@ function eventClass(event) {
   if (event.type === 'entity.recovered') return 'event-created';
   if (event.type === 'entity.decayed') return 'event-removed';
   if (event.type === 'environment.changed') return 'event-created';
+  if (event.type === 'environment.disturbed') return 'event-died';
+  if (event.type === 'environment.settled') return 'event-created';
   if (
     event.type === 'entity.mated' ||
     event.type === 'entity.born' ||

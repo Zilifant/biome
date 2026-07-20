@@ -120,10 +120,18 @@
  *       evaluation is staggered, so a restore would run up to `updateInterval`
  *       ticks on a stale null and diverge from an uninterrupted run. Two numbers
  *       are cheaper than the divergence. v23 saves are invalidated.
+ *  25 — local disturbances added (Step 27): a top-level `disturbances` list and
+ *       `nextDisturbanceId`, plus the new `DisturbanceSystem` descriptor. The
+ *       records are the *only* state the mechanism has — every effect is derived
+ *       from them on read — so saving them restores slow ground, cold air, and
+ *       an ongoing fire all at once, and saving nothing else would be wrong in
+ *       the same three ways. Note that the vegetation a fire already destroyed
+ *       rides in the existing `vegetation` block, since it is simply gone. v24
+ *       saves are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 24;
+export const SAVE_FORMAT_VERSION = 25;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -141,6 +149,12 @@ export function captureSimulationState(engine) {
     entities: engine.world.entities.serialize(),
     tombstones: engine.world.serializeTombstones(),
     environment: { ...engine.world.environment },
+    // Active local disturbances (Step 27), plus the id counter. Both are
+    // genuinely evolved state: where a fire started and how long it has left to
+    // burn is not recoverable from the seed, and a counter that restarted would
+    // reissue the id of something still running.
+    disturbances: engine.world.disturbances.map((d) => ({ ...d })),
+    nextDisturbanceId: engine.world.nextDisturbanceId,
     // The report itself is derived and recomputed on the next metrics tick;
     // only the bounded history is stored, so a chart survives a restore.
     metricsHistory: engine.world.metricsHistory,
@@ -176,6 +190,8 @@ export function restoreSimulationState(engine, saved) {
   engine.world.entities.restore(saved.entities);
   engine.world.restoreTombstones(saved.tombstones);
   if (saved.environment) engine.world.environment = { ...saved.environment };
+  engine.world.disturbances = (saved.disturbances ?? []).map((d) => ({ ...d }));
+  engine.world.nextDisturbanceId = saved.nextDisturbanceId ?? 1;
   engine.world.metricsHistory = saved.metricsHistory ? structuredClone(saved.metricsHistory) : [];
   engine.world.metrics = null; // derived; the next metrics tick rebuilds it
   engine.world.rebuildSpatialIndex();

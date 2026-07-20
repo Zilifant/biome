@@ -24,6 +24,7 @@
 export const InjuryKinds = Object.freeze({
   WOUND: 'wound', // clawed or bitten in a failed capture
   TRAMPLE: 'trample', // hurt by the animal it attacked
+  BURN: 'burn', // caught in a fire (Step 27) — the hazard half of §1.4 A19
 });
 
 /** Hard cap on tracked injuries per animal. Structural, not a tuning knob. */

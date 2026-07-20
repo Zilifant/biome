@@ -4,6 +4,7 @@ import { TerrainGrid, TerrainType } from './TerrainGrid.js';
 import { VegetationGrid } from './VegetationGrid.js';
 import { initialEnvironment } from './Environment.js';
 import { ScentGrid } from './ScentGrid.js';
+import { speedScaleAt } from '../disturbance/disturbances.js';
 
 /**
  * The world aggregates entity storage, the spatial index, the static terrain
@@ -82,6 +83,20 @@ export class World {
     /** @type {object[]} */
     this.metricsHistory = [];
     this.environment = initialEnvironment(config.environment ?? { ticksPerYear: 8000, meanTemperature: 14, temperatureAmplitude: 14 });
+    // Active local disturbances (Step 27) — fires, floods, storms. A bounded
+    // list of small records, capped by the disturbance system, and the *only*
+    // state the mechanism has: every effect (slower ground, colder air, burnt
+    // grass) is derived from these on read rather than written into the world
+    // and undone later, which is why a disturbance cannot leave the world
+    // half-changed when it ends. Terrain is never touched — it is static and
+    // regenerated from the seed on load, so an edit to it would silently vanish
+    // on restore.
+    /** @type {object[]} */
+    this.disturbances = [];
+    // Counter for disturbance ids, on the world rather than the system so it
+    // survives a save (a fresh system restarting at 1 would reissue the id of
+    // something still burning).
+    this.nextDisturbanceId = 1;
   }
 
   /** Cell coordinates containing a continuous position, clamped to the grid. */
@@ -100,7 +115,13 @@ export class World {
    */
   speedModifierAt(x, y) {
     const { cellX, cellY } = this.cellOf(x, y);
-    return this.terrain.speedModifierAt(cellX, cellY);
+    // Disturbances (Step 27) fold in here rather than anywhere else, because
+    // this is the single chokepoint the movement system already asks — so
+    // wading through a flood is the same kind of fact as pushing through cover,
+    // and no system needs to learn about disturbances to be slowed by one.
+    // `speedScaleAt` costs one length check when nothing is happening, which is
+    // most of the demo's history.
+    return this.terrain.speedModifierAt(cellX, cellY) * speedScaleAt(this.disturbances, x, y);
   }
 
   get width() {

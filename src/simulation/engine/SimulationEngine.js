@@ -31,6 +31,7 @@ import { dominanceOf } from '../social/dominance.js';
 import { territoryOf } from '../systems/TerritorySystem.js';
 import { diseaseSeverity, isInfectious, isSymptomatic } from '../disease/disease.js';
 import { forageGradient, isDispersing, migrationOf } from '../migration/migration.js';
+import { disturbanceAt, projectDisturbances } from '../disturbance/disturbances.js';
 
 const CLEANUP_PHASE = 'cleanup';
 
@@ -234,6 +235,7 @@ export class SimulationEngine {
       terrain: this.getTerrainData(),
       vegetation: this.getVegetationData(),
       environment: { ...this.world.environment },
+      disturbances: projectDisturbances(this.world.disturbances),
     };
   }
 
@@ -409,6 +411,15 @@ export class SimulationEngine {
           habitat: habitat ? { ...habitat } : null,
           settled: entity.settledX === null ? null : { x: entity.settledX, y: entity.settledY },
         };
+      })(),
+      // Disturbances (Step 27) — inspection-only, and *only* the one covering
+      // this animal. The active list already rides in every snapshot, so
+      // repeating it here would be duplication; what inspection adds is the
+      // answer to "is this animal standing in it?", which is otherwise a
+      // geometry problem the caller has to solve for itself.
+      caughtIn: (() => {
+        const caught = disturbanceAt(this.world.disturbances, entity.x, entity.y);
+        return caught ? { ...caught } : null;
       })(),
       // Disease (Step 25) — the compartment itself rides in bulk snapshots (an
       // outbreak has to be watchable); this is the detail. `infectious` is
