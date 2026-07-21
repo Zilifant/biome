@@ -13,6 +13,42 @@ import { PROTOCOL_VERSION } from '../src/protocol/protocolVersion.js';
 const makeGrid = (seed, overrides = {}) =>
   new TerrainGrid({ width: 64, height: 64, seed, params: overrides });
 
+/**
+ * Count 4-connected components of cells matching `predicate(code)`. Used to
+ * assert both that rock is scattered (several rock components) and that passable
+ * ground is never walled off (exactly one passable component).
+ */
+const countComponents = (grid, predicate) => {
+  const w = grid.width;
+  const h = grid.height;
+  const seen = new Uint8Array(w * h);
+  let components = 0;
+  for (let start = 0; start < w * h; start += 1) {
+    const sx = start % w;
+    const sy = (start - sx) / w;
+    if (seen[start] || !predicate(grid.codeAt(sx, sy))) continue;
+    components += 1;
+    const stack = [start];
+    seen[start] = 1;
+    while (stack.length > 0) {
+      const i = stack.pop();
+      const x = i % w;
+      const y = (i - x) / w;
+      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        if (!seen[j] && predicate(grid.codeAt(nx, ny))) {
+          seen[j] = 1;
+          stack.push(j);
+        }
+      }
+    }
+  }
+  return components;
+};
+
+const isPassable = (code) => code !== TerrainType.ROCK;
+
 describe('terrain grid', () => {
   test('generation is deterministic: same seed + size + params → identical cells', () => {
     const a = makeGrid(123);
@@ -99,12 +135,12 @@ describe('terrain projection', () => {
 });
 
 describe('terrain sandbox scenario (seed fixed)', () => {
-  test('a seeded world has a water body and a rock ridge with impassable cells', () => {
+  test('a seeded world has a water body and scattered rock with impassable cells', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const terrain = engine.world.terrain;
     const counts = terrain.countByType();
     assert.ok(counts[TerrainType.WATER] > 50, `expected a lake, got ${counts[TerrainType.WATER]} water cells`);
-    assert.ok(counts[TerrainType.ROCK] > 50, `expected a ridge, got ${counts[TerrainType.ROCK]} rock cells`);
+    assert.ok(counts[TerrainType.ROCK] > 50, `expected rock, got ${counts[TerrainType.ROCK]} rock cells`);
 
     // Every rock cell is impassable through the authoritative world API.
     let checkedRock = false;
@@ -138,5 +174,46 @@ describe('terrain sandbox scenario (seed fixed)', () => {
         );
       }
     }
+  });
+});
+
+describe('rock is scattered formations, not a dividing wall', () => {
+  test('rock forms several separate outcrops rather than one line', () => {
+    // On the default demo world, the eight formations settle into multiple
+    // disconnected rock bodies — the opposite of a single map-spanning ridge.
+    const grid = new TerrainGrid({ width: 128, height: 128, seed: 42 });
+    const rockComponents = countComponents(grid, (code) => code === TerrainType.ROCK);
+    assert.ok(rockComponents >= 2, `expected scattered rock, got ${rockComponents} component(s)`);
+  });
+
+  test('passable terrain is a single connected region for every seed', () => {
+    // The connectivity pass guarantees no pocket of passable ground is walled
+    // off, so rock can never split the world in two. Check a spread of seeds and
+    // sizes, including the small non-square worlds tests use.
+    for (const seed of [1, 2, 7, 42, 99, 123, 500, 2026]) {
+      for (const [w, h] of [[64, 64], [40, 40], [96, 48]]) {
+        const grid = new TerrainGrid({ width: w, height: h, seed });
+        const passableComponents = countComponents(grid, isPassable);
+        assert.equal(
+          passableComponents,
+          1,
+          `seed ${seed} @ ${w}x${h}: passable terrain split into ${passableComponents} regions`,
+        );
+      }
+    }
+  });
+
+  test('a deliberately walled-off pocket gets a carved corridor out', () => {
+    // Heavy rock coverage on a small world reliably strands pockets before the
+    // connectivity pass; afterward there must still be exactly one passable
+    // region, and rock must remain (the pass carves the minimum, not the map).
+    const grid = new TerrainGrid({
+      width: 48,
+      height: 48,
+      seed: 3,
+      params: { ridges: 40, rockFormationMaxRadius: 6, rockFormationMaxSteps: 12 },
+    });
+    assert.equal(countComponents(grid, isPassable), 1);
+    assert.ok(grid.countByType()[TerrainType.ROCK] > 0, 'connectivity pass should not erase all rock');
   });
 });

@@ -25,8 +25,19 @@ export const defaultSimulationConfig = Object.freeze({
   terrain: Object.freeze({
     lakes: 1,
     lakeRadiusFraction: 0.14,
-    ridges: 1,
-    ridgeThickness: 2,
+    // Rock is generated as several irregular formations of varying size
+    // scattered around the map, never one long dividing ridge. `ridges` is the
+    // formation count (0 disables rock entirely, which the flat-world tests
+    // rely on); each formation is a short random walk of overlapping discs, so
+    // its outline is organic rather than a line or a circle. After all terrain
+    // is placed, a connectivity pass carves the minimum rock needed so that no
+    // passable region is walled off from the rest (see world/TerrainGrid.js).
+    ridges: 8,
+    rockFormationMinRadius: 1.5,
+    rockFormationMaxRadius: 4,
+    rockFormationMinSteps: 2,
+    rockFormationMaxSteps: 7,
+    rockFormationDrift: 1,
     coverPatchDensity: 1.5,
     coverPatchRadius: 3,
   }),

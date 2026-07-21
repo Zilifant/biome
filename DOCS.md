@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 662 passing / 0 failing, 170 suites                    |
+| Tests                 | 665 passing / 0 failing, 171 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
 | Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |
@@ -576,10 +576,35 @@ methods.
 
 Four cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
 `COVER (3)` — generated deterministically at world init from circular lakes,
-straight rock ridges, and clumped cover patches. Out-of-bounds cells report
-`ROCK`, so passability checks are safe without a separate bounds guard.
+**irregular rock formations**, and clumped cover patches, then finished by a
+**connectivity pass**. Out-of-bounds cells report `ROCK`, so passability checks
+are safe without a separate bounds guard.
 
 Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, rock 0 (impassable).
+
+⚠ **Rock is scattered outcrops, not one dividing ridge.** The generator used to
+lay a single straight rock ridge across the world, which paired with the single
+circular lake to split almost every seed into two halves. Rock is now placed as
+several formations (`terrain.ridges` is the formation _count_, 0 disables rock);
+each is a short random walk of overlapping discs of varying radius, so its
+outline is organic and its size varies from a small outcrop to a broad massif,
+and none spans the map. `ridgeThickness` is gone; the shape is governed by
+`rockFormationMin/MaxRadius`, `rockFormationMin/MaxSteps`, and
+`rockFormationDrift`. The config key stayed `ridges` deliberately — the ~two
+dozen flat-world tests disable rock with `ridges: 0`, and renaming it would be
+pure churn for no behavioural gain.
+
+⚠ **Passable terrain is guaranteed to be one connected region.** After all
+terrain is placed, `#ensureConnectivity` labels the 4-connected components of
+passable (non-rock) cells; if more than one exists it keeps the largest as the
+mainland and links every other pocket to it by carving the **shortest** rock
+corridor (rock → ground) found by a breadth-first search seeded from the
+mainland. It carves the minimum, so rock stays plentiful. This makes "rock walls
+off part of the world" impossible by construction rather than by hoping the RNG
+is kind — `test/terrain.test.js` asserts a single passable component across a
+spread of seeds and sizes, including a deliberately over-rocked world that
+strands pockets before the pass runs. The pass runs once at construction and is
+`O(width·height)`.
 
 ⚠ **Cover is generated as clumped patches, not per-cell scatter.** Per-cell
 scatter fragmented the run-length encoding badly — a 1024² snapshot went 916 KB

@@ -65,8 +65,17 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
 export const DEFAULT_TERRAIN_PARAMS = Object.freeze({
   lakes: 1,
   lakeRadiusFraction: 0.14,
-  ridges: 1,
-  ridgeThickness: 2,
+  // Rock is placed as irregular formations of varying size, not one straight
+  // ridge. `ridges` is the formation count (0 disables rock); each formation is
+  // a short random walk of overlapping discs whose radii and step count vary,
+  // so no two are the same shape or size and none spans the map. See
+  // #carveRockFormations.
+  ridges: 8,
+  rockFormationMinRadius: 1.5,
+  rockFormationMaxRadius: 4,
+  rockFormationMinSteps: 2,
+  rockFormationMaxSteps: 7,
+  rockFormationDrift: 1,
   // Cover grows in clumps, not per-cell noise: patches keep the run-length
   // encoding compact on large worlds (per-cell scatter fragmented it into
   // ~1 run per cell). Density is patches per 1000 cells.
@@ -174,14 +183,36 @@ export class TerrainGrid {
 
   // --- generation (deterministic; runs once) -------------------------------
 
-  #set(cellX, cellY, code) {
-    if (this.#inBounds(cellX, cellY)) this.#cells[this.#index(cellX, cellY)] = code;
-  }
-
   #generate(random, params) {
     this.#carveLakes(random, params);
-    this.#carveRidges(random, params);
+    this.#carveRockFormations(random, params);
     this.#growCoverPatches(random, params);
+    // Run last, so the guarantee holds over the finished map: every passable
+    // cell reaches every other passable cell without crossing rock.
+    this.#ensureConnectivity();
+  }
+
+  /**
+   * Fill a disc of `code` centered on (cx, cy) with radius r. When `onlyGround`
+   * is set, only GROUND cells are overwritten (so cover never buries lakes or
+   * rock). Shared by lakes, rock formations, and cover patches.
+   */
+  #stampDisc(cx, cy, r, code, onlyGround = false) {
+    const rSquared = r * r;
+    const minX = Math.max(0, Math.floor(cx - r));
+    const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
+    const minY = Math.max(0, Math.floor(cy - r));
+    const maxY = Math.min(this.#height - 1, Math.ceil(cy + r));
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy <= rSquared) {
+          const idx = this.#index(x, y);
+          if (!onlyGround || this.#cells[idx] === TerrainType.GROUND) this.#cells[idx] = code;
+        }
+      }
+    }
   }
 
   #carveLakes(random, params) {
@@ -190,51 +221,123 @@ export class TerrainGrid {
       const cx = random.int(0, this.#width - 1);
       const cy = random.int(0, this.#height - 1);
       const r = radius * random.float(0.7, 1.15);
-      const rSquared = r * r;
-      const minX = Math.max(0, Math.floor(cx - r));
-      const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
-      const minY = Math.max(0, Math.floor(cy - r));
-      const maxY = Math.min(this.#height - 1, Math.ceil(cy + r));
-      for (let y = minY; y <= maxY; y += 1) {
-        for (let x = minX; x <= maxX; x += 1) {
-          const dx = x - cx;
-          const dy = y - cy;
-          if (dx * dx + dy * dy <= rSquared) this.#set(x, y, TerrainType.WATER);
-        }
+      this.#stampDisc(cx, cy, r, TerrainType.WATER);
+    }
+  }
+
+  #carveRockFormations(random, params) {
+    const count = Math.max(0, Math.round(params.ridges ?? 0));
+    const minR = Math.max(0.5, params.rockFormationMinRadius);
+    const maxR = Math.max(minR, params.rockFormationMaxRadius);
+    const minSteps = Math.max(1, Math.round(params.rockFormationMinSteps));
+    const maxSteps = Math.max(minSteps, Math.round(params.rockFormationMaxSteps));
+    const drift = params.rockFormationDrift;
+    for (let n = 0; n < count; n += 1) {
+      // Each formation grows from a random start by stamping a chain of
+      // overlapping discs whose center drifts a random direction each step. The
+      // step count sets the formation's size and the drift makes its outline
+      // irregular, so rock reads as scattered outcrops rather than a wall.
+      let cx = random.float(0, this.#width);
+      let cy = random.float(0, this.#height);
+      const steps = random.int(minSteps, maxSteps);
+      for (let s = 0; s < steps; s += 1) {
+        const r = random.float(minR, maxR);
+        this.#stampDisc(cx, cy, r, TerrainType.ROCK);
+        const angle = random.float(0, Math.PI * 2);
+        const stepLen = r * drift;
+        cx += Math.cos(angle) * stepLen;
+        cy += Math.sin(angle) * stepLen;
       }
     }
   }
 
-  #carveRidges(random, params) {
-    const thickness = Math.max(1, Math.round(params.ridgeThickness));
-    for (let n = 0; n < params.ridges; n += 1) {
-      // A straight rock ridge from one point across the world, thickened
-      // perpendicular to its direction.
-      const horizontal = random.chance(0.5);
-      if (horizontal) {
-        const y0 = random.int(0, this.#height - 1);
-        const slope = random.float(-0.3, 0.3);
-        for (let x = 0; x < this.#width; x += 1) {
-          const y = Math.round(y0 + slope * (x - this.#width / 2));
-          for (let t = -Math.floor(thickness / 2); t <= Math.floor(thickness / 2); t += 1) {
-            this.#set(x, y + t, TerrainType.ROCK);
-          }
-        }
-      } else {
-        const x0 = random.int(0, this.#width - 1);
-        const slope = random.float(-0.3, 0.3);
-        for (let y = 0; y < this.#height; y += 1) {
-          const x = Math.round(x0 + slope * (y - this.#height / 2));
-          for (let t = -Math.floor(thickness / 2); t <= Math.floor(thickness / 2); t += 1) {
-            this.#set(x + t, y, TerrainType.ROCK);
-          }
-        }
+  /**
+   * Guarantee that all passable cells form a single 4-connected component, so no
+   * pocket of passable ground is walled off by rock. Passable cells are labeled
+   * into components; if more than one exists, every component but the largest is
+   * linked to it by carving the shortest rock corridor (rock → ground) found by
+   * a breadth-first search seeded from the main component. Deterministic:
+   * components and their representatives are chosen in row-major / ascending-id
+   * order, and the BFS expands neighbors in a fixed order.
+   */
+  #ensureConnectivity() {
+    const w = this.#width;
+    const h = this.#height;
+    const n = w * h;
+    const cells = this.#cells;
+    const passable = (i) => PASSABLE_BY_CODE[cells[i]];
+
+    // Label 4-connected components of passable cells.
+    const comp = new Int32Array(n).fill(-1);
+    const sizes = [];
+    const stack = [];
+    for (let start = 0; start < n; start += 1) {
+      if (!passable(start) || comp[start] !== -1) continue;
+      const id = sizes.length;
+      let size = 0;
+      comp[start] = id;
+      stack.push(start);
+      while (stack.length > 0) {
+        const i = stack.pop();
+        size += 1;
+        const x = i % w;
+        const y = (i - x) / w;
+        if (x > 0 && passable(i - 1) && comp[i - 1] === -1) { comp[i - 1] = id; stack.push(i - 1); }
+        if (x < w - 1 && passable(i + 1) && comp[i + 1] === -1) { comp[i + 1] = id; stack.push(i + 1); }
+        if (y > 0 && passable(i - w) && comp[i - w] === -1) { comp[i - w] = id; stack.push(i - w); }
+        if (y < h - 1 && passable(i + w) && comp[i + w] === -1) { comp[i + w] = id; stack.push(i + w); }
+      }
+      sizes.push(size);
+    }
+    if (sizes.length <= 1) return;
+
+    // The largest component is the mainland the others must reach (lowest id
+    // wins a tie, for determinism).
+    let mainId = 0;
+    for (let id = 1; id < sizes.length; id += 1) {
+      if (sizes[id] > sizes[mainId]) mainId = id;
+    }
+
+    // Multi-source BFS across the whole grid (stepping through any cell,
+    // including rock) from every mainland cell, recording each cell's distance
+    // to the mainland and the neighbor it was reached from.
+    const dist = new Int32Array(n).fill(-1);
+    const parent = new Int32Array(n).fill(-1);
+    const queue = new Int32Array(n);
+    let qHead = 0;
+    let qTail = 0;
+    for (let i = 0; i < n; i += 1) {
+      if (comp[i] === mainId) { dist[i] = 0; queue[qTail++] = i; }
+    }
+    while (qHead < qTail) {
+      const i = queue[qHead++];
+      const x = i % w;
+      const y = (i - x) / w;
+      if (x > 0 && dist[i - 1] === -1) { dist[i - 1] = dist[i] + 1; parent[i - 1] = i; queue[qTail++] = i - 1; }
+      if (x < w - 1 && dist[i + 1] === -1) { dist[i + 1] = dist[i] + 1; parent[i + 1] = i; queue[qTail++] = i + 1; }
+      if (y > 0 && dist[i - w] === -1) { dist[i - w] = dist[i] + 1; parent[i - w] = i; queue[qTail++] = i - w; }
+      if (y < h - 1 && dist[i + w] === -1) { dist[i + w] = dist[i] + 1; parent[i + w] = i; queue[qTail++] = i + w; }
+    }
+
+    // For each stranded component, carve the shortest corridor to the mainland:
+    // take its cell nearest the mainland and follow the BFS parents back,
+    // turning the intervening rock into ground.
+    for (let id = 0; id < sizes.length; id += 1) {
+      if (id === mainId) continue;
+      let best = -1;
+      for (let i = 0; i < n; i += 1) {
+        if (comp[i] !== id) continue;
+        if (best === -1 || dist[i] < dist[best]) best = i;
+      }
+      if (best === -1) continue;
+      for (let cur = best; cur !== -1 && dist[cur] > 0; cur = parent[cur]) {
+        if (!PASSABLE_BY_CODE[cells[cur]]) cells[cur] = TerrainType.GROUND;
       }
     }
   }
 
   #growCoverPatches(random, params) {
-    // Clumped cover on ground cells only (lakes/ridges are preserved). Patch
+    // Clumped cover on ground cells only (lakes/rock are preserved). Patch
     // count scales with world area so density is size-independent, and blobs
     // keep the run-length encoding compact.
     const area = this.#width * this.#height;
@@ -244,20 +347,7 @@ export class TerrainGrid {
       const cx = random.int(0, this.#width - 1);
       const cy = random.int(0, this.#height - 1);
       const r = baseRadius * random.float(0.6, 1.2);
-      const rSquared = r * r;
-      const minX = Math.max(0, Math.floor(cx - r));
-      const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
-      const minY = Math.max(0, Math.floor(cy - r));
-      const maxY = Math.min(this.#height - 1, Math.ceil(cy + r));
-      for (let y = minY; y <= maxY; y += 1) {
-        for (let x = minX; x <= maxX; x += 1) {
-          const dx = x - cx;
-          const dy = y - cy;
-          if (dx * dx + dy * dy <= rSquared && this.#cells[this.#index(x, y)] === TerrainType.GROUND) {
-            this.#cells[this.#index(x, y)] = TerrainType.COVER;
-          }
-        }
-      }
+      this.#stampDisc(cx, cy, r, TerrainType.COVER, true);
     }
   }
 }
