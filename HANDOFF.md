@@ -1,3 +1,9 @@
+> **⚠ Superseded by [`DOCS.md`](DOCS.md).** Everything below — the current-state
+> table, the conventions, and the open items — is consolidated there alongside
+> the architecture, subsystem, protocol, and performance reference, and kept in
+> sync there rather than here. Read `DOCS.md §1` for open work and `§15` for the
+> conventions. This file is retained as the historical handoff record.
+
 ## State at handoff
 
 **As of 2026-07-21.** Every figure below, and every measurement quoted in

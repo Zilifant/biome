@@ -35,7 +35,8 @@ determinism check.
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —
-which is the only way these are comparable (see PLAN.md §5).
+which is the only way these are comparable (see DOCS.md, "How to read this
+document").
 
 | Scenario | World | Start→end entities | ms/tick | before Step 30 | ticks/sec |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -316,4 +317,4 @@ preserved. Covered by `test/event-bus.test.js`.
   1 s budget.
 - If a change regresses large-5k by more than ~2× without a matching feature
   reason, treat it as a hot-path regression and profile before proceeding
-  (PLAN.md risk register: "tick-budget overruns").
+  (DOCS.md §17 risk register: "tick-budget overruns").

@@ -5,11 +5,18 @@ a versioned protocol through which a browser ASCII renderer (and any other
 client) observes and steers it. The engine is the product; Express is only a
 host.
 
-`PLAN.md` is the development roadmap: a linear, numbered sequence of steps
-with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. **Steps 1–30 are done — the roadmap is
-complete**; what remains is the open items in §1.4.
-`HANDOFF.md` is the short version for picking the work back up.
+**[`DOCS.md`](DOCS.md) is the reference documentation** — architecture,
+invariants, subsystem design and the reasoning behind it, the protocol,
+persistence, performance, and testing. Start there.
+**[`ACTION-ITEMS.md`](ACTION-ITEMS.md) is the flat list of everything still
+open**, across the engine and the renderer; `DOCS.md` §1 is the same list with
+the evidence and reasoning attached.
+
+`PLAN.md` is the development roadmap that produced the engine: a linear,
+numbered sequence of 30 steps with dated completion notes. **All 30 are done**,
+so it is now a historical record — read it for provenance (why and when a
+decision was made), not for current state. `HANDOFF.md` is the superseded
+session-handoff summary.
 
 Measurements in this file describe the **current** build and were taken on
 **2026-07-20**, except the performance figures, which were re-measured on
@@ -144,7 +151,7 @@ tick, one real-world second, one rendered frame, one in-world minute. The
 convention lives in `config.time` (`tickMinutes`, `runnerTickMs`) as
 documentation only — it never affects tick math. World coordinates are
 continuous units where 1 unit = 1 grid cell; the full unit model (mass,
-energy, hydration, temperature, …) is defined in `PLAN.md §3`.
+energy, hydration, temperature, …) is defined in [`DOCS.md`](DOCS.md) §5.
 
 Run `npm run benchmark` for the current performance baseline; see
 `BENCHMARK.md`.
@@ -473,8 +480,8 @@ is that predators go extinct about half the time.
 
 That number is measured on **ten** seeds for a reason. Five cannot resolve a
 one-seed difference here, and every tuning decision from Step 26 onward has been
-made against ten (see `config.demo` for the founding counts and `PLAN.md` §1.4
-D14 for what happens when you trust five).
+made against ten (see `config.demo` for the founding counts and
+[`DOCS.md`](DOCS.md) §16 D14 for what happens when you trust five).
 
 **Disease travels ahead of its own symptoms.** An animal that has caught
 something spreads it for a couple of hundred ticks while looking perfectly
@@ -553,7 +560,8 @@ running average of where an animal has been, so a juvenile that kept its natal
 one would spend its life being drawn back to its mother's ground. In the demo,
 young grazers end up a median of **~60 units** from where they were born, on a map
 128 across (measured 2026-07-20; the same mechanism read 70 before the species
-schema landed, which is the sort of drift `PLAN.md` §5 exists to keep honest).
+schema landed, which is the sort of drift [`DOCS.md`](DOCS.md)'s
+"How to read this document" exists to keep honest).
 
 **Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
 bounded region on a clock — a few numbers saying where it is, how wide, and when
@@ -763,8 +771,9 @@ half their lives within two cells of the world boundary, because movement clamps
 at the edge instead of turning away (§1.4 C8). It has been present since Step 5
 and was invisible until Step 28's trail layer made occupancy visible.
 
-`PLAN.md` §1.4 records every deviation and open issue carried forward from the
-completed steps.
+[`ACTION-ITEMS.md`](ACTION-ITEMS.md) lists every open item — known defects,
+deferred scope, structural debt, and unmet targets. [`DOCS.md`](DOCS.md) §1 is
+the same list with each item's evidence and the reasoning behind leaving it.
 
 ## Performance
 

@@ -1,14 +1,24 @@
 # biome — Ecosystem Simulation Development Plan
 
-This is the authoritative, linear development plan for growing the existing
+> **⚠ This plan is complete (Steps 1–30) and is now a historical record.**
+>
+> **For reference documentation — architecture, invariants, subsystem design,
+> the protocol, performance, and every open action item — read
+> [`DOCS.md`](DOCS.md) instead.** It consolidates this file and `HANDOFF.md`
+> into topic-organized reference, and nothing in it depends on reading this one.
+>
+> What this file still uniquely holds is **provenance**: each step's dated
+> completion notes, in the order the work actually happened, including the
+> measurements and false starts behind every decision. Read it when you want to
+> know _why_ or _when_ something was decided. Do not add new steps here.
+
+This was the authoritative, linear development plan for growing the existing
 biome foundation (deterministic headless engine + versioned protocol +
 Dracula ASCII renderer) into an animal-centered artificial-life ecosystem.
 
-**This document is executed one numbered step at a time.** Read the whole
-file, then do only the next incomplete step (see _Future execution
-protocol_ at the end). It does **not** re-plan the completed foundation or
-renderer — those are treated as authoritative except where this audit flags
-remediation.
+**This document was executed one numbered step at a time.** It does **not**
+re-plan the completed foundation or renderer — those are treated as
+authoritative except where the §1 audit flags remediation.
 
 ---
 
