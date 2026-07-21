@@ -772,3 +772,71 @@ describe('social: the herd sandbox', () => {
     assert.ok(told.length > 0, 'somebody was warned by a neighbour');
   });
 });
+
+describe('social: the shared neighbour walk (Step 30)', () => {
+  // The social system reuses the neighbourhood the perception system already
+  // walked (§1.4 C6). That is only sound if its own fallback walk would have
+  // produced the same list, so this pins the two paths against each other
+  // rather than trusting the argument in the comment. A future change to
+  // perception's radius, its stagger, or the grid's ordering breaks this test
+  // before it silently changes the demo.
+  /**
+   * The demo, optionally stale-dating the shared neighbourhood the instant
+   * perception publishes it — which is exactly the state a *staggered*
+   * perception system leaves behind, and forces the social system down its own
+   * grid walk.
+   */
+  function demo({ fallback }) {
+    const engine = createDemoSimulation({ seed: 42 });
+    if (!fallback) return engine;
+    let stamp = engine.world.neighbourhoodTick;
+    Object.defineProperty(engine.world, 'neighbourhoodTick', {
+      get: () => (stamp === null ? null : stamp - 1), // never equal to the current tick
+      set: (value) => {
+        stamp = value;
+      },
+      configurable: true,
+    });
+    return engine;
+  }
+
+  test('reusing perception\'s walk gives the same world as walking the grid again', () => {
+    const shared = demo({ fallback: false });
+    const fallback = demo({ fallback: true });
+    shared.step(400);
+    fallback.step(400);
+    // The sabotage has to have taken, or this compares two identical runs.
+    assert.notEqual(fallback.world.neighbourhoodTick, fallback.tick, 'the fallback engine really is walking the grid');
+    assert.equal(shared.world.neighbourhoodTick, shared.tick, 'the shared engine really is reusing the walk');
+    assert.equal(
+      JSON.stringify(captureSimulationState(shared)),
+      JSON.stringify(captureSimulationState(fallback)),
+      'the optimization is a speed change only — 400 ticks of the demo agree byte for byte',
+    );
+  });
+
+  test('the shared list really is the one being used', () => {
+    // Guard against the test above passing because the fallback never engaged.
+    const engine = demo({ fallback: false });
+    engine.step(2);
+    assert.equal(engine.world.neighbourhoodTick, engine.tick, 'perception stamps the neighbourhood it built');
+    const animal = [...engine.world.entities.all()].find((e) => e.kind === 'animal' && e.alive);
+    const shared = engine.world.neighbourhood.get(animal.id);
+    assert.ok(Array.isArray(shared), 'every living animal gets a neighbour list');
+    assert.equal(shared.length % 2, 0, 'the list is flat [id, distance, ...] pairs');
+    // And it agrees with a fresh query at the same radius.
+    const radius = engine.world.perception.get(animal.id).radius;
+    const expected = engine.world.grid
+      .queryRadius(animal.x, animal.y, radius)
+      .filter((id) => {
+        if (id === animal.id) return false;
+        const other = engine.world.entities.get(id);
+        return other && other.kind === 'animal' && other.alive;
+      });
+    assert.deepEqual(
+      shared.filter((_, i) => i % 2 === 0),
+      expected,
+      'same ids, same ascending order as the grid query it replaces',
+    );
+  });
+});

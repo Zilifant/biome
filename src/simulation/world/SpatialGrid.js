@@ -8,11 +8,30 @@
  * Query results are sorted by ascending entity id so callers observe a
  * deterministic order independent of internal bucket layout.
  */
+
+/**
+ * Bucket keys are packed integers rather than `"x:y"` strings (Step 30): a
+ * radius query touches every cell in its bounding box, and building a string
+ * per cell allocated once per visit in the hottest loop in the engine. The
+ * packing is injective for cell coordinates in ±`KEY_BIAS`, which at the
+ * default cell size covers a world millions of units across — far beyond any
+ * world the engine builds — and the product stays well inside `Number`'s
+ * exact-integer range. Bucket layout is internal either way: results are
+ * sorted by id, so no caller can observe the change.
+ */
+const KEY_BIAS = 1 << 20;
+const KEY_STRIDE = 1 << 21;
+
+/** Shared numeric comparator, so a query does not allocate a closure per call. */
+function ascending(a, b) {
+  return a - b;
+}
+
 export class SpatialGrid {
   #cellSize;
-  /** @type {Map<string, Set<number>>} */
+  /** @type {Map<number, Map<number, {x: number, y: number}>>} bucket key → id → position */
   #cells = new Map();
-  /** @type {Map<number, {x: number, y: number}>} */
+  /** @type {Map<number, {x: number, y: number}>} the same position objects, by id */
   #positions = new Map();
 
   /** @param {number} cellSize */
@@ -42,18 +61,25 @@ export class SpatialGrid {
   }
 
   #key(cellX, cellY) {
-    return `${cellX}:${cellY}`;
+    return (cellX + KEY_BIAS) * KEY_STRIDE + (cellY + KEY_BIAS);
   }
 
-  #addToCell(entityId, x, y) {
+  /**
+   * Buckets hold `id → position`, sharing the very same position object as
+   * `#positions`, so a radius query reads each candidate's coordinates straight
+   * out of the bucket instead of doing a second hash lookup per candidate
+   * (Step 30). Sharing the object rather than copying it is what keeps `move`
+   * a single in-place write.
+   */
+  #addToCell(entityId, x, y, position) {
     const { cellX, cellY } = this.cellCoords(x, y);
     const key = this.#key(cellX, cellY);
     let cell = this.#cells.get(key);
     if (!cell) {
-      cell = new Set();
+      cell = new Map();
       this.#cells.set(key, cell);
     }
-    cell.add(entityId);
+    cell.set(entityId, position);
   }
 
   #removeFromCell(entityId, x, y) {
@@ -75,8 +101,9 @@ export class SpatialGrid {
     if (this.#positions.has(entityId)) {
       throw new Error(`entity ${entityId} is already in the spatial grid`);
     }
-    this.#addToCell(entityId, x, y);
-    this.#positions.set(entityId, { x, y });
+    const position = { x, y };
+    this.#addToCell(entityId, x, y, position);
+    this.#positions.set(entityId, position);
   }
 
   /**
@@ -97,7 +124,7 @@ export class SpatialGrid {
     const newCell = this.cellCoords(newX, newY);
     if (oldCell.cellX !== newCell.cellX || oldCell.cellY !== newCell.cellY) {
       this.#removeFromCell(entityId, position.x, position.y);
-      this.#addToCell(entityId, newX, newY);
+      this.#addToCell(entityId, newX, newY, position);
     }
     position.x = newX;
     position.y = newY;
@@ -125,23 +152,29 @@ export class SpatialGrid {
   queryRadius(x, y, radius) {
     const results = [];
     const radiusSquared = radius * radius;
-    const minCellX = Math.floor((x - radius) / this.#cellSize);
-    const maxCellX = Math.floor((x + radius) / this.#cellSize);
-    const minCellY = Math.floor((y - radius) / this.#cellSize);
-    const maxCellY = Math.floor((y + radius) / this.#cellSize);
+    const cellSize = this.#cellSize;
+    const cells = this.#cells;
+    const minCellX = Math.floor((x - radius) / cellSize);
+    const maxCellX = Math.floor((x + radius) / cellSize);
+    const minCellY = Math.floor((y - radius) / cellSize);
+    const maxCellY = Math.floor((y + radius) / cellSize);
     for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+      // The key packing is linear in cellY, so a row costs one multiply and
+      // then an increment per cell rather than a key build per cell.
+      const rowBase = (cellX + KEY_BIAS) * KEY_STRIDE + KEY_BIAS;
       for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
-        const cell = this.#cells.get(this.#key(cellX, cellY));
-        if (!cell) continue;
-        for (const entityId of cell) {
-          const position = this.#positions.get(entityId);
+        const cell = cells.get(rowBase + cellY);
+        if (cell === undefined) continue;
+        for (const [entityId, position] of cell) {
           const dx = position.x - x;
           const dy = position.y - y;
           if (dx * dx + dy * dy <= radiusSquared) results.push(entityId);
         }
       }
     }
-    return results.sort((a, b) => a - b);
+    // Ascending id is the contract; a query that found at most one entity is
+    // already in that order.
+    return results.length > 1 ? results.sort(ascending) : results;
   }
 
   /**
@@ -152,7 +185,7 @@ export class SpatialGrid {
    */
   queryCell(cellX, cellY) {
     const cell = this.#cells.get(this.#key(cellX, cellY));
-    return cell ? [...cell].sort((a, b) => a - b) : [];
+    return cell ? [...cell.keys()].sort(ascending) : [];
   }
 
   clear() {

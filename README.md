@@ -7,11 +7,13 @@ host.
 
 `PLAN.md` is the development roadmap: a linear, numbered sequence of steps
 with completion notes, carried-forward issues (§1.4), and the execution
-protocol for continuing the work. Steps 1–29 are done; Step 30 is next.
+protocol for continuing the work. **Steps 1–30 are done — the roadmap is
+complete**; what remains is the open items in §1.4.
 `HANDOFF.md` is the short version for picking the work back up.
 
 Measurements in this file describe the **current** build and were taken on
-**2026-07-20**. They are re-measured when they change rather than inherited —
+**2026-07-20**, except the performance figures, which were re-measured on
+**2026-07-21**. They are re-measured when they change rather than inherited —
 `PLAN.md`'s completion notes keep the historical readings, each dated to the step
 that took it.
 
@@ -360,7 +362,7 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 609 tests.
+ASCII renderer, committed fixtures, and 662 tests.
 
 **World:** seeded terrain (ground / water / impassable rock / cover, with
 per-type traversal costs), a cell-level vegetation biomass field that grows
@@ -425,7 +427,7 @@ Their full loop is implemented:
 | `InjurySystem`       | physiology  | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass                                                                                                                                                                                                            |
 | `CarcassSystem`      | physiology  | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass                                                                                                                                                                                                                             |
 | `AgingSystem`        | lifecycle   | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age                                                                                                                                                                                                                          |
-| `SocialSystem`       | decision    | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop                                                                                                                                                                                                                                      |
+| `SocialSystem`       | decision    | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop. Reads the neighbour list perception already built rather than walking the grid again (Step 30)                                                                                                                                       |
 | `TerritorySystem`    | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance                                                                                                                                                                                                                    |
 | `MigrationSystem`    | decision    | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered)                                                                                                                               |
 | `DisturbanceSystem`  | environment | Raises fires, floods, and storms as bounded regions on a clock, burns the forage inside one once, hurts whatever is standing in it, and drops the record when it ends. Every other effect is derived from that record on read                                                                                                                              |
@@ -749,10 +751,44 @@ and animals both avoid recalling places near one and refuse to rest there.
 
 ## Not built yet
 
-Profile-driven optimization toward tens of thousands of animals.
+The roadmap is complete through Step 30. What is genuinely unbuilt is the
+_mature_ scale target — tens of thousands of animals inside a one-second tick.
+Step 30 profiled the engine and removed the two demonstrated bottlenecks (see
+"Performance" below), which was a fifth of a tick; going further means visiting
+fewer cells per animal or staggering perception, both of which change what the
+simulation computes rather than only how fast.
 
-`PLAN.md` sequences it as Step 30, and §1.4 records the
-deviations and open issues carried forward from the completed steps.
+⚠ The largest known defect is **not** a performance one: animals spend about
+half their lives within two cells of the world boundary, because movement clamps
+at the edge instead of turning away (§1.4 C8). It has been present since Step 5
+and was invisible until Step 28's trail layer made occupancy visible.
+
+`PLAN.md` §1.4 records every deviation and open issue carried forward from the
+completed steps.
+
+## Performance
+
+Measured **2026-07-21** (`npm run benchmark`; see `BENCHMARK.md` for the full
+table, the per-system breakdown, and the history):
+
+| Scenario | Entities | ms/tick |
+| --- | ---: | ---: |
+| demo-default (128×128) | 138→188 | 1.01 |
+| medium-1k (512×512) | 1147→1556 | 9.23 |
+| large-5k (1024×1024) | 5733→7744 | 68.75 |
+
+Every scenario sits far under the one-second authoritative tick budget. Step 30
+took large-5k from 86.59 to 68.75 ms/tick **without changing a single simulated
+outcome** — identical entity counts, byte-identical saves across six seeds, and
+byte-identical renderer fixtures.
+
+Two changes account for nearly all of it. Perception and sociality used to walk
+the same grid neighbourhood separately; perception now publishes the neighbours
+it already found and sociality reads them, which is a system that costs a third
+of what it did. And the perception cell scan — the hottest loop in the engine,
+run once per animal per tick over its whole radius — reads terrain once per cell
+instead of twice, derives its row spans from the circle rather than testing a
+bounding box, and allocates nothing.
 
 ## Architectural invariants (do not violate)
 

@@ -35,6 +35,21 @@ export const TERRAIN_LEGEND = Object.freeze([
 const PASSABLE_BY_CODE = TERRAIN_LEGEND.map((entry) => entry.passable);
 
 /**
+ * Passability of a terrain code, for callers that have already read the code.
+ *
+ * `codeAt` reports ROCK out of bounds and ROCK is impassable, so
+ * `isPassableCode(terrain.codeAt(x, y))` is exactly `terrain.isPassable(x, y)`
+ * — including at the world edge. A scan that needs both therefore reads the
+ * cell once instead of twice (Step 30).
+ *
+ * @param {number} code
+ * @returns {boolean}
+ */
+export function isPassableCode(code) {
+  return PASSABLE_BY_CODE[code];
+}
+
+/**
  * Per-code traversal speed multiplier (authoritative movement cost, not
  * presentation). Ground is unimpeded; wading water and pushing through cover
  * are slower; rock is impassable so its value is unused. Indexed by

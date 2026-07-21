@@ -158,6 +158,16 @@ export class SpeciesRegistry {
    * A species with no `preySpeciesIds` hunts nothing, which is not an oversight
    * but a niche: it is how a scavenger is expressed with no code at all.
    *
+   * ⚠ The linear `includes` is deliberate and was **measured** in Step 30, not
+   * assumed. This is the busiest predicate in the engine — asked twice per
+   * neighbour per animal per tick — so precomputing a `Set` per predator looked
+   * like an obvious win. It is a 35% *loss* at 20M calls: the rosters are one
+   * or zero entries long, and hashing a string costs more than scanning an
+   * array of one. Whole-simulation timings could not resolve the difference in
+   * either direction (§1.4 D24), which is why the answer came from a
+   * microbenchmark of the predicate itself. Revisit only with a roster large
+   * enough to change the arithmetic, and re-measure when you do.
+   *
    * @param {string} predatorSpeciesId @param {string} preySpeciesId
    */
   hunts(predatorSpeciesId, preySpeciesId) {

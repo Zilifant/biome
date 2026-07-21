@@ -32,14 +32,21 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
-## Results (post-Step-25)
+## Results (post-Step-30)
 
-| Scenario | World | Start→end entities | ms/tick | ticks/sec |
-| --- | --- | ---: | ---: | ---: |
-| demo-default | 128×128 | 128→170 | 1.002 | ~998 |
-| small-100 | 256×256 | 107→139 | 0.683 | ~1,465 |
-| medium-1k | 512×512 | 1067→1454 | 9.71 | ~103 |
-| large-5k | 1024×1024 | 5333→7228 | 79.78 | ~13 |
+Measured **2026-07-21**, both columns on the same machine on the same day —
+which is the only way these are comparable (see PLAN.md §5).
+
+| Scenario | World | Start→end entities | ms/tick | before Step 30 | ticks/sec |
+| --- | --- | ---: | ---: | ---: | ---: |
+| demo-default | 128×128 | 138→188 | 1.008 | 1.231 | ~992 |
+| small-100 | 256×256 | 115→150 | 0.671 | 0.841 | ~1,491 |
+| medium-1k | 512×512 | 1147→1556 | 9.230 | 11.566 | ~108 |
+| large-5k | 1024×1024 | 5733→7744 | **68.75** | 86.59 | ~15 |
+
+**Start and end entity counts are unchanged by Step 30, to the animal.** That is
+the point: it optimized nothing but the cost of computing the same world. The
+same seeds serialize byte-identically before and after.
 
 Since Step 16 each scenario seeds **predators alongside prey** at roughly the
 demo's ratio, so these numbers describe a mixed population, not a
@@ -52,6 +59,26 @@ with a cell-level vegetation biomass field, so vegetation cost scales with
 world size, not entity count). End counts now *exceed* the start because
 animals reproduce (Step 12). All scenarios sit far under the one-second
 authoritative tick budget.
+
+### Where the time goes (large-5k, measured 2026-07-21)
+
+Per-system wall clock, taken by wrapping every registered system's `update`.
+The left column is the state Step 30 inherited; the right is after it. Both are
+300-tick runs at ~5.7k entities, so they are comparable to each other but not to
+the table above (which runs 1950 ticks and ends at 7.7k).
+
+| System | before | after |
+| --- | ---: | ---: |
+| `PerceptionSystem` | 38.48 | 27.73 |
+| `SocialSystem` | 15.30 | **5.03** |
+| `DecisionSystem` | 7.80 | 7.53 |
+| `MovementSystem` | 3.16 | 2.93 |
+| everything else (18 systems) | 5.51 | 5.29 |
+| **total** | **70.25** | **48.51** |
+
+Perception and sociality were 77% of a tick and are now 67% of a much cheaper
+one. Every other system is under 1 ms/tick and always has been — §1.4's
+"everything added since Step 7 is O(1) per animal" held up under measurement.
 
 ### History
 - **Step 1** (post event-bus fix): demo 0.0035, small 0.025, medium 0.244,
@@ -228,6 +255,43 @@ authoritative tick budget.
   histogram, fixed traits per species, and a 120-sample history. Metrics never
   enter the per-tick payload; they are fetched through `GET /api/metrics`,
   which is the reason a full aggregate can afford to be this detailed.
+
+- **Steps 26–29** (migration, disturbances, engineering, species schema): no
+  entry here — each is recorded in its PLAN.md completion note instead. The
+  short version is that none of them moved large-5k measurably (79.78 → ~80.97
+  across all four, while carrying ~7% more entities), which is what §1.4
+  predicted: everything since Step 23 is O(1) per animal, and all four
+  deliberately declined to add a **third** neighbour walk.
+
+- **Step 30** (measured optimization): large-5k **86.59 → 68.75 ms/tick
+  (−20.6%)**, and −18% to −20% on every other scenario. The 86.59 is a fresh
+  reading of the *unchanged* code taken the same day, not Step 29's 80.97 —
+  re-baselining first is the whole reason the improvement is believable.
+  Nothing about the simulation changed: identical entity counts, identical
+  serialized state, identical renderer fixtures.
+
+  Two things paid for nearly all of it, and both were named in §1.4 C6 long
+  before this step:
+  1. **The second neighbour walk is gone** (15.30 → 5.03 ms/tick). Perception
+     and sociality walked the same grid neighbourhood separately; perception now
+     publishes the list it already built and the social system reads it. The
+     social system keeps its own walk as a fallback for when perception is
+     staggered or has a shorter radius, and a test runs 400 demo ticks down each
+     path and asserts they agree byte for byte.
+  2. **The perception cell scan got cheaper per cell** (38.48 → 27.73 ms/tick).
+     Row spans come from the circle rather than testing a bounding box; terrain
+     is read once per cell instead of twice; the cheap "nearer than the best so
+     far" test moved ahead of the grid reads it guards; and the best-so-far is
+     held in plain numbers, so a scan allocates nothing. It still visits every
+     cell in the radius — a **ring-search early exit was considered and
+     rejected**, because ring order is by cell offset while the answer is the
+     nearest cell to the animal's *continuous* position, so exiting early would
+     change which cell wins. That is a behaviour change, and this step was not
+     allowed one.
+
+  The supporting changes are the spatial grid's: packed integer bucket keys
+  instead of `"x:y"` strings, and positions stored in the buckets so a candidate
+  costs no second hash lookup.
 
 ## Step 1 remediation recorded here
 

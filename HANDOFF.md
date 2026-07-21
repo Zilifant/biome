@@ -1,19 +1,26 @@
 ## State at handoff
 
-**As of 2026-07-20.** Every figure below, and every measurement quoted in
+**As of 2026-07-21.** Every figure below, and every measurement quoted in
 `PLAN.md`'s completion notes, is a reading taken on a date — not a standing fact.
 See §5 of `PLAN.md` for why that distinction has already bitten once.
 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
-| Steps complete        | 1–29 (Step 30 next — the last one)                     |
-| Tests                 | 609 passing / 0 failing, 161 suites                    |
-| `PROTOCOL_VERSION`    | 27 (unchanged by Step 29)                              |
-| `SAVE_FORMAT_VERSION` | 27                                                     |
-| Benchmark (large-5k)  | ~81 ms/tick, 5733→7744 entities                        |
-| Git                   | Steps 26–29 are **uncommitted** (the user handles git) |
+| Steps complete        | **1–30 — the plan is finished**                        |
+| Tests                 | 662 passing / 0 failing, 170 suites                    |
+| `PROTOCOL_VERSION`    | 28 (unchanged by Step 30)                              |
+| `SAVE_FORMAT_VERSION` | 27 (unchanged by Step 30)                              |
+| Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |
+| Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
 
 Verify with: `npm test`, `npm run benchmark`, `npm run headless -- --ticks=2000 --seed=42`.
+
+⚠ The `609 tests` this file carried into Step 30 was stale by 51. Re-run the
+suite rather than quoting this table.
+
+**There is no Step 31.** What is left is the open ⚠ items below, plus the
+renderer's own roadmap (`src/renderer/PLAN-RENDERER.md`), which advances
+independently.
 
 ## Conventions that are easy to miss
 
@@ -89,6 +96,12 @@ anyway, disturbances give existing machinery a reason, and a trail pull rides
 migration's channel. Four steps running the answer has been to give existing
 behaviour a cause.
 
+⚠ **There is exactly one neighbour walk per tick, and it is perception's.**
+Since Step 30 it publishes its result to `world.neighbourhood`; the social
+system reads that rather than querying the grid again. Adding a system that
+walks the grid per animal re-opens the cost §1.4 C6 spent twenty-three steps
+accumulating. See the Step 30 section below for the two checks a reader owes.
+
 **Effects belong at existing chokepoints.** `world.speedModifierAt` carries
 terrain, disturbances, _and_ worn ground; `world.isShelteredAt` carries cover and
 burrows; `thermalStress` carries weather and storms. Look for the chokepoint
@@ -123,45 +136,59 @@ Prefer asserting the mechanism over the outcome it accumulates into.
 
 **Assert invariants, not population outcomes.** §1.4 D1–D23.
 
-## Step 30 specifics
+## What Step 30 changed, and what it means for the next change
 
-Measured performance optimization — the last step, and the one with the most
-groundwork already laid.
+Large-5k went **86.59 → 68.75 ms/tick (−20.6%)** with the simulation
+bit-for-bit unchanged. Two facts from it are load-bearing going forward.
 
-- **C6 is the named target and has been since Step 7.** Perception and sociality
-  each walk the same grid neighbourhood separately; the second cost +26 ms/tick
-  at large-5k when it landed. Folding them into one loop is the single clearest
-  win, and Steps 25–29 all deliberately declined to add a _third_ walk, so the
-  problem is still exactly two walks wide.
-- **Everything added since is O(1)-per-animal by construction** and should not be
-  on the critical path: migration samples the vegetation field with 16 grid
-  reads on a stagger, disturbance affliction is O(animals × active ≤ 3), and
-  engineering decay walks the _worn_ cells rather than the world. Verify rather
-  than assume, but expect perception to dominate.
-- ⚠ **C8** (new in Step 28) — animals spend ~49% of their time within two cells
-  of the world boundary because movement _clamps_ there. Any occupancy-sensitive
-  optimization (spatial hashing, culling) should know the distribution is that
-  lopsided, and it may be worth fixing on its own merits first.
-- **B5/B6** are the save-size and aging-cost items parked for this step:
-  `utilityBreakdown` and per-entity `traits` persist on the entity, and `age` is
-  stored rather than derived from a `birthTick`.
-- The demo now runs **three species and ~7% more animals** per scenario than the
-  Step 28 baseline, so re-baseline before optimizing.
-- ⚠ Heed D14: the demo's balance is a knife edge, and an optimization that
-  changes iteration order or draw counts changes the _simulation_, not just its
-  speed. `determinism.test.js` is the guard; run ten seeds if anything about
-  ordering moves.
+⚠ **There is now one neighbour walk, and `world.neighbourhood` is it.** The
+perception system publishes the ids and distances it already computed; the
+social system reads them instead of walking the grid again (§1.4 C6, closed).
+**A new system that wants neighbours should read that buffer, not add a third
+walk.** Two conditions must be checked and both already have a helper to copy
+(`SocialSystem#neighboursOf`): the buffer must carry the _current_ tick
+(`world.neighbourhoodTick` — perception supports `updateInterval`), and its
+radius must reach at least as far as yours. A longer list is safe; a shorter one
+silently drops neighbours. Keep the fallback walk — the test that proves the
+optimization sound is a byte-for-byte comparison of the two paths.
+
+⚠ **A ~1% whole-simulation timing difference on this machine is noise, not a
+result** (§1.4 D24). Run-to-run spread at large-5k is ±10%. Step 30 "improved"
+`hunts` with a precomputed `Set`, saw a 1% gain, and only found out from a
+direct microbenchmark that it was a **35% regression** — the rosters are one
+entry long and hashing a string beats scanning an array of one only in theory.
+Benchmark the thing you changed, at a volume where it dominates.
+
+**Before optimizing anything else, re-baseline.** `86.59` was a fresh reading of
+Step 29's unchanged code taken the same day; the figure that file had carried
+was `~81`. Measurements do not keep.
+
+**The profile, so you need not re-derive it.** After Step 30, at large-5k:
+perception 27.7 ms/tick, decision 7.5, social 5.0, movement 2.9, and all
+nineteen other systems together 5.3. `SpatialGrid.queryRadius` is the second
+hottest function at 7.3 ms/tick self time. The remaining perception cost is
+visiting every cell in the radius — cutting it means visiting fewer cells, and
+the obvious way (ring search with early exit) is **not exact** and was rejected
+for that reason, not overlooked.
 
 ## Things deliberately left undone
 
 Recorded in `PLAN.md` §1.4 with reasoning; the ones most likely to matter next:
 
-- **⚠ C8** (5, 28) — the boundary pile-up described above.
+- **⚠ C8** (5, 28) — **animals spend ~49% of their time within two cells of the
+  world boundary**, because movement _clamps_ there instead of turning away.
+  Step 30 left it alone on purpose: it is a behaviour bug wearing a performance
+  costume, and reflecting the heading changes Step 5 for every system, so it
+  needs its own ten-seed measurement. The largest open item in the file.
 - **⚠ A31** (21) — Step 21's selection sandbox has never demonstrated its claim.
   An unmet **Step 21** acceptance criterion, and the oldest open ⚠ in the file.
 - **⚠ A34** (24) — patrolling is near-inert (`patrolSpanFactor` is **6**). Check
   the ramp before theorizing about site fidelity.
-- **C6** (7, 23, 24) — the two neighbour walks. **Step 30**.
+- **C3** (1, 9, 13) — per-tick event volume, never addressed. Step 30 found it in
+  a new place: **events are 42% of a 1.78 MiB demo save**, more than the entire
+  entity array.
+- **B5** (8, 14) — `utilityBreakdown` still persists, now measured at 3.3% of a
+  save. Removing it costs a save-format bump to buy 3%.
 - **A49/A50** (29) — "activity pattern" and "habitat preference" are not schema
   blocks (there is no diurnal cycle, and preference is expressed through
   `migration.tracksForage` and the comfort band); the species roster is a
@@ -182,4 +209,5 @@ Recorded in `PLAN.md` §1.4 with reasoning; the ones most likely to matter next:
 - **A12** (13) — orphan mercy, left alone on purpose.
 - **B1** (4) — `createDemoSimulation.js` was never renamed to `createEcosystem.js`
   (pure churn). **B2 is closed**: `config.demo` is now a founding _roster_.
-- **B5/B6** (8, 11, 14) — save-size and aging-cost items, parked for Step 30.
+- **B6 is closed** (11) — aging costs 0.17 ms/tick, so there is nothing to
+  derive away. B5 is listed above with its measurement.

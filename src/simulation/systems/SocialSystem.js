@@ -131,12 +131,24 @@ export class SocialSystem extends SimulationSystem {
       /** @type {{x: number, y: number, sourceId: number|null, hops: number} | null} */
       let alarmFrom = null;
 
-      for (const otherId of world.grid.queryRadius(entity.x, entity.y, radius)) {
-        if (otherId === entity.id) continue;
+      // The perception system walked this exact neighbourhood a moment ago —
+      // it runs in the `perception` phase and nothing moves between there and
+      // here — so reuse its result rather than walking the grid a second time
+      // (Step 30, §1.4 C6: this second walk cost +26 ms/tick at large-5k when
+      // it landed). Two conditions have to hold, and both are checked rather
+      // than assumed: the neighbourhood must have been built *this* tick (the
+      // perception system supports `updateInterval`), and its radius must reach
+      // at least as far as ours, since a shorter list would silently drop
+      // neighbours. A *longer* list is safe: everything past `radius` fails
+      // both distance gates below, exactly as it would have been excluded from
+      // the query.
+      const neighbours = this.#neighboursOf(world, context, entity, radius);
+      for (let i = 0; i < neighbours.length; i += 2) {
+        const otherId = neighbours[i];
         const other = world.entities.get(otherId);
         if (!other || other.kind !== 'animal' || !other.alive) continue;
         if (other.speciesId !== entity.speciesId) continue;
-        const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
+        const distance = neighbours[i + 1];
 
         // Social avoidance of illness (Step 25), done *without* a new movement
         // action. A visibly sick animal is simply not counted in the herd's
@@ -233,6 +245,37 @@ export class SocialSystem extends SimulationSystem {
     }
 
     this.#applyAlarms(world, context, raised);
+  }
+
+  /**
+   * The neighbours of `entity` within `radius`, as a flat `[id, distance, …]`
+   * array in ascending-id order — from the perception system's walk when that
+   * is usable, and from our own grid query when it is not.
+   *
+   * The fallback is not dead code: it is what keeps this system correct if
+   * perception is ever staggered, disabled, or given a radius shorter than the
+   * social one, and it produces a list indistinguishable from the shared one.
+   * Ascending id matters — the alarm below keeps the *first* candidate on a
+   * hop-count tie, and the centroid sums floats in list order.
+   *
+   * @returns {number[]}
+   */
+  #neighboursOf(world, context, entity, radius) {
+    if (world.neighbourhoodTick === context.tick) {
+      const shared = world.neighbourhood.get(entity.id);
+      if (shared !== undefined && (world.perception.get(entity.id)?.radius ?? 0) >= radius) {
+        return shared;
+      }
+    }
+    const ids = world.grid.queryRadius(entity.x, entity.y, radius);
+    const neighbours = [];
+    for (const otherId of ids) {
+      if (otherId === entity.id) continue;
+      const other = world.entities.get(otherId);
+      if (!other || other.kind !== 'animal' || !other.alive) continue;
+      neighbours.push(otherId, Math.hypot(other.x - entity.x, other.y - entity.y));
+    }
+    return neighbours;
   }
 
   /**

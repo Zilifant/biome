@@ -74,6 +74,25 @@ export class World {
     // state that persists is the `groupId` label on the entity itself.
     /** @type {Map<number, object>} */
     this.social = new Map();
+    // The living animals each animal has within its perception radius, and how
+    // far away they are — the raw result of the neighbour walk the perception
+    // system already performs, kept so the social system does not have to walk
+    // the same neighbourhood a second time (Step 30, §1.4 C6). Transient and
+    // never serialized, exactly like `perception` and `social`.
+    //
+    // Kept beside the perception summary rather than inside it because the
+    // summary is projected to inspection: this is an internal scratch buffer
+    // and must not leak through the protocol (invariant 11). Each entry is a
+    // flat `[id, distance, id, distance, …]` array in ascending-id order, which
+    // is the order `SpatialGrid.queryRadius` guarantees.
+    /** @type {Map<number, number[]>} */
+    this.neighbourhood = new Map();
+    // The tick `neighbourhood` was built on. A consumer must check this: the
+    // perception system supports `updateInterval`, so on a staggered tick the
+    // map holds a stale neighbourhood and the consumer has to walk the grid
+    // itself. Null until the first perception tick.
+    /** @type {number|null} */
+    this.neighbourhoodTick = null;
     // Bounded memory of entities that have left the world (Step 18). Written at
     // the engine's removal chokepoint; see world/lineage.js for why this exists
     // and what "forgotten" means. Insertion-ordered, so eviction is FIFO.
