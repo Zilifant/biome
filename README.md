@@ -22,13 +22,13 @@ npm install
 npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 ```
 
-| Command | Purpose |
-| --- | --- |
-| `npm start` | Run the server without nodemon |
-| `npm run headless -- --ticks=5000 --seed=42` | Advance the simulation as fast as possible, no server |
-| `npm run benchmark` | Deterministic performance baseline across entity counts (see `BENCHMARK.md`) |
-| `npm test` / `npm run test:watch` | Run the `node:test` suite |
-| `npm run fixtures:renderer` | Regenerate the committed renderer protocol fixtures |
+| Command                                      | Purpose                                                                      |
+| -------------------------------------------- | ---------------------------------------------------------------------------- |
+| `npm start`                                  | Run the server without nodemon                                               |
+| `npm run headless -- --ticks=5000 --seed=42` | Advance the simulation as fast as possible, no server                        |
+| `npm run benchmark`                          | Deterministic performance baseline across entity counts (see `BENCHMARK.md`) |
+| `npm test` / `npm run test:watch`            | Run the `node:test` suite                                                    |
+| `npm run fixtures:renderer`                  | Regenerate the committed renderer protocol fixtures                          |
 
 Environment variables for the server: `PORT` (default 3000), `SIM_SEED`
 (default 42), `SIM_TICK_MS` (default 1000).
@@ -85,15 +85,15 @@ Headless Simulation Engine           src/simulation
 Dependency arrows only ever point downward-right in this table; nothing in a
 lower layer knows about a higher one:
 
-| Directory | Responsibility | May import |
-| --- | --- | --- |
-| `src/protocol/` | The versioned contract: commands, snapshots, deltas, event batches, queries, validation | nothing |
-| `src/simulation/` | The deterministic domain engine | `src/protocol` |
-| `src/server/` | Real-time hosting and transports | simulation, protocol |
-| `src/fixtures/` | Deterministic world setup (demo) | simulation |
-| `src/scripts/` | Headless entry points (headless run, benchmark, fixture generation) | fixtures, protocol, simulation |
-| `src/renderer/` | Browser ASCII renderer + committed protocol fixtures | nothing (speaks the protocol as messages only) |
-| `test/` | `node:test` suites | everything |
+| Directory         | Responsibility                                                                          | May import                                     |
+| ----------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `src/protocol/`   | The versioned contract: commands, snapshots, deltas, event batches, queries, validation | nothing                                        |
+| `src/simulation/` | The deterministic domain engine                                                         | `src/protocol`                                 |
+| `src/server/`     | Real-time hosting and transports                                                        | simulation, protocol                           |
+| `src/fixtures/`   | Deterministic world setup (demo)                                                        | simulation                                     |
+| `src/scripts/`    | Headless entry points (headless run, benchmark, fixture generation)                     | fixtures, protocol, simulation                 |
+| `src/renderer/`   | Browser ASCII renderer + committed protocol fixtures                                    | nothing (speaks the protocol as messages only) |
+| `test/`           | `node:test` suites                                                                      | everything                                     |
 
 ## Engine lifecycle and tick model
 
@@ -107,7 +107,7 @@ fast as the CPU allows. One step is one authoritative tick:
    order — they are part of the deterministic input.
 3. Phases run in fixed order:
    `environment → perception → decision → movement → interaction →
-   physiology → lifecycle → cleanup → observation`.
+physiology → lifecycle → cleanup → observation`.
    Within a phase, systems run by ascending `priority`, tie-broken by `id`.
    A system with `updateInterval: N` runs only when `T % N === 0` — this is
    how expensive systems stagger their cost (vegetation regrowth runs every
@@ -115,7 +115,7 @@ fast as the CPU allows. One step is one authoritative tick:
 4. Deferred entity spawns/removals flush after `cleanup`, so `observation`
    systems always see the settled state of the tick.
 
-The runner's pause/resume/speed only change *when* ticks happen, never what
+The runner's pause/resume/speed only change _when_ ticks happen, never what
 a tick computes. Renderer interpolation between ticks is a client concern.
 
 ### Time and units
@@ -185,10 +185,10 @@ built by `src/protocol/`:
   `impairment`, its `stamina` and hunt target, its carcass detail, its
   `mateChoice` block (what its species reads in a mate, its own choosiness, the
   standard it is currently holding, and the last animal it sized up), its
-  `social` block (herd, *derived* dominance, alarm state, who it is defending),
+  `social` block (herd, _derived_ dominance, alarm state, who it is defending),
   its `territory` block (home range, drift from it, ground held, whose claim it
   is standing on), its `disease` block (compartment, whether it is infectious —
-  which is *not* the same as whether it looks ill — and how far through it is),
+  which is _not_ the same as whether it looks ill — and how far through it is),
   its `migration` block (the drift it is currently being steered by, beside the
   live habitat reading that drift was computed from, so a bias is checkable
   rather than mysterious), `caughtIn` (the disturbance covering this animal, or
@@ -208,13 +208,13 @@ built by `src/protocol/`:
   (`{ revision, cells: [{ cellX, cellY, kind, wear }] }`), gated on a revision
   that moves only when a cell becomes or stops being a feature, so the layer
   costs a delta nothing on the overwhelming majority of ticks even though it is
-  *written* on all of them. Only cells deep enough to be something are projected;
+  _written_ on all of them. Only cells deep enough to be something are projected;
   scuffed ground is internal. Region-bounded snapshots supported.
 - **Deltas**: `created` / `updated` (complete public entities) / `removed`
   (ids) plus the domain events of the window; `applyDeltaSnapshot` is the
   reference application algorithm. Deltas never carry terrain (it is static);
   they carry vegetation as a sparse `{ revision, changes: [[cellIndex,
-  level]] }` list, gated by the revision so unchanged ticks cost nothing.
+level]] }` list, gated by the revision so unchanged ticks cost nothing.
 - **Events** (`events.js`): `entity.created`, `entity.moved`,
   `entity.died` (with a `cause`: `starvation`, `dehydration`, `age`,
   `predation`, `injury`, `exposure`, `disease`, `disturbance`),
@@ -226,7 +226,7 @@ built by `src/protocol/`:
   (`{ entityId, sourceId, hops, x, y }` — `hops` is how far the warning has
   travelled from whoever actually saw the predator, so a wave of panic is
   readable), `entity.contested` (`{ entityId, opponentId, winnerId, dominance,
-  opponentDominance, escalated }` — both scores, because dominance decides it and
+opponentDominance, escalated }` — both scores, because dominance decides it and
   there is no roll to report), `entity.disputed` (the same, over ground, plus how
   many cells actually changed hands — the part an observer could not otherwise
   see), `entity.defended`, `entity.hunted`
@@ -237,7 +237,7 @@ built by `src/protocol/`:
   (`{ season, weather, temperature, … }` — the one world-level event, emitted
   on a turn rather than every tick), `entity.provisioned`
   (`{ entityId, guardianId, amount }`), `entity.migrated`
-  (`{ entityId, from, to, distance, reason }` — an animal has moved *house*: its
+  (`{ entityId, from, to, distance, reason }` — an animal has moved _house_: its
   home range has shifted a full range radius from where it last lived, which is a
   different claim from "it walked a long way", and `reason` says whether it was
   following forage or still walking out from where it was born), and
@@ -245,7 +245,7 @@ built by `src/protocol/`:
   (`{ entityId, event, guardianId, x?, y? }` — `weaned` | `dispersed` |
   `orphaned`; a dispersal carries the natal centre it is leaving),
   `environment.disturbed` (`{ disturbanceId, kind, x, y, radius, until }`) and
-  `environment.settled` (the same, plus `durationTicks` — how long it *actually*
+  `environment.settled` (the same, plus `durationTicks` — how long it _actually_
   lasted, the one fact that is gone once the record is). Nothing is emitted per
   tick while a disturbance runs; the region rides in every snapshot instead, so
   a fire costs the event budget exactly two events for its whole life, and
@@ -278,7 +278,7 @@ evaluation and diverge from an uninterrupted run.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
 simulation continues **identically** to an uninterrupted one (tested).
 
-Derived state is *not* saved and is rebuilt on load: the spatial grid, the
+Derived state is _not_ saved and is rebuilt on load: the spatial grid, the
 terrain layer (regenerated from the seed + `config.terrain`), per-entity
 perception summaries, and the metrics report (recomputed on the next metrics
 tick — only its bounded history persists). Restoring verifies the save format version and that the
@@ -349,7 +349,7 @@ temperature, and weather spells that modulate both.
 All three are configured species definitions (`config/species/*` — biology only,
 never glyphs or colors; looked up by id, never branched on by name).
 
-Each species *overrides* a shared set of defaults rather than restating
+Each species _overrides_ a shared set of defaults rather than restating
 everything, so a species file says only what is different about that animal — its
 own body, growth curve, lifespan, metabolism, water economy, senses, and breeding
 schedule. Resolution happens once when the engine is built, into frozen records,
@@ -359,7 +359,7 @@ The predator/prey relation is itself data (`preySpeciesIds`), read in both
 directions: this species hunts those, therefore those fear this one. The corvid
 is the proof that this is real rather than decorative — **its entire
 implementation is one config file**. It is a carnivore, so it can eat carrion;
-it declares *no prey at all*, so nothing finds it anything to hunt and nothing
+it declares _no prey at all_, so nothing finds it anything to hunt and nothing
 fears it. Not a line of engine code was written to add a whole trophic level.
 That no system anywhere branches on a species name is no longer a claim in a
 comment: a source scan fails the build if any species id appears outside the
@@ -385,30 +385,30 @@ where a tradeoff is being paid.
 
 Their full loop is implemented:
 
-| System | Phase | What it does |
-| --- | --- | --- |
-| `WeatherSystem` | environment | Turns the year: season and temperature from the tick, weather drawn in spells |
-| `VegetationSystem` | environment | Logistic growth toward a *seasonally scaled* capacity, so the land browns off in winter and greens up in spring (staggered) |
-| `PerceptionSystem` | perception | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads |
-| `MemorySystem` | perception | Fades each remembered place on its own schedule and forgets it once too faint (staggered) |
-| `HuntingSystem` | interaction | Resolves a capture attempt from the two animals' relative speed, stamina, and condition; a kill leaves a carcass, a miss costs energy and teaches the prey the place is dangerous |
-| `DecisionSystem` | decision | Scores `flee` / `chase` / `stalk` / `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, temperament, and threat; sets the movement intent. `seekMate` steers toward the *best* candidate in sight, not the nearest |
-| `MovementSystem` | movement | Executes the intent: terrain-aware stepping, slowed by cover/water and by injury, refuses impassable cells; sprints for chases and escapes, spending stamina |
-| `FeedingSystem` | interaction | Converts what the species' diet allows into energy — grass from the cell for herbivores, edible mass from a carcass for carnivores — remembering where it ate (or found nothing) |
-| `ReproductionSystem` | interaction | A receptive female sizes up the males in range and takes the best one that clears the standard she is holding; she gestates and births a juvenile carrying both parent ids |
-| `ParentingSystem` | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death |
-| `MetabolismSystem` | physiology | Mass-scaled basal + movement + thermoregulation energy cost, divided by individual efficiency; recovers stamina when not sprinting; starvation or exposure → carcass |
-| `HydrationSystem` | physiology | Dehydration, drinking at water (remembering where), health damage → carcass |
-| `InjurySystem` | physiology | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass |
-| `CarcassSystem` | physiology | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass |
-| `AgingSystem` | lifecycle | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age |
-| `SocialSystem` | decision | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop |
-| `TerritorySystem` | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance |
-| `MigrationSystem` | decision | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered) |
-| `DisturbanceSystem` | environment | Raises fires, floods, and storms as bounded regions on a clock, burns the forage inside one once, hurts whatever is standing in it, and drops the record when it ends. Every other effect is derived from that record on read |
-| `EngineeringSystem` | interaction | Wears the ground animals walk on and digs the ground they rest on, fades what nobody uses, and keeps a drift toward the nearest trail. Runs after movement, so it reads the distance an animal actually just covered |
-| `DiseaseSystem` | physiology | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well |
-| `MetricsSystem` | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state) |
+| System               | Phase       | What it does                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WeatherSystem`      | environment | Turns the year: season and temperature from the tick, weather drawn in spells                                                                                                                                                                                                                                                                              |
+| `VegetationSystem`   | environment | Logistic growth toward a _seasonally scaled_ capacity, so the land browns off in winter and greens up in spring (staggered)                                                                                                                                                                                                                                |
+| `PerceptionSystem`   | perception  | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads                                                                                                                                                                                                                          |
+| `MemorySystem`       | perception  | Fades each remembered place on its own schedule and forgets it once too faint (staggered)                                                                                                                                                                                                                                                                  |
+| `HuntingSystem`      | interaction | Resolves a capture attempt from the two animals' relative speed, stamina, and condition; a kill leaves a carcass, a miss costs energy and teaches the prey the place is dangerous                                                                                                                                                                          |
+| `DecisionSystem`     | decision    | Scores `flee` / `chase` / `stalk` / `eat` / `seekFood` / `drink` / `seekWater` / `recallFood` / `recallWater` / `followParent` / `seekMate` / `rest` / `wander` from hunger, thirst, readiness, dependency, perception, memory, temperament, and threat; sets the movement intent. `seekMate` steers toward the _best_ candidate in sight, not the nearest |
+| `MovementSystem`     | movement    | Executes the intent: terrain-aware stepping, slowed by cover/water and by injury, refuses impassable cells; sprints for chases and escapes, spending stamina                                                                                                                                                                                               |
+| `FeedingSystem`      | interaction | Converts what the species' diet allows into energy — grass from the cell for herbivores, edible mass from a carcass for carnivores — remembering where it ate (or found nothing)                                                                                                                                                                           |
+| `ReproductionSystem` | interaction | A receptive female sizes up the males in range and takes the best one that clears the standard she is holding; she gestates and births a juvenile carrying both parent ids                                                                                                                                                                                 |
+| `ParentingSystem`    | interaction | Provisions unweaned juveniles from the guardian's own energy, weans them, and breaks the bond at maturity or on the guardian's death                                                                                                                                                                                                                       |
+| `MetabolismSystem`   | physiology  | Mass-scaled basal + movement + thermoregulation energy cost, divided by individual efficiency; recovers stamina when not sprinting; starvation or exposure → carcass                                                                                                                                                                                       |
+| `HydrationSystem`    | physiology  | Dehydration, drinking at water (remembering where), health damage → carcass                                                                                                                                                                                                                                                                                |
+| `InjurySystem`       | physiology  | Closes wounds over time at an energy cost, restoring health; an animal too hungry to spare the energy does not heal. Health exhausted → carcass                                                                                                                                                                                                            |
+| `CarcassSystem`      | physiology  | Ages a body through decay stages, removes it once eaten clean or fully rotted, and returns what is left to the cell as biomass                                                                                                                                                                                                                             |
+| `AgingSystem`        | lifecycle   | Growth along a stage curve (juvenile → subadult → adult → senescent) toward the individual's own adult size, and death of old age                                                                                                                                                                                                                          |
+| `SocialSystem`       | decision    | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop                                                                                                                                                                                                                                      |
+| `TerritorySystem`    | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance                                                                                                                                                                                                                    |
+| `MigrationSystem`    | decision    | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered)                                                                                                                               |
+| `DisturbanceSystem`  | environment | Raises fires, floods, and storms as bounded regions on a clock, burns the forage inside one once, hurts whatever is standing in it, and drops the record when it ends. Every other effect is derived from that record on read                                                                                                                              |
+| `EngineeringSystem`  | interaction | Wears the ground animals walk on and digs the ground they rest on, fades what nobody uses, and keeps a drift toward the nearest trail. Runs after movement, so it reads the distance an animal actually just covered                                                                                                                                       |
+| `DiseaseSystem`      | physiology  | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well                                                                                                                                                                                                                              |
+| `MetricsSystem`      | observation | Aggregates trait distributions, generations, reproductive success, and selection differentials (staggered; writes no organism state)                                                                                                                                                                                                                       |
 
 The result is a **multi-generational, self-sustaining population** with a
 complete life cycle: an animal is born, is fed by the parent that bore it, is
@@ -465,12 +465,12 @@ Recovery grants immunity, but immunity **wanes** — so a population that has be
 through an epidemic slowly becomes susceptible again, and with a fresh case
 arriving from outside now and then, disease is a standing pressure rather than a
 single event in the demo's history. The compartment counts are the outbreak
-curve, and they are in the metrics: watching *infectious* run well ahead of
-*visibly sick* is watching the mechanism work. Transmission costs nothing
+curve, and they are in the metrics: watching _infectious_ run well ahead of
+_visibly sick_ is watching the mechanism work. Transmission costs nothing
 between outbreaks, because only infectious animals ever look around.
 
 **Animals live somewhere, and some of them own it.** Every animal carries a
-*home range* that is nothing more than a running average of where it has
+_home range_ that is nothing more than a running average of where it has
 actually been — a centre and a typical distance from it, four numbers updated in
 place, with no record of the path that produced them. Nobody sets the radius: a
 resident's tightens, a rover's widens, and an animal that moves house drags its
@@ -482,7 +482,7 @@ the claim is — and everything else follows from that pair of numbers. Avoidanc
 is a lookup. Conflict is standing on somebody else's claim. Losing a territory
 is a stronger claim overwriting a weaker one. And ground whose owner has died or
 moved on needs no rule at all: the claim simply fades and the next animal
-through writes its own. Taking *occupied* ground wears the resident's claim down
+through writes its own. Taking _occupied_ ground wears the resident's claim down
 rather than overwriting it, which is what makes a boundary settle where two
 animals' marking rates balance instead of wherever the last passer-by stood.
 When an intruder meets an owner who is present to object, they contest — the
@@ -522,7 +522,7 @@ mechanism rather than a feature beside it.
 outgrows its guardian takes an outward heading — straight out from the centre of
 the range it grew up in, so it costs no randomness — and holds it for a bounded
 spell whatever the forage says, because an animal that turned back at the first
-green patch would never leave. Its home range is *cleared* at the same moment,
+green patch would never leave. Its home range is _cleared_ at the same moment,
 which is what makes dispersal spatial rather than bookkeeping: a range is a
 running average of where an animal has been, so a juvenile that kept its natal
 one would spend its life being drawn back to its mother's ground. In the demo,
@@ -532,8 +532,8 @@ schema landed, which is the sort of drift `PLAN.md` §5 exists to keep honest).
 
 **Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
 bounded region on a clock — a few numbers saying where it is, how wide, and when
-it stops — and *everything it does is read off that record rather than written
-into the world*. That is the whole design. A flooded cell is never marked
+it stops — and _everything it does is read off that record rather than written
+into the world_. That is the whole design. A flooded cell is never marked
 flooded; it is slow **while a flood covers it**, and the instant the record
 expires it is ordinary ground again. There is no un-flooding pass to forget, and
 no way to leave the world stuck half-changed. Terrain itself is never touched:
@@ -541,7 +541,7 @@ it regenerates from the seed on load, so an edit to it would quietly disappear
 the first time anyone reloaded a save.
 
 The one thing that really is destroyed is grass, because burnt grass should not
-come back when the fire goes out — it should *grow back*, and the vegetation
+come back when the fire goes out — it should _grow back_, and the vegetation
 already knows how. A fire takes the standing crop inside its circle once, and
 recovery is simply logistic regrowth doing what it always does. Measured: a
 radius-8 fire removes about four fifths of a region's forage, which is back to
@@ -554,7 +554,7 @@ that stopped being worth anything, so the forage drift carries animals off it,
 and a fire writes the same kind of `danger` memory a failed hunt does, which
 animals already refuse to rest near. When the grass returns, the drift brings
 them back. Displacement, avoidance, and recolonization are all behaviour that
-already existed; this only gave it a reason. What being caught in one *does* add
+already existed; this only gave it a reason. What being caught in one _does_ add
 is the first hazard in the world that can wound an animal — until now, only a
 predator or a rival could.
 
@@ -578,7 +578,7 @@ mechanism, it is just what not fading looks like.
 
 Both effects arrive through doors that were already there. The world already had
 one place that decided how fast ground is to cross and one that decided what
-counts as shelter, so packed earth simply *is* quicker and a burrow simply *is*
+counts as shelter, so packed earth simply _is_ quicker and a burrow simply _is_
 sheltering — the movement system and the thermoregulation code never learned that
 features exist. The only genuinely new pull is that an aimless animal drifts
 toward a path it can feel nearby, and even that rides the same wander-steering
@@ -588,7 +588,7 @@ competing with foraging loses.
 The feedback loop is the point: a trail is faster, faster ground attracts
 traffic, traffic deepens the trail. Measured 2026-07-20 on the demo, 96% of trail
 cells touch another one — these are connected paths, not a scatter of worn dots.
-When trails landed they made the population *steadier* rather than larger, lifting
+When trails landed they made the population _steadier_ rather than larger, lifting
 its worst case across ten seeds from 1 surviving grazer to 26; that reading is
 from earlier the same day, against the two-species world of the time, before the
 species schema and a third species changed what the demo is.
@@ -612,7 +612,7 @@ pretending to be one; and every **alarm** carries its distance in hops from
 whoever actually saw the predator, so panic crosses a herd as a wave and then
 stops instead of becoming a chain reaction that never runs out of fuel. An
 animal that has been warned but has seen nothing itself still runs — away from
-where it was *told* the danger was.
+where it was _told_ the danger was.
 
 Herding is deliberately the weakest thing an animal can want. It loses to
 hunger, thirst, weather and predators, which is what makes a herd loose and
@@ -635,7 +635,7 @@ is offered, and she still decides whether to take him.**
 measurably harder to catch — collective vigilance, with diminishing returns and
 a cap, so a large herd is never untouchable. A parent that puts itself between a
 predator and its own calf counts for more, and makes the attempt genuinely
-dangerous for the hunter. Which calf is *its own* comes from the lineage lists
+dangerous for the hunter. Which calf is _its own_ comes from the lineage lists
 themselves; recognition here is ancestry, not a scent. Measured over five seeds,
 sociality does not simply make prey safer — it makes the whole system steadier,
 trading a much lower peak grazer population for never losing them.
@@ -643,10 +643,10 @@ trading a much lower peak grazer population for never losing them.
 **There are two sexes, and one of them chooses.** Females gestate; males clear a
 much lower energy bar and a much shorter refractory period, because they pay for
 one mating rather than a pregnancy. That asymmetry is the whole basis of mate
-choice — without a difference in what a bad mate *costs*, neither party has a
+choice — without a difference in what a bad mate _costs_, neither party has a
 reason to be choosy. It leaves the birth rate roughly where it was (the old
 rule consumed both partners for a full cooldown to make one pregnancy; this one
-consumes only the female), while making a female need a *male* in range rather
+consumes only the female), while making a female need a _male_ in range rather
 than merely another adult.
 
 What she reads is a species fact — grazers display **size**, stalkers display
@@ -685,7 +685,7 @@ run — while the weather is a stochastic spell that holds for a while and then
 re-rolls with season-dependent odds: snow only in winter, drought only in
 summer, rain mostly at the shoulders. Both feed one small record that
 everything downstream reads. Crucially, the season scales what the land can
-*hold*, not just how fast it grows: scaling the growth rate alone leaves a
+_hold_, not just how fast it grows: scaling the growth rate alone leaves a
 field already at capacity stubbornly green, so winter shrinks the ceiling and
 biomass dies back toward it. Animals pay energy to hold their body temperature
 outside their species' comfort band, cover takes roughly half the edge off
@@ -697,7 +697,7 @@ label.
 decay stages, its flesh is worth progressively less at each one, and it leaves
 the world when it is either eaten clean or fully rotted — returning whatever is
 left to the cell as biomass, so the animal that grazed there ends up feeding
-the grass. Carcasses are the first things ever *removed* from the world, which
+the grass. Carcasses are the first things ever _removed_ from the world, which
 means a parent or offspring reference can now point at something that is gone.
 Rather than let those silently dangle, the world keeps a bounded record of the
 recently dead: a lineage reference resolves to `alive`, `carcass`, `dead` (gone,
