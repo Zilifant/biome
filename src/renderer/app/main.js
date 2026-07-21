@@ -71,6 +71,7 @@ ui.controls = new Controls(document.getElementById('controls-panel'), {
   // Stepping pauses first, so the button never fails on a running simulation.
   onStep: (ticks) => appRef.current.stepTicks(ticks),
   onToggleRun: () => appRef.current.toggleRun(),
+  onRestart: (command) => appRef.current.restart(command),
   onRecenter: () => appRef.current.recenter(),
   onReconnect: () => appRef.current.reconnect(),
 });

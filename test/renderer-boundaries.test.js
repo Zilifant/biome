@@ -35,8 +35,15 @@ describe('renderer architectural boundary', () => {
       { pattern: /\brequire\s*\(/, label: 'CommonJS require' },
       { pattern: /\bMath\.random\b/, label: 'unseeded randomness (presentation must be deterministic)' },
     ];
+    // Strip comments before scanning, exactly as the engine-side scan in
+    // engine.test.js does and for the same reason (§1.4 D6): these patterns are
+    // about what the code *does*, and prose explaining why `Math.random` is
+    // banned here is not itself a violation. A scan that fires on documentation
+    // trains people to word around it rather than to trust it.
+    const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
     for (const file of files) {
-      const source = readFileSync(file, 'utf8');
+      const raw = readFileSync(file, 'utf8');
+      const source = stripComments(raw);
       for (const { pattern, label } of forbidden) {
         assert.ok(!pattern.test(source), `${path.relative(projectRoot, file)} contains forbidden ${label}`);
       }

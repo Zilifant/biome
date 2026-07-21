@@ -181,14 +181,22 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `27`) and is
+Everything a client sees carries `protocolVersion` (currently `28`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
-  `simulation.resume`, `simulation.setSpeed`, `simulation.step` (host-level,
-  applied by the runner) and `entity.spawn`, `entity.remove` (engine-level,
-  queued and applied at the next tick boundary). Results are structured
-  `{ ok, ... }` or `{ ok: false, error: { code, message } }`.
+  `simulation.resume`, `simulation.setSpeed`, `simulation.step`,
+  `simulation.restart` (host-level, applied by the runner) and `entity.spawn`,
+  `entity.remove` (engine-level, queued and applied at the next tick boundary).
+  Results are structured `{ ok, ... }` or `{ ok: false, error: { code, message } }`.
+  **`simulation.restart`** (protocol v28) rebuilds the world from a seed and is
+  the one command whose result cannot be a delta — the new world shares no ids,
+  no tick, and not even a `simulationId`, so every client is sent a full
+  snapshot. Its `seed` is optional: name one for a specific world, or omit it
+  and the *host* picks at random and reports back which it chose. The host rolls
+  that die because `src/simulation`, `src/protocol`, and the renderer all ban
+  unseeded randomness — a client that wants to replay a world simply names the
+  seed it was given.
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,

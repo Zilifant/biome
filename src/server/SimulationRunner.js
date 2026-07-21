@@ -26,18 +26,70 @@ export class SimulationRunner extends EventEmitter {
   #lastSnapshot;
 
   /**
+   * Builds a fresh engine for a seed. Optional: a runner without one simply
+   * refuses to restart rather than pretending it can.
+   * @type {((seed: number) => import('../simulation/engine/SimulationEngine.js').SimulationEngine) | null}
+   */
+  #createEngine;
+
+  /**
    * @param {object} options
    * @param {import('../simulation/engine/SimulationEngine.js').SimulationEngine} options.engine
    * @param {number} [options.tickIntervalMs] base interval at speed 1
+   * @param {(seed: number) => import('../simulation/engine/SimulationEngine.js').SimulationEngine} [options.createEngine]
+   *        factory used by `restart`; the host supplies it, so the runner never
+   *        needs to know how a world is composed
    */
-  constructor({ engine, tickIntervalMs = 1000 }) {
+  constructor({ engine, tickIntervalMs = 1000, createEngine = null }) {
     super();
     this.engine = engine;
+    this.#createEngine = createEngine;
     this.baseTickIntervalMs = tickIntervalMs;
     this.speed = 1;
     this.started = false;
     this.paused = false;
     this.#lastSnapshot = this.getFullSnapshot();
+  }
+
+  /**
+   * Replace the world with a freshly built one and report it whole.
+   *
+   * A restart is the one change that cannot be expressed as a delta: the new
+   * world shares no entity ids, no tick, and not even a `simulationId` with the
+   * old one, so clients are sent a **full snapshot** rather than a diff. That is
+   * also why it emits its own event — a 'tick' would be a lie about what
+   * happened.
+   *
+   * Determinism is unaffected and in fact reinforced: the seed fully determines
+   * the new world, so a restart is reproducible and the chosen seed is always
+   * reported back — including when the caller let the host choose it.
+   *
+   * **The host rolls the die, never the client.** Picking a random world is a
+   * wall-clock concern like the tick timer, and it lives at the one layer that
+   * is allowed nondeterminism: `src/simulation` and `src/protocol` ban
+   * `Math.random` outright, and so does the renderer, on the grounds that
+   * presentation must be reproducible from its inputs. A client that wants a
+   * *specific* world names it; a client that wants *a* world omits the seed and
+   * is told which one it got. Replaying the current world is then just naming
+   * the seed you were already given.
+   *
+   * @param {number} [seed] omit to have the host pick one at random
+   * @returns {{seed: number, simulationId: string}}
+   */
+  restart(seed) {
+    if (!this.#createEngine) {
+      throw new Error('this runner was built without an engine factory and cannot restart');
+    }
+    const chosen = seed === undefined ? Math.floor(Math.random() * 0x100000000) : seed;
+    const wasPaused = this.paused;
+    this.#clearTimer();
+    this.engine = this.#createEngine(chosen >>> 0);
+    this.#lastSnapshot = this.getFullSnapshot();
+    // The run state is the *host's*, not the world's, so it survives a restart:
+    // a viewer who paused to look at something has not asked to be un-paused.
+    if (this.started && !wasPaused) this.#schedule();
+    this.emit('restart', { snapshot: this.#lastSnapshot });
+    return { seed: this.engine.seed, simulationId: this.engine.simulationId };
   }
 
   start() {
@@ -156,6 +208,10 @@ export class SimulationRunner extends EventEmitter {
   getStatus() {
     return {
       simulationId: this.engine.simulationId,
+      // Which world this is. A restart is driven by the seed, so a client that
+      // wants to replay or share what it is watching needs to be told the one
+      // in effect rather than remembering what it last asked for.
+      seed: this.engine.seed,
       protocolVersion: PROTOCOL_VERSION,
       tick: this.engine.tick,
       entityCount: this.engine.entityCount,
@@ -194,6 +250,14 @@ export class SimulationRunner extends EventEmitter {
         }
         this.stepManually(command.ticks ?? 1);
         return okResult({ tick: this.engine.tick });
+      case CommandTypes.SIMULATION_RESTART: {
+        try {
+          const { seed, simulationId } = this.restart(command.seed);
+          return okResult({ seed, simulationId, tick: this.engine.tick, paused: this.paused, speed: this.speed });
+        } catch (error) {
+          return errorResult('restart-unsupported', String(error.message ?? error));
+        }
+      }
       default:
         return errorResult('unsupported-command', `unhandled runner command "${command.type}"`);
     }

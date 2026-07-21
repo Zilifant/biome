@@ -17,6 +17,7 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
+  SIMULATION_RESTART: 'simulation.restart', //     { seed? } rebuild the world
   ENTITY_SPAWN: 'entity.spawn', //                { entity: {...} }
   ENTITY_REMOVE: 'entity.remove', //              { entityId }
 });
@@ -26,6 +27,7 @@ export const RUNNER_COMMAND_TYPES = new Set([
   CommandTypes.SIMULATION_RESUME,
   CommandTypes.SIMULATION_SET_SPEED,
   CommandTypes.SIMULATION_STEP,
+  CommandTypes.SIMULATION_RESTART,
 ]);
 
 export const ENGINE_COMMAND_TYPES = new Set([
@@ -47,6 +49,8 @@ export const ENTITY_KINDS = Object.freeze(['animal', 'plant', 'carcass']);
 export const SEXES = Object.freeze(['female', 'male']);
 
 export const MAX_SPEED_MULTIPLIER = 64;
+/** Seeds are unsigned 32-bit, matching the engine's `seed >>> 0`. */
+export const MAX_SEED = 0xffffffff;
 export const MAX_MANUAL_STEP_TICKS = 10000;
 
 /**

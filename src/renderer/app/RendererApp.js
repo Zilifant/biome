@@ -15,6 +15,7 @@ import { compareOccupants } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
 import { TransportEvents } from './transports/RendererTransport.js';
 import { describeCell } from './ui/CellDetail.js';
+import { matchWatched } from './ui/Watchlist.js';
 
 /**
  * Pointer movement, in CSS pixels, past which a press is a pan rather than a
@@ -197,6 +198,7 @@ export class RendererApp {
       const result = this.#store.applyDelta(delta);
       if (result.applied) {
         this.#followCamera();
+        this.#checkWatchlist(delta.events);
       }
     } catch (error) {
       if (error instanceof StoreDesyncError) {
@@ -260,6 +262,7 @@ export class RendererApp {
    * @param {{paused?: boolean, speed?: number, running?: boolean}} report
    */
   #applyRunState(report) {
+    if (typeof report?.seed === 'number') this.#ui.controls.setSeed(report.seed);
     if (typeof report?.paused === 'boolean') this.#runState.paused = report.paused;
     if (typeof report?.speed === 'number') this.#runState.speed = report.speed;
     if (typeof report?.running === 'boolean') this.#runState.running = report.running;
@@ -286,6 +289,61 @@ export class RendererApp {
     }
     const result = await this.sendCommand({ type: 'simulation.step', ticks });
     this.#ui.controls.showResult({ type: 'simulation.step', ticks }, result);
+    return result;
+  }
+
+  /**
+   * Pause when a watched event goes by, and show what stopped it.
+   *
+   * Renderer policy over authoritative output: the engine emits the events it
+   * always did and this responds with the ordinary pause command. It stops
+   * *just after* the event rather than at it — the delta for that tick is
+   * already applied and the pause is a round trip on top — so at high speed it
+   * can overshoot. Pausing exactly at the event would be a breakpoint inside
+   * the runner, which is a protocol change rather than a renderer feature.
+   *
+   * @param {object[]} events the batch that arrived with this delta
+   */
+  #checkWatchlist(events) {
+    if (this.#mode !== 'live' || this.#runState.paused !== false) return;
+    const match = matchWatched(events, this.#ui.controls.watching);
+    if (!match) return;
+    // Guard against a second trigger from the same batch while the pause is in
+    // flight: the flag only turns true when the host confirms.
+    this.#runState.paused = true;
+    this.sendCommand({ type: 'simulation.pause' }).then((result) => {
+      if (!result?.ok) {
+        this.#runState.paused = false;
+        return;
+      }
+      this.#ui.controls.setStatus(`paused: ${match.watchable.label} (t${match.event.tick})`, 'warn');
+      // Go to it. Being interrupted is only useful if you can see what for.
+      const entityId = match.event.entityId ?? match.event.disturbanceId ?? null;
+      if (typeof entityId === 'number') this.selectEntity(entityId);
+      else if (typeof match.event.x === 'number') {
+        this.#camera.centerOn(match.event.x, match.event.y);
+        this.#camera.clampToWorld(this.#store.world);
+        this.#dirty = true;
+      }
+    });
+  }
+
+  /**
+   * Rebuild the world. A restart shares no ids, no tick, and not even a
+   * `simulationId` with what came before, so everything the renderer holds
+   * about the old world — selection, inspection detail, follow target — is
+   * dropped rather than left pointing at animals that no longer exist.
+   * @param {object} command
+   */
+  async restart(command) {
+    const result = await this.sendCommand(command);
+    this.#ui.controls.showResult(command, result);
+    if (!result?.ok) return result;
+    this.clearSelection();
+    this.#store.setFollowedEntity(null);
+    this.#hasCentered = false;
+    this.#ui.controls.setSeed(result.seed);
+    this.#ui.controls.setStatus(`restarted — seed ${result.seed}`, 'ok');
     return result;
   }
 
@@ -620,6 +678,8 @@ export class RendererApp {
         case ' ':
           if (this.#mode === 'live') this.toggleRun();
           break;
+        case '[': this.#ui.controls.stepSpeed(-1); break;
+        case ']': this.#ui.controls.stepSpeed(1); break;
         default:
           handled = false;
       }

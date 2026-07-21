@@ -73,7 +73,8 @@ app/
     Legend.js                 the key to the grid, generated from the appearance registries
     MetricsPanel.js           population histograms, generations, selection differentials (polled)
     EventLog.js               bounded domain-event list (moves filtered by default)
-    Controls.js               protocol-command buttons + camera buttons
+    Watchlist.js              which events are worth auto-pausing on (pure)
+    Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
   styles/
     dracula.css               the Dracula Classic palette (single source of color)
     renderer.css              layout and panel styling
@@ -156,6 +157,7 @@ the remembered open/closed state, so it must be stable.
 | C | Recenter camera |
 | Esc | Clear selection |
 | Space | Pause/resume via protocol command (live mode) |
+| `[` / `]` | Slower / faster (steps the speed ladder) |
 | Buttons | Pause/resume, step `+1 / +10 / +100`, `Advance N`, speed — protocol commands; Recenter, Reconnect/Replay |
 
 Following moves the camera, never the entity. Camera movement sends nothing
@@ -181,6 +183,54 @@ runner's timer is going, so the step controls send `simulation.pause`, await it,
 and then step — two existing commands in sequence, entirely renderer-side. A
 step of N ticks arrives as **one** delta rather than N (see the host note in the
 root `README.md`), so `Advance 500` is a single message.
+
+**Speed is a ladder, nudged rather than picked.** `«` and `»` (or `[` and `]`)
+step through 0.25x–32x, showing the current rate between them. A dropdown made
+you look away from the grid to change speed, which is the one thing you are
+trying not to do while watching something happen.
+
+## Pause on…
+
+Most of what makes this world interesting happens in one tick somewhere you were
+not looking. The **Pause on** panel watches the event stream and stops the
+simulation when something you ticked goes by — a kill, a birth, a fire starting,
+an animal sickening — then reports what stopped it and jumps the camera there.
+
+This is renderer *policy* over authoritative output, not simulation logic: the
+engine emits the events it always did, and the renderer replies with the
+ordinary `simulation.pause` command. `Watchlist.js` holds the mapping and
+`matchWatched` is pure, so the whole policy is testable without a DOM.
+
+⚠ **It pauses just after the event, not at it.** The delta for that tick has
+already been applied and the pause is a round trip on top, so at 1x you stop on
+the next tick and at high speed you may overshoot several. Stopping exactly at
+the event would mean a breakpoint inside the runner — more precise, and a
+protocol change rather than a renderer feature.
+
+Frequencies are not intuitive and the hints say so. Measured over ~480 demo
+ticks: courtship fired 79 times and migration 44, against 4 kills, 1 birth, and
+1 disturbance. "Pause on courtship" stops you every few ticks.
+
+## Restarting the world
+
+The **Restart** panel rebuilds the world from a seed (protocol v28). Name a seed
+for a specific world, press **Random seed** to get any world, or **Replay this
+one** to start the current seed over.
+
+**The host picks the random seed, not the renderer.** Presentation has to be
+reproducible from its inputs, and `Math.random` is banned in `app/` for the same
+reason it is banned in the engine —
+`test/renderer-boundaries.test.js` enforces it. So omitting the seed asks the
+host for any world and the result reports which one it chose; that number lands
+in the seed field, which is what makes "replay this one" simply naming the seed
+you were already given.
+
+A restart is the one change that cannot be a delta — the new world shares no
+ids, no tick, and not even a `simulationId` — so the host broadcasts a full
+snapshot and the store *replaces* its state. The renderer drops its selection,
+inspection detail, and follow target rather than leaving them pointing at
+animals that no longer exist. The run state (paused, speed) belongs to the host
+rather than the world and deliberately survives.
 
 **The cell is the unit of selection, not the entity.** Clicking bare ground
 selects the ground and reports it — terrain and its authoritative passability,

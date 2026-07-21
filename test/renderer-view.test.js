@@ -18,6 +18,7 @@ import {
 } from '../src/renderer/app/rendering/EntityAppearance.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend } from '../src/renderer/app/ui/Legend.js';
+import { matchWatched, WATCHABLE } from '../src/renderer/app/ui/Watchlist.js';
 
 describe('entity appearance', () => {
   test('appearance lookup is deterministic and species-aware', () => {
@@ -426,5 +427,85 @@ describe('entity references', () => {
   test('a tick reference is not mistaken for an entity id', () => {
     // `t1205` has no `#`, so it must stay plain text.
     assert.doesNotMatch(linkifyIds('ended at t1205'), /data-entity/);
+  });
+});
+
+describe('auto-pause watchlist', () => {
+  // Renderer policy over authoritative output: the engine emits what it always
+  // did, and the renderer decides whether that is worth stopping for.
+  const enabled = (...ids) => new Set(ids);
+
+  test('nothing watched means nothing matches, whatever happens', () => {
+    const events = [{ type: 'entity.killed', entityId: 3 }, { type: 'entity.born', entityId: 9 }];
+    assert.equal(matchWatched(events, new Set()), null);
+    assert.equal(matchWatched(events, null), null);
+  });
+
+  test('a watched event matches and reports which watchable caught it', () => {
+    const match = matchWatched([{ type: 'entity.killed', entityId: 3 }], enabled('predation'));
+    assert.equal(match.watchable.id, 'predation');
+    assert.equal(match.event.entityId, 3);
+  });
+
+  test('an unwatched event is ignored even in a busy batch', () => {
+    const events = [
+      { type: 'entity.moved', entityId: 1 },
+      { type: 'entity.fed', entityId: 2 },
+      { type: 'entity.born', entityId: 3 },
+    ];
+    assert.equal(matchWatched(events, enabled('predation')), null);
+    assert.equal(matchWatched(events, enabled('birth')).event.entityId, 3);
+  });
+
+  test('one watchable can cover several event types', () => {
+    // A contest over a mate and a contest over ground are the same thing to a
+    // viewer, so they are one checkbox.
+    assert.equal(matchWatched([{ type: 'entity.disputed' }], enabled('conflict')).watchable.id, 'conflict');
+    assert.equal(matchWatched([{ type: 'entity.contested' }], enabled('conflict')).watchable.id, 'conflict');
+  });
+
+  test('the first watched event wins, in the order the engine emitted them', () => {
+    // A tick can carry a kill and the death it caused; picking between them
+    // would invent a hierarchy the engine does not have.
+    const events = [{ type: 'entity.killed', entityId: 5 }, { type: 'entity.died', entityId: 5 }];
+    assert.equal(matchWatched(events, enabled('predation', 'death')).watchable.id, 'predation');
+    assert.equal(matchWatched([...events].reverse(), enabled('predation', 'death')).watchable.id, 'death');
+  });
+
+  test('every watchable has a unique id and at least one event type', () => {
+    // The id keys the remembered set and the checkbox, so a collision would
+    // silently tie two toggles together.
+    const ids = WATCHABLE.map((entry) => entry.id);
+    assert.equal(new Set(ids).size, ids.length, `duplicate ids in ${ids}`);
+    for (const entry of WATCHABLE) {
+      assert.ok(entry.types.length > 0, `${entry.id} watches nothing`);
+      assert.ok(entry.label.length > 0, `${entry.id} has no label`);
+    }
+  });
+
+  test('no event type is claimed by two watchables', () => {
+    // Overlapping coverage would make which checkbox "caught" an event depend
+    // on declaration order rather than on what the viewer asked for.
+    const seen = new Map();
+    for (const entry of WATCHABLE) {
+      for (const type of entry.types) {
+        assert.equal(seen.get(type), undefined, `${type} claimed by both ${seen.get(type)} and ${entry.id}`);
+        seen.set(type, entry.id);
+      }
+    }
+  });
+
+  test('watched types are real event types the engine emits', () => {
+    // Guards against a typo silently creating a checkbox that can never fire.
+    const emitted = new Set([
+      'entity.killed', 'entity.escaped', 'entity.courted', 'entity.mated', 'entity.born',
+      'entity.died', 'environment.disturbed', 'entity.sickened', 'entity.contested',
+      'entity.disputed', 'entity.injured', 'entity.migrated', 'environment.changed',
+    ]);
+    for (const entry of WATCHABLE) {
+      for (const type of entry.types) {
+        assert.ok(emitted.has(type), `"${type}" is not an event type this renderer expects`);
+      }
+    }
   });
 });

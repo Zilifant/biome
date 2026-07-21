@@ -596,6 +596,61 @@ turns out to matter.
 
 ---
 
+### Phase F — Steering the world (added 2026-07-20, after C)
+
+Requested directly rather than planned: auto-pause toggles, restart-with-seed,
+and speed buttons. Grouped here because all three are about *steering* rather
+than seeing.
+
+#### F1 — Auto-pause on notable events
+
+`app/ui/Watchlist.js` maps twelve viewer-facing categories onto engine event
+types; `RendererApp` checks each arriving delta and sends the ordinary pause
+command on a match, then reports what stopped it and jumps the camera there.
+Renderer policy over authoritative output — no protocol change.
+
+⚠ It pauses *just after* the event. The delta for that tick is already applied
+and the pause is a round trip on top, so high speeds overshoot. Exact stopping
+would be a breakpoint inside the runner, which is a protocol change.
+
+#### F2 — Restart with a seed *(protocol v28)*
+
+`simulation.restart { seed? }`, a runner-level command. A restart cannot be a
+delta — no shared ids, tick, or `simulationId` — so the runner emits its own
+`restart` event and the WebSocket transport broadcasts a **full snapshot**.
+
+**The host picks a random seed, never the client.** `test/renderer-boundaries.js`
+bans `Math.random` in `app/` on the grounds that presentation must be
+reproducible from its inputs, and that guard is right: choosing which world to
+instantiate is a wall-clock concern belonging to the layer that already owns
+timers. Omitting the seed asks for any world and the result says which one, so
+"replay this one" is just naming the seed you were handed. The first attempt had
+the renderer rolling the die and the guard caught it.
+
+#### F3 — Speed as a ladder
+
+`«` / `»` and `[` / `]` step 0.25x–32x, replacing the dropdown: speed is nudged
+while watching, and a select made you look away from the grid.
+
+#### Completion notes — 2026-07-20
+
+Frequencies were measured before shipping the toggles, because "pause on
+courtship" sounds rare and is not — over ~480 demo ticks: courtship 79,
+migration 44, mating 34, conflict 14, disease 10, injury 6, death 5, kills 4,
+birth 1, disturbance 1, season 1. All twelve watchables fire against the real
+engine, which is the check that no toggle is decorative. The hints now say which
+are frequent.
+
+One guard was **changed**, deliberately and narrowly:
+`renderer-boundaries.test.js` now strips comments before scanning, exactly as
+`engine.test.js` has since §1.4 D6 and for the same stated reason — a scan that
+fires on prose explaining the rule trains people to word around it. Verified by
+injecting a real `Math.random()` call into a renderer module and confirming the
+guard still failed, then removing it.
+
+Fixtures were regenerated for v28 (`npm run fixtures:renderer`), without which
+fixture mode would refuse every message as an unsupported version.
+
 ## 5. Conventions for this work
 
 - **Appearance stays in `EntityAppearance.js`.** A new glyph is one entry there

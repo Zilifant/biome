@@ -7,9 +7,9 @@ them.
 
 |                       |                                                              |
 | --------------------- | ------------------------------------------------------------ |
-| Phases complete       | **A, B, C complete** — Phase D (stepping back) is next         |
-| Tests                 | 645 passing / 0 failing, 167 suites (renderer 77, runner 7)  |
-| Protocol understood   | 27 (`SUPPORTED_PROTOCOL_VERSION`), matching the engine        |
+| Phases complete       | **A, B, C, F complete** — Phase D (stepping back) is next      |
+| Tests                 | 660 passing / 0 failing, 169 suites (renderer 84, runner 14) |
+| Protocol understood   | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine     |
 | Zoom levels           | 10–32px; 10px is a floor, not a default                       |
 | Git                   | uncommitted, as with Steps 26–29 (the user handles git)       |
 
@@ -48,6 +48,12 @@ remembered, `Controls.js` was replaced with a transport bar, stepping pauses
 first, and — the one change outside `src/renderer/` — the runner coalesces a
 multi-tick step into a single delta. `test/runner.test.js` is new and is where
 the server-side behaviour is pinned.
+
+**Phase F** landed after C, on direct request rather than from the plan:
+auto-pause toggles (`Watchlist.js`), restart-with-seed (**protocol v28**), and
+speed as a `«`/`»` ladder. F2 is the first protocol change this plan has made —
+see the conventions below, because it also moved a line about *who is allowed to
+be random*.
 
 What remains is **Phase D** (stepping backward), which is a decision before it
 is an implementation: D1 don't offer it, **D2 a renderer-side review buffer
@@ -141,10 +147,23 @@ wrong the moment anything else touched the simulation — and the symptom was
 Space doing the opposite of what the button said. Any future control over host
 state belongs in that same shape.
 
-⚠ **A poll must not fight the user.** The speed `<select>` is not written back
-while it has focus, or a poll landing mid-interaction yanks the dropdown out
-from under the pointer. Anything else that both polls and accepts input needs
-the same guard.
+⚠ **A poll must not fight the user.** The seed field is not written back while
+it has focus, or a poll landing mid-typing overwrites what you were entering.
+Anything else that both polls and accepts input needs the same guard. (The speed
+dropdown this originally described is gone — F3 replaced it with buttons.)
+
+⚠ **The renderer may not be random, and that is load-bearing.**
+`renderer-boundaries.test.js` bans `Math.random` in `app/` because presentation
+must be reproducible from its inputs. When "restart with a random seed" needed a
+die rolled, the answer was **the host rolls it** — `simulation.restart` with no
+seed picks one server-side and reports it back, so the renderer only ever passes
+a number it was given or typed. If you find yourself wanting randomness in
+`app/`, that is the shape of the fix.
+
+⚠ **A protocol change means regenerating the fixtures.** `SUPPORTED_PROTOCOL_VERSION`
+is checked on *every* message, so v28 without `npm run fixtures:renderer` leaves
+fixture mode refusing everything as unsupported. Bump, regenerate, and check
+`?mode=fixture` still loads.
 
 ⚠ **A per-tick cost is a real budget, and the store notifies on every change.**
 `store.setFollowedEntity(null)` inside a pointermove handler re-renders every

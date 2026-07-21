@@ -31,7 +31,14 @@ export function createServer({
   tickIntervalMs = Number(process.env.SIM_TICK_MS ?? 1000),
 } = {}) {
   const engine = createDemoSimulation({ seed });
-  const runner = new SimulationRunner({ engine, tickIntervalMs });
+  // The runner can rebuild the world on a `simulation.restart` command, but it
+  // must not know how a world is *composed* — that is the fixture's job, and
+  // the whole point of the demo being a fixture. So the host hands it a factory.
+  const runner = new SimulationRunner({
+    engine,
+    tickIntervalMs,
+    createEngine: (nextSeed) => createDemoSimulation({ seed: nextSeed }),
+  });
 
   const app = express();
   app.use(express.json());

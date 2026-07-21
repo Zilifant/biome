@@ -6,7 +6,10 @@ import { applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 
 /** A paused runner over the demo world, with every emission captured. */
 function pausedRunner(seed = 42) {
-  const runner = new SimulationRunner({ engine: createDemoSimulation({ seed }) });
+  const runner = new SimulationRunner({
+    engine: createDemoSimulation({ seed }),
+    createEngine: (nextSeed) => createDemoSimulation({ seed: nextSeed }),
+  });
   const ticks = [];
   runner.on('tick', (payload) => ticks.push(payload));
   runner.pause();
@@ -100,5 +103,83 @@ describe('runner: manual stepping', () => {
     runner.handleCommand({ type: 'simulation.resume' });
     assert.equal(runner.getStatus().paused, false);
     runner.stop();
+  });
+});
+
+describe('runner: restart', () => {
+  test('a named seed rebuilds that exact world', () => {
+    const { runner } = pausedRunner(42);
+    runner.stepManually(50);
+    const result = runner.restart(7);
+    assert.equal(result.seed, 7);
+    assert.equal(runner.engine.tick, 0, 'a restart starts over');
+    // The seed fully determines the world, so restarting into it must match a
+    // world built from that seed directly. This is the property the whole
+    // feature rests on.
+    const reference = new SimulationRunner({ engine: createDemoSimulation({ seed: 7 }) });
+    assert.deepEqual(runner.getFullSnapshot().entities, reference.getFullSnapshot().entities);
+  });
+
+  test('restarting broadcasts a full snapshot, never a delta', () => {
+    // The new world shares no ids, no tick, and not even a simulationId, so
+    // there is no delta that could express it.
+    const { runner, ticks } = pausedRunner(42);
+    const restarts = [];
+    runner.on('restart', (payload) => restarts.push(payload));
+    runner.restart(11);
+    assert.equal(restarts.length, 1);
+    assert.equal(ticks.length, 0, 'a restart is not a tick');
+    assert.equal(restarts[0].snapshot.kind, 'snapshot.full');
+    assert.equal(restarts[0].snapshot.tick, 0);
+  });
+
+  test('an omitted seed lets the host pick, and says which it picked', () => {
+    // The client never rolls the die — presentation has to be reproducible from
+    // its inputs — so the host chooses and reports back. "Replay this one" is
+    // then just naming the seed you were given.
+    const { runner } = pausedRunner(42);
+    const first = runner.restart();
+    assert.ok(Number.isInteger(first.seed) && first.seed >= 0, `got ${first.seed}`);
+    assert.equal(runner.engine.seed, first.seed);
+    const replay = runner.restart(first.seed);
+    assert.equal(replay.simulationId, first.simulationId, 'naming the reported seed reproduces that world');
+  });
+
+  test('the run state survives a restart, because it belongs to the host', () => {
+    // Someone who paused to look at something has not asked to be un-paused.
+    const runner = new SimulationRunner({
+      engine: createDemoSimulation({ seed: 1 }),
+      createEngine: (seed) => createDemoSimulation({ seed }),
+    });
+    runner.start();
+    runner.handleCommand({ type: 'simulation.setSpeed', multiplier: 4 });
+    runner.pause();
+    runner.restart(5);
+    assert.equal(runner.paused, true);
+    assert.equal(runner.speed, 4);
+    runner.stop();
+  });
+
+  test('a runner with no engine factory refuses rather than pretending', () => {
+    const runner = new SimulationRunner({ engine: createDemoSimulation({ seed: 1 }) });
+    const result = runner.handleCommand({ type: 'simulation.restart', seed: 3 });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, 'restart-unsupported');
+  });
+
+  test('restart validates its seed', () => {
+    const { runner } = pausedRunner(1);
+    for (const seed of [-1, 1.5, 'nine', 2 ** 32]) {
+      const result = runner.handleCommand({ type: 'simulation.restart', seed });
+      assert.equal(result.ok, false, `seed ${seed} should be refused`);
+      assert.equal(result.error.code, 'invalid-command');
+    }
+  });
+
+  test('status reports the seed of the world in view', () => {
+    const { runner } = pausedRunner(42);
+    assert.equal(runner.getStatus().seed, 42);
+    runner.restart(99);
+    assert.equal(runner.getStatus().seed, 99);
   });
 });

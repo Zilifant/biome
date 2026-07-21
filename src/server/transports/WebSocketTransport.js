@@ -64,10 +64,23 @@ export function attachWebSocketTransport({ httpServer, runner, path = '/ws' }) {
   };
   runner.on('tick', onTick);
 
+  // A restarted world shares no ids, no tick, and not even a simulationId with
+  // the old one, so there is no delta that could express it — every client is
+  // sent a full snapshot instead. Clients already handle this: the store
+  // *replaces* its state on a full snapshot.
+  const onRestart = ({ snapshot }) => {
+    const frame = JSON.stringify({ type: MessageTypes.SNAPSHOT_FULL, payload: snapshot });
+    for (const client of wss.clients) {
+      if (client.readyState === client.OPEN) client.send(frame);
+    }
+  };
+  runner.on('restart', onRestart);
+
   return {
     wss,
     close() {
       runner.off('tick', onTick);
+      runner.off('restart', onRestart);
       for (const client of wss.clients) client.terminate();
       wss.close();
     },

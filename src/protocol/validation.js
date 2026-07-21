@@ -10,6 +10,7 @@ import {
   CommandTypes,
   ENTITY_KINDS,
   MAX_MANUAL_STEP_TICKS,
+  MAX_SEED,
   MAX_SPEED_MULTIPLIER,
   SEXES,
 } from './commands.js';
@@ -111,6 +112,18 @@ export function validateCommand(command) {
       if (command.ticks !== undefined) {
         if (!Number.isInteger(command.ticks) || command.ticks < 1 || command.ticks > MAX_MANUAL_STEP_TICKS) {
           errors.push({ path: 'ticks', message: `must be an integer in [1, ${MAX_MANUAL_STEP_TICKS}]` });
+        }
+      }
+      break;
+    case CommandTypes.SIMULATION_RESTART:
+      // Seed is optional: omitting it restarts the *same* world from tick 0,
+      // which is a different and equally useful request from "give me another
+      // world". Either way the outcome is fully determined by the seed, so a
+      // caller that wants a random world picks the number and can say which
+      // one it got.
+      if (command.seed !== undefined) {
+        if (!Number.isInteger(command.seed) || command.seed < 0 || command.seed > MAX_SEED) {
+          errors.push({ path: 'seed', message: `must be an integer in [0, ${MAX_SEED}]` });
         }
       }
       break;

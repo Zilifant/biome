@@ -160,13 +160,46 @@ body {
   color: var(--dracula-green);
 }
 
-#ctl-step-n {
-  width: 5em;
+#ctl-step-n,
+#ctl-seed {
   font: inherit;
   color: var(--dracula-foreground);
   background: var(--dracula-background-light);
   border: 1px solid var(--dracula-selection);
   padding: 2px 4px;
+}
+
+#ctl-step-n {
+  width: 5em;
+}
+
+#ctl-seed {
+  width: 8em;
+}
+
+/* Fixed width so the row does not shuffle as the speed changes. */
+.speed-value {
+  min-width: 3em;
+  text-align: center;
+  color: var(--dracula-bright-yellow);
+}
+
+/* One watchable per line, clickable across the whole row rather than only on
+   the box — these get toggled while watching the grid, not while aiming. */
+.watch-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  cursor: pointer;
+  padding: 1px 0;
+}
+
+.watch-row:hover {
+  background: var(--dracula-background-light);
+}
+
+.watch-row input {
+  accent-color: var(--dracula-purple);
 }
 
 button,
