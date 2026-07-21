@@ -334,6 +334,47 @@ input:focus-visible {
   padding: 0 0 4px 10px;
 }
 
+/* ---- entity references ----
+   Every `#123` in the inspector and event log is a way into the grid. Styled as
+   text rather than a button so a dense panel does not turn into a field of
+   controls; it earns an underline on hover. */
+.entity-ref {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--dracula-cyan);
+  cursor: pointer;
+}
+
+.entity-ref:hover {
+  color: var(--dracula-bright-cyan);
+  text-decoration: underline;
+}
+
+/* ---- legend ----
+   Generated from the appearance registries in Legend.js, so it cannot drift
+   from what the grid actually draws. */
+.legend-root {
+  border-top: 0;
+}
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: 2.5em 1fr;
+  gap: 0 6px;
+  align-items: baseline;
+}
+
+.legend-glyph {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.legend-label {
+  color: var(--dracula-foreground);
+}
+
 .entity-events {
   list-style: none;
   margin: 0;

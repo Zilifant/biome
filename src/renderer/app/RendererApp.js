@@ -42,6 +42,9 @@ export class RendererApp {
   #metrics = null;
   #metricsTimer = null;
   #metricsIntervalMs;
+  /** Poll handle for the selected entity's inspection detail (B5). */
+  #inspectionTimer = null;
+  #inspectionIntervalMs;
 
   /**
    * @param {object} options
@@ -54,8 +57,9 @@ export class RendererApp {
    *          eventLog: object, controls: object}} options.ui
    * @param {'live' | 'fixture'} options.mode
    * @param {number} [options.metricsIntervalMs] metrics poll cadence (live only)
+   * @param {number} [options.inspectionIntervalMs] selected-entity detail cadence
    */
-  constructor({ store, transport, http, canvas, ui, mode, metricsIntervalMs = 3000 }) {
+  constructor({ store, transport, http, canvas, ui, mode, metricsIntervalMs = 3000, inspectionIntervalMs = 2000 }) {
     this.#store = store;
     this.#transport = transport;
     this.#http = http;
@@ -65,6 +69,7 @@ export class RendererApp {
     this.#ui = ui;
     this.#mode = mode;
     this.#metricsIntervalMs = metricsIntervalMs;
+    this.#inspectionIntervalMs = inspectionIntervalMs;
   }
 
   get camera() {
@@ -292,14 +297,42 @@ export class RendererApp {
   clearSelection() {
     this.#store.setSelection(null);
     this.#inspectionDetail = null;
+    this.#stopInspectionPolling();
   }
 
-  /** Fetch protocol inspection detail for the active entity (live only). */
+  /**
+   * Fetch protocol inspection detail for the active entity (live only), and
+   * keep it fresh while that entity stays selected.
+   *
+   * Inspection is a query rather than a stream, so without this the utilities,
+   * perception, memories, and stamina of a selected animal freeze at the moment
+   * it was clicked while the animal carries on acting — which made the most
+   * interesting part of the panel the least trustworthy. One entity at a time,
+   * on a slow cadence, and cancelled the moment the selection changes.
+   */
   async #refreshInspection(entityId) {
     this.#inspectionDetail = null;
+    this.#stopInspectionPolling();
     if (!this.#http) return;
+    await this.#fetchInspection(entityId);
+    // Only poll while something is selected; a stale timer outliving its
+    // selection is how these turn into a leak.
+    this.#inspectionTimer = setInterval(() => {
+      const activeId = this.#store.selection?.activeId ?? null;
+      if (activeId === null) {
+        this.#stopInspectionPolling();
+        return;
+      }
+      this.#fetchInspection(activeId);
+    }, this.#inspectionIntervalMs);
+  }
+
+  async #fetchInspection(entityId) {
     try {
       const inspection = await this.#http.requestEntity(entityId);
+      // The selection can change while the request is in flight; a late reply
+      // for an animal nobody is looking at any more must not overwrite the one
+      // they are.
       if (inspection?.found && this.#store.selection?.activeId === entityId) {
         this.#inspectionDetail = inspection;
         this.#dirty = true;
@@ -307,6 +340,39 @@ export class RendererApp {
       }
     } catch {
       // Inspection detail is optional enrichment; the store view stands alone.
+    }
+  }
+
+  #stopInspectionPolling() {
+    if (this.#inspectionTimer !== null) {
+      clearInterval(this.#inspectionTimer);
+      this.#inspectionTimer = null;
+    }
+  }
+
+  /**
+   * Select an entity by id and bring it into view — what makes the `#123`
+   * references in the inspector and event log navigable. Nothing is sent
+   * anywhere: this is a camera move plus a local selection.
+   * @param {number} entityId
+   */
+  selectEntity(entityId) {
+    const entity = this.#store.getEntity(entityId);
+    if (!entity) {
+      this.#ui.controls.setStatus(`#${entityId} is not in view`, 'warn');
+      return;
+    }
+    const cell = worldCellOf(entity, this.#store.world);
+    this.#camera.centerOn(entity.x, entity.y);
+    this.#camera.clampToWorld(this.#store.world);
+    this.#dirty = true;
+    this.selectCell(cell.cellX, cell.cellY);
+    // Selecting by id means asking for *that* animal, so make it active even
+    // when something else outranks it in the same cell.
+    const selection = this.#store.selection;
+    if (selection?.entityIds.includes(entityId) && selection.activeId !== entityId) {
+      this.#store.setSelection({ ...selection, activeId: entityId });
+      this.#refreshInspection(entityId);
     }
   }
 

@@ -6,7 +6,13 @@
  * a renderer-local toggle by default.
  */
 
+import { linkifyIds } from './InspectorView.js';
+
 const MAX_RENDERED_EVENTS = 60;
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 /** High-frequency events, hidden unless "show routine" is checked. */
 const ROUTINE_EVENT_TYPES = new Set([
@@ -159,8 +165,14 @@ export class EventLog {
    * @param {HTMLElement} container
    * @param {{onFilterChanged: () => void}} [callbacks]
    */
-  constructor(container, { onFilterChanged = () => {} } = {}) {
+  constructor(container, { onFilterChanged = () => {}, onSelectEntity = () => {} } = {}) {
     this.#onChanged = onFilterChanged;
+    // Every `#123` in the log is a way into the grid: click a birth to find the
+    // calf, a hunt to find the quarry.
+    container.addEventListener('click', (event) => {
+      const entityId = event.target?.closest?.('[data-entity]')?.dataset?.entity;
+      if (entityId) onSelectEntity(Number(entityId));
+    });
     container.innerHTML = `
       <h2>Events</h2>
       <label class="log-filter"><input type="checkbox" id="event-log-moves" /> show routine (moves, feeding)</label>
@@ -187,7 +199,13 @@ export class EventLog {
       const tickSpan = document.createElement('span');
       tickSpan.className = 'dim';
       tickSpan.textContent = `t${event.tick} `;
-      item.append(tickSpan, document.createTextNode(formatEvent(event)));
+      item.append(tickSpan);
+      // Event lines are plain text that legitimately contains `<` and `>`
+      // (`<until t1205>`, `→`), so they are escaped first and linkified second.
+      // Reversing that order would let an event's own punctuation become markup.
+      const line = document.createElement('span');
+      line.innerHTML = linkifyIds(escapeHtml(formatEvent(event)));
+      item.append(line);
       fragment.append(item);
     }
     this.#list.replaceChildren(fragment);

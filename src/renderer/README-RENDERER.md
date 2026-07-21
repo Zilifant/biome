@@ -70,6 +70,7 @@ app/
     CellDetail.js             pure description of one cell's ground (terrain, forage, wear, disturbances)
     InspectorView.js          what the inspector says: ground + occupants, protocol fields, and the collapsible sections
     InspectorPanel.js         where the inspector is: floating popover anchored to the cell, or docked in the sidebar
+    Legend.js                 the key to the grid, generated from the appearance registries
     MetricsPanel.js           population histograms, generations, selection differentials (polled)
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
@@ -149,6 +150,7 @@ the remembered open/closed state, so it must be stable.
 | Arrow keys / WASD | Pan camera (Shift = 10 cells) |
 | `+` / `-`, mouse wheel | Zoom (wheel is anchored near the cursor) |
 | Click | Select a cell — ground included (highest-priority occupant active) |
+| Click `#123` | Select and centre that entity, from the inspector or event log |
 | Tab | Cycle occupants of the selected cell |
 | F | Follow / unfollow the selected entity (camera-only) |
 | C | Recenter camera |
@@ -195,6 +197,22 @@ animal while the simulation runs, so panning, zooming, and stepping keep
 working. A focus trap would make the inspector fight the thing it exists to
 inspect.
 
+**The selected animal's detail stays fresh.** Inspection is a query rather than
+a stream, so while the panel is open the renderer re-fetches the active entity
+every two seconds — one entity, cancelled the moment the selection changes.
+Without it the utilities, perception, memories, and stamina of a selected animal
+froze at the instant it was clicked while the animal carried on acting, which
+made the most interesting part of the panel the least trustworthy. The
+percentages come from deltas and update every tick; the absolutes are labelled
+with the tick they were read at.
+
+**Every `#123` is a way into the grid.** Ids in the inspector and the event log
+select and centre that animal — so a birth, a hunt, a contest, or a lineage can
+be followed rather than read as a number and hunted for by eye. The event log's
+lines are plain text containing `<` and `>` of their own, so they are escaped
+first and linkified second; reversing that would let an event's own punctuation
+become markup.
+
 **Sections are collapsed by default.** An animal carries fourteen sections'
 worth of biology — genome, traits, memories, herd, range, migration, mate
 choice, disease, injuries, family, utilities, perception — and showing all of it
@@ -224,10 +242,37 @@ DOM. `describeSections` is exported for the same reason. When in doubt the panel
 rebuilds: a missed signature field costs one wasted rebuild, while a missed field
 in `liveFields` would silently show a stale number.
 
+Section *contents* are reconciled rather than rebuilt: `#patchSections` replaces
+only the bodies and badges whose HTML actually changed, so an inspection poll
+touches the two or three sections that moved and leaves the rest — and their
+open/closed state — alone. The section **id set** is part of the signature,
+since a section that has just appeared has nowhere to be patched into.
+
 One consequence worth knowing before editing: **the view owns its container and
 overwrites it wholesale on a structural rebuild.** A control placed inside that
 container survives exactly until the next selection — which is why the docked
 header sits outside the view's `.dock-body` rather than inside it.
+
+⚠ **Do not run BSD `sed -i` over `InspectorView.js`.** It contains multi-byte
+box-drawing characters (`▮ ▯ ▰ ─ █`) for the trait and severity bars, and a
+`sed` pass has already written a NUL byte into a template literal here — which
+`file(1)` reports as a binary file and `grep` refuses to search, while
+`node --check` still passes and the code still runs.
+
+## The legend
+
+`app/ui/Legend.js` is the key to the grid, and it is **generated from the
+appearance registries** rather than written out. That is the whole design:
+`EntityAppearance.js` is the single source of glyphs and colours, so the legend
+cannot drift from what is actually drawn, and adding a species updates the
+legend for free. A hand-maintained legend would be wrong within one step.
+
+`describeLegend()` is pure and returns plain data; `renderer-view.test.js`
+asserts that every species (with both sex glyphs), every terrain type, feature,
+disturbance, memory kind, and carcass decay stage reaches it, and that every
+colour token is a real Dracula value. Only the condition tints and bracket
+overlays are hand-written, because they describe how a glyph is *coloured* or
+*bracketed* rather than which glyph is drawn, and have no registry to read from.
 
 ## Dracula palette
 
@@ -330,8 +375,9 @@ for several steps, which is how the section came to mix the two.
   (`.` → `,` → `"` → bright `"`); level 0 shows the terrain beneath. The demo
   no longer has plant entities — vegetation is the cell layer. Tree `T`
   remains reserved for future individual plants.
-- Inspector's absolute energy is fetched once per selection (live mode) and
-  labeled with its tick; the percentage updates live from deltas.
+- Inspector's absolute energy is re-fetched every ~2s while the panel is open
+  (live mode) and labeled with the tick it was read at; the percentage updates
+  every tick from deltas.
 - Population metrics (protocol v20) come from `GET /api/metrics`, **polled on
   an interval** rather than streamed — histograms for every trait of every
   species would dwarf the per-tick payload, and a summary view needs nothing

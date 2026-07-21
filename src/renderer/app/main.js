@@ -11,6 +11,7 @@ import { WebSocketRendererTransport } from './transports/WebSocketRendererTransp
 import { HttpRendererTransport } from './transports/HttpRendererTransport.js';
 import { FixtureRendererTransport } from './transports/FixtureRendererTransport.js';
 import { StatusPanel } from './ui/StatusPanel.js';
+import { LegendPanel } from './ui/Legend.js';
 import { InspectorPanel } from './ui/InspectorPanel.js';
 import { MetricsPanel } from './ui/MetricsPanel.js';
 import { EventLog } from './ui/EventLog.js';
@@ -49,11 +50,16 @@ const ui = {
       onCycle: () => appRef.current.cycleSelection(),
       onFollowToggle: () => appRef.current.toggleFollow(),
       onClose: () => appRef.current.clearSelection(),
+      onSelectEntity: (entityId) => appRef.current.selectEntity(entityId),
     },
   }),
+  // The legend is generated from the appearance registries and never changes
+  // after construction, so it is built once and not given to the app to render.
+  legendPanel: new LegendPanel(document.getElementById('legend-panel')),
   metricsPanel: new MetricsPanel(document.getElementById('metrics-panel')),
   eventLog: new EventLog(document.getElementById('event-log-panel'), {
     onFilterChanged: () => ui.eventLog.render(store),
+    onSelectEntity: (entityId) => appRef.current.selectEntity(entityId),
   }),
   controls: null,
 };

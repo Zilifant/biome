@@ -9,8 +9,15 @@ import {
   DRACULA_COLORS,
   UNKNOWN_APPEARANCE,
   CARCASS_APPEARANCE,
+  CARCASS_DECAY_APPEARANCE,
+  SPECIES_APPEARANCE,
+  TERRAIN_APPEARANCE,
+  FEATURE_APPEARANCE,
+  DISTURBANCE_APPEARANCE,
+  MEMORY_APPEARANCE,
 } from '../src/renderer/app/rendering/EntityAppearance.js';
-import { structureSignature, describeSections } from '../src/renderer/app/ui/InspectorView.js';
+import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
+import { describeLegend } from '../src/renderer/app/ui/Legend.js';
 
 describe('entity appearance', () => {
   test('appearance lookup is deterministic and species-aware', () => {
@@ -242,11 +249,37 @@ describe('inspector structure signature (the per-tick rebuild guard)', () => {
     assert.notEqual(sign(animal()), sign(animal(), null, cell, { ...selection, cellX: 9 }));
     assert.notEqual(sign(animal()), sign(animal(), null, cell, { ...selection, entityIds: [1, 2] }));
     assert.notEqual(sign(animal()), sign(animal(), { entity: { id: 1 }, tick: 12 }));
-    // A *newer* payload for the same animal swaps every derived block at once.
-    assert.notEqual(
+  });
+
+  test('a fresher inspection payload does NOT change the shape', () => {
+    // This is what makes B5's polling viable: re-fetching the same animal's
+    // inspection every couple of seconds brings new *numbers* on the same rows,
+    // and rebuilding for that would throw away scroll position and collapse
+    // every section the viewer had opened. New numbers patch; new rows rebuild.
+    assert.equal(
       sign(animal(), { entity: { id: 1 }, tick: 12 }),
       sign(animal(), { entity: { id: 1 }, tick: 13 }),
     );
+    // ...but a payload that changes which rows exist still rebuilds.
+    assert.notEqual(
+      sign(animal(), { entity: { id: 1, edibleMass: 0 }, tick: 12 }),
+      sign(animal(), { entity: { id: 1, edibleMass: 4.2 }, tick: 12 }),
+    );
+    assert.notEqual(
+      sign(animal(), { entity: { id: 1, reproState: { gestating: true } }, tick: 12 }),
+      sign(animal(), { entity: { id: 1, reproState: { gestating: false, lastMatedTick: 9 } }, tick: 12 }),
+    );
+  });
+
+  test('a section appearing or vanishing changes the shape', () => {
+    // Section *contents* are patched in place, so the id set has to be part of
+    // the shape — otherwise a new section would have nowhere to be written.
+    const withInjury = { injuries: [{ kind: 'gash', severity: 0.3, tick: 4 }], impairment: 0.1 };
+    const detailSign = (detail) =>
+      structureSignature(store, selection, animal(), { entity: { id: 1, ...detail }, tick: 12 }, cell,
+        describeSections({ id: 1, ...detail }, animal()).map((s) => s.id));
+    assert.notEqual(detailSign({}), detailSign(withInjury));
+    assert.equal(detailSign(withInjury), detailSign(withInjury));
   });
 
   test('ground changing under a stationary selection changes the shape', () => {
@@ -319,5 +352,79 @@ describe('inspector sections (progressive disclosure)', () => {
     const [utilities] = describeSections(detail, { action: 'flee' });
     assert.match(utilities.body, /▸ eat/);
     assert.doesNotMatch(utilities.body, /▸ flee/);
+  });
+});
+
+describe('legend', () => {
+  // The legend's whole reason for being generated rather than written is that a
+  // hand-maintained one goes stale the first time a species is added. These
+  // tests are that guarantee: every registry entry must reach the legend.
+  const allEntries = () => describeLegend().flatMap((group) => group.entries);
+
+  test('every species reaches the legend, with both sexes when it has them', () => {
+    for (const [speciesId, appearance] of Object.entries(SPECIES_APPEARANCE)) {
+      const entry = allEntries().find((e) => e.label === appearance.label);
+      assert.ok(entry, `${speciesId} is missing from the legend`);
+      if (appearance.glyphBySex) {
+        assert.match(entry.glyph, /\//, `${speciesId} should show both sexes`);
+        assert.ok(entry.glyph.includes(appearance.glyphBySex.female));
+        assert.ok(entry.glyph.includes(appearance.glyphBySex.male));
+      }
+    }
+  });
+
+  test('every terrain, feature, disturbance, and memory kind reaches the legend', () => {
+    const labels = new Set(allEntries().map((e) => e.label));
+    for (const name of Object.keys(TERRAIN_APPEARANCE)) {
+      if (name === 'unknown' || name === 'outOfBounds') continue; // fallbacks, not terrain
+      assert.ok(labels.has(name), `terrain "${name}" is missing from the legend`);
+    }
+    for (const kind of Object.keys(FEATURE_APPEARANCE)) {
+      assert.ok(labels.has(kind), `feature "${kind}" is missing from the legend`);
+    }
+    for (const kind of Object.keys(DISTURBANCE_APPEARANCE)) {
+      assert.ok(labels.has(kind), `disturbance "${kind}" is missing from the legend`);
+    }
+    for (const kind of Object.keys(MEMORY_APPEARANCE)) {
+      assert.ok(labels.has(`remembered ${kind}`), `memory "${kind}" is missing from the legend`);
+    }
+  });
+
+  test('every carcass decay stage reaches the legend', () => {
+    const labels = new Set(allEntries().map((e) => e.label));
+    for (const appearance of CARCASS_DECAY_APPEARANCE) {
+      assert.ok(labels.has(appearance.label), `carcass stage "${appearance.label}" is missing`);
+    }
+  });
+
+  test('every legend colour is a real Dracula token', () => {
+    // The legend renders colours as `var(--dracula-<token>)`, so a token that
+    // is not in the palette silently renders as inherited text.
+    for (const entry of allEntries()) {
+      assert.ok(DRACULA_COLORS[entry.colorToken], `unknown colour token "${entry.colorToken}" for ${entry.label}`);
+    }
+  });
+});
+
+describe('entity references', () => {
+  test('ids become buttons carrying the entity id', () => {
+    assert.match(entityRef(42), /data-entity="42"/);
+    assert.match(entityRef(42), /#42/);
+  });
+
+  test('event text is escaped before it is linkified, not after', () => {
+    // Event lines legitimately contain `<` and `>` — `<until t1205>`, `→`.
+    // Linkifying first would let an event's own punctuation become markup.
+    const line = '*! fire at 3,4 <until t1205> hit #7';
+    const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = linkifyIds(escaped);
+    assert.ok(!html.includes('<until'), 'raw angle brackets must not survive as markup');
+    assert.match(html, /&lt;until t1205&gt;/);
+    assert.match(html, /data-entity="7"/);
+  });
+
+  test('a tick reference is not mistaken for an entity id', () => {
+    // `t1205` has no `#`, so it must stay plain text.
+    assert.doesNotMatch(linkifyIds('ended at t1205'), /data-entity/);
   });
 });

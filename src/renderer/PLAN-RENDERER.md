@@ -296,8 +296,9 @@ line of code in this plan.
 - [x] The tooltip is anchored, draggable, pinnable, and keyboard-closable
 - [x] Sections are collapsible and their state persists across reloads
 - [x] One view, mounted in two hosts (floating popover, docked sidebar)
-- [ ] A legend exists and is generated from the appearance registries — **B7**
-- [ ] Selected-entity detail refreshes while the tooltip is open — **B5**
+- [x] A legend exists and is generated from the appearance registries
+- [x] Selected-entity detail refreshes while the tooltip is open
+- [x] Entity ids are navigable from the inspector and the event log
 
 #### Completion notes — 2026-07-20 (B4 only)
 
@@ -364,6 +365,66 @@ reviewed, but popover positioning, flipping, dragging, and the `<details>`
 toggle path have not been exercised by a real DOM — there is no browser
 automation here, and a hand-rolled DOM stub tested the stub more than the code.
 This is the one part of B1–B3 standing on review rather than evidence.
+
+#### Completion notes — 2026-07-20 (B5–B7)
+
+**B5 forced the signature split predicted in P3, and it was not optional.** With
+the inspection tick in the structure signature, every poll rebuilt the whole
+panel — which would have reset the scroll position and collapsed nothing but
+felt like a flicker every two seconds. Three changes made polling free:
+
+1. The inspection-derived absolutes (energy, health, speed, edible mass,
+   gestation) moved from baked-in text into `data-live` nodes, so a poll writes
+   numbers rather than markup. Only *which* of those rows exist is structural.
+2. Sections are reconciled per id instead of re-rendered: `#patchSections`
+   replaces only the bodies (and badges) whose HTML actually changed. Most
+   sections never change at all — a genome is fixed for life — so a poll touches
+   the two or three that moved. The section **id set** joined the signature,
+   since a section appearing has nowhere to be patched into.
+3. Ground values (forage level, wear, a disturbance's countdown) became live
+   fields too. That was a **latent bug from Phase A**, not new work: grass grows
+   and fires burn down under a stationary selection, and those rows were baked
+   in at build time, so they silently went stale until something else forced a
+   rebuild.
+
+The poll is cancelled on close, on selection change, and on a selection going
+empty, and a late reply for a since-deselected animal is discarded — the same
+in-flight race the metrics poll does not have because it has no subject.
+
+**B6** turned every `#123` into a button that selects and centres that animal.
+The event log needed care: its lines are plain text that legitimately contains
+`<` and `>` (`<until t1205>`), so they are **escaped first and linkified
+second** — the reverse order would let an event's own punctuation become markup.
+There is a test asserting exactly that ordering.
+
+The herd id is linkable too, which is a judgement call worth recording: a
+`groupId` *is* an animal's id (a herd takes the smallest one its members can
+see), so following it is meaningful — but the animal it names may have died and
+left the label behind, in which case the click reports "not in view" rather than
+navigating. That seemed better than making the one id on screen that looks like
+a reference the only one that is not.
+
+**B7's legend is generated from the appearance registries**, which is the whole
+point: `EntityAppearance.js` is the single source of glyphs, so the legend
+cannot drift from what is drawn and a new species appears in it for free. Four
+tests enforce that mechanically — every species (with both sex glyphs), every
+terrain, feature, disturbance, memory kind, and carcass stage must reach the
+legend, and every colour token must be a real Dracula value. Only the tints and
+bracket overlays are hand-written, because they describe how a glyph is
+*coloured* rather than which glyph is drawn and have no registry to read.
+
+**Verified against a live simulation on 2026-07-20**: the legend renders 8
+groups / 34 entries with all three species showing both sex glyphs
+(`g/G`, `s/S`, `v/V`) and every colour token resolving; across 25 real animals'
+inspection payloads, every `#id` in every rendered section is a clickable
+reference with **none left bare**.
+
+⚠ One incident worth recording, since the cause is not obvious: a `sed -i ''`
+pass over `InspectorView.js` wrote a **NUL byte** into a template literal,
+turning the file into something `file(1)` reported as binary and `grep` refused
+to search — while `node --check` still passed and the code still ran. BSD `sed`
+is not safe on this file: it contains multi-byte box-drawing characters (`▮ ▯ ▰
+─ █`) used by the trait and severity bars. Edit it with a text-aware tool.
 
 ---
 
@@ -471,7 +532,8 @@ turns out to matter.
 | --- | --- | --- | --- |
 | **P1** | A | Per-cell territory ownership is not shown — the protocol carries a claim only via a selected animal's `territory.standingOn` | Blocked on `PLAN.md` §1.4 **A36**; a claim layer would need to earn its per-snapshot cost |
 | **P2** | A2 | Two zoom levels (6px, 8px) were removed, so a 128-cell world no longer fits a typical viewport at minimum zoom | Accepted; drag-to-pan is the compensation, and a minimap was judged not worth it for one world size |
-| **P3** | B4 | The patch pass covers bulk-snapshot fields only; inspection-derived sections still rebuild structurally when a new payload arrives | Fine at the current fetch rate (once per selection). Revisit if B5's polling makes rebuilds visible |
+| ~~**P3**~~ | B4 | ~~Inspection-derived sections rebuild structurally when a new payload arrives~~ | **Closed by B5**: absolutes are patched as values and sections are reconciled per id, so a poll rewrites only what changed |
+| **P11** | B5 | Inspection polls at a fixed 2s regardless of whether the simulation is paused or running at 8× — it is wall-clock, not tick-driven | Deliberate: it is a UI refresh, not an observation. Revisit alongside C1, which will know the run state |
 | **P9** | B2 | Popover geometry (anchoring, flipping, dragging) and the `<details>` toggle are verified by review and pure-function tests, not by a browser | Accepted for now; a browser-automation dependency is a bigger call than this phase warranted |
 | **P10** | B3 | The open-set is global rather than per-species or per-kind, so expanding Genome for a grazer also expands it for a carcass that has none (the section is simply absent) | Intended — a viewer's interest is in a *kind of question*, not in one animal |
 | **P4** | C4 | Manual steps above ~50 ticks flood the socket until the runner coalesces them | Cap the UI until C4 lands |
