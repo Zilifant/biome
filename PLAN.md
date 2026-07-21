@@ -113,110 +113,110 @@ correctness bug in shipped code unless marked ⚠.
 
 ### A. Deliberately deferred / simplified scope
 
-| # | From | Item | Owed to |
-| --- | --- | --- | --- |
-| A1 | 2 | Terrain legend lives at `terrain.cellTypes`, not `world.cellTypes` (natural home for the payload) | — (settled) |
-| A2 | 2 | Cover generated as clumped patches, not per-cell scatter — per-cell scatter fragmented the RLE (1024² snapshot 916 KB → 118 KB) | — (settled) |
-| A3 | 3 | Individual tree/shrub entities omitted (plan marked optional); `plant` kind reserved for them | any later step that needs point vegetation |
-| ~~A4~~ | 6 | Bounded per-entity `lifeEvents` list deferred | **Done in Step 13** — `systems/lifeEvents.js`, capped at 12 entries; Step 21 may extend the vocabulary |
-| A5 | 7 | Renderer debug overlay of perceived cells deferred | later renderer pass |
-| A6 | 8 | `approachFood` folded into `seekFood` (identical mechanics) | — (settled) |
-| A7 | 8 | Action glyph *tint* deferred (`action` is in the bulk snapshot, so it is available) | later renderer pass |
-| A8 | 10 | Optional `entity.drank` event skipped (redundant with the public `action` field) | — (settled) |
-| ~~A9~~ | 12 | No sexes: either adult may initiate, the lower id gestates | **Done in Step 22** — females gestate and choose, males clear a lower energy bar and a shorter refractory period. The asymmetry is the point, not a convenience |
-| ~~A10~~ | 12 | `seekMate` steers toward a conspecific but does not assess mate quality | **Done in Step 22** — it now steers toward the *best* perceived candidate (distance-discounted), and the reproduction system accepts or rejects against a declining standard |
-| ~~A11~~ | 13 | Juvenile *protection* omitted from the parenting strategy — a guardian does not defend or shield its young | **Done in Step 23** — a parent stands over a threatened juvenile (`defend`) and materially lowers the predator's odds. But see **A32**: it is demonstrably rare |
-| A12 | 13 | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis | **still open, deliberately.** Step 23 already moved juvenile survival twice (defense, and herding); removing the mercy in the same step would have changed two variables at once with no way to attribute the result |
-| ~~A13~~ | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a *third* pattern alongside B3/B4) | **Done in Step 29** — `traits.spread` and `genetics` are per-species blocks in the schema, resolved against the config defaults |
-| A14 | 14 | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick | — (settled; measured as free) |
-| ~~A15~~ | 15 | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer | **Settled in Step 23** — kin recognition got its reader (defense), and it reads the *authoritative* lists directly. So the memory kind is still not needed and now demonstrably so, rather than by assumption |
-| ~~A16~~ | 15 | The `danger` memory kind shipped with avoidance implemented but no writer | **Done in Step 16** — a failed hunt records the attack site in the prey's memory |
-| ~~A17~~ | 16 | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species) | **Done in Step 29** — the stalker has its own `aging` block (born at 8 kg, matures slower, lives to 14 000) and its own `metabolism` and `hydration`. The last place this survived was the *birth* path, where a newborn took one global `birthMass` |
-| A18 | 16 | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge | **Step 24** (territory) |
-| ~~A19~~ | 17 | Hazards and fights are not injury sources — failed captures are still the only writer | **Done in Step 23** — a dominance contest that escalates wounds both parties (the loser worse), via the same `applyInjury` helper. 114 battle wounds in one live 30 s window. *Hazards* are still not an injury source, by the Step 19 reasoning below |
-| ~~A21~~ | 18 | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope | **Done in Step 29** — `scavenger.corvid`, whose entire implementation is a config file: a carnivore with an **empty `preySpeciesIds`**, so it can only eat what is already dead. No engine code was written to add it |
-| A22 | 18 | Tombstones are bounded at 256, so lineage questions cannot reach further back than that | still open — Step 21 measured lineage *depth* (`generation`) instead, which needs no tombstones; a deeper query would need them |
-| A23 | 19 | Snow is a weather state, not an accumulating snowpack layer | — (settled; a layer needs a reason to exist) |
-| A24 | 19 | No per-cell microclimate — temperature is global and cover is the only spatial modifier | needs terrain elevation, which does not exist |
-| A25 | 20 | No dominance or epistasis — expression is purely additive | — (settled; "quantitative traits only" per the step, and it keeps genotype→phenotype legible) |
-| A26 | 20 | Genetics is a module called by reproduction, not a registered `GeneticsSystem` — inheritance happens at one instant that reproduction already owns | — (settled; a system would need a per-tick newborn scan) |
-| A27 | 21 | Metrics are polled over HTTP rather than streamed in snapshots/deltas — a full aggregate would dwarf the per-tick payload | — (settled; a summary view needs no tick resolution) |
-| A28 | 21 | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash | a later observability pass, if it earns its keep |
-| A37 | 25 | Disease does not cross species — a pathogen adapted to a grazer is not the one adapted to a stalker | a later step, if a shared or zoonotic pathogen is wanted |
-| ~~A38~~ | 25 | Susceptibility, incubation, and virulence are global config rather than per species | **Done in Step 29** — `disease` is a resolved species block, so susceptibility, incubation, and virulence can vary by species (they do not yet in the demo, which is a tuning choice rather than a structural one) |
-| A39 | 25 | An environmental **spillover** keeps the pathogen alive. Without it the disease went extinct with its last carrier (one epidemic in 15k ticks); with it, outbreaks recur. It is a modelling convenience standing in for a reservoir that is not simulated | — (settled; a reservoir species would be Step 29's business) |
-| ~~A29~~ | 22 | Mate preference direction is species data (`species.matePreference`); only its *strength* (`choosiness`) is heritable, so there is no full Fisherian runaway | **Settled in Step 29** — `matePreference` is a resolved species block like every other. Direction is still species data and only *strength* is heritable, so there is still no full Fisherian runaway; that remains a deliberate choice rather than a config gap |
-| ~~A30~~ | 22 | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today | **Settled in Step 29** — `reproduction` is a per-species block, so a species that needed the other answer could now state it. `GESTATING_SEX` stays one constant because every species still sets it identically |
-| ⚠ A31 | 23 | **Step 21's selection sandbox has never demonstrated its claim.** Measured over seven seeds: the trait rose in 3, fell in 4, mean change −0.0002, with the selection differential negative in five and uncorrelated with the trait's direction. Cause: the differential compares breeders against *all* adults, and 71 % of adults are breeders there, so the two samples are nearly the same set. Tightening the breeding gate makes it visible but drives the population extinct | an unmet **Step 21** acceptance criterion. The test now claims no direction; a world that demonstrates it must be built, not tuned |
-| A32 | 23 | Juvenile defense fires **once in 12 000 demo ticks** — the geometry it needs (an adult with a living juvenile of its own, nearer the predator than the parent and inside `defendRange`) almost never arises | still open. Step 24 did **not** fix it as hoped: grazers turned out not to be able to afford site fidelity at all (A34), so families are no more co-located than before. Relaxing "nearer the predator than I am" to "near enough to interpose" remains the named lever |
-| ⚠ A34 | 24 | **Patrolling is near-inert in the demo.** Routine site fidelity competes with wandering — which is how an animal finds its next meal — and cost the demo two seeds in five (4/5 → 2/5). The pull now ramps over six range radii, so it fires only for an animal that is genuinely lost. The mechanism is implemented and tested (the suite tightens the ramp to exercise it) but is not doing visible work in the demo | a future pass could give patrol a *reason* — food that is worth returning to, or a den — rather than making it compete with foraging on equal terms |
-| A35 | 24 | Grazers get a home range but no site fidelity and no claims, so "territory" in the demo is a predator-only phenomenon at ~9 individuals | **Step 29** (species schema) is where a third, genuinely territorial species would land |
-| A36 | 24 | The claim layer is not projected to the renderer — the home-range ring is drawn from inspection for the selected animal only | a later renderer pass, if a territory *map* earns the per-snapshot cost |
-| A40 | 26 | **Remembered routes are not implemented.** The step named them, but Step 15 already stores remembered *places* and `recallFood` already steers to them; a route is a trajectory, and the codebase deliberately stores no trajectory anywhere (a home range is four numbers for exactly this reason) | a later step, if a *sequence* of places ever earns the storage a single place does not |
-| ~~A41~~ | 26 | Migration is a **grazer-only** phenomenon: a stalker's food is the grazer, which it already follows through perception and the hunt pipeline, so a vegetation gradient would point it at grass it cannot eat. Letting stalkers track forage as a prey proxy was tried and measured *worse* (stalkers 0–3). Both species do disperse | **Settled in Step 29** — `migration` is a resolved block like the rest. Migration remains grazer-only *by data* (`tracksForage`), which is now a statement about the species rather than a limitation of the code |
-| A42 | 26 | The forage cue reaches **beyond perception** (18 units against 6) and is a stated modelling convenience standing in for coarse long-range cues this world does not simulate — the smell of green ground, the lie of the land. Bounded by being a *difference* (a flat world produces no pull) and by a strength cap well below 1 | — (settled; the same kind of honest stand-in as A39's spillover) |
-| A43 | 26 | **Population fragmentation is enabled, not asserted.** Herd labels already split by hop count and separate forage patches already pull herds apart, but no test claims a fragmentation outcome | a later observability pass, if a fragmentation *measure* earns its keep |
-| A44 | 27 | **Drought and severe winter are not local disturbances.** Both already exist as *global* weather states (Step 19), so a spatially bounded copy would be the same mechanism at a different scale rather than a new one. Fire, flood, and storm have no global analogue, which is why they are the three that shipped | — (settled; a kind is a row in the effect table if one is ever wanted) |
-| A45 | 27 | **A disturbance never modifies terrain.** Terrain is derived — regenerated from the seed on load and deliberately unsaved — so an edit would vanish on restore. "Affected terrain" is expressed as a derived traversal penalty plus a renderer overlay, and the disturbance list is its own protocol layer | — (settled; mutable terrain would need terrain to become saved state) |
-| A46 | 27 | Disturbance **mortality is rare in the demo** (0–12 deaths across ten seeds): a region covers ~1% of the map and animals walk out of it. The lethal path is real and exercised in a controlled test, but the demo-level cost is sublethal — 852 burns across those seeds — exactly as Step 25's disease turned out to be | — (settled; making it demographically significant would mean bigger or more frequent events, which the 91% experiment showed breaks recovery) |
-| A47 | 28 | Animals do not seek *other* animals' burrows — a burrow shelters whoever stands on it (through `isShelteredAt`, so thermoregulation and the `shelter` action both get it free), but only trails exert a pull. Giving burrows one would mean teaching the perception hot loop about features | a later step, if a species should ever compete for or inherit a den |
-| A48 | 28 | **Grazing clearings are not a feature.** Vegetation biomass already drops visibly where animals graze and regrows after, so a separate "clearing" would be a second mechanism for something the world already does — the same reasoning that kept drought out of Step 27 (A44) | — (settled) |
-| A49 | 29 | "Activity pattern" and "habitat preference" are named in the step's objective but are **not schema blocks**: there is no diurnal cycle for a pattern to exist in, and habitat preference is already expressed by `migration.tracksForage` plus the comfort band rather than as a field of its own | a later step, if a day/night cycle or a real habitat-suitability model arrives |
-| A50 | 29 | The species roster is a hand-written **import list**, not a directory scan or a data file loaded at runtime. Runtime species authoring is explicitly out of scope for the step, and a static import list is the honest form of "species definitions are code" | — (settled) |
-| A33 | 23 | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented | a later social pass, if a species ever needs it |
-| ~~⚠ A20~~ | 17 | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from *any* source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
+| #         | From   | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Owed to                                                                                                                                                                                                                                                                                                |
+| --------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A1        | 2      | Terrain legend lives at `terrain.cellTypes`, not `world.cellTypes` (natural home for the payload)                                                                                                                                                                                                                                                                                                                                                                                  | — (settled)                                                                                                                                                                                                                                                                                            |
+| A2        | 2      | Cover generated as clumped patches, not per-cell scatter — per-cell scatter fragmented the RLE (1024² snapshot 916 KB → 118 KB)                                                                                                                                                                                                                                                                                                                                                    | — (settled)                                                                                                                                                                                                                                                                                            |
+| A3        | 3      | Individual tree/shrub entities omitted (plan marked optional); `plant` kind reserved for them                                                                                                                                                                                                                                                                                                                                                                                      | any later step that needs point vegetation                                                                                                                                                                                                                                                             |
+| ~~A4~~    | 6      | Bounded per-entity `lifeEvents` list deferred                                                                                                                                                                                                                                                                                                                                                                                                                                      | **Done in Step 13** — `systems/lifeEvents.js`, capped at 12 entries; Step 21 may extend the vocabulary                                                                                                                                                                                                 |
+| A5        | 7      | Renderer debug overlay of perceived cells deferred                                                                                                                                                                                                                                                                                                                                                                                                                                 | later renderer pass                                                                                                                                                                                                                                                                                    |
+| A6        | 8      | `approachFood` folded into `seekFood` (identical mechanics)                                                                                                                                                                                                                                                                                                                                                                                                                        | — (settled)                                                                                                                                                                                                                                                                                            |
+| A7        | 8      | Action glyph _tint_ deferred (`action` is in the bulk snapshot, so it is available)                                                                                                                                                                                                                                                                                                                                                                                                | later renderer pass                                                                                                                                                                                                                                                                                    |
+| A8        | 10     | Optional `entity.drank` event skipped (redundant with the public `action` field)                                                                                                                                                                                                                                                                                                                                                                                                   | — (settled)                                                                                                                                                                                                                                                                                            |
+| ~~A9~~    | 12     | No sexes: either adult may initiate, the lower id gestates                                                                                                                                                                                                                                                                                                                                                                                                                         | **Done in Step 22** — females gestate and choose, males clear a lower energy bar and a shorter refractory period. The asymmetry is the point, not a convenience                                                                                                                                        |
+| ~~A10~~   | 12     | `seekMate` steers toward a conspecific but does not assess mate quality                                                                                                                                                                                                                                                                                                                                                                                                            | **Done in Step 22** — it now steers toward the _best_ perceived candidate (distance-discounted), and the reproduction system accepts or rejects against a declining standard                                                                                                                           |
+| ~~A11~~   | 13     | Juvenile _protection_ omitted from the parenting strategy — a guardian does not defend or shield its young                                                                                                                                                                                                                                                                                                                                                                         | **Done in Step 23** — a parent stands over a threatened juvenile (`defend`) and materially lowers the predator's odds. But see **A32**: it is demonstrably rare                                                                                                                                        |
+| A12       | 13     | An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis                                                                                                                                                                                                                                                                                                                                                                                          | **still open, deliberately.** Step 23 already moved juvenile survival twice (defense, and herding); removing the mercy in the same step would have changed two variables at once with no way to attribute the result                                                                                   |
+| ~~A13~~   | 14, 20 | Trait spread lives in `config.traits` and mutation in `config.genetics`, neither per species (a _third_ pattern alongside B3/B4)                                                                                                                                                                                                                                                                                                                                                   | **Done in Step 29** — `traits.spread` and `genetics` are per-species blocks in the schema, resolved against the config defaults                                                                                                                                                                        |
+| A14       | 14     | Only `speed` and `adultMass` are precomputed onto the entity; other trait multipliers are applied inline each tick                                                                                                                                                                                                                                                                                                                                                                 | — (settled; measured as free)                                                                                                                                                                                                                                                                          |
+| ~~A15~~   | 15     | Kin identity omitted from the memory kinds — lineage is already exact and non-decaying via `parents`/`offspring`/`guardianId`, so a decaying copy would duplicate authoritative state for no consumer                                                                                                                                                                                                                                                                              | **Settled in Step 23** — kin recognition got its reader (defense), and it reads the _authoritative_ lists directly. So the memory kind is still not needed and now demonstrably so, rather than by assumption                                                                                          |
+| ~~A16~~   | 15     | The `danger` memory kind shipped with avoidance implemented but no writer                                                                                                                                                                                                                                                                                                                                                                                                          | **Done in Step 16** — a failed hunt records the attack site in the prey's memory                                                                                                                                                                                                                       |
+| ~~A17~~   | 16     | Predator `birthMass` and the aging curve come from global config, so a stalker cub is born at the grazer's 5 kg (B3 debt, now spanning two species)                                                                                                                                                                                                                                                                                                                                | **Done in Step 29** — the stalker has its own `aging` block (born at 8 kg, matures slower, lives to 14 000) and its own `metabolism` and `hydration`. The last place this survived was the _birth_ path, where a newborn took one global `birthMass`                                                   |
+| A18       | 16     | Prey have no spatial refuge from predators — cover slows both equally — which is part of why the founding counts are a knife edge                                                                                                                                                                                                                                                                                                                                                  | **Step 24** (territory)                                                                                                                                                                                                                                                                                |
+| ~~A19~~   | 17     | Hazards and fights are not injury sources — failed captures are still the only writer                                                                                                                                                                                                                                                                                                                                                                                              | **Done in Step 23** — a dominance contest that escalates wounds both parties (the loser worse), via the same `applyInjury` helper. 114 battle wounds in one live 30 s window. _Hazards_ are still not an injury source, by the Step 19 reasoning below                                                 |
+| ~~A21~~   | 18     | No dedicated scavenger guild — predators are the scavengers, since a third species is its own scope                                                                                                                                                                                                                                                                                                                                                                                | **Done in Step 29** — `scavenger.corvid`, whose entire implementation is a config file: a carnivore with an **empty `preySpeciesIds`**, so it can only eat what is already dead. No engine code was written to add it                                                                                  |
+| A22       | 18     | Tombstones are bounded at 256, so lineage questions cannot reach further back than that                                                                                                                                                                                                                                                                                                                                                                                            | still open — Step 21 measured lineage _depth_ (`generation`) instead, which needs no tombstones; a deeper query would need them                                                                                                                                                                        |
+| A23       | 19     | Snow is a weather state, not an accumulating snowpack layer                                                                                                                                                                                                                                                                                                                                                                                                                        | — (settled; a layer needs a reason to exist)                                                                                                                                                                                                                                                           |
+| A24       | 19     | No per-cell microclimate — temperature is global and cover is the only spatial modifier                                                                                                                                                                                                                                                                                                                                                                                            | needs terrain elevation, which does not exist                                                                                                                                                                                                                                                          |
+| A25       | 20     | No dominance or epistasis — expression is purely additive                                                                                                                                                                                                                                                                                                                                                                                                                          | — (settled; "quantitative traits only" per the step, and it keeps genotype→phenotype legible)                                                                                                                                                                                                          |
+| A26       | 20     | Genetics is a module called by reproduction, not a registered `GeneticsSystem` — inheritance happens at one instant that reproduction already owns                                                                                                                                                                                                                                                                                                                                 | — (settled; a system would need a per-tick newborn scan)                                                                                                                                                                                                                                               |
+| A27       | 21     | Metrics are polled over HTTP rather than streamed in snapshots/deltas — a full aggregate would dwarf the per-tick payload                                                                                                                                                                                                                                                                                                                                                          | — (settled; a summary view needs no tick resolution)                                                                                                                                                                                                                                                   |
+| A28       | 21     | Bottleneck detection is left to the caller: the bounded history carries population per species, but nothing computes a minimum or flags a crash                                                                                                                                                                                                                                                                                                                                    | a later observability pass, if it earns its keep                                                                                                                                                                                                                                                       |
+| A37       | 25     | Disease does not cross species — a pathogen adapted to a grazer is not the one adapted to a stalker                                                                                                                                                                                                                                                                                                                                                                                | a later step, if a shared or zoonotic pathogen is wanted                                                                                                                                                                                                                                               |
+| ~~A38~~   | 25     | Susceptibility, incubation, and virulence are global config rather than per species                                                                                                                                                                                                                                                                                                                                                                                                | **Done in Step 29** — `disease` is a resolved species block, so susceptibility, incubation, and virulence can vary by species (they do not yet in the demo, which is a tuning choice rather than a structural one)                                                                                     |
+| A39       | 25     | An environmental **spillover** keeps the pathogen alive. Without it the disease went extinct with its last carrier (one epidemic in 15k ticks); with it, outbreaks recur. It is a modelling convenience standing in for a reservoir that is not simulated                                                                                                                                                                                                                          | — (settled; a reservoir species would be Step 29's business)                                                                                                                                                                                                                                           |
+| ~~A29~~   | 22     | Mate preference direction is species data (`species.matePreference`); only its _strength_ (`choosiness`) is heritable, so there is no full Fisherian runaway                                                                                                                                                                                                                                                                                                                       | **Settled in Step 29** — `matePreference` is a resolved species block like every other. Direction is still species data and only _strength_ is heritable, so there is still no full Fisherian runaway; that remains a deliberate choice rather than a config gap                                       |
+| ~~A30~~   | 22     | `GESTATING_SEX` is one model-wide constant, not per-species data — every species would set it identically today                                                                                                                                                                                                                                                                                                                                                                    | **Settled in Step 29** — `reproduction` is a per-species block, so a species that needed the other answer could now state it. `GESTATING_SEX` stays one constant because every species still sets it identically                                                                                       |
+| ⚠ A31     | 23     | **Step 21's selection sandbox has never demonstrated its claim.** Measured over seven seeds: the trait rose in 3, fell in 4, mean change −0.0002, with the selection differential negative in five and uncorrelated with the trait's direction. Cause: the differential compares breeders against _all_ adults, and 71 % of adults are breeders there, so the two samples are nearly the same set. Tightening the breeding gate makes it visible but drives the population extinct | an unmet **Step 21** acceptance criterion. The test now claims no direction; a world that demonstrates it must be built, not tuned                                                                                                                                                                     |
+| A32       | 23     | Juvenile defense fires **once in 12 000 demo ticks** — the geometry it needs (an adult with a living juvenile of its own, nearer the predator than the parent and inside `defendRange`) almost never arises                                                                                                                                                                                                                                                                        | still open. Step 24 did **not** fix it as hoped: grazers turned out not to be able to afford site fidelity at all (A34), so families are no more co-located than before. Relaxing "nearer the predator than I am" to "near enough to interpose" remains the named lever                                |
+| ⚠ A34     | 24     | **Patrolling is near-inert in the demo.** Routine site fidelity competes with wandering — which is how an animal finds its next meal — and cost the demo two seeds in five (4/5 → 2/5). The pull now ramps over six range radii, so it fires only for an animal that is genuinely lost. The mechanism is implemented and tested (the suite tightens the ramp to exercise it) but is not doing visible work in the demo                                                             | a future pass could give patrol a _reason_ — food that is worth returning to, or a den — rather than making it compete with foraging on equal terms                                                                                                                                                    |
+| A35       | 24     | Grazers get a home range but no site fidelity and no claims, so "territory" in the demo is a predator-only phenomenon at ~9 individuals                                                                                                                                                                                                                                                                                                                                            | **Step 29** (species schema) is where a third, genuinely territorial species would land                                                                                                                                                                                                                |
+| A36       | 24     | The claim layer is not projected to the renderer — the home-range ring is drawn from inspection for the selected animal only                                                                                                                                                                                                                                                                                                                                                       | a later renderer pass, if a territory _map_ earns the per-snapshot cost                                                                                                                                                                                                                                |
+| A40       | 26     | **Remembered routes are not implemented.** The step named them, but Step 15 already stores remembered _places_ and `recallFood` already steers to them; a route is a trajectory, and the codebase deliberately stores no trajectory anywhere (a home range is four numbers for exactly this reason)                                                                                                                                                                                | a later step, if a _sequence_ of places ever earns the storage a single place does not                                                                                                                                                                                                                 |
+| ~~A41~~   | 26     | Migration is a **grazer-only** phenomenon: a stalker's food is the grazer, which it already follows through perception and the hunt pipeline, so a vegetation gradient would point it at grass it cannot eat. Letting stalkers track forage as a prey proxy was tried and measured _worse_ (stalkers 0–3). Both species do disperse                                                                                                                                                | **Settled in Step 29** — `migration` is a resolved block like the rest. Migration remains grazer-only _by data_ (`tracksForage`), which is now a statement about the species rather than a limitation of the code                                                                                      |
+| A42       | 26     | The forage cue reaches **beyond perception** (18 units against 6) and is a stated modelling convenience standing in for coarse long-range cues this world does not simulate — the smell of green ground, the lie of the land. Bounded by being a _difference_ (a flat world produces no pull) and by a strength cap well below 1                                                                                                                                                   | — (settled; the same kind of honest stand-in as A39's spillover)                                                                                                                                                                                                                                       |
+| A43       | 26     | **Population fragmentation is enabled, not asserted.** Herd labels already split by hop count and separate forage patches already pull herds apart, but no test claims a fragmentation outcome                                                                                                                                                                                                                                                                                     | a later observability pass, if a fragmentation _measure_ earns its keep                                                                                                                                                                                                                                |
+| A44       | 27     | **Drought and severe winter are not local disturbances.** Both already exist as _global_ weather states (Step 19), so a spatially bounded copy would be the same mechanism at a different scale rather than a new one. Fire, flood, and storm have no global analogue, which is why they are the three that shipped                                                                                                                                                                | — (settled; a kind is a row in the effect table if one is ever wanted)                                                                                                                                                                                                                                 |
+| A45       | 27     | **A disturbance never modifies terrain.** Terrain is derived — regenerated from the seed on load and deliberately unsaved — so an edit would vanish on restore. "Affected terrain" is expressed as a derived traversal penalty plus a renderer overlay, and the disturbance list is its own protocol layer                                                                                                                                                                         | — (settled; mutable terrain would need terrain to become saved state)                                                                                                                                                                                                                                  |
+| A46       | 27     | Disturbance **mortality is rare in the demo** (0–12 deaths across ten seeds): a region covers ~1% of the map and animals walk out of it. The lethal path is real and exercised in a controlled test, but the demo-level cost is sublethal — 852 burns across those seeds — exactly as Step 25's disease turned out to be                                                                                                                                                           | — (settled; making it demographically significant would mean bigger or more frequent events, which the 91% experiment showed breaks recovery)                                                                                                                                                          |
+| A47       | 28     | Animals do not seek _other_ animals' burrows — a burrow shelters whoever stands on it (through `isShelteredAt`, so thermoregulation and the `shelter` action both get it free), but only trails exert a pull. Giving burrows one would mean teaching the perception hot loop about features                                                                                                                                                                                        | a later step, if a species should ever compete for or inherit a den                                                                                                                                                                                                                                    |
+| A48       | 28     | **Grazing clearings are not a feature.** Vegetation biomass already drops visibly where animals graze and regrows after, so a separate "clearing" would be a second mechanism for something the world already does — the same reasoning that kept drought out of Step 27 (A44)                                                                                                                                                                                                     | — (settled)                                                                                                                                                                                                                                                                                            |
+| A49       | 29     | "Activity pattern" and "habitat preference" are named in the step's objective but are **not schema blocks**: there is no diurnal cycle for a pattern to exist in, and habitat preference is already expressed by `migration.tracksForage` plus the comfort band rather than as a field of its own                                                                                                                                                                                  | a later step, if a day/night cycle or a real habitat-suitability model arrives                                                                                                                                                                                                                         |
+| A50       | 29     | The species roster is a hand-written **import list**, not a directory scan or a data file loaded at runtime. Runtime species authoring is explicitly out of scope for the step, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                                      | — (settled)                                                                                                                                                                                                                                                                                            |
+| A33       | 23     | Cooperative defense is passive (vigilance lowers the odds) plus a parent interposing; **mobbing** — prey collectively attacking a predator — is not implemented                                                                                                                                                                                                                                                                                                                    | a later social pass, if a species ever needs it                                                                                                                                                                                                                                                        |
+| ~~⚠ A20~~ | 17     | **Health lost to dehydration never recovers** — the hydration system only subtracts, so a once-thirsty animal carried that damage for life while a mauled one healed                                                                                                                                                                                                                                                                                                               | **Done in Step 25** — a healthy, well-fed animal now slowly regains health from _any_ source of damage, gated on energy exactly as injury healing is. It lives in the disease system because that step is about recovery generally; injury healing remains the faster, severity-paid path on top of it |
 
 ### B. Configuration / structural debt
 
-| # | From | Item | Owed to |
-| --- | --- | --- | --- |
-| B1 | 4 | `fixtures/createDemoSimulation.js` not renamed to `createEcosystem.js` (rename was pure churn) | cosmetic cleanup |
-| ~~B2~~ | 4 | `config.demo` retained for *scenario* selection (count + species id); biology did move to `config/species/*` | **Done in Step 29** — `config.demo` is now a `founding` **roster** (`[{ speciesId, count }]`) walked in order, so adding a species to the world is a line of config rather than a third hardcoded slot. The benchmark scenarios use the same shape |
-| ~~B3~~ | 6, 10, 11 | Metabolism, hydration, and aging parameters live in **global config sections** rather than per-species | **Done in Step 29** — metabolism, hydration, and aging are per-species blocks resolved against the config defaults |
-| ~~B4~~ | 7 | Perception radius resolved per-species from the registry (no entity field) — a *different* pattern from B3 | **Done in Step 29** — `perceptionRadius` became a `perception` block, so the third config pattern is gone and all species biology resolves one way |
-| B5 | 8, 14 | `utilityBreakdown` persisted on the entity rather than kept transient — could bloat saves at 25k animals; Step 14's per-entity `traits` object adds to the same pressure (though it is genuinely non-derivable and must persist) | **Step 30** (if save size bites) |
-| B6 | 11 | `age` is a stored, per-tick-incremented field rather than derived from a `birthTick`; `updateInterval` staggering is supported and tested but unused | **Step 30** (if aging cost ever matters) |
+| #      | From      | Item                                                                                                                                                                                                                             | Owed to                                                                                                                                                                                                                                            |
+| ------ | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1     | 4         | `fixtures/createDemoSimulation.js` not renamed to `createEcosystem.js` (rename was pure churn)                                                                                                                                   | cosmetic cleanup                                                                                                                                                                                                                                   |
+| ~~B2~~ | 4         | `config.demo` retained for _scenario_ selection (count + species id); biology did move to `config/species/*`                                                                                                                     | **Done in Step 29** — `config.demo` is now a `founding` **roster** (`[{ speciesId, count }]`) walked in order, so adding a species to the world is a line of config rather than a third hardcoded slot. The benchmark scenarios use the same shape |
+| ~~B3~~ | 6, 10, 11 | Metabolism, hydration, and aging parameters live in **global config sections** rather than per-species                                                                                                                           | **Done in Step 29** — metabolism, hydration, and aging are per-species blocks resolved against the config defaults                                                                                                                                 |
+| ~~B4~~ | 7         | Perception radius resolved per-species from the registry (no entity field) — a _different_ pattern from B3                                                                                                                       | **Done in Step 29** — `perceptionRadius` became a `perception` block, so the third config pattern is gone and all species biology resolves one way                                                                                                 |
+| B5     | 8, 14     | `utilityBreakdown` persisted on the entity rather than kept transient — could bloat saves at 25k animals; Step 14's per-entity `traits` object adds to the same pressure (though it is genuinely non-derivable and must persist) | **Step 30** (if save size bites)                                                                                                                                                                                                                   |
+| B6     | 11        | `age` is a stored, per-tick-incremented field rather than derived from a `birthTick`; `updateInterval` staggering is supported and tested but unused                                                                             | **Step 30** (if aging cost ever matters)                                                                                                                                                                                                           |
 
 ### C. Known behavioural limitations
 
-| # | From | Item | Owed to |
-| --- | --- | --- | --- |
-| ~~⚠ C1~~ | 2, 3, 5 | **Entity spawning ignored terrain** — animals could spawn on impassable rock | **Done in Step 13** — founding spawns rejection-sample a passable position (deterministic scan as fallback). Externally submitted `entity.spawn` commands are still the caller's responsibility, by choice |
-| ~~⚠ C2~~ | 12, 13 | **Parent references stayed valid only because entities were never removed** | **Done in Step 18** — bounded tombstone registry + a four-state lineage lookup (`alive` / `carcass` / `dead` / `forgotten`). Written at the engine's single removal chokepoint. The old "everything resolves" assertions were rewritten to assert the *resolution is accurate*, so they cannot pass vacuously |
-| C3 | 1, 9, 13 | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window | **Step 30** / ongoing |
-| ~~C4~~ | 10 | Single lake + no memory ⇒ animals stranded far from water die of thirst | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed) |
-| ~~C5~~ | 12 | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). An unchecked herbivore *should* grow until something limits it | **Answered in Step 16** — predation is the limiter. Measured over 20k ticks on five seeds, grazers now oscillate in the 24–111 range instead of growing without bound. Disease (Step 25) can still add a second check |
-| C6 | 7, 23, 24 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes. **Step 23 added a second neighbour walk** (the social pass, +26 ms/tick at large-5k) over the same grid neighbourhood — folding the two into one loop is now the single clearest optimization available. Step 24 added only ~2 ms (its work is O(1) per animal plus a staggered coarse-grid decay), so it is not part of the problem | **Step 30** |
-| ⚠ C8 | 5, 28 | **Animals spend ~49% of their time within two cells of the world boundary**, which is 6% of the area — measured with Step 28's engineering *disabled*, so it is pre-existing and not caused by it. Movement clamps at the edge (Step 5), so an animal whose heading points off-map slides along the wall instead of turning away, and they accumulate there. Nothing before Step 28 made it visible; the trail layer is effectively an occupancy heatmap, and 78% of trails formed on the edge. Engineering adds ~4.6 points on top via trail attraction | **Step 30** or a movement pass. Reflecting the heading at a boundary instead of clamping is the obvious fix, but it changes Step 5 behaviour for every system and needs its own ten-seed measurement — deliberately not attempted inside Step 28 |
-| C7 | 5, 9 | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range) | — (settled) |
+| #        | From      | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Owed to                                                                                                                                                                                                                                                                                                       |
+| -------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~⚠ C1~~ | 2, 3, 5   | **Entity spawning ignored terrain** — animals could spawn on impassable rock                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | **Done in Step 13** — founding spawns rejection-sample a passable position (deterministic scan as fallback). Externally submitted `entity.spawn` commands are still the caller's responsibility, by choice                                                                                                    |
+| ~~⚠ C2~~ | 12, 13    | **Parent references stayed valid only because entities were never removed**                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | **Done in Step 18** — bounded tombstone registry + a four-state lineage lookup (`alive` / `carcass` / `dead` / `forgotten`). Written at the engine's single removal chokepoint. The old "everything resolves" assertions were rewritten to assert the _resolution is accurate_, so they cannot pass vacuously |
+| C3       | 1, 9, 13  | High per-tick event volume: one `entity.moved` per animal per tick, plus one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in range. Bounded by the event buffer and hidden behind the renderer's "show routine" toggle, but it competes for the retention window                                                                                                                                                                                                                                                             | **Step 30** / ongoing                                                                                                                                                                                                                                                                                         |
+| ~~C4~~   | 10        | Single lake + no memory ⇒ animals stranded far from water die of thirst                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | **Done in Step 15** — animals remember where they drank and return to it. Re-tuned `dehydrationRate` 0.02 → 0.035 on a five-seed measurement: ~3× the visible water-seeking for a modest survival cost. Memory helps but does not make thirst free (0.06 nearly emptied one seed)                             |
+| ~~C5~~   | 12        | Reproduction first exploded exponentially (8 → 1037 by tick 20 000; food never became limiting). An unchecked herbivore _should_ grow until something limits it                                                                                                                                                                                                                                                                                                                                                                                          | **Answered in Step 16** — predation is the limiter. Measured over 20k ticks on five seeds, grazers now oscillate in the 24–111 range instead of growing without bound. Disease (Step 25) can still add a second check                                                                                         |
+| C6       | 7, 23, 24 | Perception is the dominant per-tick cost (O(r²) local scan). Staggering knob verified; ring-search early-exit and buffer reuse are the real fixes. **Step 23 added a second neighbour walk** (the social pass, +26 ms/tick at large-5k) over the same grid neighbourhood — folding the two into one loop is now the single clearest optimization available. Step 24 added only ~2 ms (its work is O(1) per animal plus a staggered coarse-grid decay), so it is not part of the problem                                                                  | **Step 30**                                                                                                                                                                                                                                                                                                   |
+| ⚠ C8     | 5, 28     | **Animals spend ~49% of their time within two cells of the world boundary**, which is 6% of the area — measured with Step 28's engineering _disabled_, so it is pre-existing and not caused by it. Movement clamps at the edge (Step 5), so an animal whose heading points off-map slides along the wall instead of turning away, and they accumulate there. Nothing before Step 28 made it visible; the trail layer is effectively an occupancy heatmap, and 78% of trails formed on the edge. Engineering adds ~4.6 points on top via trail attraction | **Step 30** or a movement pass. Reflecting the heading at a boundary instead of clamping is the obvious fix, but it changes Step 5 behaviour for every system and needs its own ten-seed measurement — deliberately not attempted inside Step 28                                                              |
+| C7       | 5, 9      | Two deliberate modelling choices: movement uses the **current** cell's terrain modifier (not the target cell), and feeding is **in-cell** (no separate eating range)                                                                                                                                                                                                                                                                                                                                                                                     | — (settled)                                                                                                                                                                                                                                                                                                   |
 
 ### D. Test / benchmark fragility observed
 
-| # | Item | Guidance |
-| --- | --- | --- |
-| D1 | The determinism "benchmark-style" assertion had to be rewritten **four times** as biology landed (all survive → all carcasses → `entityCount === N` → `>= N`) | Assert invariants that survive biology changes, not population outcomes |
-| D2 | `seekWater` is seed-dependent (seed 42 shows none in 3000 ticks; seed 7 does) — the test is pinned to a seed that exercises it | Prefer controlled scenarios over demo-behaviour assertions; pin the seed and say why |
-| D3 | Vegetation biomass is a `Float32Array`, so measured deltas carry ~1e-6 error | Use float32-appropriate tolerances (1e-5), not 1e-9 |
-| D5 | Step 20's first "siblings differ" test bred *homozygous* parents, where recombination is invisible and the assertion was vacuous | When testing a mechanism, first ask what setup would make it *unobservable* — and make sure the fixture is not that |
-| D6 | Step 20's boundary scan rejected a file for the word "window." inside a doc comment | Source scans must strip comments: a guard that fires on prose teaches people to word around it rather than trust it |
-| D7 | Step 21's selection sandbox broke under Step 22 and the cause was **not** the new step: breaking deaths down by cause showed they were entirely age deaths, so the "sparse food favours efficiency" pressure had never really been applied and the assertion had been passing on drift, pinned to a lucky seed | When a seeded assertion breaks, ask what the fixture is *actually* measuring before re-pinning the seed. Check the mechanism (here: deaths by cause), then re-verify on seeds it was never tuned against |
-| D8 | Step 22's first "condition keeps the display honest" assertion over-claimed: at `conditionWeight` 0.4 a large display genuinely does outweigh poor condition | When an assertion about a model fails, decide whether the model or the assertion is wrong — then pin the real behaviour in *both* directions so a future retune is caught in a unit test rather than a five-seed sweep |
-| D9 | Step 23 added `case 'herd'` in the middle of a shared `switch` fallthrough chain, silently redirecting `seekFood` / `seekMate` / `followParent` into it. The result was a `NaN` heading, which fails the passability check, so animals **chose the right action and stood perfectly still** — five suites failed at once with "did not move" | A bare `case` added to a fallthrough group is a silent behaviour change, not an addition. And `JSON.stringify(NaN)` prints `null`, which sends you hunting a null-assignment bug that does not exist — check for `NaN` first when a numeric field reads `null` in a dump |
-| D10 | Step 23's first cuts of both group formation and alarm were unbounded local mechanisms, and both went global: alarm became a self-sustaining chain reaction (106/119 permanently fleeing), and herd labels never dissolved after a split | A local mechanism needs an *explicit* bound — a hop count from the source — to stay local. Population density is not a bound |
-| D11 | Step 24's `intrusionThreshold` was set equal to `markStrength`, so freshly marked ground sat exactly at the "occupied" threshold and decayed below it immediately — avoidance never fired at all | When one parameter is a threshold *on* another, write the relationship down beside them. Equal values are the failure case, not the neutral one |
-| D12 | Two Step 24 tests assumed a resident still held the cell it was spawned on. It does not — it moves. A third asserted a stochastic time-on-claim comparison across two runs whose trajectories diverge from tick one | Ask the world what is true (`heldGround` scans the grid) instead of assuming the setup held; and assert mechanisms, not outcomes compared across diverging runs |
-| D13 | A Step 22 test measured event *retention* rather than emission: it stepped 3000 ticks at once and then asked `eventsSince`, so the bounded outbox had long since trimmed everything but the tail. It passed only because a courtship happened to land in the surviving window, and Step 23's new events shortened that window until it reported **zero** courtships in a run that had 280 | Collect events tick by tick when counting them. `eventsSince` after a long `step(n)` measures what survived retention, not what happened |
-| D14 | Step 26 measured **3/5 seeds** against a 4/5 control and would have been ramped down for it. Bisecting the strength gave 1/5, 2/5, 3/5, 3/5 — non-monotonic, which is the tell. At **ten** seeds both read 4/10: the gap was noise and the canonical five seeds flatter the control | The demo's two-species balance is a knife edge at ~3–9 stalkers. **Five seeds cannot resolve a one-seed difference.** When a sweep disagrees with a control by one seed, add seeds before touching a parameter — and treat a non-monotonic bisection as evidence you are tuning noise |
-| D15 | Step 26's end-to-end test was written twice and was a bad test both times: first measuring diffusion across a small box (the control arrived just as fast), then measuring a ~1-unit displacement against a mechanism deliberately built to be gentle | Before asserting an outcome, ask what the *control* would score. If the control scores the same, the test measures the world and not the change. Prefer asserting the mechanism (here: the distribution of chosen headings) over the outcome it accumulates into |
-| D16 | Step 26's "at zero strength nothing changes" guarantee was false by one ulp: `normalizeAngle(1.2)` is `1.2000000000000002`, and a fed animal on a real gradient does pass through the blend at strength 0 | An identity path must be *exactly* the identity. If a feature's safety argument is "at zero it does nothing", assert `===` on the untouched input — float-normalizing a pass-through silently makes it a different value, and it compounds |
-| ⚠ D17 | Step 27's fire recorded **no injuries at all** while still killing animals: `injuryPerTick` was 0.006 and `applyInjury` silently discards anything at or below `HEALED_BELOW` (0.02), so every call returned `null`. Visible only because a diagnostic happened to print burn counts *and* deaths-by-cause side by side | A shared helper with a **threshold** silently discards sub-threshold input, and a per-tick rate is exactly the shape that trips it. Before feeding a small value into an accumulator helper, check its floor — and when adding a new caller, assert the effect landed rather than assuming the call did something |
-| D18 | Step 27's first parameters left a disturbance running **91% of ticks**. Beyond over-pressuring the demo, it made the step's own acceptance criterion untestable: nothing ever finished recovering, so "recovery" could not be observed | For a mechanism whose visible result is *recovery*, the quiet interval is part of the design, not slack. Tune the duty cycle before tuning the severity, and sanity-check "what fraction of the time is this running?" — a mechanism that is always on has become the background rather than an event |
-| ⚠ D19 | Step 28's first cut ran in the phase its spec named (`environment`) and wore **nothing at all** for 15 000 ticks, because `lastMoveDistance` is an accumulator the metabolism system consumes and zeroes in `physiology`. Burrows, which read `action` instead, worked perfectly throughout | A **half**-working feature hides much better than a broken one — burrows forming was positive evidence that made the missing trails look like a tuning problem rather than a wiring one. When one of two similar paths produces nothing, suspect the input before the parameters. And check whether a per-tick field is *consumed* by a later phase before reading it from an earlier one |
-| D20 | Step 28's cells flapped across the feature threshold: 9569 trails formed and 9081 lost in one run, each flap costing two events and a projection churn | Any threshold a continuously-varying value crosses needs a **hysteresis band**, not a single number — cells will always sit near the boundary. Storing which side a cell is on is the right call even where "derive rather than store" is the house rule: with hysteresis the state genuinely depends on history, which a derived value cannot express |
-| D21 | Step 28 tried to reduce that churn further by widening the band, and got 0.66 / 0.76 / 0.58 events per tick at bands of 0.7 / 0.5 / 0.3 — non-monotonic, i.e. noise. The residual churn was animals genuinely using and abandoning ground, not cells oscillating | Two distinct causes can produce the same symptom, and fixing the first does not mean the second is the same thing. When a parameter sweep comes back non-monotonic (§1.4 D14 again), stop tuning and ask what is actually generating the number |
-| ⚠ D22 | Step 29's first three-species sweep read 3/10 against a 6/10 control, and the cause was **not** the new species: `fleshIntakeRate` was a flat per-tick number, so a 4 kg scavenger stripped a carcass as fast as a 45 kg predator. Mass-scaling intake turned it into 5/10 | A shared constant that is *correct for one size* is a latent bug that only a second size can expose. When adding a variant that differs by an order of magnitude in some dimension, grep for constants that ought to scale with it before blaming the variant's own parameters |
-| D23 | Step 29's refactor broke **23 tests**, almost all in one way: they constructed a system with custom parameters and expected those to apply, but a species' resolved block now beats anything a system was constructed with — so the parameters have to reach the *config* the registry resolves against | When a parameter's *source* moves, every caller that supplied it the old way keeps working syntactically and stops working semantically. That is worse than a break. The fixes carry a ⚠ comment at each site for exactly that reason |
-| D4 | All twelve completed steps still read `**Status:** Not started` until this review | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it |
+| #     | Item                                                                                                                                                                                                                                                                                                                                                                                      | Guidance                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1    | The determinism "benchmark-style" assertion had to be rewritten **four times** as biology landed (all survive → all carcasses → `entityCount === N` → `>= N`)                                                                                                                                                                                                                             | Assert invariants that survive biology changes, not population outcomes                                                                                                                                                                                                                                                                                                                   |
+| D2    | `seekWater` is seed-dependent (seed 42 shows none in 3000 ticks; seed 7 does) — the test is pinned to a seed that exercises it                                                                                                                                                                                                                                                            | Prefer controlled scenarios over demo-behaviour assertions; pin the seed and say why                                                                                                                                                                                                                                                                                                      |
+| D3    | Vegetation biomass is a `Float32Array`, so measured deltas carry ~1e-6 error                                                                                                                                                                                                                                                                                                              | Use float32-appropriate tolerances (1e-5), not 1e-9                                                                                                                                                                                                                                                                                                                                       |
+| D5    | Step 20's first "siblings differ" test bred _homozygous_ parents, where recombination is invisible and the assertion was vacuous                                                                                                                                                                                                                                                          | When testing a mechanism, first ask what setup would make it _unobservable_ — and make sure the fixture is not that                                                                                                                                                                                                                                                                       |
+| D6    | Step 20's boundary scan rejected a file for the word "window." inside a doc comment                                                                                                                                                                                                                                                                                                       | Source scans must strip comments: a guard that fires on prose teaches people to word around it rather than trust it                                                                                                                                                                                                                                                                       |
+| D7    | Step 21's selection sandbox broke under Step 22 and the cause was **not** the new step: breaking deaths down by cause showed they were entirely age deaths, so the "sparse food favours efficiency" pressure had never really been applied and the assertion had been passing on drift, pinned to a lucky seed                                                                            | When a seeded assertion breaks, ask what the fixture is _actually_ measuring before re-pinning the seed. Check the mechanism (here: deaths by cause), then re-verify on seeds it was never tuned against                                                                                                                                                                                  |
+| D8    | Step 22's first "condition keeps the display honest" assertion over-claimed: at `conditionWeight` 0.4 a large display genuinely does outweigh poor condition                                                                                                                                                                                                                              | When an assertion about a model fails, decide whether the model or the assertion is wrong — then pin the real behaviour in _both_ directions so a future retune is caught in a unit test rather than a five-seed sweep                                                                                                                                                                    |
+| D9    | Step 23 added `case 'herd'` in the middle of a shared `switch` fallthrough chain, silently redirecting `seekFood` / `seekMate` / `followParent` into it. The result was a `NaN` heading, which fails the passability check, so animals **chose the right action and stood perfectly still** — five suites failed at once with "did not move"                                              | A bare `case` added to a fallthrough group is a silent behaviour change, not an addition. And `JSON.stringify(NaN)` prints `null`, which sends you hunting a null-assignment bug that does not exist — check for `NaN` first when a numeric field reads `null` in a dump                                                                                                                  |
+| D10   | Step 23's first cuts of both group formation and alarm were unbounded local mechanisms, and both went global: alarm became a self-sustaining chain reaction (106/119 permanently fleeing), and herd labels never dissolved after a split                                                                                                                                                  | A local mechanism needs an _explicit_ bound — a hop count from the source — to stay local. Population density is not a bound                                                                                                                                                                                                                                                              |
+| D11   | Step 24's `intrusionThreshold` was set equal to `markStrength`, so freshly marked ground sat exactly at the "occupied" threshold and decayed below it immediately — avoidance never fired at all                                                                                                                                                                                          | When one parameter is a threshold _on_ another, write the relationship down beside them. Equal values are the failure case, not the neutral one                                                                                                                                                                                                                                           |
+| D12   | Two Step 24 tests assumed a resident still held the cell it was spawned on. It does not — it moves. A third asserted a stochastic time-on-claim comparison across two runs whose trajectories diverge from tick one                                                                                                                                                                       | Ask the world what is true (`heldGround` scans the grid) instead of assuming the setup held; and assert mechanisms, not outcomes compared across diverging runs                                                                                                                                                                                                                           |
+| D13   | A Step 22 test measured event _retention_ rather than emission: it stepped 3000 ticks at once and then asked `eventsSince`, so the bounded outbox had long since trimmed everything but the tail. It passed only because a courtship happened to land in the surviving window, and Step 23's new events shortened that window until it reported **zero** courtships in a run that had 280 | Collect events tick by tick when counting them. `eventsSince` after a long `step(n)` measures what survived retention, not what happened                                                                                                                                                                                                                                                  |
+| D14   | Step 26 measured **3/5 seeds** against a 4/5 control and would have been ramped down for it. Bisecting the strength gave 1/5, 2/5, 3/5, 3/5 — non-monotonic, which is the tell. At **ten** seeds both read 4/10: the gap was noise and the canonical five seeds flatter the control                                                                                                       | The demo's two-species balance is a knife edge at ~3–9 stalkers. **Five seeds cannot resolve a one-seed difference.** When a sweep disagrees with a control by one seed, add seeds before touching a parameter — and treat a non-monotonic bisection as evidence you are tuning noise                                                                                                     |
+| D15   | Step 26's end-to-end test was written twice and was a bad test both times: first measuring diffusion across a small box (the control arrived just as fast), then measuring a ~1-unit displacement against a mechanism deliberately built to be gentle                                                                                                                                     | Before asserting an outcome, ask what the _control_ would score. If the control scores the same, the test measures the world and not the change. Prefer asserting the mechanism (here: the distribution of chosen headings) over the outcome it accumulates into                                                                                                                          |
+| D16   | Step 26's "at zero strength nothing changes" guarantee was false by one ulp: `normalizeAngle(1.2)` is `1.2000000000000002`, and a fed animal on a real gradient does pass through the blend at strength 0                                                                                                                                                                                 | An identity path must be _exactly_ the identity. If a feature's safety argument is "at zero it does nothing", assert `===` on the untouched input — float-normalizing a pass-through silently makes it a different value, and it compounds                                                                                                                                                |
+| ⚠ D17 | Step 27's fire recorded **no injuries at all** while still killing animals: `injuryPerTick` was 0.006 and `applyInjury` silently discards anything at or below `HEALED_BELOW` (0.02), so every call returned `null`. Visible only because a diagnostic happened to print burn counts _and_ deaths-by-cause side by side                                                                   | A shared helper with a **threshold** silently discards sub-threshold input, and a per-tick rate is exactly the shape that trips it. Before feeding a small value into an accumulator helper, check its floor — and when adding a new caller, assert the effect landed rather than assuming the call did something                                                                         |
+| D18   | Step 27's first parameters left a disturbance running **91% of ticks**. Beyond over-pressuring the demo, it made the step's own acceptance criterion untestable: nothing ever finished recovering, so "recovery" could not be observed                                                                                                                                                    | For a mechanism whose visible result is _recovery_, the quiet interval is part of the design, not slack. Tune the duty cycle before tuning the severity, and sanity-check "what fraction of the time is this running?" — a mechanism that is always on has become the background rather than an event                                                                                     |
+| ⚠ D19 | Step 28's first cut ran in the phase its spec named (`environment`) and wore **nothing at all** for 15 000 ticks, because `lastMoveDistance` is an accumulator the metabolism system consumes and zeroes in `physiology`. Burrows, which read `action` instead, worked perfectly throughout                                                                                               | A **half**-working feature hides much better than a broken one — burrows forming was positive evidence that made the missing trails look like a tuning problem rather than a wiring one. When one of two similar paths produces nothing, suspect the input before the parameters. And check whether a per-tick field is _consumed_ by a later phase before reading it from an earlier one |
+| D20   | Step 28's cells flapped across the feature threshold: 9569 trails formed and 9081 lost in one run, each flap costing two events and a projection churn                                                                                                                                                                                                                                    | Any threshold a continuously-varying value crosses needs a **hysteresis band**, not a single number — cells will always sit near the boundary. Storing which side a cell is on is the right call even where "derive rather than store" is the house rule: with hysteresis the state genuinely depends on history, which a derived value cannot express                                    |
+| D21   | Step 28 tried to reduce that churn further by widening the band, and got 0.66 / 0.76 / 0.58 events per tick at bands of 0.7 / 0.5 / 0.3 — non-monotonic, i.e. noise. The residual churn was animals genuinely using and abandoning ground, not cells oscillating                                                                                                                          | Two distinct causes can produce the same symptom, and fixing the first does not mean the second is the same thing. When a parameter sweep comes back non-monotonic (§1.4 D14 again), stop tuning and ask what is actually generating the number                                                                                                                                           |
+| ⚠ D22 | Step 29's first three-species sweep read 3/10 against a 6/10 control, and the cause was **not** the new species: `fleshIntakeRate` was a flat per-tick number, so a 4 kg scavenger stripped a carcass as fast as a 45 kg predator. Mass-scaling intake turned it into 5/10                                                                                                                | A shared constant that is _correct for one size_ is a latent bug that only a second size can expose. When adding a variant that differs by an order of magnitude in some dimension, grep for constants that ought to scale with it before blaming the variant's own parameters                                                                                                            |
+| D23   | Step 29's refactor broke **23 tests**, almost all in one way: they constructed a system with custom parameters and expected those to apply, but a species' resolved block now beats anything a system was constructed with — so the parameters have to reach the _config_ the registry resolves against                                                                                   | When a parameter's _source_ moves, every caller that supplied it the old way keeps working syntactically and stops working semantically. That is worse than a break. The fixes carry a ⚠ comment at each site for exactly that reason                                                                                                                                                     |
+| D4    | All twelve completed steps still read `**Status:** Not started` until this review                                                                                                                                                                                                                                                                                                         | Update the `**Status:**` line, not just the checkboxes — the execution protocol keys off it                                                                                                                                                                                                                                                                                               |
 
 ---
 
@@ -338,7 +338,7 @@ persistence, inspection, and tests in the step that introduces it.
 
 > ⚠ **Date every completion note, and read every figure in one as of its date.**
 > A completion note is a record of what was true when the step shipped, not a
-> live reading — and the numbers in these notes *do* drift, because each step
+> live reading — and the numbers in these notes _do_ drift, because each step
 > changes the world the previous one was measured in. Step 26 reported juveniles
 > dispersing a median of 70 units; after Step 29's species schema the same
 > unchanged mechanism measures ~60. Neither figure is wrong, and the note is only
@@ -346,7 +346,7 @@ persistence, inspection, and tests in the step that introduces it.
 >
 > So: each step's notes open with **Completed `YYYY-MM-DD`**, absolute and never
 > relative ("recently", "after the next step", "currently" all rot). If you
-> re-measure an old figure, add the new one *with its own date* beside the
+> re-measure an old figure, add the new one _with its own date_ beside the
 > original rather than overwriting it — the drift between them is usually the
 > interesting part. The same rule applies to `README.md`, which describes the
 > **current** build and must be re-measured rather than inherited.
@@ -2144,26 +2144,26 @@ births vs 16 age deaths, population 8 → 13 → 14 → 13 → 12, all four life
 stages continuously present.
 
 **Performance.** large-5k **20.9 → 35.3 ms/tick** — the per-entity cost is
-essentially unchanged; the rise is because the population *grows* during the
+essentially unchanged; the rise is because the population _grows_ during the
 benchmark (large-5k ends at ~7.3k entities rather than 5k). Mate search is
 grid-local.
 
 **Tuning note (parameters, not a cap — and an honest finding).** The first
 parameter set was far too cheap: the population grew exponentially (8 → 1037
 by tick 20 000, and in a small world 6 → 186 with vegetation barely dented and
-*zero* starvation — food never became limiting). That is the risk register's
+_zero_ starvation — food never became limiting). That is the risk register's
 "population explosion" materialising. I did **not** add a carrying cap;
 instead I made reproduction genuinely costly and slow (37 energy per offspring,
 80 %-full gate, ~2600-tick inter-birth interval against a ~5000-tick adult
 life). The result is an emergent near-balance (births ≈ age deaths). This is a
 cost parameterisation, not an enforced outcome — and it is worth stating
-plainly that an unchecked herbivore *should* grow until something limits it;
+plainly that an unchecked herbivore _should_ grow until something limits it;
 the real ecological checks are predation (Step 16) and disease (Step 25).
 
 **Deviations from the step spec (minor):** (1) no sexes — either adult can
 initiate and the lower id gestates; sexes/mate choice belong to Step 22.
 (2) "Mate seeking" is implemented as a `seekMate` action that steers toward a
-perceived conspecific; assessing *whether* that individual is a desirable mate
+perceived conspecific; assessing _whether_ that individual is a desirable mate
 is Step 22.
 
 **Follow-on notes:** `parents` is the seam Step 13 (parenting: juvenile
@@ -2286,7 +2286,7 @@ dispersed → mature → reproduce → age → die, every milestone readable.
   juvenile does not graze at all: the decision system scores no `eat`/`seekFood`
   for one and the feeding system refuses it, so it lives entirely on
   provisioned energy (lossy transfer, and never below the guardian's own
-  reserve floor). That is what makes it *follow* the parent. First attempt had
+  reserve floor). That is what makes it _follow_ the parent. First attempt had
   provisioning as a top-up on a juvenile that also grazed; measured, it
   delivered ~2.5 energy per juvenile — parenting existed but did nothing. Under
   real dependency it delivers **~29.5 energy per juvenile**, a genuine parental
@@ -2356,7 +2356,7 @@ id lookup — no scan, no reverse index — and only bonded juveniles do any wor
 Relationships are sparse arrays of a few ids; life histories are hard-capped.
 
 **Deviations from the step spec (minor, documented):** (1) **Protection was
-not implemented** — there is nothing to protect juveniles *from* until
+not implemented** — there is nothing to protect juveniles _from_ until
 predators arrive, so it belongs with Step 16 rather than as an untestable
 placeholder here. (2) `lifeEvents` is appended by three systems through one
 shared helper rather than owned by a single system; the cap is a module
@@ -2365,7 +2365,7 @@ bound is structural rather than tuning. (3) Weaning uses an explicit
 `weaningAge` but dispersal keys off `lifeStage !== 'juvenile'` rather than a
 second age constant, so it can never drift from `aging.juvenileUntil`.
 
-**Follow-on notes for later steps:** an orphaned *unweaned* juvenile is
+**Follow-on notes for later steps:** an orphaned _unweaned_ juvenile is
 currently rescued by being weaned early; once predators (Step 16) make
 orphaning common, that mercy is worth revisiting. `offspring` and `parents`
 stay valid only because entities are never removed — carcass decay (Step 18)
@@ -2473,19 +2473,20 @@ place: Step 20 now only has to make these traits heritable, not invent them.
   the risk register warns about, so nothing was added that could not be
   pointed at a system:
 
-  | trait | what reads it |
-  | --- | --- |
-  | `size` | `adultMass` at spawn → aging growth curve → metabolic cost, carcass mass |
-  | `speed` | `entity.speed` at spawn → movement distance and movement cost |
-  | `metabolicEfficiency` | divides the metabolic burn → starvation resistance |
-  | `boldness` | scales `wander` up and `rest` down → ground covered vs. energy kept |
-  | `caution` | scales hunger and thirst urgency → how big a reserve it keeps |
-  | `exploration` | scales `explorationRate` → how often it ignores its own ranking |
-  | `reproductiveInvestment` | newborn starting energy, birth cost, provisioning rate |
+  | trait                    | what reads it                                                            |
+  | ------------------------ | ------------------------------------------------------------------------ |
+  | `size`                   | `adultMass` at spawn → aging growth curve → metabolic cost, carcass mass |
+  | `speed`                  | `entity.speed` at spawn → movement distance and movement cost            |
+  | `metabolicEfficiency`    | divides the metabolic burn → starvation resistance                       |
+  | `boldness`               | scales `wander` up and `rest` down → ground covered vs. energy kept      |
+  | `caution`                | scales hunger and thirst urgency → how big a reserve it keeps            |
+  | `exploration`            | scales `explorationRate` → how often it ignores its own ranking          |
+  | `reproductiveInvestment` | newborn starting energy, birth cost, provisioning rate                   |
 
   They are trade-offs, not upgrades: a bold animal finds more and spends more;
   a heavily investing parent raises better-stocked young at a higher price per
   birth. Nothing selects on them yet — that is Step 20.
+
 - **Protocol (v12 → v13):** inspection gained `traits` and `adultMass`. Bulk
   snapshots are unchanged, per the step spec — traits are fixed for life, so
   streaming them every tick would be pure waste. A test asserts they never leak
@@ -2542,7 +2543,7 @@ per-species, and Step 20 moves the ranges into a genetics layer regardless.
 
 **Follow-on notes for later steps:** `NEUTRAL_TRAITS` is shared and frozen, so
 the "no variation" case costs nothing and cannot be mutated by accident —
-Step 20 must keep expressing a *fresh* traits object per individual rather than
+Step 20 must keep expressing a _fresh_ traits object per individual rather than
 mutating that one. `entity.adultMass` is nullable and the aging system falls
 back to the species mean, which is what keeps every hand-built test animal and
 externally spawned entity working unchanged. Each animal now carries a
@@ -2645,7 +2646,7 @@ are, and act on it when they cannot see.
   `MemorySystem` (`perception` phase, priority 10 — after perception is rebuilt
   and before decisions read it) does the fading and eviction. Two guarantees
   carry the risk register's "unbounded memory growth" row: at most 8 entries
-  per animal ever, and re-experiencing a place *refreshes* the existing entry
+  per animal ever, and re-experiencing a place _refreshes_ the existing entry
   rather than adding one, so standing in a patch for 200 ticks cannot fill the
   list. As with `recordLifeEvent` and `killAnimal`, insertion is one shared
   helper — several systems record memories, and keeping the append and the cap
@@ -2658,13 +2659,13 @@ are, and act on it when they cannot see.
   memories at exactly the same rate as running every tick, and a test asserts
   the two are indistinguishable.
 - **Writers are real experiences, not perception spam.** Feeding records where
-  the animal *ate*; drinking records where it *drank*. Arriving somewhere
+  the animal _ate_; drinking records where it _drank_. Arriving somewhere
   remembered as food and finding it bare forgets that memory and records
   `barren` instead — which is what makes an animal's map self-correcting rather
   than an accumulating pile of stale beliefs.
 - **Consumer:** two new decision actions, `recallFood` and `recallWater`,
   gated on perception having come up empty and weighted at `recallWeight: 0.8`
-  — memory is deliberately *weaker* than sight, since a remembered patch may
+  — memory is deliberately _weaker_ than sight, since a remembered patch may
   already be gone. Recall targets are scored by strength discounted by
   distance, so a vivid memory across the map loses to a fainter one nearby.
   Because they are distinct actions rather than a memory-sourced `seekFood`,
@@ -2684,7 +2685,7 @@ are, and act on it when they cannot see.
 - **Renderer:** inspector "Remembers" panel with a strength bar per place, and
   a grid overlay marking the selected animal's remembered cells with
   renderer-owned glyphs (`"` food, `~` water, `x` barren, `!` danger),
-  alpha-faded by strength so forgetting is visible. Drawn *under* entities and
+  alpha-faded by strength so forgetting is visible. Drawn _under_ entities and
   selection: it is one animal's private map, not world state. An unmapped kind
   draws nothing rather than guessing. `SUPPORTED_PROTOCOL_VERSION` → 14.
 - **Persistence (save v12 → v13):** `memories` persisted (what an animal has
@@ -2702,12 +2703,12 @@ a blank map and learn by living), the **demonstration scenario**, and
 protocol/persistence/determinism.
 
 **Deterministic demonstration scenario.** Exactly as the step specifies, with
-perception *disabled* to prove the point: a near-blind animal (perception
+perception _disabled_ to prove the point: a near-blind animal (perception
 radius 1, so nothing can be explained by sight) eats at an isolated patch, is
 carried 12 cells away, and — with `nearestFood` confirmed null — chooses
 `recallFood`, targets the remembered cell, and walks back to within 1.5 units.
 The paired negative test is what makes it evidence: the same animal, same
-position, same hunger, same blindness, but *no memory*, does not go back and
+position, same hunger, same blindness, but _no memory_, does not go back and
 has no action target.
 
 **Visible result verified.** Against a live server (protocol v14): animal #14
@@ -2725,7 +2726,7 @@ size and linear in animals — a scan of 8 entries, never a spatial query.
 **Deviations from the step spec (documented):** (1) **Kin identity is not a
 memory kind.** Lineage is already exact and non-decaying via
 `parents`/`offspring`/`guardianId` (Steps 12–13), so a decaying kin memory
-would duplicate authoritative state for no consumer; kin *recognition* belongs
+would duplicate authoritative state for no consumer; kin _recognition_ belongs
 with mate choice (Step 22) and social groups (Step 23). (2) **`danger` ships
 with avoidance implemented and tested but no writer** — nothing is dangerous
 until predators exist. This is a tested capability awaiting its data source,
@@ -2738,7 +2739,7 @@ demo, because the demo world is blanketed in vegetation and `nearestFood` is
 essentially always non-null — the gate is correct (why recall what you can
 see?), but food recall will only start earning its keep when food becomes
 patchy (seasons, Step 19) or contested. `barren` is rare for the same reason.
-Memory is the first per-entity *growable* structure in the engine; the cap is
+Memory is the first per-entity _growable_ structure in the engine; the cap is
 enforced in the insert helper precisely so no future writer can bypass it.
 
 ---
@@ -2832,15 +2833,15 @@ two species and a working predator/prey oscillation.
 
 - **The hunt is a pipeline across the systems that already own each part**,
   which is what keeps it from being one opaque roll:
-  *detect* (perception reports `nearestPrey` / `nearestThreat`) → *evaluate*
+  _detect_ (perception reports `nearestPrey` / `nearestThreat`) → _evaluate_
   (the decision system gates on hunger, stamina, and a post-attempt cooldown)
-  → *approach* (`stalk`, at a walk, saving the sprint budget) → *chase*
-  (sprint) → *capture-or-escape* (`HuntingSystem`, one attempt inside striking
-  range) → *feed* (the feeding system's carnivore branch eats the carcass) →
-  *recover* (stamina regenerates in metabolism; `lastHuntTick` blocks an
+  → _approach_ (`stalk`, at a walk, saving the sprint budget) → _chase_
+  (sprint) → _capture-or-escape_ (`HuntingSystem`, one attempt inside striking
+  range) → _feed_ (the feeding system's carnivore branch eats the carcass) →
+  _recover_ (stamina regenerates in metabolism; `lastHuntTick` blocks an
   instant re-attack).
 - **New species** `predator.stalker` and a `hunts(predatorId, preyId)` relation
-  driven by the species' own `preySpeciesIds`. Perception reads it in *both*
+  driven by the species' own `preySpeciesIds`. Perception reads it in _both_
   directions inside the neighbour loop it already ran — what I hunt, and what
   hunts me — so predation works without a single species-name conditional in
   any system.
@@ -2854,7 +2855,7 @@ two species and a working predator/prey oscillation.
   so nothing is ever untouchable and nothing is ever certain. Live sampling
   shows real spread — 31%, 34%, 37%, 43%, 49% across consecutive attempts — and
   the number is published on `entity.hunted` rather than hidden.
-- **⚠ C5 is now answered.** Step 12 noted that "an unchecked herbivore *should*
+- **⚠ C5 is now answered.** Step 12 noted that "an unchecked herbivore _should_
   grow until something limits it" and owed the limiter to Steps 16/25.
   Predation is that limiter: grazers no longer grow without bound.
 - **A16 (Step 15) is now written.** The `danger` memory kind shipped with
@@ -2868,7 +2869,7 @@ two species and a working predator/prey oscillation.
   are inspection-only.
 - **Renderer:** the stalker is `S`/red at display priority 60 (above prey, so a
   predator on its kill still reads as the predator); the event log formats hunt
-  outcomes *with the odds the engine used*; selecting a predator brackets its
+  outcomes _with the odds the engine used_; selecting a predator brackets its
   quarry in red. `SUPPORTED_PROTOCOL_VERSION` → 15.
 - **Persistence (save v13 → v14):** `stamina`/`maxStamina`, `huntTargetId`,
   `lastHuntTick`, a second species in the demo, and the new `HuntingSystem`
@@ -2876,12 +2877,12 @@ two species and a working predator/prey oscillation.
 
 **Two real bugs found by measuring rather than by tests.**
 
-1. *Prey ignored distant predators.* Flee urgency was `1 - d/radius`, which is
+1. _Prey ignored distant predators._ Flee urgency was `1 - d/radius`, which is
    **zero at the edge of perception** — so a hungry grazer kept eating while a
    predator walked up to it. Reshaped to half weight at the boundary rising to
    full at contact (the same shape as following a parent). Caught by a test
    asserting fleeing outranks grazing, which failed for the right reason.
-2. *Predators could never catch fleeing prey.* Stalking walks (1.35) while
+2. _Predators could never catch fleeing prey._ Stalking walks (1.35) while
    fleeing prey sprint (1.92), and the sprint only engaged inside
    `chaseRange: 4` — but prey bolt at up to 6 units, so the gap only ever grew.
    Predators starved in 4 of 5 seeds. Fixed by making a **fleeing target force
@@ -2894,7 +2895,7 @@ a knife edge: over 20k ticks on five seeds, a pack of 3 dies out in 2 of 5,
 while 7 wipes the grazers out entirely in 3 of 5. At **4 predators against 60
 grazers** both species survive in all five seeds, oscillating between roughly
 24–111 grazers and 1–9 stalkers. Diagnosis before tuning mattered here:
-predators were *not* starving (mean energy 0.83, above the breeding threshold
+predators were _not_ starving (mean energy 0.83, above the breeding threshold
 68% of the time), so the failure mode was demographic stochasticity in a
 founding population of 3, not an energy-budget problem.
 
@@ -2914,7 +2915,7 @@ carcass ignores it — diet decides), and the demonstration scenario.
 **Deterministic demonstration scenario.** The predation sandbox the step asks
 for: one fixed pairing run at two capture-odds settings with everything else
 including the seed identical. Both variants show the full pursuit (`chase`,
-`flee`, an attempt); the favourable one produces a kill *and* the predator
+`flee`, an attempt); the favourable one produces a kill _and_ the predator
 feeding on the carcass, the unfavourable one produces an escape and no kill.
 
 **Visible result verified.** Against a live server (protocol v15) at tick 3085:
@@ -2929,14 +2930,14 @@ resolves targets by id; the classification cost rides inside the neighbour loop
 perception already ran. The benchmark scenarios now seed predators alongside
 prey, so the numbers describe a mixed population as the step requires.
 
-**Deviations from the step spec (documented):** (1) hunting *behaviour* lives
+**Deviations from the step spec (documented):** (1) hunting _behaviour_ lives
 in the decision system rather than in `HuntingSystem`, which only resolves
 captures — this keeps all action selection in one place, as with Step 13's
 parenting, and avoids two systems competing for `action`/`moveIntent`.
 (2) Predator `birthMass` and the aging curve still come from global config
 rather than per-species, so a stalker cub is born at the grazer's 5 kg — the
 same global-config debt as §1.4 B3, now spanning two species and more visible.
-(3) Prey have no *spatial* refuge from predators (cover slows both equally),
+(3) Prey have no _spatial_ refuge from predators (cover slows both equally),
 which is part of why the founding counts are a knife edge; terrain-aware
 escape belongs with territory (Step 24).
 
@@ -3052,7 +3053,7 @@ ground between untouched and dead.
 - **Wounds come from real events.** A failed capture usually leaves the prey
   hurt (`wound`), and a heavy enough prey can hurt its attacker on the way out
   (`trample`, scaled by the mass ratio) — hunting is now a gamble in both
-  directions. A *successful* capture wounds nobody: the prey is simply dead.
+  directions. A _successful_ capture wounds nobody: the prey is simply dead.
   Severity scales with how decisively the roll landed, so a marginal hit grazes
   and a decisive one mauls.
 - **Fatal injuries** go through the existing `health <= 0` path, the same one
@@ -3078,7 +3079,7 @@ ground between untouched and dead.
 
 **Tests:** `npm test` → **294 passing / 0 failing** (was 272; +22). New
 `test/injury.test.js`: the bound and derived total (severities stack and clamp,
-damage past the cap is *folded in* rather than dropped, a scratch below the
+damage past the cap is _folded in_ rather than dropped, a scratch below the
 threshold is ignored, `refreshImpairment` cannot drift), penalties (a wounded
 animal limps and feeds worse; an injury raises capture odds through the
 existing formula), healing (wounds close and cost energy and restore health; a
@@ -3217,14 +3218,14 @@ Decomposition chemistry, microbes, insects.
 at Step 6 is closed, and the world removes things for the first time.
 
 **⚠ C2 resolved — the policy, decided before anything was removed.** The engine
-turned out to be *behaviourally* null-tolerant already: parenting orphans a
+turned out to be _behaviourally_ null-tolerant already: parenting orphans a
 juvenile whose guardian is missing, hunting abandons a vanished target,
 reproduction skips a parent that is gone. What removal actually destroys is
 **observability** of lineage. So the policy is "be honest, with a memory":
 new `world/lineage.js` keeps a bounded tombstone registry (256 entries, FIFO),
 and a lineage reference resolves to one of four states — `alive`, `carcass`,
 `dead` (gone, but we remember who and what killed it), or `forgotten` (evicted).
-`forgotten` is a *stated limit*, not a failed lookup.
+`forgotten` is a _stated limit_, not a failed lookup.
 
 The plan warned the existing invariant must not "silently start passing
 vacuously", and it would have: `assert(entities.get(parentId))` becomes
@@ -3257,7 +3258,7 @@ Tombstones are written at the engine's single removal chokepoint
   the ramp stays free. `SUPPORTED_PROTOCOL_VERSION` → 17.
 - **Persistence (save v15 → v16):** `diedTick`, `deathCause`, `decayStage`, the
   `CarcassSystem` descriptor, and a new top-level `tombstones` block. The
-  registry has to persist: without it a restored run would forget *different*
+  registry has to persist: without it a restored run would forget _different_
   animals than the original.
 
 **The re-tune this step forced, and why it matters.** Making carcasses decay
@@ -3277,14 +3278,14 @@ release (373 grazers / 2 predators). Both are real outcomes, not bugs.
 **Two bugs caught by writing the tests.**
 
 1. `VegetationGrid.addAt` read `this.#capacity[i]` — but `#capacity` is the
-   *scalar* config value; the per-cell array is `#capacityPerCell`. Indexing a
+   _scalar_ config value; the per-cell array is `#capacityPerCell`. Indexing a
    number gave `undefined`, so every deposit computed `NaN` and silently added
    nothing. The nutrient-return test failed on exactly that.
 2. `test/movement.test.js` still asserted a single step never exceeds
    `speed × terrain modifier` — a bound from Step 5, before sprinting existed.
    It only started failing now because the denser demo produces a flee inside
    the tested window. Updated to the real ceiling (× the sprint multiplier),
-   *and* strengthened: a non-sprinting animal must still respect the old bound.
+   _and_ strengthened: a non-sprinting animal must still respect the old bound.
 
 **Tests:** `npm test` → **312 passing / 0 failing** (was 294; +18). New
 `test/carcass.test.js`: decay stages (announced once each, not per tick;
@@ -3307,7 +3308,7 @@ end to end — grazer #226's parents both resolve `dead` with cause `age` and
 their death ticks, while its two offspring resolve `alive`.
 
 **Performance.** large-5k **42.66 → 42.57 ms/tick** (no measurable change).
-Removal actually *shrinks* what every other system iterates: before this step
+Removal actually _shrinks_ what every other system iterates: before this step
 carcasses accumulated forever and every system paid to skip them.
 
 **Deviations from the step spec (documented):** (1) there is no dedicated
@@ -3408,7 +3409,7 @@ Atmospheric simulation, wind fields, precise climate.
 **Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) The world now has a turning
-year — the first genuinely *global* state in the engine.
+year — the first genuinely _global_ state in the engine.
 
 **What shipped.**
 
@@ -3436,20 +3437,20 @@ year — the first genuinely *global* state in the engine.
   stress, which is exactly why the new `shelter` action is worth taking.
   Perception finds the nearest cover in the cell scan it already ran.
   `thermalStress` lives in `world/Environment.js` and is shared by the system
-  that *charges* for it and the system that *decides to walk out of it*, so the
+  that _charges_ for it and the system that _decides to walk out of it_, so the
   two cannot drift.
-- **Protocol (v17 → v18):** an `environment` block on full snapshots *and*
+- **Protocol (v17 → v18):** an `environment` block on full snapshots _and_
   deltas (a handful of scalars, so carried whole rather than diffed —
   `applyDeltaSnapshot` reproduces it exactly), plus the `environment.changed`
   event. Status bar shows `season · weather · temperature`.
 - **Persistence (save v16 → v17):** the environment block is saved. The season
-  could be recomputed from the tick, but the *held weather spell* could not
+  could be recomputed from the tick, but the _held weather spell_ could not
   without replaying every roll, so it must persist.
 
 **A modelling bug the first run exposed: seasons that did nothing.** Scaling
-the vegetation *growth rate* by season looked correct and changed almost
+the vegetation _growth rate_ by season looked correct and changed almost
 nothing — biomass moved 91k↔96k across the whole year. The reason is that
-logistic growth toward a fixed capacity means a field already *at* capacity
+logistic growth toward a fixed capacity means a field already _at_ capacity
 simply stops growing; a slower rate cannot brown it off. Winter has to shrink
 the **ceiling**, not the rate. `VegetationGrid.grow` gained a `capacityScale`
 and a dieback term, and the seasonal swing became real: **85.8k in summer
@@ -3463,7 +3464,7 @@ named `summer`.)
 large new pressure and the Step 18 balance did not survive them: at the first
 amplitude (±14 °C) predators died out in 3 of 5 seeds. Measured sweep — ±14 →
 2/5 both species surviving, ±11 → 4/5, ±9 → 4/5. Settled on **±11**, which is
-also the better *model*: at ±14 the bare season pushed animals outside their
+also the better _model_: at ±14 the bare season pushed animals outside their
 comfort band all winter, whereas at ±11 the season alone is survivable and it
 is the **weather** that bites (snow −6, drought +5 on top). This is the third
 consecutive step to invalidate the previous step's tuning; §1.4 now records
@@ -3471,8 +3472,8 @@ that as a standing expectation rather than a surprise.
 
 **Tests:** `npm test` → **331 passing / 0 failing** (was 312; +19). New
 `test/weather.test.js`: the cycle (four seasons in order, wraps, pure function
-of the tick, peak in midsummer and trough in midwinter *in the seasons so
-named*), spells (season-appropriate weather and only that, one draw per roll,
+of the tick, peak in midsummer and trough in midwinter _in the seasons so
+named_), spells (season-appropriate weather and only that, one draw per roll,
 a spell holds then re-rolls, turns announced but not drift), vegetation (browns
 off and greens up; **the ceiling is the lever, not the rate**; still monotonic
 at full capacity as it always was), thermal stress and shelter (zero inside the
@@ -3482,7 +3483,7 @@ protocol/persistence/determinism including delta round-tripping.
 
 **Deterministic demonstration scenario.** A full compressed year of the demo,
 bucketing total biomass by season: summer > winter by a wide margin and every
-season is visited. The paired stress test runs *two* years and asserts animals
+season is visited. The paired stress test runs _two_ years and asserts animals
 were pushed outside their comfort band and took cover — deliberately **not**
 that anyone died of it, since whether a well-fed animal ever burns out is a
 population outcome that shifts with tuning (§1.4 D1). The lethal path is
@@ -3605,7 +3606,7 @@ reads only `entity.traits`.
 - **New `traits/genetics.js`** — a diploid genome with one locus per heritable
   trait (all seven), and four operations: `sampleGenome` (founders only),
   `inheritGenome`, `expressGenome`, `genotypeOf`. Deliberately the simplest
-  model that makes recombination *mean* something:
+  model that makes recombination _mean_ something:
   - **Additive expression** — a trait's raw value is the mean of its two
     alleles, so a child sits between its parents rather than picking a side.
     No dominance; that is a different model, not a missing feature.
@@ -3630,7 +3631,7 @@ reads only `entity.traits`.
   lineage lookup, so a parent that has decayed away reports its status instead
   of vanishing. Bulk snapshots are untouched.
 - **Renderer:** a genetics panel showing alleles · genotype → phenotype ·
-  parents, with the arrow drawn *only* where the two differ — which is exactly
+  parents, with the arrow drawn _only_ where the two differ — which is exactly
   where a tradeoff was paid, turning an otherwise mysterious gap into the
   explanation.
 - **Persistence (save v17 → v18):** the genome persists (it cannot be recovered
@@ -3638,15 +3639,15 @@ reads only `entity.traits`.
 
 **A boundary-scan false positive, fixed properly.** `test/engine.test.js`
 rejected `genetics.js` for a "forbidden browser API" — the pattern `\bwindow\.`
-matched the prose *"the mutation window. The magnitude…"* in a doc comment.
+matched the prose _"the mutation window. The magnitude…"_ in a doc comment.
 The tempting fix is to reword the comment. The right fix is that a scan about
-what code *does* should not read prose: it now strips comments before matching.
+what code _does_ should not read prose: it now strips comments before matching.
 Verified both ways — the prose no longer trips it, and real `window.` /
 `Math.random` still do. A guard that fires on documentation teaches people to
 word around it rather than to trust it.
 
 **A test that could not have failed.** My first "siblings differ" test bred two
-*homozygous* parents — where every child is identical no matter which allele is
+_homozygous_ parents — where every child is identical no matter which allele is
 picked, so recombination is invisible and the assertion was vacuous. Rewritten
 with heterozygous parents, and strengthened to assert that assortment is **per
 locus** (some sibling inherits differently at one locus than another), which a
@@ -3666,7 +3667,7 @@ the inheritance sandbox, and protocol/persistence/determinism.
 **Deterministic demonstration scenario.** Two parents at opposite ends of the
 size range, bred repeatedly in a sandbox: every child's size genotype lands
 inside the parental range plus one mutation step, and the offspring cluster
-*between* the parents — which is precisely the difference between inheritance
+_between_ the parents — which is precisely the difference between inheritance
 and the Step 14 resampling it replaced. The demo-scale test measures
 midparent–offspring correlation and asserts it is real but not perfect
 (qualitative resemblance, as the step asks).
@@ -3690,7 +3691,7 @@ cost is memory — two alleles per locus instead of one value — still bounded.
 `GeneticsSystem`, for the reason above. (2) No dominance or epistasis —
 expression is purely additive, which the spec's "quantitative traits only"
 framing allows and which keeps the genotype→phenotype map legible. (3) The
-species mean is still the *founding* distribution; there is no separate
+species mean is still the _founding_ distribution; there is no separate
 "developmental influence" term, since the environment already shapes outcomes
 through survival rather than through expression.
 
@@ -3786,7 +3787,7 @@ Per-organism full histories, mate choice.
 **Completed 2026-07-19.** Figures below are as of that date; see §5 on reading them.
 
 **Status: Done.** (Node v23.4.0, darwin arm64.) Milestone E is legible:
-selection can now be *measured* rather than assumed.
+selection can now be _measured_ rather than assumed.
 
 **What shipped.**
 
@@ -3795,7 +3796,7 @@ selection can now be *measured* rather than assumed.
   genotype), generation depth, reproductive success, births and deaths by
   cause, and a **selection differential** per trait: the mean among adults that
   actually bred minus the mean among all adults. Positive means breeders are
-  above average for that trait — selection *in progress*, computed, never
+  above average for that trait — selection _in progress_, computed, never
   scripted. It reports `null` rather than `0` when nothing has bred yet, which
   is an honest "unknown" instead of a misleading "no selection".
 - **`MetricsSystem`** in the `observation` phase — the last phase, after
@@ -3805,9 +3806,9 @@ selection can now be *measured* rather than assumed.
 - **Rates are derived from state, not from events.** Births in a window are the
   animals young enough to have been born inside it; deaths are the carcasses
   stamped with a `diedTick` inside it. Reading the event bus instead would
-  couple metrics to event *retention* (the buffer is bounded and gets trimmed)
+  couple metrics to event _retention_ (the buffer is bounded and gets trimmed)
   and would double-count on replay. A test pins the window behaviour directly.
-- **New `generation` field** — lineage *depth*, one deeper than the deepest
+- **New `generation` field** — lineage _depth_, one deeper than the deepest
   parent, written once at birth. Deliberately not a global cohort counter.
 - **Protocol (v19 → v20):** a `metrics` query at `GET /api/metrics`, returning
   the aggregate plus the bounded history. Deliberately **not** in snapshots or
@@ -3816,7 +3817,7 @@ selection can now be *measured* rather than assumed.
 - **Renderer:** a `MetricsPanel` polled on an interval, drawing histograms,
   trends, and selection differentials from numbers the engine computed. Its
   only arithmetic is scaling bars to the tallest bin, which is layout.
-- **Persistence (save v18 → v19):** the *report* is derived and deliberately
+- **Persistence (save v18 → v19):** the _report_ is derived and deliberately
   not saved — it rebuilds on the next metrics tick — but the bounded history
   is, because a chart that resets on every restore is useless. That split is
   exactly what the step called for, and a test asserts both halves.
@@ -3866,7 +3867,7 @@ per-tick payload.
 **Deviations from the step spec (documented):** (1) metrics are polled over
 HTTP rather than carried in snapshots — recorded as §1.4 A27. (2) "Bottlenecks"
 are left to the caller: the bounded history carries population per species over
-time, which is the data a bottleneck is visible *in*, but nothing computes a
+time, which is the data a bottleneck is visible _in_, but nothing computes a
 minimum or raises a flag. Detecting one is a judgement about what counts as a
 crash, and inventing that threshold now would be guessing (§1.4 A28).
 
@@ -3982,16 +3983,16 @@ gestates", which only ever worked because nothing cared who was who.
 
 The thing I expected to be the problem turned out not to be. Sexes look like
 they should halve the birth rate, and they do not: under the old rule a mating
-consumed *both* adults for a full cooldown to produce one pregnancy, so
+consumed _both_ adults for a full cooldown to produce one pregnancy, so
 pregnancies per adult per cooldown are unchanged — the male was never the
-limiting resource. What actually changes is that a female now needs a *male* in
+limiting resource. What actually changes is that a female now needs a _male_ in
 range rather than any adult, and that is precisely the pressure that makes
 choosing worth something.
 
-**Preference is split deliberately in two.** *What* is preferred is species data
+**Preference is split deliberately in two.** _What_ is preferred is species data
 (`species.matePreference`: the displayed trait, how sharply it discriminates,
 how much plain condition counts), read generically so no system branches on a
-species name — grazers display **size**, stalkers display **speed**. *How hard*
+species name — grazers display **size**, stalkers display **speed**. _How hard_
 it is weighed is the individual's new heritable **`choosiness`** trait, so the
 strength of sexual selection evolves rather than being a constant I picked.
 Grazers displaying size is the load-bearing choice: size costs speed (the Step
@@ -4002,7 +4003,7 @@ against each other and the metrics can tell them apart.
 `acceptanceThreshold × choosiness`, falling linearly to zero over
 `choosinessPatienceTicks`. That is the classic sequential-search rule, and it
 does two jobs: holding out for better costs breeding-window time she cannot get
-back, and nobody holds out *forever*, so the mechanism cannot quietly starve a
+back, and nobody holds out _forever_, so the mechanism cannot quietly starve a
 small population to extinction on a threshold I chose.
 
 **What shipped.**
@@ -4018,7 +4019,7 @@ small population to extinction on a threshold I chose.
   eligible males in `matingRange`, and take the best that clears the standard.
   Rejections are recorded and emitted, not silently dropped.
 - **`DecisionSystem` / `PerceptionSystem`** — `seekMate` now steers toward the
-  *best* perceived candidate rather than the nearest (discounted by distance),
+  _best_ perceived candidate rather than the nearest (discounted by distance),
   which is where choice becomes visible: a female walks past a scrawny
   neighbour toward a better animal and pays for it in ground covered. The
   seeking sex takes the nearest and assesses nothing — the same asymmetry, in
@@ -4026,7 +4027,7 @@ small population to extinction on a threshold I chose.
   neighbour pass it was already walking.
 - **Protocol (v20 → v21):** `sex` added to `PUBLIC_ENTITY_FIELDS` (one short
   string, fixed for life, so it never dirties a delta after creation); new
-  `entity.courted` event carrying quality *and* the threshold it was judged
+  `entity.courted` event carrying quality _and_ the threshold it was judged
   against — the same discipline as `entity.hunted` publishing its odds, so a
   verdict is checkable rather than taken on trust; `entity.mated` gained
   `quality`, `entity.born` gained `sex`; inspection gained a `mateChoice` block;
@@ -4047,11 +4048,11 @@ small population to extinction on a threshold I chose.
 off).** Sexes plus choice are an energy/mortality-adjacent change, so the
 handoff's rule applied:
 
-| | seeds alive | grazers | size genotype | mean S(size) male / female |
-| --- | --- | --- | --- | --- |
-| choice off (control) | 5/5 | 138–247 | 0.997 → 1.012 | +0.004 / −0.001 |
-| patience 700 | 4/5 | 17–326 | 0.997 → 1.035 | +0.012 / −0.002 |
-| **patience 400 (adopted)** | **5/5** | **75–351** | **0.997 → 1.040** | **+0.012 / −0.002** |
+|                            | seeds alive | grazers    | size genotype     | mean S(size) male / female |
+| -------------------------- | ----------- | ---------- | ----------------- | -------------------------- |
+| choice off (control)       | 5/5         | 138–247    | 0.997 → 1.012     | +0.004 / −0.001            |
+| patience 700               | 4/5         | 17–326     | 0.997 → 1.035     | +0.012 / −0.002            |
+| **patience 400 (adopted)** | **5/5**     | **75–351** | **0.997 → 1.040** | **+0.012 / −0.002**        |
 
 400 is not a compromise: it selects exactly as hard as 700 while leaving both
 species alive in every seed instead of four of five. Being choosy for longer
@@ -4062,8 +4063,8 @@ like when only one sex is being chosen; natural selection moves both together.
 **Deterministic demonstration scenario — the sexual-selection sandbox.** The
 measurement is deliberately **comparative**: the same seeded world run with
 choice on and with choice off. Asserting only that size rose would prove
-nothing, since size drifts and a run is one sample; asserting it rose *further
-with choice than without* isolates the mechanism, and the per-sex differential
+nothing, since size drifts and a run is one sample; asserting it rose _further
+with choice than without_ isolates the mechanism, and the per-sex differential
 says which sex it acted on. Measured: **0.976 → 1.051 with choice against 0.976
 → 0.998 without** — three and a half times the movement. Direction only, as the
 step asks; no magnitude is pinned.
@@ -4089,30 +4090,30 @@ determinism and persistence, and the sandbox.
    healthy average one. It does not: at `conditionWeight` 0.4, a starving animal
    near the top of the size range still wins. That is the handicap reading of
    the signal rather than a gap in it, so the assertion now pins the real
-   behaviour *in both directions* — a modest display loses to condition, a large
+   behaviour _in both directions_ — a modest display loses to condition, a large
    one does not — and anyone who retunes the weight finds out in a unit test
    rather than in a five-seed sweep.
 2. **Step 22 invalidated Step 21's selection sandbox**, exactly as the risk
    register predicts for consecutive steps. Diagnosing it rather than re-pinning
    the seed was the whole value: breaking the deaths down by cause showed they
-   were *entirely* age deaths on all five seeds. The "sparse food favouring
+   were _entirely_ age deaths on all five seeds. The "sparse food favouring
    efficiency" pressure had never really been applied — the assertion rose in 4
    of 5 seeds by drift, and passed because it was pinned to one of the four.
    Retuned (capacity 1.4 → 1.0, basal rate 0.04 → 0.08, mate choice off so it
    measures one force) it now rises in **5 of 5**, four of them seeds it was
    never tuned against. Worth naming: even now almost nothing starves —
-   efficiency pays through the *breeding gate*, so this is fecundity selection,
+   efficiency pays through the _breeding gate_, so this is fecundity selection,
    not viability selection.
 3. **Event volume was a real cost, fixed rather than absorbed.** Emitting one
    `entity.courted` per assessment produced ~1.7 events per tick across the demo
    (26k over 15k ticks), competing for the bounded retention window (§1.4 C3) —
    because a female beside a male must reassess him every tick as her standard
-   falls. Reporting only a *new candidate or a changed verdict* cut it 20× to
+   falls. Reporting only a _new candidate or a changed verdict_ cut it 20× to
    ~1.4k, and reads better: "sized up #57, walked on", then later "sized up #57,
    accepted".
 
 **Also fixed along the way:** `test/species.test.js` asserted spawned speed
-against the *speed* trait spread alone, which silently ignored the Step 20
+against the _speed_ trait spread alone, which silently ignored the Step 20
 size→speed tradeoff and only held while no founder sat far out on both loci at
 once. It now asserts the identity (`speed === baseSpeed × traits.speed`) rather
 than a distribution outcome — §1.4 D1's lesson.
@@ -4129,15 +4130,14 @@ once her standard had fallen below him. Another female accepted at a standard of
 **+0.021 among males, −0.002 among females**.
 
 **Performance.** large-5k **41.42 → 46.06 ms/tick**, inside the 41–46 band this
-scenario has bounced through since Step 19, with the end population up 7060 →
-7233. Assessment is a little arithmetic per receptive female, inside a grid
+scenario has bounced through since Step 19, with the end population up 7060 → 7233. Assessment is a little arithmetic per receptive female, inside a grid
 query reproduction was already making, consuming **no randomness at all** — a
 test asserts that a run where a female rejects a male leaves every stream
 exactly where a run where she accepts one does, which is the fixed-draw-budget
 rule applied to a system whose budget is zero.
 
 **Deviations from the step spec (documented):** (1) **Preference direction is
-species data, not a heritable preference locus** — only its *strength*
+species data, not a heritable preference locus** — only its _strength_
 (`choosiness`) is inherited. Full Fisherian runaway needs a heritable preference
 and would multiply the model; this keeps the "what" a species fact and lets the
 "how much" evolve, which is enough for sexual selection to act and be measured.
@@ -4155,7 +4155,7 @@ ecological finding. Everything born in-world draws its sex.
 behaviour), where dominance and fights are the obvious consumers, and to Step 24
 (territory), where holding ground is usually about mate access. §1.4 A15 (kin
 identity omitted from memory) is still open and still points at Step 23 — mate
-choice did not need kin *recognition*, since it never had to avoid relatives;
+choice did not need kin _recognition_, since it never had to avoid relatives;
 inbreeding avoidance would be the first real reader for it. The `matePreference`
 block is another per-species field that Step 29's species schema should absorb
 alongside B3/B4/A13.
@@ -4260,7 +4260,7 @@ it rather than by reasoning about it:
    119 grazers permanently fleeing**. Every alarm now carries its distance in
    hops from whoever actually saw the predator and dies at `maxAlarmHops`.
 2. **Labels never dissolved.** "Take the smallest label in sight" only ever
-   moves labels *downward*, so when a herd tore in half the piece without the
+   moves labels _downward_, so when a herd tore in half the piece without the
    root kept the old label forever and two herds on opposite sides of the map
    stayed nominally one. Labels now carry hops from their root too; an orphaned
    half has no route back, its hop counts climb a tick at a time until they
@@ -4271,7 +4271,7 @@ it rather than by reasoning about it:
 
 **Dominance is derived, never stored.** There is no pecking order in state and
 no memory of who beat whom — that is the "complex politics" this step rules out,
-and it would also be per-pair. An animal's standing is read off what it *is*:
+and it would also be per-pair. An animal's standing is read off what it _is_:
 mass, condition, soundness, boldness, maturity. So it falls when the animal is
 mauled and comes back when it heals, which is the point — a rank you cannot lose
 by being hurt is a title, not a rank.
@@ -4279,7 +4279,7 @@ by being hurt is a title, not a rank.
 **Where dominance bites: male–male competition.** Rivals in range of the same
 female contest for access, resolved pairwise down the list (one contest per
 extra suitor, never a bracket). The stronger wins — there is no roll to lose, so
-the event reports both *scores* rather than odds. What chance governs is whether
+the event reports both _scores_ rather than odds. What chance governs is whether
 the loser yields or they actually fight, and that is likeliest between evenly
 matched animals: a rival twice your size is not worth bleeding for. Fights are
 the **second writer of injuries** (§1.4 A19), after failed hunts.
@@ -4305,9 +4305,9 @@ already persisted.
   `recordMemory`, `applyInjury`, `inheritGenome`, `mateQuality`).
 - **`SocialSystem`** (`decision` phase, priority −10, ahead of the decision
   system) — labels, the transient `world.social` summary, and alarm.
-- **`DecisionSystem`** — `herd` (cohesion *and* alignment, so it is group
+- **`DecisionSystem`** — `herd` (cohesion _and_ alignment, so it is group
   movement rather than a huddle) and `defend`; an alarmed animal flees from where
-  it was *told* the threat was. Herding is scaled by `(2 − boldness)`, reusing
+  it was _told_ the threat was. Herding is scaled by `(2 − boldness)`, reusing
   the trait that already governs roaming rather than adding an eighth one.
 - **`HuntingSystem`** — cooperative defense: adult groupmates shave the capture
   chance with diminishing returns, capped so a big herd is never untouchable; an
@@ -4324,15 +4324,15 @@ already persisted.
   panel.
 
 **Tuning is measured** (five seeds, 15k ticks, against a control with the social
-*behaviours* switched off):
+_behaviours_ switched off):
 
-| | seeds with both species alive | grazers | stalkers |
-| --- | --- | --- | --- |
-| sociality off (control) | 3/5 | 0–320 | 4–23 |
-| **sociality on** | **5/5** | **34–135** | **4–19** |
+|                         | seeds with both species alive | grazers    | stalkers |
+| ----------------------- | ----------------------------- | ---------- | -------- |
+| sociality off (control) | 3/5                           | 0–320      | 4–23     |
+| **sociality on**        | **5/5**                       | **34–135** | **4–19** |
 
 The direction surprised me. Herding gathers prey into clusters a predator can
-find, which ought to *raise* predation — and the measured net effect is the
+find, which ought to _raise_ predation — and the measured net effect is the
 opposite: sociality **stabilises** the system, trading a much lower peak grazer
 population for never losing them. One control seed lost its grazers outright.
 Both halves of that trade are worth having; a demo that swings 0–320 is one bad
@@ -4356,7 +4356,7 @@ invariant 17, and the herd sandbox.
 **Deterministic demonstration scenario — the herd sandbox.** Cohesion measured
 **against a control** (`herdWeight: 0`), because "the animals ended up near each
 other" proves nothing about animals that started near each other; what has to be
-shown is that they stay closer *than they would have*. And a long line of grazers
+shown is that they stay closer _than they would have_. And a long line of grazers
 with a stalker at one end: the near end panics, the far end never hears about it,
 and at least one alarmed animal was warned by a neighbour rather than by its own
 eyes — local propagation with no global effect, which is exactly what the step
@@ -4378,7 +4378,7 @@ asks for.
    over (§1.4 A31). Step 22 already found the pressure was barely applied;
    measuring properly this time across seven seeds showed the trait moves up in
    3 and down in 4, mean change −0.0002, with the selection differential
-   *negative* in five of seven and its sign uncorrelated with the direction the
+   _negative_ in five of seven and its sign uncorrelated with the direction the
    trait went. The cause is now understood and is a property of the metric: the
    differential compares breeders against **all** adults, and in that world
    **71% of adults are breeders**, so the two samples are nearly the same set.
@@ -4399,18 +4399,17 @@ asks for.
 in **18 herds** (sizes 12, 12, 12, 9, 7, 7, 6, … capped exactly at 12) with 15
 solitary. A wave of alarm crossing the population with the hop counter telling
 the story — **93 first-hand sightings, 229 at one hop, 331 at two, and nothing
-beyond the cap**. Dominance contests reading correctly: animal #26 (dominance
-29) turning away rivals of 21–27 one after another, all yielding because it
+beyond the cap**. Dominance contests reading correctly: animal #26 (dominance 29) turning away rivals of 21–27 one after another, all yielding because it
 outmatched them; over the window, 164 contests, 57 escalating into fights, 114
 battle wounds.
 
 **Performance.** large-5k **46.06 → 72.01 ms/tick**, the largest jump since
-perception in Step 7 and the same cause — a *second* `queryRadius` per animal per
+perception in Step 7 and the same cause — a _second_ `queryRadius` per animal per
 tick on top of perception's. Still ~14× inside the tick budget, so it is recorded
 rather than optimized, and the fix is named: perception and sociality walk the
 same grid neighbourhood, so the social pass folds into perception's existing loop
 for close to nothing. That is Step 30's work; it joins §1.4 C6. The demo-default
-row nearly doubled (0.60 → 1.05) for an interesting reason — herding *clusters*
+row nearly doubled (0.60 → 1.05) for an interesting reason — herding _clusters_
 animals, so every grid query returns more neighbours. Sociality makes its own
 neighbourhoods denser.
 
@@ -4525,7 +4524,7 @@ step lists is a consequence of them.
 centroid of where an animal has actually been, plus its mean distance from that
 centre, updated in O(1) per tick. That is a direct answer to the step's own
 performance note ("bounded per-animal spatial summary, not full occupancy
-history"): a decaying mean *is* "repeated-use area" without storing a single
+history"): a decaying mean _is_ "repeated-use area" without storing a single
 past position. An animal that keeps returning somewhere tightens its range
 around it; a rover reports a wider one; an animal that moves house drags its
 range along behind it. Nobody sets the radius — it is measured. A test asserts
@@ -4565,13 +4564,13 @@ the whole step turns on.
 destructive step yet, and bisecting it was the work. Over 15k ticks on five
 seeds:
 
-| | seeds with both species alive | grazers |
-| --- | --- | --- |
-| territory layer inert | 5/5 | 6–107 |
-| marking + disputes, no patrolling | 4/5 | 52–165 |
-| + routine patrolling (ramp 1.5 radii) | **2/5** | 6–162 |
-| + routine patrolling (ramp 3 radii) | 2/5 | 13–148 |
-| **adopted: ramp 6 radii** | **4/5** | **52–165** |
+|                                       | seeds with both species alive | grazers    |
+| ------------------------------------- | ----------------------------- | ---------- |
+| territory layer inert                 | 5/5                           | 6–107      |
+| marking + disputes, no patrolling     | 4/5                           | 52–165     |
+| + routine patrolling (ramp 1.5 radii) | **2/5**                       | 6–162      |
+| + routine patrolling (ramp 3 radii)   | 2/5                           | 13–148     |
+| **adopted: ramp 6 radii**             | **4/5**                       | **52–165** |
 
 The culprit was **patrol**, and the reason is worth stating because it is not
 obvious: patrolling competes with **wandering**, and wandering is how an animal
@@ -4594,7 +4593,7 @@ priority 30 — after movement so it marks where the animal actually ended up,
 after hunting and mating so a fight over ground cannot pre-empt one over a
 mate); `patrol` and `retreat` in the decision system; per-species `territory`
 data; **protocol v22 → v23** (`entity.disputed` carrying both dominance scores
-*and* how much ground changed hands, plus a `territory` inspection block);
+_and_ how much ground changed hands, plus a `territory` inspection block);
 **save v21 → v22** (`homeRange`, `lastMarkTick`, and the claim layer — both are
 evolved state that no seed can reproduce); metrics for settled ranges and
 claimed ground; a renderer home-range ring for the selected animal.
@@ -4627,7 +4626,7 @@ protocol/metrics/persistence, and the residency sandbox.
 settles a stable range measured **against a control** with the range pull off
 (the resident ends up closer to home and with a tighter radius than the same
 animal without it), and a neighbour placed on the resident's ground leaves it,
-five times out of five. The avoidance half is asserted as a *mechanism*, not as
+five times out of five. The avoidance half is asserted as a _mechanism_, not as
 time-on-claim across two whole runs: switching avoidance off changes the
 trajectory from tick one, so the two runs wander differently and the tick counts
 would be comparing noise (§1.4 D1).
@@ -4763,7 +4762,7 @@ demo showed **13 infectious animals of which only 4 were visible**.
 
 Compartments are susceptible → incubating → symptomatic → recovered, and
 **immunity wanes** so the population returns to the susceptible pool. Severity
-is *derived* from the compartment rather than stored, for the same reason
+is _derived_ from the compartment rather than stored, for the same reason
 dominance is (Step 23): a value computed from the state cannot drift out of step
 with it.
 
@@ -4782,13 +4781,13 @@ new behaviour competing with foraging wrecks the ecology, so illness is avoided
 by a subtraction instead: a visibly sick animal is simply **not counted in the
 herd's centre of mass**, so the group's pull leads away from it and it is left
 behind. That looks exactly like shunning and costs nothing. And because it keys
-on *symptoms*, the carrier that looks fine stays in the middle of the herd —
+on _symptoms_, the carrier that looks fine stays in the middle of the herd —
 which is how the outbreak spreads at all.
 
 **§1.4 A20 is closed.** Wounds healed from Step 17, but health lost to thirst
 never came back, so a once-thirsty animal carried the damage for life while a
 mauled one mended. A step about recovering from illness is the right home for
-the general case: a healthy, well-fed animal now slowly regains health from *any*
+the general case: a healthy, well-fed animal now slowly regains health from _any_
 source of damage, gated on energy exactly as injury healing is, because mending
 is work.
 
@@ -4803,18 +4802,18 @@ is work.
    spends two draws per tick flat, whatever the population; rolling per animal
    would have been an O(N) walk through the stream for something this rare.
 2. **The cost is almost entirely sublethal, and that is what needed tuning.** A
-   run has 300+ infections and only 1–5 deaths *from* disease. What suppresses
+   run has 300+ infections and only 1–5 deaths _from_ disease. What suppresses
    the population is the time spent feeding badly and not breeding — so
    `symptomaticTicks` and `feedPenalty`, not the mortality rate, are the numbers
    that decide what disease costs.
 
 **Tuning is measured** (five seeds, 15k ticks, against a disease-off control):
 
-| | seeds with both species alive | grazers |
-| --- | --- | --- |
-| disease off (control) | 4/5 | 52–165 |
-| 400 sick ticks, feed −40 % | 3/5 | 1–83 |
-| **200 sick ticks, feed −30 %** | **4/5** | **7–75** |
+|                                | seeds with both species alive | grazers  |
+| ------------------------------ | ----------------------------- | -------- |
+| disease off (control)          | 4/5                           | 52–165   |
+| 400 sick ticks, feed −40 %     | 3/5                           | 1–83     |
+| **200 sick ticks, feed −30 %** | **4/5**                       | **7–75** |
 
 Adopted because it matches the control's 4/5 while still visibly suppressing the
 population — a density-dependent pressure that bites without breaking the demo.
@@ -4842,7 +4841,7 @@ the herd's centre while an incubating animal is not), condition recovery closing
 A20, protocol/metrics/persistence, and the outbreak sandbox.
 
 **Deterministic demonstration scenario — the outbreak sandbox.** A tight cluster
-of 24 animals and one infected. Asserted as the *shape* of an epidemic rather
+of 24 animals and one infected. Asserted as the _shape_ of an epidemic rather
 than counts: it spreads beyond patient zero, animals visibly sicken, it resolves
 into recovered and dead, and it **burns out** rather than running forever. A
 companion test puts one animal on the far side of the world and asserts it never
@@ -4969,7 +4968,7 @@ pleasant side effects:
 
 1. **Foraging cannot lose.** An animal that can see food still runs `seekFood`;
    one that remembers food still runs `recallFood`. Migration only ever replaces
-   a *random* heading with a *directed* one, so it spends no tick that was doing
+   a _random_ heading with a _directed_ one, so it spends no tick that was doing
    anything useful.
 2. **At zero strength the behaviour is bit-identical to Step 25** — so the
    mechanism is off unless the world says otherwise. This turned out to need
@@ -5011,20 +5010,21 @@ asserts every stream is byte-identical across a step with and without the system
    (4/5 seeds with both species alive, grazers 7–75) migration read **3/5**,
    which by the standard every step since 22 has used would have meant ramping it
    down. Bisecting `biasWeight` gave 1/5, 2/5, 3/5, 3/5 at 0.2/0.3/0.4/0.5 —
-   *non-monotonic*, which is itself the tell. Re-run at **ten** seeds:
+   _non-monotonic_, which is itself the tell. Re-run at **ten** seeds:
 
-   | | both alive | grazers | stalkers |
-   | --- | --- | --- | --- |
-   | migration off (control) | **4/10** | 6–107 | 0–7 |
-   | migration on | **4/10** | 16–96 | 0–15 |
+   |                         | both alive | grazers | stalkers |
+   | ----------------------- | ---------- | ------- | -------- |
+   | migration off (control) | **4/10**   | 6–107   | 0–7      |
+   | migration on            | **4/10**   | 16–96   | 0–15     |
 
    Identical seed survival; one seed lost and one gained. The 4/5→3/5 gap was
    noise, and the original five seeds simply happen to flatter the control. On
-   the measures that are not a five-sample binary, migration is *better*: the
+   the measures that are not a five-sample binary, migration is _better_: the
    grazer floor rises 6→16 (fewer near-collapses) and the stalker ceiling 7→15.
    This is §1.4 D7 exactly — check what the fixture is measuring before re-pinning
    anything.
-2. **A diagnosis that was wrong, and cheap to falsify.** Hunts *fall* when
+
+2. **A diagnosis that was wrong, and cheap to falsify.** Hunts _fall_ when
    migration is on even as prey numbers rise (seed 13: grazers 21→96, hunts
    231→141) with capture rate flat at ~0.34 — so predators were finding prey less
    often, not failing to catch them. The obvious cause was a stalker pinned to
@@ -5034,23 +5034,23 @@ asserts every stream is byte-identical across a step with and without the system
    reverted unshipped. The real mechanism is plainer: aggregated prey are harder
    for a random searcher to find, which is landscape-scale dilution and genuine
    ecology. A second attempt — letting stalkers track forage as a prey proxy —
-   made stalker numbers *worse* (0–3) and was also reverted.
+   made stalker numbers _worse_ (0–3) and was also reverted.
 3. **The drift is weak over short distances, and that is by design.** Two cuts of
    the end-to-end test measured position and both were bad tests. The first
    painted a bare desert with a rich band beyond it; the control reached it just
    as fast, because a random walk crosses a small box easily and because a cue
-   reaching 18 units reads *nothing* across bare ground — it was measuring
+   reaching 18 units reads _nothing_ across bare ground — it was measuring
    diffusion and would have passed with migration deleted. The second used a
    smooth ramp, where the effect was real but ~1 unit, because `biasWeight` 0.5 ×
    hunger × gradient is deliberately gentle. Migration's effect on position is
    **cumulative**; pinning a small displacement in a sandbox would be pinning
-   noise. The shipped test asserts the *mechanism* — mean cos(heading) over
+   noise. The shipped test asserts the _mechanism_ — mean cos(heading) over
    hundreds of wander commitments, which is 0 for a random walk and clearly
    positive when the gradient points east.
 
 **One real defect, caught by its own test.** `blendHeadings(1.2, bias, 0)`
 returned `1.2000000000000002` — `normalizeAngle` wobbling the float. Property 2
-above was therefore false: a *fed* animal standing on a real gradient carries a
+above was therefore false: a _fed_ animal standing on a real gradient carries a
 non-null heading at strength 0 and does come through the blend, so every such
 animal got a one-ulp course change compounding over 15 000 ticks. The endpoints
 now return their input untouched (both callers already pass normalized angles).
@@ -5075,14 +5075,14 @@ as a ratio, the cap, and an assertion that it is exactly `SAMPLE_DIRECTIONS × 2
 1` grid reads and **zero** spatial queries), the hunger throttle, the stagger,
 the zero-draw budget, dispersal (outward heading, range cleared, bounded, the
 degenerate on-centre case, the inert zero-tick control path, precedence over
-forage, and that orphans are *not* dispersed — §1.4 A12), recolonization,
+forage, and that orphans are _not_ dispersed — §1.4 A12), recolonization,
 protocol/persistence/determinism, and the `enabled: false` control pinned so it
 stays a control.
 
 **Deterministic demonstration scenario — the gradient sandbox.** Bare ground with
 rich forage due east, inside the 18-unit cue and well outside the 6-unit
 perception radius so `seekFood` cannot be what steers them. Asserted as a
-*direction*: mean cos(heading) over 300 ticks of wander commitments is < 0.1
+_direction_: mean cos(heading) over 300 ticks of wander commitments is < 0.1
 without migration and > 0.15 with it. The recolonization companion puts 16 animals
 on bare western ground with the whole lush east half empty of animals and asserts
 they arrive.
@@ -5111,7 +5111,7 @@ owes Step 30 exactly two neighbour walks rather than three.
 **Deviations from the step spec (documented):** (1) **No `MigrationSystem`
 movement bias as a competing intent** — it writes a drift the decision system
 folds into `wander`, for the A34 reasons above. (2) **"Remembered routes" are not
-implemented**; Step 15's memory already stores remembered *places* and
+implemented**; Step 15's memory already stores remembered _places_ and
 `recallFood` already steers to them, and a route is a trajectory, which the
 codebase deliberately does not store anywhere (see A40). (3) **Migration is a
 grazer-only phenomenon** — a stalker's food is the grazer, which it already
@@ -5122,7 +5122,7 @@ pull herds apart, but no test claims a specific fragmentation outcome.
 
 **Follow-on notes for later steps:** Step 27 (local disturbances) inherits the
 mechanism that makes recovery from a disturbance work — a burnt patch is
-low-forage ground animals drift *off*, and regrown ground is what draws them
+low-forage ground animals drift _off_, and regrown ground is what draws them
 back, with no recolonization code to write. Step 29's species schema gains a
 sixth block (`migration`). And the honest caveat for anyone tuning later: the
 demo's two-species balance is a knife edge at ~3–9 stalkers, so **five seeds
@@ -5209,16 +5209,16 @@ Global catastrophes, fire spread physics, fluid simulation.
 **A disturbance is a record, and its effects are derived from it on read.** That
 one choice is the whole step, and it is what makes recovery nearly free:
 
-  - a flooded cell is not *marked* flooded; it is slow **while a flood covers
-    it**, and the instant the record expires it is ordinary ground again. There
-    is no un-flooding pass, and therefore no way to leave the world stuck
-    half-flooded because a cleanup was missed;
-  - **terrain is never mutated.** Terrain is derived — regenerated from the seed
-    on load and deliberately not saved — so a disturbance that edited it would
-    silently vanish on restore. Disturbances are their own protocol layer
-    instead, exactly as vegetation is. A bounded list of *circles* is not a
-    per-cell field, which is why it can ride in every snapshot where the
-    territorial claim grid (§1.4 A36) cannot.
+- a flooded cell is not _marked_ flooded; it is slow **while a flood covers
+  it**, and the instant the record expires it is ordinary ground again. There
+  is no un-flooding pass, and therefore no way to leave the world stuck
+  half-flooded because a cleanup was missed;
+- **terrain is never mutated.** Terrain is derived — regenerated from the seed
+  on load and deliberately not saved — so a disturbance that edited it would
+  silently vanish on restore. Disturbances are their own protocol layer
+  instead, exactly as vegetation is. A bounded list of _circles_ is not a
+  per-cell field, which is why it can ride in every snapshot where the
+  territorial claim grid (§1.4 A36) cannot.
 
 The one destructive effect is vegetation, because burnt grass should not
 reappear when the fire goes out — it should grow back, and Step 3's logistic
@@ -5228,7 +5228,7 @@ recovery is the vegetation system doing what it always does.
 **No behaviour was added, and that was the point.** §1.4 A34 and D14 both say a
 new action competes with foraging and loses. Displacement is two existing
 mechanisms given a reason: a burnt region is low-forage ground that Step 26's
-drift carries animals *off*, and a fire writes a `danger` memory (Step 15) that
+drift carries animals _off_, and a fire writes a `danger` memory (Step 15) that
 animals already avoid resting near and already refuse to recall food from.
 Recolonization when the grass returns is Step 26's, unchanged. Step 26's handoff
 note predicted this would be the payoff of ordering 26 before 27, and it was.
@@ -5251,7 +5251,7 @@ possible at all.
 2. **The first cut was a climate, not a disturbance regime.** At one ignition
    check per 100 ticks with a 0.35 chance, something was burning, flooding, or
    blowing **91% of ticks** — which not only over-pressured the demo but made
-   *recovery unobservable*, because nothing ever finished recovering. Now one
+   _recovery unobservable_, because nothing ever finished recovering. Now one
    ignition per ~1200 ticks against a median duration near 300, so roughly a
    quarter of ticks have something running somewhere and the rest are quiet
    enough to watch the land come back.
@@ -5259,20 +5259,20 @@ possible at all.
    A `kinds` config knob was added so each could be measured alone. Over ten
    seeds and 15k ticks:
 
-   | | both alive | grazers | stalkers | deaths by disturbance |
-   | --- | --- | --- | --- | --- |
-   | off (control) | 4/10 | 16–96 | 0–15 | 0 |
-   | fire only | 5/10 | 0–117 | 0–4 | 12 |
-   | flood only | 3/10 | 3–96 | 0–5 | 0 |
-   | storm only | 5/10 | 14–108 | 0–6 | 0 |
-   | all three | 3/10 | 1–128 | 0–6 | 6 |
+   |               | both alive | grazers | stalkers | deaths by disturbance |
+   | ------------- | ---------- | ------- | -------- | --------------------- |
+   | off (control) | 4/10       | 16–96   | 0–15     | 0                     |
+   | fire only     | 5/10       | 0–117   | 0–4      | 12                    |
+   | flood only    | 3/10       | 3–96    | 0–5      | 0                     |
+   | storm only    | 5/10       | 14–108  | 0–6      | 0                     |
+   | all three     | 3/10       | 1–128   | 0–6      | 6                     |
 
    Seed survival spans **±1 of the control in both directions** and the death
    causes barely move (exposure 140–184, predation 492–565 across every row).
    At ten seeds the demo cannot distinguish these configurations, which is the
    honest reading and also the expected one: a disturbance covering ~1% of the
    map a quarter of the time should not move a population aggregate. The effect
-   it *does* have is local and sublethal — 852 burns across the ten seeds — which
+   it _does_ have is local and sublethal — 852 burns across the ten seeds — which
    is the same shape as Step 25's disease finding, where mortality was never the
    lever either.
 
@@ -5296,7 +5296,7 @@ weather, before vegetation growth, so a fire burns the field before the same
 tick regrows it) owning ignition, expiry, the bounded scour, and affliction;
 disturbance effects folded into the two chokepoints that already existed
 (`world.speedModifierAt` and `thermalStress`) so no system had to learn what a
-disturbance is; `InjuryKinds.BURN`, closing the *hazard* half of §1.4 A19, which
+disturbance is; `InjuryKinds.BURN`, closing the _hazard_ half of §1.4 A19, which
 has been carried since Step 17; **protocol v25 → v26** (a `disturbances` block in
 snapshots and deltas, `environment.disturbed` / `environment.settled`, and a
 `caughtIn` inspection field); **save v24 → v25**; `enabled` and `kinds` config
@@ -5306,7 +5306,7 @@ formatting.
 
 **Tests:** `npm test` → **561 passing / 0 failing** (was 535; +26). New
 `test/disturbance.test.js`: geometry (including that the corner of a bounding box
-is *not* inside the disc), the empty-list early exit pinned so quiet ticks stay
+is _not_ inside the disc), the empty-list early exit pinned so quiet ticks stay
 cheap, first-match overlap, the fixed draw budget (proved by two worlds whose
 ignition outcomes differ completely landing on the same stream state, plus a
 direct count against `IGNITION_DRAWS`), expiry announced exactly once with its
@@ -5335,12 +5335,12 @@ reads as a lifecycle — `t2400 disturbed fire @103,64 r15` … `t2718 settled f
 **Performance.** large-5k **79.19 → ~80.1 ms/tick** (+1). medium-1k is noisy
 across runs (11.1–15.2 against Step 26's 10.4); a second run put it at 11.1, so
 the first reading was variance rather than a regression. Ignition is five draws
-every 300 ticks, the scour is πr² cell writes *once* per disturbance, and the
+every 300 ticks, the scour is πr² cell writes _once_ per disturbance, and the
 per-animal pass runs only while something is active — everything else costs one
 array-length check.
 
 **Deviations from the step spec (documented):** (1) **Drought and severe winter
-are not implemented** — both already exist as *global* weather states (Step 19),
+are not implemented** — both already exist as _global_ weather states (Step 19),
 so a local copy would be the same mechanism at a different scale rather than a
 new one (A44). (2) **Terrain is not modified**, for the persistence reason above;
 "affected terrain" is expressed as a derived traversal penalty and a renderer
@@ -5351,7 +5351,7 @@ lethal path is exercised in a controlled test instead (A46).
 **Follow-on notes for later steps:** Step 28 (ecosystem engineering) inherits the
 pattern this step establishes — a bounded record whose effects are derived on
 read, layered over static terrain — which is exactly the shape a beaver dam or a
-wallow needs, with the difference that engineering *persists* rather than
+wallow needs, with the difference that engineering _persists_ rather than
 expiring. Step 29's species schema is untouched by this step (disturbances are
 world state, not biology). And §1.4 C6 is still unchanged at two neighbour walks:
 the affliction pass is O(animals × active) with no spatial query.
@@ -5439,7 +5439,7 @@ A generic scriptable environment-modification engine.
 Two enumerated features — a **trail** worn by traffic, a **burrow** dug by
 resting — held as sparse per-cell wear in a `Map` rather than a dense field,
 because a handful of cells out of the whole map carry anything and a world
-nobody has walked on must cost nothing. A disturbance is a record that *expires*;
+nobody has walked on must cost nothing. A disturbance is a record that _expires_;
 a feature has no clock at all. It persists while wear arrives faster than decay
 removes it, so "built → maintained → lost" needs no maintenance mechanism —
 "maintained" is simply what not fading looks like.
@@ -5447,7 +5447,7 @@ removes it, so "built → maintained → lost" needs no maintenance mechanism �
 **Both effects land on chokepoints that already existed**, which is why no system
 had to learn what a feature is: `world.speedModifierAt` already decided how fast
 ground is to cross, and `world.isShelteredAt` already decided what counts as
-shelter — so a burrow is picked up by thermoregulation *and* by the `shelter`
+shelter — so a burrow is picked up by thermoregulation _and_ by the `shelter`
 action for free, and neither knows an animal dug it. The one genuinely new pull
 (an animal drifting onto a nearby trail) feeds Step 26's wander-heading blend
 rather than the utility table, because §1.4 A34 has been the answer four steps
@@ -5457,12 +5457,12 @@ running now.
 
 1. **⚠ The system wore nothing at all, in the phase the spec asked for.**
    `lastMoveDistance` is a per-tick accumulator that the metabolism system
-   *consumes and zeroes* in `physiology`, so by the time any `environment` system
+   _consumes and zeroes_ in `physiology`, so by the time any `environment` system
    runs it is always 0. Fifteen thousand ticks produced **zero trails** while
    burrows (which read `action` instead) formed perfectly — a half-working
    feature is much harder to notice than a broken one. Moved to `interaction`
    priority 40, which is where the territory system already sits for exactly the
-   same reason: it marks where an animal *ended* the tick. Recorded as §1.4 D19.
+   same reason: it marks where an animal _ended_ the tick. Recorded as §1.4 D19.
 2. **⚠ Wear was charged per tick, not per unit of distance.** An animal crossing
    a cell may spend several ticks in it, so one slow pass wore the ground as much
    as three fast ones — and the moment the phase bug was fixed this **paved 7% of
@@ -5479,10 +5479,10 @@ running now.
 **Measured against the control** (ten seeds, 15k ticks, `engineering.enabled`
 false):
 
-| | both alive | grazers | stalkers |
-| --- | --- | --- | --- |
-| engineering off | 3/10 | **1**–128 | 0–6 |
-| engineering on | 4/10 | **26**–97 | 0–8 |
+|                 | both alive | grazers   | stalkers |
+| --------------- | ---------- | --------- | -------- |
+| engineering off | 3/10       | **1**–128 | 0–6      |
+| engineering on  | 4/10       | **26**–97 | 0–8      |
 
 Seed survival moves by one, which at n=10 is not evidence on its own (§1.4 D14).
 The **grazer floor** is the real signal: it rises from 1 to 26 and the range
@@ -5496,7 +5496,7 @@ result.
 the map edge, which is 6% of the area — a 13× concentration. Diagnosing it turned
 up something that has nothing to do with this step: **animals spend ~49% of their
 time within two cells of the world boundary**, measured with engineering
-*disabled*. Movement clamps at the edge (Step 5), so an animal whose heading
+_disabled_. Movement clamps at the edge (Step 5), so an animal whose heading
 points off-map slides along the wall instead of turning, and they pile up there.
 Engineering adds ~4.6 points on top (edge trails mildly attract), but the bulk is
 pre-existing and nothing before this step made it visible — the trail layer is
@@ -5506,10 +5506,10 @@ change affecting every system, and it needs its own ten-seed measurement.
 Recorded as §1.4 ⚠ C8.
 
 **Event volume is real turnover, not noise.** Features form and fade about 0.74
-times per tick. Widening the hysteresis band did *not* reduce it (0.66 / 0.76 /
+times per tick. Widening the hysteresis band did _not_ reduce it (0.66 / 0.76 /
 0.58 at bands of 0.7 / 0.5 / 0.3 — non-monotonic, the D14 signature of tuning
 noise), because the churn is animals genuinely using and abandoning ground rather
-than cells oscillating. So the rate was left alone and the *renderer* hides the
+than cells oscillating. So the rate was left alone and the _renderer_ hides the
 events by default, which is the established answer here — `entity.moved` and
 `entity.fed` have been routine-filtered since Step 9.
 
@@ -5519,7 +5519,7 @@ hysteresis band and a revision that moves only when the promoted set changes);
 accessors, and a trail gradient built to the same shape as Step 26's forage
 gradient); `EngineeringSystem` (`interaction`, priority 40); effects folded into
 the two existing world chokepoints; **protocol v26 → v27** (a revision-gated
-`features` block carrying only cells deep enough to *be* something, plus
+`features` block carrying only cells deep enough to _be_ something, plus
 `environment.feature`); **save v25 → v26**; an `enabled` switch for the control;
 and renderer glyphs drawn over the ground and under everything that happens on
 it. Also fixed a latent wiring bug found on the way: `config.engineering` was
@@ -5527,23 +5527,23 @@ never passed to the `World`, so a configured threshold would have been silently
 ignored.
 
 **Tests:** `npm test` → **590 passing / 0 failing** (was 561; +29). New
-`test/engineering.test.js`: that a single pass wears ground *without* making
-anything of it (the step's whole claim is that *repeated* use reshapes the
+`test/engineering.test.js`: that a single pass wears ground _without_ making
+anything of it (the step's whole claim is that _repeated_ use reshapes the
 world), promotion announced exactly once, decay and loss announced once, the
 hysteresis band surviving a dip below the promotion threshold, a different kind
 having to erode the old one, the tracking cap, the wear cap, features listed in
 cell order rather than insertion order (iteration order is deterministic by
-rule), the revision moving on promotion but *not* on ordinary walking, both
+rule), the revision moving on promotion but _not_ on ordinary walking, both
 effects reaching their chokepoints, the gradient producing nothing for an animal
 already on the best ground, wear-per-distance rather than per-tick, the zero-draw
-budget, the trail bias measured on the *heading distribution* against a
+budget, the trail bias measured on the _heading distribution_ against a
 trail-free control (§1.4 D15), revision-gated deltas, scuffed ground never being
 projected, save/load with features actually present, and the `enabled: false`
 control pinned so it stays a control.
 
 **Deterministic demonstration scenario — the worn-path sandbox.** A well-worn
 path due east of sixteen animals in a featureless world, asserted as a
-*direction*: mean cos(heading) over their wander commitments is near zero without
+_direction_: mean cos(heading) over their wander commitments is near zero without
 the trail and clearly positive with it, against the identical world.
 
 **Visible result verified.** At protocol v27, seed 42 after 6000 ticks: **349
@@ -5552,7 +5552,7 @@ paths rather than scattered dots, which is the difference between a trail system
 and a heatmap of noise. The deepest cells sit at the wear cap. Formation is
 readable in the event log from tick 18.
 
-**Performance.** large-5k **80.1 → 80.6 ms/tick**, flat. Decay walks the *worn*
+**Performance.** large-5k **80.1 → 80.6 ms/tick**, flat. Decay walks the _worn_
 cells rather than the world (a `Map`, not a field), the projection is memoized on
 a revision that barely moves, and both read chokepoints early-exit on
 `featureCount === 0`. No spatial query — §1.4 C6 still owes Step 30 two neighbour
@@ -5563,7 +5563,7 @@ walks rather than three.
 grazing clearings**: vegetation biomass already visibly drops where animals graze
 and regrows after, so a separate "clearing" feature would be a second mechanism
 for a thing the world already does (A48) — the same reasoning that kept drought
-out of Step 27. (3) **Animals do not seek *other* animals' burrows** (A47): a
+out of Step 27. (3) **Animals do not seek _other_ animals' burrows** (A47): a
 burrow shelters whoever is standing on it, but only trails attract, and giving
 burrows a pull would mean touching the perception hot loop.
 
@@ -5572,7 +5572,7 @@ features are world state, not biology — though `attracts` and `shelters` are t
 obvious hooks if a species should ever build something others do not. Step 30
 inherits ⚠ C8 (the boundary pile-up), which is now measured and which any
 occupancy-sensitive optimization should know about. And the feature layer is the
-first thing in the engine that makes *where animals actually spend their time*
+first thing in the engine that makes _where animals actually spend their time_
 visible, which is likely to surface more than it already has.
 
 ---
@@ -5585,7 +5585,7 @@ visible, which is likely to surface more than it already has.
 config debt accumulated while there was only one species. **B3** — metabolism
 (Step 6), hydration (Step 10), and aging/life-curve (Step 11) parameters all
 live in **global** config sections and should become per-species. **B4** —
-perception radius already *is* per-species (resolved from the registry), so the
+perception radius already _is_ per-species (resolved from the registry), so the
 two patterns must be unified; prefer the registry approach. Also revisit
 **B1/B2** (`createDemoSimulation.js` naming, `config.demo` scenario block) while
 the config layers are being reorganised.
@@ -5671,7 +5671,7 @@ A biological scripting language; runtime species authoring UI.
 **A species overrides; the config supplies defaults.** That one decision is the
 whole schema. Eight blocks — `metabolism`, `hydration`, `aging`, `perception`,
 `traits`, `genetics`, `disease`, `reproduction` — fall back to the same-named
-global config section, so a species file states only what is *different* about
+global config section, so a species file states only what is _different_ about
 that animal. The alternative (every species restating every parameter) makes the
 interesting differences invisible and turns a change to a shared default into a
 twelve-file edit. Merging is **recursive**, because at least one block is nested
@@ -5682,16 +5682,16 @@ from any species that tweaked one.
 held by a `SpeciesRegistry` on the world. A system lookup is one `Map.get` and no
 allocation, which is what the step's performance note demands. The registry is
 per-engine rather than a module singleton on purpose: resolution depends on the
-*config*, and every sweep and half the test suite runs engines with different
+_config_, and every sweep and half the test suite runs engines with different
 configs in one process.
 
 **The debt this step was built to absorb, item by item.** §1.4 **B3**
 (metabolism, hydration, aging all global), **B4** (perception radius as a bare
-`perceptionRadius` scalar — a *third* config pattern, now a block like the
+`perceptionRadius` scalar — a _third_ config pattern, now a block like the
 rest), **A13** (trait spread and mutation), **A17** (a stalker cub born at the
 grazer's 5 kg), **A29/A30** (`matePreference`, `GESTATING_SEX`), **A38** (disease
 parameters), **A41** (`migration`). Also **B2**: `config.demo` was a hardcoded
-prey/predator pair and is now a `founding` *roster*, so adding a species to the
+prey/predator pair and is now a `founding` _roster_, so adding a species to the
 world is a line of config.
 
 **A21 is closed, and it closed itself.** The third species is a **scavenger**,
@@ -5722,20 +5722,20 @@ so diet remains a read of data rather than a hardcoded name.
    every carnivore was the same size, decisive the moment one was not. Scaling
    intake on the same allometric exponent metabolism already uses (a 4 kg animal
    eats at 22% of the reference rate, a 45 kg one at 136%) is the honest fix, and
-   it is a no-op for the 30 kg grazer that *is* the reference mass. Recorded as
+   it is a no-op for the 30 kg grazer that _is_ the reference mass. Recorded as
    §1.4 D22.
 2. **Closing A17 helped the predator more than expected.** Giving the stalker its
    own body — born at 8 kg, maturing slower, living to 14 000 ticks, cheaper to
-   travel, slower to dry out — moved the *two-species* control from the 4/10 of
+   travel, slower to dry out — moved the _two-species_ control from the 4/10 of
    Step 28 to 6/10 before the scavenger was added at all. Thirteen steps of
    predators living on grazer physiology had been quietly costing them.
 
 **Measured** (ten seeds, 15k ticks, after the intake fix):
 
-| | grazer + stalker alive | grazers | stalkers | corvids |
-| --- | --- | --- | --- | --- |
-| two species (control) | 4/10 | 12–172 | 0–6 | — |
-| three species | **5/10** | 8–75 | 0–2 | 0–173 |
+|                       | grazer + stalker alive | grazers | stalkers | corvids |
+| --------------------- | ---------------------- | ------- | -------- | ------- |
+| two species (control) | 4/10                   | 12–172  | 0–6      | —       |
+| three species         | **5/10**               | 8–75    | 0–2      | 0–173   |
 
 Adding a whole trophic level does not cost the demo: seed survival is the same or
 better, and **all three species coexist in 4/10 seeds**. Stalkers are squeezed
@@ -5747,13 +5747,13 @@ the claim here is "does not degrade" rather than "improves".
 
 **What shipped.** `config/species/schema.js` (`SPECIES_BLOCKS`,
 `resolveSpecies`, `SpeciesRegistry`); the roster in `config/species/index.js`
-split into raw *definitions* (declared) and resolved species (per engine);
+split into raw _definitions_ (declared) and resolved species (per engine);
 `scavengerCorvid.js`; per-species blocks on the stalker closing A17;
 `world.species` as the single read path, with `metabolism`, `hydration`,
 `aging`, `perception`, `reproduction`, and newborn birth mass all now reading it;
 mass-scaled carnivore intake; `demo.founding` as a roster in the config, the
 fixture, and the benchmark scenarios; **save v26 → v27** (no entity field
-changed — the *config shape* did, and config is saved verbatim); a renderer
+changed — the _config shape_ did, and config is saved verbatim); a renderer
 appearance entry; and **no protocol bump**, since `speciesId` was already
 projected and no new observable species metadata is exposed.
 
@@ -5761,7 +5761,7 @@ projected and no new observable species metadata is exposed.
 `test/species-schema.test.js`: resolution (inheritance, partial override,
 recursive merge, every block resolvable, deep-frozen, per-engine independence,
 unknown species null-vs-throw, the relation read both ways), the two static
-scans, "a species is config not code" (a *browser* invented inside the test file
+scans, "a species is config not code" (a _browser_ invented inside the test file
 and resolved correctly, plus the demo founding every cohort and three species
 alive at 3000 ticks), the scavenger hunting nothing and being hunted by nothing
 from data alone, a scavenger never making a capture attempt in 3000 ticks, three
@@ -5772,7 +5772,7 @@ save/load.
 **The refactor broke 23 existing tests, and the pattern is worth recording.**
 Almost all of them constructed a system with custom parameters and expected those
 to apply — but a species' block now beats anything a system was constructed with,
-so the parameters have to reach the *config* (which the registry resolves
+so the parameters have to reach the _config_ (which the registry resolves
 against) instead. That is the correct new shape and the fixes say so in comments;
 it is also exactly the sort of quiet inversion that would be baffling six months
 on. Recorded as §1.4 D23.
@@ -5908,7 +5908,7 @@ _(fill on completion)_
   inspectable from protocol data.
 - **Risks:** snapshot size from cell layers; fixture drift.
 
-### Milestone B — Self-sustaining herbivore loop (Steps 5–10) — **COMPLETE**
+### Milestone B — Self-sustaining herbivore loop (Steps 5–10)
 
 - **Scenario:** herbivores move, perceive, decide, forage, compete, drink,
   spend energy/hydration, and survive or die.
@@ -5972,29 +5972,29 @@ Maintain small seeded scenarios under `src/fixtures/scenarios/` (or similar),
 each with a fixed seed and **qualitative** assertions (never exact long-term
 population counts).
 
-| #   | Scenario                     | Seed  | Expected qualitative behavior              | Stable assertions                        | Steps | Renderer fixture? |
-| --- | ---------------------------- | ----- | ------------------------------------------ | ---------------------------------------- | ----- | ----------------- |
-| 0   | Baseline determinism         | 42    | demo world runs identically                | two runs byte-identical                  | 1     | no                |
-| 1   | Terrain sandbox              | fixed | water + rock present, rock impassable      | cell-type counts; blocked cells          | 2, 5  | yes               |
-| 2   | Movement sandbox             | fixed | one animal navigates around obstacles      | never enters blocked cells; stable pos@N | 5     | yes               |
-| 3   | Foraging sandbox             | fixed | herbivore finds + eats a patch             | energy rises; biomass drops              | 8, 9  | yes               |
-| 4   | Starvation sandbox           | fixed | predictable energy decline → death         | exact death tick; carcass created        | 6     | yes               |
-| 5   | Resource-competition sandbox | fixed | several herbivores, limited food           | some survive, some starve (no balance)   | 9     | no                |
-| 6   | Life-cycle sandbox           | fixed | accelerated grow/mate/birth/age/death      | lineage completes; refs valid            | 11–13 | yes               |
-| 7   | Predation sandbox            | fixed | pursuit, escape, failed + successful hunts | ≥1 fail + ≥1 capture; carcass fed        | 16    | yes               |
-| 8   | Inheritance sandbox          | fixed | short generations; kids resemble parents   | parent-offspring trait correlation       | 20    | no                |
-| 9   | Selection sandbox            | fixed | a pressure shifts a trait distribution     | mean trait moves expected direction      | 21    | no                |
-| 10  | Disturbance sandbox          | fixed | local event → displacement → recovery      | bounded effect; recovery by tick N       | 27    | yes               |
-| 11  | Sexual-selection sandbox     | fixed | females prefer size; the trait rises       | rises *more* than a choice-off control; S positive among males only | 22 | no |
-| 12  | Herd sandbox                 | fixed | a herd holds together; a threat alarms the near side only | tighter than a herding-off control; far side never alarmed | 23 | no |
-| 13  | Residency sandbox            | fixed | a resident settles a range; a neighbour leaves its ground | closer to home than a pull-off control; neighbour leaves 5/5 | 24 | no |
-| 14  | Outbreak sandbox             | fixed | one case in a dense group becomes an epidemic | spreads past patient zero, peaks, burns out; an isolate never catches it | 25 | no |
+| #   | Scenario                     | Seed  | Expected qualitative behavior                             | Stable assertions                                                        | Steps | Renderer fixture? |
+| --- | ---------------------------- | ----- | --------------------------------------------------------- | ------------------------------------------------------------------------ | ----- | ----------------- |
+| 0   | Baseline determinism         | 42    | demo world runs identically                               | two runs byte-identical                                                  | 1     | no                |
+| 1   | Terrain sandbox              | fixed | water + rock present, rock impassable                     | cell-type counts; blocked cells                                          | 2, 5  | yes               |
+| 2   | Movement sandbox             | fixed | one animal navigates around obstacles                     | never enters blocked cells; stable pos@N                                 | 5     | yes               |
+| 3   | Foraging sandbox             | fixed | herbivore finds + eats a patch                            | energy rises; biomass drops                                              | 8, 9  | yes               |
+| 4   | Starvation sandbox           | fixed | predictable energy decline → death                        | exact death tick; carcass created                                        | 6     | yes               |
+| 5   | Resource-competition sandbox | fixed | several herbivores, limited food                          | some survive, some starve (no balance)                                   | 9     | no                |
+| 6   | Life-cycle sandbox           | fixed | accelerated grow/mate/birth/age/death                     | lineage completes; refs valid                                            | 11–13 | yes               |
+| 7   | Predation sandbox            | fixed | pursuit, escape, failed + successful hunts                | ≥1 fail + ≥1 capture; carcass fed                                        | 16    | yes               |
+| 8   | Inheritance sandbox          | fixed | short generations; kids resemble parents                  | parent-offspring trait correlation                                       | 20    | no                |
+| 9   | Selection sandbox            | fixed | a pressure shifts a trait distribution                    | mean trait moves expected direction                                      | 21    | no                |
+| 10  | Disturbance sandbox          | fixed | local event → displacement → recovery                     | bounded effect; recovery by tick N                                       | 27    | yes               |
+| 11  | Sexual-selection sandbox     | fixed | females prefer size; the trait rises                      | rises _more_ than a choice-off control; S positive among males only      | 22    | no                |
+| 12  | Herd sandbox                 | fixed | a herd holds together; a threat alarms the near side only | tighter than a herding-off control; far side never alarmed               | 23    | no                |
+| 13  | Residency sandbox            | fixed | a resident settles a range; a neighbour leaves its ground | closer to home than a pull-off control; neighbour leaves 5/5             | 24    | no                |
+| 14  | Outbreak sandbox             | fixed | one case in a dense group becomes an epidemic             | spreads past patient zero, peaks, burns out; an isolate never catches it | 25    | no                |
 
 For each: record initial state, seed, expected behavior, stable assertions,
 related steps, and whether a renderer fixture is generated. **Do not assert
 exact final populations for stochastic runs.**
 
-Scenario 11 is the pattern to copy whenever a step adds a *second* force acting
+Scenario 11 is the pattern to copy whenever a step adds a _second_ force acting
 on something already being measured: run the same seeded world with the new
 mechanism on and off, and assert the difference between them. "The trait rose"
 proves nothing when the trait also drifts on its own; "it rose further than the
@@ -6116,20 +6116,20 @@ Each step's dedicated sections state exactly what changes. Rules:
 What has actually happened, so the register reflects evidence rather than
 prediction:
 
-| Risk | Observed? | Evidence and outcome |
-| --- | --- | --- |
-| Population explosion | **Yes (four times)** | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. Step 24 was the most destructive yet (5/5 → 1/5 at first) and had to be *bisected* rather than tuned: the cause was a single behaviour, `patrol`, competing with the wandering animals need to find food. Step 25 cost one seed (4/5 → 3/5) until the *sublethal* cost was tuned down — and the diagnosis mattered there too, since a run had 300+ infections and only 1–5 deaths, so the mortality rate was never the lever. |
-| Tick-budget overruns | **Yes (contained)** | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget. |
-| Unstable parameter tuning | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a *defect* (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as *requiring* a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. Step 22 followed exactly that: sexes and mate choice were swept on five seeds against a *control with choice off*, which is what showed that a shorter patience selected just as hard while keeping both species alive in 5/5 seeds rather than 4/5. |
-| Tests overfitting stochastic results | **Yes** | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately *weakened* a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. Step 22 found the sharpest case (D7): Step 21's selection sandbox had been passing on drift on a pinned seed, and the fix was to diagnose the mechanism (deaths were *all* age deaths — the pressure was never applied) rather than re-pin, then re-verify on four seeds it had never seen. |
-| Unbounded memory/event growth | **Partly** | Event *volume* is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal and Step 17's injuries at 4, both enforced in their insert helpers so no future writer can bypass them. |
-| Determinism regressions | **No** | Byte-identical seeded runs asserted every step; never broken. |
-| Engine–renderer coupling | **No** | Boundary tests have held since the renderer was built. |
-| Protocol/save incompatibility | **No (by discipline)** | 20 protocol and 19 save-format bumps, each with fixtures regenerated and invalidation notes. |
-| Quadratic neighbour searches | **No** | All neighbour work goes through `SpatialGrid.queryRadius`. |
-| AI-generated duplication | **No (actively countered)** | Shared `killAnimal` (Step 10), `isReproductivelyReady` (Step 12), `recordLifeEvent` (Step 13), `recordMemory` (Step 15), and `applyInjury` (Step 17) helpers extracted instead of duplicating. Step 13 put `followParent` in the decision system rather than building a second action-selection path, and Step 16 did the same for `flee`/`stalk`/`chase`. Step 17 reused the existing `health <= 0` death path and the already-projected `healthFraction` rather than adding either. |
-| Over-generalized abstractions | **No** | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads. |
-| Renderer fixtures drifting | **No** | Regenerated on every protocol change. |
+| Risk                                 | Observed?                                        | Evidence and outcome                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Population explosion                 | **Yes (four times)**                             | Step 12 reproduction grew 8 → 1037 by tick 20 000, with food never limiting; re-tuned to costly reproduction (§1.4 C5). Inverse also seen: Step 11 without reproduction went extinct by ~9000. Step 16 found a genuine knife edge: 3 founding predators die out in 2 of 5 seeds, 7 wipe the prey out in 3 of 5; 4 sustains both. Tuned from a recorded five-seed sweep, and diagnosed first — the predators were well fed, so the failure was demographic stochasticity, not energy. Step 24 was the most destructive yet (5/5 → 1/5 at first) and had to be _bisected_ rather than tuned: the cause was a single behaviour, `patrol`, competing with the wandering animals need to find food. Step 25 cost one seed (4/5 → 3/5) until the _sublethal_ cost was tuned down — and the diagnosis mattered there too, since a run had 300+ infections and only 1–5 deaths, so the mortality rate was never the lever. |
+| Tick-budget overruns                 | **Yes (contained)**                              | Step 1 found an O(n)-per-emit event-buffer trim (58.7 → 1.6 ms/tick after fix). Step 7 perception took large-5k 1.8 → 14.0 ms/tick. Current worst case ~46 ms/tick with a mixed predator/prey population — far under the 1 s budget.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Unstable parameter tuning            | **Yes — now the expectation, not the exception** | Hydration (§1.4 C4) and reproduction (C5) needed sweeps; Step 13's follow utility was reshaped twice; Step 15 re-tuned hydration from a recorded five-seed sweep. **Steps 16→18→19 each invalidated the previous step's balance**: Step 16's predator/prey tuning silently depended on a _defect_ (carcasses accumulating as a free larder), fixing it in Step 18 collapsed the ecology, and Step 19's seasons collapsed it again. Treat any step that changes an energy source, a mortality source, or a food ceiling as _requiring_ a fresh multi-seed sweep — and record the numbers in the config comment so the next person need not re-derive them. Step 22 followed exactly that: sexes and mate choice were swept on five seeds against a _control with choice off_, which is what showed that a shorter patience selected just as hard while keeping both species alive in 5/5 seeds rather than 4/5.     |
+| Tests overfitting stochastic results | **Yes**                                          | §1.4 D1/D2 — one assertion rewritten four times; a behaviour test pinned to a specific seed. Step 19 deliberately _weakened_ a demo assertion (exposure deaths) back to a behavioural one after tuning made the outcome unstable. Step 22 found the sharpest case (D7): Step 21's selection sandbox had been passing on drift on a pinned seed, and the fix was to diagnose the mechanism (deaths were _all_ age deaths — the pressure was never applied) rather than re-pin, then re-verify on four seeds it had never seen.                                                                                                                                                                                                                                                                                                                                                                                      |
+| Unbounded memory/event growth        | **Partly**                                       | Event _volume_ is high (C3) but bounded by the buffer; no unbounded growth observed. Step 13's per-entity life histories are hard-capped at 12 entries and relationship lists are sparse; Step 15's spatial memories are capped at 8 per animal and Step 17's injuries at 4, both enforced in their insert helpers so no future writer can bypass them.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Determinism regressions              | **No**                                           | Byte-identical seeded runs asserted every step; never broken.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Engine–renderer coupling             | **No**                                           | Boundary tests have held since the renderer was built.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Protocol/save incompatibility        | **No (by discipline)**                           | 20 protocol and 19 save-format bumps, each with fixtures regenerated and invalidation notes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Quadratic neighbour searches         | **No**                                           | All neighbour work goes through `SpatialGrid.queryRadius`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| AI-generated duplication             | **No (actively countered)**                      | Shared `killAnimal` (Step 10), `isReproductivelyReady` (Step 12), `recordLifeEvent` (Step 13), `recordMemory` (Step 15), and `applyInjury` (Step 17) helpers extracted instead of duplicating. Step 13 put `followParent` in the decision system rather than building a second action-selection path, and Step 16 did the same for `flee`/`stalk`/`chase`. Step 17 reused the existing `health <= 0` death path and the already-projected `healthFraction` rather than adding either.                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Over-generalized abstractions        | **No**                                           | Species config stayed single-species; generalization deliberately deferred to Step 29 (§1.4 B3/B4). Step 14 admitted no trait that no system reads.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Renderer fixtures drifting           | **No**                                           | Regenerated on every protocol change.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ---
 
