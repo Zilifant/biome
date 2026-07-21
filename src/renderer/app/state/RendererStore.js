@@ -178,7 +178,15 @@ export class RendererStore {
   connection = { state: 'disconnected', detail: '' };
   /** 'live' | 'fixture' */
   mode = 'live';
-  /** @type {{entityIds: number[], activeId: number} | null} */
+  /**
+   * The selected *cell*, not the selected entity. A cell with nothing standing
+   * in it is still a selection — terrain, vegetation, worn ground, and any
+   * disturbance covering it are all things worth reporting, so clicking bare
+   * ground selects the ground rather than clearing.
+   *
+   * `activeId` is null when the cell is empty; `entityIds` may be empty.
+   * @type {{cellX: number, cellY: number, entityIds: number[], activeId: number | null} | null}
+   */
   selection = null;
   /** @type {number | null} */
   followedEntityId = null;
@@ -220,7 +228,7 @@ export class RendererStore {
     this.#emit('mode');
   }
 
-  /** @param {{entityIds: number[], activeId: number} | null} selection */
+  /** @param {{cellX: number, cellY: number, entityIds: number[], activeId: number | null} | null} selection */
   setSelection(selection) {
     this.selection = selection;
     this.#emit('selection');
@@ -279,6 +287,23 @@ export class RendererStore {
     const terrain = this.terrain;
     if (!terrain || cellX < 0 || cellY < 0 || cellX >= terrain.width || cellY >= terrain.height) return null;
     return terrain.nameByCode[terrain.codes[cellY * terrain.width + cellX]] ?? null;
+  }
+
+  /**
+   * Whether a world cell is passable, straight from the snapshot legend, or
+   * `null` when there is no terrain or the cell is outside it.
+   *
+   * `null` rather than `false` on purpose: "we have not been told" and "an
+   * animal cannot walk here" are different facts, and the legend already
+   * distinguishes them. Passability is authoritative — the renderer reports it
+   * and never derives movement from it.
+   * @param {number} cellX @param {number} cellY
+   * @returns {boolean | null}
+   */
+  terrainPassableAt(cellX, cellY) {
+    const terrain = this.terrain;
+    if (!terrain || cellX < 0 || cellY < 0 || cellX >= terrain.width || cellY >= terrain.height) return null;
+    return terrain.passableByCode[terrain.codes[cellY * terrain.width + cellX]] ?? null;
   }
 
   /**

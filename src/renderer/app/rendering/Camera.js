@@ -5,7 +5,14 @@
  * fidelity. One world unit is one grid cell.
  */
 
-export const ZOOM_LEVELS = Object.freeze([6, 8, 10, 12, 14, 16, 20, 24, 28, 32]);
+/**
+ * Supported cell sizes in CSS pixels. The floor is 10px: below that a cell
+ * stops being a reliable click target, and since every cell is now selectable
+ * — bare ground included — an unhittable cell is a broken control rather than
+ * a merely small one. The cost is that a large world no longer fits the
+ * viewport at minimum zoom, which is what drag-panning is for.
+ */
+export const ZOOM_LEVELS = Object.freeze([10, 12, 14, 16, 20, 24, 28, 32]);
 export const DEFAULT_CELL_SIZE = 16;
 
 export class Camera {
@@ -38,6 +45,19 @@ export class Camera {
   panByCells(dxCells, dyCells) {
     this.centerX += dxCells;
     this.centerY += dyCells;
+  }
+
+  /**
+   * Pan by screen pixels (drag-to-pan). Dragging moves the *world* with the
+   * pointer, so the camera travels the opposite way — a drag to the right
+   * reveals what is to the left. Fractional, unlike `panByCells`: a pointer
+   * drag that snapped to whole cells would stutter.
+   * @param {number} dxPixels pointer movement, screen pixels
+   * @param {number} dyPixels
+   */
+  panByPixels(dxPixels, dyPixels) {
+    this.centerX -= dxPixels / this.cellSize;
+    this.centerY -= dyPixels / this.cellSize;
   }
 
   /** @param {number} x @param {number} y */

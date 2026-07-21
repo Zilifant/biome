@@ -77,6 +77,14 @@ body {
 
 #biome-canvas {
   display: block;
+  cursor: grab;
+  /* The canvas handles its own pan gesture; without this a drag selects text
+     and the browser's own scroll takes over on touch. */
+  touch-action: none;
+}
+
+#biome-canvas.dragging {
+  cursor: grabbing;
 }
 
 #biome-canvas:focus-visible {

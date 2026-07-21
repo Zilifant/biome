@@ -10,6 +10,7 @@ import {
   UNKNOWN_APPEARANCE,
   CARCASS_APPEARANCE,
 } from '../src/renderer/app/rendering/EntityAppearance.js';
+import { structureSignature } from '../src/renderer/app/ui/EntityInspector.js';
 
 describe('entity appearance', () => {
   test('appearance lookup is deterministic and species-aware', () => {
@@ -165,5 +166,98 @@ describe('camera', () => {
   test('cell size snaps to supported zoom levels', () => {
     assert.equal(new Camera({ cellSize: 15 }).cellSize, 14);
     assert.equal(Camera.snapCellSize(1000), ZOOM_LEVELS.at(-1));
+  });
+
+  test('no zoom level is smaller than a reliable click target', () => {
+    // Every cell is selectable now, bare ground included, so a cell that is
+    // hard to hit is a broken control rather than a merely small one.
+    assert.equal(Math.min(...ZOOM_LEVELS), 10);
+    assert.equal(Camera.snapCellSize(1), 10, 'snapping never drops below the floor');
+  });
+
+  test('pixel panning moves the camera opposite the drag, scaled by zoom', () => {
+    const camera = new Camera({ centerX: 50, centerY: 50, cellSize: 10 });
+    // Dragging right by one cell's width reveals what is to the left.
+    camera.panByPixels(10, 0);
+    assert.equal(camera.centerX, 49);
+    // The same drag at double the zoom covers half the world distance.
+    const zoomed = new Camera({ centerX: 50, centerY: 50, cellSize: 20 });
+    zoomed.panByPixels(10, 0);
+    assert.equal(zoomed.centerX, 49.5);
+    // Fractional, so a drag does not stutter cell to cell.
+    zoomed.panByPixels(0, 5);
+    assert.equal(zoomed.centerY, 49.75);
+  });
+});
+
+describe('inspector structure signature (the per-tick rebuild guard)', () => {
+  // The panel is re-rendered on every store change — once per authoritative
+  // tick. A full rebuild at that cadence destroys scroll position, text
+  // selection, and section open/closed state, so the signature decides whether
+  // the markup can be patched in place instead. These tests are the acceptance
+  // criterion for that: the shape must be stable across an ordinary tick, and
+  // must move the moment a row could appear or vanish.
+  const store = { followedEntityId: null, eventsForEntity: () => [] };
+  const selection = { cellX: 4, cellY: 7, entityIds: [1], activeId: 1 };
+  const animal = (overrides = {}) => ({
+    id: 1,
+    x: 4.2,
+    y: 7.9,
+    heading: 0.5,
+    age: 100,
+    bodyMass: 30,
+    energyFraction: 0.5,
+    healthFraction: 1,
+    alive: true,
+    lifeStage: 'adult',
+    action: 'wander',
+    ...overrides,
+  });
+  const cell = { inWorld: true, terrain: { name: 'ground' }, feature: null, disturbances: [] };
+  const sign = (active, detail = null, groundCell = cell, sel = selection) =>
+    structureSignature(store, sel, active, detail, groundCell);
+
+  test('an ordinary tick does not change the shape', () => {
+    // Everything a delta moves: position, age, energy, health, hydration.
+    const before = sign(animal());
+    const after = sign(animal({ x: 5.1, y: 8.4, age: 101, energyFraction: 0.42, healthFraction: 0.9 }));
+    assert.equal(before, after, 'moving values must patch in place, never rebuild');
+  });
+
+  test('an action changing does not rebuild, but gaining one does', () => {
+    // The action row exists either way, so switching action is a patch...
+    assert.equal(sign(animal({ action: 'eat' })), sign(animal({ action: 'flee' })));
+    // ...but an animal that had no action row now needs one.
+    assert.notEqual(sign(animal({ action: undefined })), sign(animal({ action: 'eat' })));
+  });
+
+  test('an optional row appearing changes the shape', () => {
+    // Patching a node that does not exist yet is how this breaks.
+    assert.notEqual(sign(animal()), sign(animal({ hydrationFraction: 0.8 })));
+    assert.notEqual(sign(animal()), sign(animal({ lifeStage: undefined })));
+    assert.notEqual(sign(animal()), sign(animal({ sex: 'female' })));
+  });
+
+  test('a new selection, occupant, or inspection payload changes the shape', () => {
+    assert.notEqual(sign(animal()), sign(animal(), null, cell, { ...selection, cellX: 9 }));
+    assert.notEqual(sign(animal()), sign(animal(), null, cell, { ...selection, entityIds: [1, 2] }));
+    assert.notEqual(sign(animal()), sign(animal(), { entity: { id: 1 }, tick: 12 }));
+    // A *newer* payload for the same animal swaps every derived block at once.
+    assert.notEqual(
+      sign(animal(), { entity: { id: 1 }, tick: 12 }),
+      sign(animal(), { entity: { id: 1 }, tick: 13 }),
+    );
+  });
+
+  test('ground changing under a stationary selection changes the shape', () => {
+    // Grass grows and fires arrive while the selection sits still.
+    assert.notEqual(sign(animal()), sign(animal(), null, { ...cell, feature: { kind: 'trail', wear: 0.5 } }));
+    assert.notEqual(sign(animal()), sign(animal(), null, { ...cell, disturbances: [{ kind: 'fire' }] }));
+  });
+
+  test('an empty cell is a stable shape too', () => {
+    const empty = { cellX: 4, cellY: 7, entityIds: [], activeId: null };
+    assert.equal(sign(null, null, cell, empty), sign(null, null, cell, empty));
+    assert.notEqual(sign(null, null, cell, empty), sign(animal()));
   });
 });

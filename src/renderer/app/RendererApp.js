@@ -14,6 +14,14 @@ import { createProjection, occupantsInCell } from './rendering/GridProjection.js
 import { compareOccupants } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
 import { TransportEvents } from './transports/RendererTransport.js';
+import { describeCell } from './ui/CellDetail.js';
+
+/**
+ * Pointer movement, in CSS pixels, past which a press is a pan rather than a
+ * click. Small enough that a deliberate click never pans, large enough that a
+ * shaky click still selects.
+ */
+const DRAG_THRESHOLD_PX = 4;
 
 export class RendererApp {
   #store;
@@ -239,8 +247,11 @@ export class RendererApp {
   // ---------------------------------------------------------------- selection
 
   /**
-   * Select the occupants of a world cell: highest display priority becomes
-   * active; Tab cycles the rest. Local only — nothing is sent anywhere.
+   * Select a world cell. The cell is the unit of selection, not the entity:
+   * bare ground is still terrain, forage, worn ground, and possibly a fire, so
+   * clicking it reports the ground rather than clearing. Occupants sort by
+   * display priority, the top one becomes active, and Tab cycles the rest.
+   * Local only — nothing is sent anywhere.
    * @param {number} cellX
    * @param {number} cellY
    */
@@ -248,14 +259,11 @@ export class RendererApp {
     const occupants = occupantsInCell(this.#store.entities.values(), cellX, cellY, this.#store.world).sort(
       compareOccupants,
     );
-    if (occupants.length === 0) {
-      this.#store.setSelection(null);
-      this.#inspectionDetail = null;
-      return;
-    }
     const entityIds = occupants.map((entity) => entity.id);
-    this.#store.setSelection({ entityIds, activeId: entityIds[0] });
-    this.#refreshInspection(entityIds[0]);
+    const activeId = entityIds[0] ?? null;
+    this.#store.setSelection({ cellX, cellY, entityIds, activeId });
+    this.#inspectionDetail = null;
+    if (activeId !== null) this.#refreshInspection(activeId);
   }
 
   cycleSelection() {
@@ -265,7 +273,7 @@ export class RendererApp {
     if (alive.length === 0) return;
     const currentIndex = alive.indexOf(selection.activeId);
     const nextId = alive[(currentIndex + 1) % alive.length];
-    this.#store.setSelection({ entityIds: selection.entityIds, activeId: nextId });
+    this.#store.setSelection({ ...selection, activeId: nextId });
     this.#refreshInspection(nextId);
   }
 
@@ -392,13 +400,57 @@ export class RendererApp {
   // -------------------------------------------------------------------- input
 
   #bindPointer() {
-    this.#canvas.addEventListener('click', (event) => {
+    // Drag-to-pan. The minimum cell size is 10px, so a large world does not fit
+    // the viewport at any zoom level and the mouse has to be able to reach the
+    // rest of it. A drag past the threshold suppresses the click that follows,
+    // because otherwise every pan ends by selecting whatever the pointer
+    // happened to stop over.
+    let dragging = null;
+    this.#canvas.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      dragging = { startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
+      this.#canvas.setPointerCapture(event.pointerId);
+    });
+    this.#canvas.addEventListener('pointermove', (event) => {
+      if (!dragging) return;
+      const dx = event.clientX - dragging.lastX;
+      const dy = event.clientY - dragging.lastY;
+      if (
+        !dragging.moved &&
+        Math.abs(event.clientX - dragging.startX) < DRAG_THRESHOLD_PX &&
+        Math.abs(event.clientY - dragging.startY) < DRAG_THRESHOLD_PX
+      ) {
+        return;
+      }
+      dragging.moved = true;
+      dragging.lastX = event.clientX;
+      dragging.lastY = event.clientY;
+      // Dragging the world by hand is an explicit "stop following" — but only
+      // say so once. Setting it unconditionally would notify the store on every
+      // pointer move, i.e. re-render the panels at pointer rate.
+      if (this.#store.followedEntityId !== null) this.#store.setFollowedEntity(null);
+      this.#camera.panByPixels(dx, dy);
+      this.#camera.clampToWorld(this.#store.world);
+      this.#canvas.classList.add('dragging');
+      this.#dirty = true;
+    });
+    const endDrag = (event) => {
+      if (!dragging) return;
+      const wasDrag = dragging.moved;
+      dragging = null;
+      this.#canvas.classList.remove('dragging');
+      // Releasing a capture that is not held throws, and pointercancel has
+      // already released it.
+      if (this.#canvas.hasPointerCapture?.(event.pointerId)) this.#canvas.releasePointerCapture(event.pointerId);
+      if (wasDrag) return;
       const rect = this.#canvas.getBoundingClientRect();
       const projection = createProjection(this.#camera, this.#grid.cssWidth, this.#grid.cssHeight);
       const cell = projection.cellAtScreen(event.clientX - rect.left, event.clientY - rect.top);
       this.selectCell(cell.cellX, cell.cellY);
       this.#canvas.focus();
-    });
+    };
+    this.#canvas.addEventListener('pointerup', endDrag);
+    this.#canvas.addEventListener('pointercancel', endDrag);
     this.#canvas.addEventListener(
       'wheel',
       (event) => {
@@ -471,7 +523,21 @@ export class RendererApp {
 
   #updatePanels() {
     this.#ui.statusPanel.update(this.#store, this.#camera);
-    this.#ui.inspector.render(this.#store, this.#inspectionDetail);
+    this.#ui.inspector.render(this.#store, this.#inspectionDetail, this.#selectedCellDetail());
     this.#ui.eventLog.render(this.#store);
+  }
+
+  /**
+   * The ground of the selected cell, described from layers already in the
+   * store (terrain, vegetation, worn ground, disturbances). Recomputed per
+   * update rather than cached: it is a handful of lookups plus one scan of a
+   * bounded disturbance list, and a cached copy would go stale as grass grows
+   * and fires move under a stationary selection.
+   * @returns {import('./ui/CellDetail.js').CellDescription | null}
+   */
+  #selectedCellDetail() {
+    const selection = this.#store.selection;
+    if (!selection) return null;
+    return describeCell(this.#store, selection.cellX, selection.cellY);
   }
 }

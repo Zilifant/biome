@@ -9,6 +9,7 @@ import {
   StoreDesyncError,
   SUPPORTED_PROTOCOL_VERSION,
 } from '../src/renderer/app/state/RendererStore.js';
+import { describeCell } from '../src/renderer/app/ui/CellDetail.js';
 
 const fixturesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/renderer/fixtures');
 const loadFixture = (name) => JSON.parse(readFileSync(path.join(fixturesDir, name), 'utf8'));
@@ -334,5 +335,78 @@ describe('renderer store: protocol version and events', () => {
     store.applyFullSnapshot(snapshot()); // entities at x=10 and x=20
     const inBounds = store.getEntitiesInBounds({ minX: 0, minY: 0, maxX: 15, maxY: 64 });
     assert.deepEqual(inBounds.map((entityRecord) => entityRecord.id), [1]);
+  });
+});
+
+describe('cell description', () => {
+  /** A 3x2 world with terrain, vegetation, a trail, and a fire. */
+  const describedWorld = () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(
+      snapshot({
+        world: { width: 3, height: 2 },
+        entities: [entity(1, { x: 1.4, y: 0.9 }), entity(2, { x: 1.8, y: 0.2 }), entity(3, { x: 2.5, y: 1.5 })],
+        terrain: terrainProjection(),
+        vegetation: vegetationProjection(),
+        features: { revision: 1, cells: [{ cellX: 0, cellY: 1, kind: 'trail', wear: 0.62 }] },
+        disturbances: [{ id: 7, kind: 'fire', x: 2.5, y: 0.5, radius: 1, startedTick: 3, until: 25 }],
+      }),
+    );
+    return store;
+  };
+
+  test('describes bare ground: terrain, passability, and forage level', () => {
+    const cell = describeCell(describedWorld(), 1, 0);
+    assert.equal(cell.inWorld, true);
+    assert.deepEqual(cell.terrain, { name: 'water', passable: true });
+    assert.deepEqual(cell.vegetation, { level: 1, maxLevel: 4 });
+    assert.equal(cell.feature, null);
+  });
+
+  test('impassable terrain is reported as such, not as unknown', () => {
+    const cell = describeCell(describedWorld(), 2, 0);
+    assert.deepEqual(cell.terrain, { name: 'rock', passable: false });
+  });
+
+  test('cells beyond the world edge are described, not thrown on', () => {
+    const cell = describeCell(describedWorld(), -1, 99);
+    assert.equal(cell.inWorld, false);
+    assert.equal(cell.terrain, null);
+    assert.equal(cell.vegetation.level, 0);
+    assert.deepEqual(cell.occupantIds, []);
+  });
+
+  test('worn ground is reported with its kind and depth', () => {
+    const cell = describeCell(describedWorld(), 0, 1);
+    assert.deepEqual(cell.feature, { kind: 'trail', wear: 0.62 });
+  });
+
+  test('a disturbance is reported on the cells it actually covers', () => {
+    const store = describedWorld(); // fire at (2.5, 0.5) radius 1, tick 5
+    const inside = describeCell(store, 2, 0);
+    assert.equal(inside.disturbances.length, 1);
+    assert.equal(inside.disturbances[0].kind, 'fire');
+    assert.equal(inside.disturbances[0].ticksRemaining, 20, 'until 25 from tick 5');
+    // The edge is inclusive, and measured from the cell centre — cell (1,0)'s
+    // centre sits at exactly the radius. This is the same test the grid draws
+    // with, which is the point: what the panel claims covers a cell and what is
+    // drawn over it can never disagree.
+    assert.equal(describeCell(store, 1, 0).disturbances.length, 1, 'covered at exactly the radius');
+    // Cell (0,0) centre is 2.5 units away, well outside.
+    assert.deepEqual(describeCell(store, 0, 0).disturbances, []);
+  });
+
+  test('occupants are the entities whose grid cell is exactly this one', () => {
+    const store = describedWorld();
+    assert.deepEqual(describeCell(store, 1, 0).occupantIds, [1, 2]);
+    assert.deepEqual(describeCell(store, 2, 1).occupantIds, [3]);
+    assert.deepEqual(describeCell(store, 0, 0).occupantIds, []);
+  });
+
+  test('terrainPassableAt distinguishes unknown ground from impassable ground', () => {
+    const store = describedWorld();
+    assert.equal(store.terrainPassableAt(2, 0), false, 'rock is impassable');
+    assert.equal(store.terrainPassableAt(0, 0), true, 'ground is passable');
+    assert.equal(store.terrainPassableAt(99, 99), null, 'outside terrain is unknown, not impassable');
   });
 });

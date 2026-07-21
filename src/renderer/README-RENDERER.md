@@ -26,6 +26,10 @@ npm run dev            # then open http://localhost:3000
   commands are disabled, and the Reconnect button becomes "Replay". Fixture
   mode never pretends to be live.
 
+`PLAN-RENDERER.md` is this subsystem's development roadmap — phases, completion
+notes, and carried-forward issues; `HANDOFF-RENDERER.md` is the short version for
+picking the work back up. Both sit beside this file.
+
 ## Architectural boundary
 
 The renderer is fully self-contained in `app/`. It imports **nothing** from
@@ -63,7 +67,8 @@ app/
     FixtureRendererTransport.js    offline replay of committed fixtures
   ui/
     StatusPanel.js            connection/tick/entities/camera/zoom bar
-    EntityInspector.js        occupants, protocol fields, memories, traits, family + life history, action + utilities, perception, events
+    CellDetail.js             pure description of one cell's ground (terrain, forage, wear, disturbances)
+    EntityInspector.js        ground + occupants, protocol fields, memories, traits, family + life history, action + utilities, perception, events
     MetricsPanel.js           population histograms, generations, selection differentials (polled)
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
@@ -129,9 +134,10 @@ simulation protocol actually provides the field on snapshot entities or
 
 | Input | Action (all renderer-local except commands) |
 | --- | --- |
+| Drag | Pan camera (cancels follow; a drag never selects) |
 | Arrow keys / WASD | Pan camera (Shift = 10 cells) |
 | `+` / `-`, mouse wheel | Zoom (wheel is anchored near the cursor) |
-| Click | Select cell occupants (highest priority active) |
+| Click | Select a cell — ground included (highest-priority occupant active) |
 | Tab | Cycle occupants of the selected cell |
 | F | Follow / unfollow the selected entity (camera-only) |
 | C | Recenter camera |
@@ -141,6 +147,41 @@ simulation protocol actually provides the field on snapshot entities or
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
+
+**The cell is the unit of selection, not the entity.** Clicking bare ground
+selects the ground and reports it — terrain and its authoritative passability,
+quantized forage, any trail or burrow worn into it, and any disturbance whose
+circle covers it — rather than clearing the selection. An empty cell is still
+marked on the grid, with its ground glyph redrawn in the selection colour so it
+never reads as a hole in the map. `app/ui/CellDetail.js` is a **pure** function
+over the store that returns that description; the inspector only formats it.
+
+Because every cell is now a click target, the smallest zoom level is **10px**
+(it was 6px). A large world therefore no longer fits the viewport at minimum
+zoom, which is what drag-panning is for. There is deliberately no click
+tolerance: making the target bigger is honest, whereas guessing which
+neighbouring cell was meant would let the selected cell disagree with the cell
+drawn under the cursor.
+
+## Panel rendering: two passes
+
+The inspector is re-rendered on every store change — once per authoritative
+tick. A full `innerHTML` rebuild at that cadence destroys scroll position, text
+selection, and (once sections become collapsible) any open/closed state a viewer
+has set. So rendering is split:
+
+- the **structural** pass builds the markup, and runs only when the *shape* of
+  what is shown changes — a different cell, different occupants, a new
+  inspection payload, or an optional row appearing or disappearing;
+- the **patch** pass runs every tick and writes only the ~10 bulk-snapshot values
+  into nodes cached at build time, marked in the HTML with `data-live="<key>"`.
+
+`structureSignature` decides between them and is exported precisely because it
+*is* the mechanism — it is pure, so `renderer-view.test.js` covers it without a
+DOM. When in doubt it rebuilds: a missed signature field costs one wasted
+rebuild, while a missed field in `liveFields` would silently show a stale
+number. **Adding a row to the inspector means adding it to both** — the
+signature if it can appear or vanish, `liveFields` if it changes per tick.
 
 ## Dracula palette
 
@@ -160,12 +201,71 @@ future WebGL/DOM/terminal renderer replaces that one class; the store,
 transports, protocol, and simulation are untouched — the engine never knows
 a renderer exists.
 
+## Protocol layers, newest first
+
+What the renderer does with each layer the protocol projects, and why. Open
+gaps and deferrals live in `PLAN-RENDERER.md` §4 rather than here.
+
+- Worn ground (protocol v27): trails and burrows arrive as a revision-gated
+  sparse list (`{ revision, cells: [{ cellX, cellY, kind, wear }] }`) on both
+  snapshots and deltas, and are drawn from `FEATURE_APPEARANCE` (`:` trail
+  orange, `o` burrow grey) *over* terrain and *under* everything that happens on
+  it — worn ground is the most permanent thing on the map and the least urgent
+  to see. The projection carries only cells deep enough to *be* something, so
+  the pass walks a short list rather than the grid and costs nothing on a world
+  nobody has worn down. `environment.feature` is routine-filtered in the event
+  log, because ground genuinely turns over and the state already rides in every
+  snapshot.
+- Disturbances (protocol v26): fires, floods, and storms ride whole in both
+  snapshots and deltas as a bounded list of circles, so the renderer walks the
+  visible cells of each active region rather than the whole grid, and costs
+  nothing when nothing is happening. `DISTURBANCE_APPEARANCE` draws `^` fire,
+  `~` flood, `*` storm over the ground and *under* the animals — a disturbance
+  happens to the ground rather than standing on it, and an animal caught in one
+  has to stay visible, which is the whole point of watching it get caught. An
+  **empty** list is the message that everything has stopped, not the absence of
+  one. The event log formats `environment.disturbed` / `environment.settled`,
+  the latter with how long it actually lasted — the one fact that is gone once
+  the record is.
+- Migration (protocol v25) is inspection-only. The panel shows which way an
+  animal is drifting and the live habitat reading that drift was computed from,
+  beside each other for the same reason a courtship shows its threshold beside
+  the quality: otherwise a bias is an arrow with no argument behind it. A
+  dispersing juvenile is called out separately, because that drive *overrides*
+  the habitat reading rather than competing with it, and showing both without
+  saying which is winning would mislead.
+- Disease (protocol v24). `diseaseState` rides in bulk snapshots so an outbreak
+  is watchable, and a **symptomatic** animal is tinted purple — taking precedence
+  over the hurt tint, since an outbreak crossing a herd is the thing worth
+  seeing and a sick animal is usually losing health anyway. An **incubating**
+  animal is deliberately *not* tinted even though the protocol sends its state:
+  the whole model rests on a carrier being invisible, and colouring one would
+  hand the viewer information no animal in the world has. The inspector panel
+  spells out `infectious` separately from `symptomatic` for the same reason.
+
 ## Known limitations
 
 - No interpolation: entities jump cell-to-cell each authoritative tick (by
   design for v1; `previousPosition` is already tracked for later).
 - The whole world state is streamed; bounded subscriptions await
   region-scoped deltas in the protocol.
+- Per-cell **territory ownership is not shown**: the claim layer is not
+  projected (`PLAN.md` §1.4 A36), and a selected animal's
+  `territory.standingOn` answers that for one animal rather than for a cell. The
+  cell description stays silent about ownership rather than guessing.
+- Simulation controls are still minimal — one-tick stepping, and the run state
+  in the status bar is a local guess rather than the server's. `PLAN-RENDERER.md`
+  Phase C.
+- Fixture mode has no inspection or metrics data at all (`http` is null there),
+  so those panels are empty offline. `PLAN-RENDERER.md` E3.
+- Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.
+
+## Protocol layers, older
+
+The rest of the layers, newest first. These are descriptions of what the
+renderer does with each, not limitations — they sat under "Known limitations"
+for several steps, which is how the section came to mix the two.
+
 - Terrain is authoritative (protocol v2): full snapshots embed a terrain
   block (`{ width, height, cellTypes, encoding: 'rle-row-major', runs }`),
   also available at `GET /api/terrain`. The store decodes the RLE into a
@@ -195,14 +295,6 @@ a renderer exists.
   also shows the sex counts and the selection differential **split by sex**,
   which is the row that distinguishes sexual from natural selection: a mate
   preference moves only the sex being chosen.
-- Disease (protocol v24). `diseaseState` rides in bulk snapshots so an outbreak
-  is watchable, and a **symptomatic** animal is tinted purple — taking precedence
-  over the hurt tint, since an outbreak crossing a herd is the thing worth
-  seeing and a sick animal is usually losing health anyway. An **incubating**
-  animal is deliberately *not* tinted even though the protocol sends its state:
-  the whole model rests on a carrier being invisible, and colouring one would
-  hand the viewer information no animal in the world has. The inspector panel
-  spells out `infectious` separately from `symptomatic` for the same reason.
 - Territory (protocol v23) is inspection-only. The claim layer is deliberately
   **not** projected: a per-cell ownership map in every snapshot would rival the
   vegetation block for something that changes far more slowly and matters for
@@ -287,4 +379,3 @@ a renderer exists.
   grid marks its guardian and offspring with pink brackets, so a family group
   can be picked out of a crowd. Because the data is fetched per selection, the
   marks refresh when the selection changes rather than every tick.
-- Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.

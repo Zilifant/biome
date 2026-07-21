@@ -1,10 +1,25 @@
 /**
- * Entity inspector panel. Shows every occupant of the selected cell, the
- * active occupant's protocol-visible fields, optional live inspection
- * detail (absolute energy, injuries, remembered places, traits, genome, family
- * links, and the bounded life-history timeline from the entity.inspection
- * endpoint), and recent domain events involving the entity. Only fields the protocol
- * actually provides are shown — no invented biology.
+ * Cell inspector panel. Shows the ground of the selected cell, every occupant
+ * standing on it, the active occupant's protocol-visible fields, optional live
+ * inspection detail (absolute energy, injuries, remembered places, traits,
+ * genome, family links, and the bounded life-history timeline from the
+ * entity.inspection endpoint), and recent domain events involving the entity.
+ * Only fields the protocol actually provides are shown — no invented biology.
+ *
+ * Rendering is two-pass, because this panel is re-rendered on every store
+ * change — that is once per authoritative tick. A full `innerHTML` rebuild at
+ * that cadence destroys scroll position, text selection, and any open/closed
+ * state a viewer has set:
+ *
+ *  - the STRUCTURAL pass builds the HTML, and runs only when the *shape* of
+ *    what is shown changes (a different cell, different occupants, a new
+ *    inspection payload, or an optional row appearing/disappearing);
+ *  - the PATCH pass runs every tick and writes only the handful of values that
+ *    come from bulk snapshots, into nodes cached at build time.
+ *
+ * A structure signature decides between the two. When in doubt it rebuilds: a
+ * missed signature field costs a wasted rebuild, while a missed *patch* field
+ * would silently display a stale number.
  */
 import { resolveAppearance } from '../rendering/EntityAppearance.js';
 
@@ -360,9 +375,122 @@ function formatPerception(perception) {
     ${cell(perception.nearestObstacle, 'obstacle')}`;
 }
 
+/**
+ * Render the ground of the selected cell (A3) from a `CellDetail` description.
+ * Every value here is something the protocol already sends — terrain and its
+ * authoritative passability, quantized vegetation, worn ground, and any
+ * disturbance whose circle covers this cell. Nothing is derived except how long
+ * a disturbance has left, which is subtraction on two reported ticks.
+ */
+function formatGround(cell) {
+  if (!cell) return '';
+  if (!cell.inWorld) {
+    return `<h3>Ground <span class="dim">${cell.cellX},${cell.cellY}</span></h3>
+      <div class="field"><span>terrain</span><span class="dim">outside the world</span></div>`;
+  }
+  const rows = [];
+  if (cell.terrain) {
+    const passable =
+      cell.terrain.passable === null
+        ? ''
+        : cell.terrain.passable
+          ? ' <span class="dim">passable</span>'
+          : ' <span class="bad">impassable</span>';
+    rows.push(`<div class="field"><span>terrain</span><span>${escapeHtml(cell.terrain.name)}${passable}</span></div>`);
+  }
+  if (cell.vegetation.maxLevel > 0) {
+    const { level, maxLevel } = cell.vegetation;
+    const bars = '▮'.repeat(level) + '▯'.repeat(Math.max(0, maxLevel - level));
+    rows.push(
+      `<div class="field"><span>forage</span><span class="${level === 0 ? 'dim' : ''}">${
+        level === 0 ? 'bare' : `level ${level}/${maxLevel}`
+      } <span class="dim">${bars}</span></span></div>`,
+    );
+  }
+  if (cell.feature) {
+    rows.push(
+      `<div class="field"><span>worn ground</span><span class="warn">${escapeHtml(cell.feature.kind)} <span class="dim">wear ${cell.feature.wear.toFixed(2)}</span></span></div>`,
+    );
+  }
+  for (const disturbance of cell.disturbances) {
+    const left = disturbance.ticksRemaining === null ? '' : ` <span class="dim">${disturbance.ticksRemaining}t left</span>`;
+    rows.push(
+      `<div class="field"><span>disturbance</span><span class="bad">${escapeHtml(disturbance.kind)}${left}</span></div>`,
+    );
+  }
+  return `<h3>Ground <span class="dim">${cell.cellX},${cell.cellY}</span></h3>${rows.join('')}`;
+}
+
+/**
+ * The values that change tick to tick, all of them from bulk snapshots. Keyed
+ * by the `data-live` attribute the structural pass writes, so the patch pass is
+ * a map walk over cached nodes rather than a rebuild.
+ * @param {object | null} active
+ * @returns {Map<string, {text: string, className?: string}>}
+ */
+function liveFields(active) {
+  const fields = new Map();
+  if (!active) return fields;
+  fields.set('position', { text: `${active.x.toFixed(2)}, ${active.y.toFixed(2)}` });
+  fields.set('heading', { text: formatHeading(active.heading) });
+  fields.set('age', { text: `${active.age} ticks` });
+  fields.set('bodyMass', { text: `${active.bodyMass} kg` });
+  fields.set('energyFraction', { text: `${Math.round(active.energyFraction * 100)}%` });
+  fields.set('healthFraction', { text: `${Math.round(active.healthFraction * 100)}%` });
+  fields.set('alive', { text: active.alive ? 'yes' : 'no', className: active.alive ? 'ok' : 'bad' });
+  if (active.hydrationFraction !== undefined) {
+    fields.set('hydrationFraction', {
+      text: `${Math.round(active.hydrationFraction * 100)}%`,
+      className: active.hydrationFraction < 0.25 ? 'warn' : '',
+    });
+  }
+  if (active.action) fields.set('action', { text: active.action });
+  if (active.lifeStage) fields.set('lifeStage', { text: active.lifeStage });
+  return fields;
+}
+
+/**
+ * A signature of the panel's *shape*. When it is unchanged, the structural
+ * markup is still valid and only the live values need writing.
+ *
+ * It deliberately includes the presence of every optional row, not just the
+ * selection identity: an animal that gains an `action` or a `hydrationFraction`
+ * changes the row count, and patching a node that does not exist yet is how
+ * this class of optimization usually breaks. A missed field here costs one
+ * wasted rebuild; a missed field in `liveFields` would show a stale number.
+ *
+ * Exported because it *is* the mechanism: whether the panel survives a tick is
+ * decided entirely here, and it is testable without a DOM.
+ */
+export function structureSignature(store, selection, active, inspectionDetail, cell) {
+  return [
+    selection ? `${selection.cellX},${selection.cellY}` : 'none',
+    selection ? selection.entityIds.join('.') : '',
+    selection?.activeId ?? 'null',
+    active ? 'live' : 'gone',
+    // Optional rows on the active entity.
+    active?.lifeStage ? 'L' : '',
+    active?.sex ? 'S' : '',
+    active?.action ? 'A' : '',
+    active?.hydrationFraction !== undefined ? 'H' : '',
+    // The inspection payload swaps every derived block at once.
+    inspectionDetail?.entity?.id ?? 'nodetail',
+    inspectionDetail?.tick ?? '',
+    // Ground rows come and go as the world changes under a stationary selection.
+    cell ? `${cell.inWorld}|${cell.terrain?.name ?? ''}|${cell.feature?.kind ?? ''}|${cell.disturbances.length}` : '',
+    // The follow button's label, and the event list, are structural.
+    store.followedEntityId === selection?.activeId ? 'F' : '',
+    active ? store.eventsForEntity(active.id, 8).map((event) => event.seq).join('.') : '',
+  ].join('#');
+}
+
 export class EntityInspector {
   #container;
   #callbacks;
+  /** Structure signature of the markup currently in the DOM. */
+  #signature = null;
+  /** `data-live` key → node, cached by the structural pass. @type {Map<string, HTMLElement>} */
+  #liveNodes = new Map();
 
   /**
    * @param {HTMLElement} container
@@ -382,21 +510,56 @@ export class EntityInspector {
    * @param {import('../state/RendererStore.js').RendererStore} store
    * @param {{entityId: number, tick: number, entity: object} | null} inspectionDetail
    *        last fetched entity.inspection payload, if any
+   * @param {import('./CellDetail.js').CellDescription | null} [cell]
+   *        the described ground of the selected cell, if any
    */
-  render(store, inspectionDetail) {
+  render(store, inspectionDetail, cell = null) {
     const selection = store.selection;
+    const active = selection?.activeId != null ? store.getEntity(selection.activeId) : null;
+    const signature = structureSignature(store, selection, active, inspectionDetail, cell);
+
+    // PATCH pass: the markup is still shaped correctly, so write only the
+    // values that moved. This is what preserves scroll, text selection, and
+    // (once Phase B lands) open/closed section state across a tick.
+    if (signature === this.#signature) {
+      this.#patch(active);
+      return;
+    }
+
+    // STRUCTURAL pass. The `data-live` placeholders are built empty and then
+    // filled by one patch pass, so there is exactly one place that knows how a
+    // live value is formatted.
+    this.#signature = signature;
+    this.#buildMarkup(store, selection, active, inspectionDetail, cell);
+    this.#liveNodes = new Map();
+    for (const node of this.#container.querySelectorAll('[data-live]')) {
+      this.#liveNodes.set(node.dataset.live, node);
+    }
+    this.#patch(active);
+  }
+
+  /** Write the tick-to-tick values into the nodes cached at build time. */
+  #patch(active) {
+    for (const [key, { text, className }] of liveFields(active)) {
+      const node = this.#liveNodes.get(key);
+      if (!node) continue;
+      if (node.textContent !== text) node.textContent = text;
+      if (className !== undefined && node.className !== className) node.className = className;
+    }
+  }
+
+  #buildMarkup(store, selection, active, inspectionDetail, cell) {
     if (!selection) {
       this.#container.innerHTML = `
         <h2>Inspector</h2>
-        <p class="hint">Click a cell to select an entity.<br />Tab cycles occupants, F follows, Esc clears.</p>`;
+        <p class="hint">Click any cell to inspect it — ground included.<br />Tab cycles occupants, F follows, Esc clears.<br />Drag to pan.</p>`;
       return;
     }
     const occupants = selection.entityIds
       .map((entityId) => ({ entityId, entity: store.getEntity(entityId) }))
       .filter(({ entity }) => entity !== null || selection.entityIds.includes(selection.activeId));
-    const active = store.getEntity(selection.activeId);
     const activeIndex = selection.entityIds.indexOf(selection.activeId);
-    const following = store.followedEntityId === selection.activeId;
+    const following = selection.activeId != null && store.followedEntityId === selection.activeId;
 
     const occupantList = occupants
       .map(({ entityId, entity }) => {
@@ -409,7 +572,12 @@ export class EntityInspector {
       })
       .join('');
 
-    let fields = '<p class="hint">This entity no longer exists.</p>';
+    // An empty cell is a selection like any other: the ground block below is
+    // the whole report, and saying "nothing here" beats saying nothing.
+    let fields =
+      selection.entityIds.length === 0
+        ? '<p class="hint">Nothing standing here.</p>'
+        : '<p class="hint">This entity no longer exists.</p>';
     if (active) {
       const appearance = resolveAppearance(active);
       const live = inspectionDetail && inspectionDetail.entity?.id === active.id ? inspectionDetail.entity : null;
@@ -429,23 +597,28 @@ export class EntityInspector {
         <div class="field"><span>id</span><span>#${active.id}</span></div>
         <div class="field"><span>kind</span><span>${escapeHtml(active.kind)}</span></div>
         <div class="field"><span>species</span><span>${escapeHtml(active.speciesId)} <span class="dim">(${escapeHtml(appearance.label)})</span></span></div>
-        ${active.lifeStage ? `<div class="field"><span>life stage</span><span>${escapeHtml(active.lifeStage)}</span></div>` : ''}
+        ${active.lifeStage ? '<div class="field"><span>life stage</span><span data-live="lifeStage"></span></div>' : ''}
         ${active.sex ? `<div class="field"><span>sex</span><span>${escapeHtml(active.sex)}</span></div>` : ''}
-        ${active.action ? `<div class="field"><span>action</span><span>${escapeHtml(active.action)}</span></div>` : ''}
-        <div class="field"><span>position</span><span>${active.x.toFixed(2)}, ${active.y.toFixed(2)}</span></div>
-        <div class="field"><span>heading</span><span>${formatHeading(active.heading)}</span></div>
-        <div class="field"><span>age</span><span>${active.age} ticks</span></div>
-        <div class="field"><span>body mass</span><span>${active.bodyMass} kg</span></div>
-        <div class="field"><span>energy %</span><span>${Math.round(active.energyFraction * 100)}%</span></div>
-        ${active.hydrationFraction !== undefined ? `<div class="field"><span>hydration %</span><span class="${active.hydrationFraction < 0.25 ? 'warn' : ''}">${Math.round(active.hydrationFraction * 100)}%</span></div>` : ''}
-        <div class="field"><span>health %</span><span>${Math.round(active.healthFraction * 100)}%</span></div>
+        ${active.action ? '<div class="field"><span>action</span><span data-live="action"></span></div>' : ''}
+        <div class="field"><span>position</span><span data-live="position"></span></div>
+        <div class="field"><span>heading</span><span data-live="heading"></span></div>
+        <div class="field"><span>age</span><span data-live="age"></span></div>
+        <div class="field"><span>body mass</span><span data-live="bodyMass"></span></div>
+        <div class="field"><span>energy %</span><span data-live="energyFraction"></span></div>
+        ${active.hydrationFraction !== undefined ? '<div class="field"><span>hydration %</span><span data-live="hydrationFraction"></span></div>' : ''}
+        <div class="field"><span>health %</span><span data-live="healthFraction"></span></div>
         ${detail}
-        <div class="field"><span>alive</span><span class="${active.alive ? 'ok' : 'bad'}">${active.alive ? 'yes' : 'no'}</span></div>`;
+        <div class="field"><span>alive</span><span data-live="alive"></span></div>`;
     }
 
     const liveDetail = active && inspectionDetail?.entity?.id === active.id ? inspectionDetail.entity : null;
+    // The highlight reads the *inspection's* action, not the live one. The
+    // utility numbers were computed on the inspection tick, so highlighting the
+    // action the animal has since switched to would caption them wrongly — and
+    // a live value here would also force a structural rebuild every time an
+    // animal changed its mind, which is most ticks.
     const utilitiesBlock = liveDetail
-      ? formatUtilities(liveDetail.utilityBreakdown, active.action, liveDetail.actionTarget)
+      ? formatUtilities(liveDetail.utilityBreakdown, liveDetail.action ?? active.action, liveDetail.actionTarget)
       : '';
     const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
     const diseaseBlock = formatDisease(liveDetail);
@@ -470,6 +643,7 @@ export class EntityInspector {
       <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
       ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
       ${fields}
+      ${formatGround(cell)}
       ${injuriesBlock}
       ${memoriesBlock}
       ${traitsBlock}
@@ -484,7 +658,7 @@ export class EntityInspector {
       ${perceptionBlock}
       <div class="inspector-actions">
         ${occupants.length > 1 ? '<button type="button" data-action="cycle">Cycle (Tab)</button>' : ''}
-        <button type="button" data-action="follow">${following ? 'Unfollow (F)' : 'Follow (F)'}</button>
+        ${active ? `<button type="button" data-action="follow">${following ? 'Unfollow (F)' : 'Follow (F)'}</button>` : ''}
       </div>
       ${events ? `<h3>Recent events</h3><ul class="entity-events">${events}</ul>` : ''}`;
   }

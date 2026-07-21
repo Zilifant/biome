@@ -26,6 +26,24 @@ import {
 const MONO_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 
+/**
+ * What a cell's ground looks like, in the protocol's own precedence: cells
+ * beyond the world edge, then vegetation where a cell carries any, then the
+ * terrain beneath it. Shared by the terrain pass and the selection overlay so
+ * the two can never disagree about what is under a selected cell.
+ * @param {import('../state/RendererStore.js').RendererStore} store
+ * @param {number} cellX @param {number} cellY
+ * @param {{width: number, height: number} | null} world
+ */
+function groundAppearanceAt(store, cellX, cellY, world) {
+  const inWorld = world && cellX >= 0 && cellY >= 0 && cellX < world.width && cellY < world.height;
+  if (!inWorld) return TERRAIN_APPEARANCE.outOfBounds;
+  const vegetation = resolveVegetationAppearance(store.vegetationLevelAt(cellX, cellY));
+  if (vegetation) return vegetation;
+  const name = store.terrainNameAt(cellX, cellY);
+  return name ? resolveTerrainAppearance(name) : TERRAIN_APPEARANCE.ground;
+}
+
 export class AsciiGridRenderer {
   #canvas;
   #context;
@@ -116,20 +134,7 @@ export class AsciiGridRenderer {
     const cells = projection.visibleCellBounds();
     for (let cellY = cells.minCellY; cellY <= cells.maxCellY; cellY += 1) {
       for (let cellX = cells.minCellX; cellX <= cells.maxCellX; cellX += 1) {
-        const inWorld =
-          world && cellX >= 0 && cellY >= 0 && cellX < world.width && cellY < world.height;
-        let appearance;
-        if (!inWorld) {
-          appearance = TERRAIN_APPEARANCE.outOfBounds;
-        } else {
-          const vegetation = resolveVegetationAppearance(store.vegetationLevelAt(cellX, cellY));
-          if (vegetation) {
-            appearance = vegetation;
-          } else {
-            const name = store.terrainNameAt(cellX, cellY);
-            appearance = name ? resolveTerrainAppearance(name) : TERRAIN_APPEARANCE.ground;
-          }
-        }
+        const appearance = groundAppearanceAt(store, cellX, cellY, world);
         const { px, py } = projection.cellToScreen(cellX, cellY);
         ctx.fillStyle = this.#color(appearance.colorToken);
         ctx.fillText(appearance.glyph, px + half, py + half);
@@ -266,14 +271,25 @@ export class AsciiGridRenderer {
         this.#drawBrackets(px, py, cellSize, this.#color('red'));
       }
     }
+    // Selection is a *cell*, so the mark is drawn on the cell whether or not
+    // anything is standing in it — a place you clicked but cannot see marked
+    // reads as a click that did not register. The occupant's glyph is redrawn
+    // in the selection colour on top, when there is one.
     const selected = activeId != null ? store.getEntity(activeId) : null;
-    if (selected) {
-      const cell = worldCellOf(selected, world);
-      const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
+    const selectedCell = selected
+      ? worldCellOf(selected, world)
+      : store.selection
+        ? { cellX: store.selection.cellX, cellY: store.selection.cellY }
+        : null;
+    if (selectedCell) {
+      const { px, py } = projection.cellToScreen(selectedCell.cellX, selectedCell.cellY);
       ctx.fillStyle = this.#color('selection');
       ctx.fillRect(px, py, cellSize, cellSize);
       this.#drawBrackets(px, py, cellSize, this.#color('bright-yellow'));
-      const appearance = resolveAppearance(selected);
+      // The fill covers whatever was drawn beneath, so put it back in the
+      // selection colour: the occupant if there is one, otherwise the ground
+      // itself — an empty selected cell must not read as a hole in the map.
+      const appearance = selected ? resolveAppearance(selected) : groundAppearanceAt(store, selectedCell.cellX, selectedCell.cellY, world);
       ctx.fillStyle = this.#color('bright-yellow');
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
