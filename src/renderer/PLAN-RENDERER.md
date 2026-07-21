@@ -293,10 +293,11 @@ line of code in this plan.
 #### Acceptance criteria
 
 - [x] **B4**: collapse state, scroll position, and text selection survive a tick
-- [ ] The tooltip is anchored, draggable, pinnable, and keyboard-closable
-- [ ] Sections are collapsible and their state persists across reloads
-- [ ] A legend exists and is generated from the appearance registries
-- [ ] Selected-entity detail refreshes while the tooltip is open
+- [x] The tooltip is anchored, draggable, pinnable, and keyboard-closable
+- [x] Sections are collapsible and their state persists across reloads
+- [x] One view, mounted in two hosts (floating popover, docked sidebar)
+- [ ] A legend exists and is generated from the appearance registries — **B7**
+- [ ] Selected-entity detail refreshes while the tooltip is open — **B5**
 
 #### Completion notes — 2026-07-20 (B4 only)
 
@@ -319,6 +320,50 @@ One correctness fix rode along rather than being a pure optimization: the
 utilities block highlighted the *live* action while the utility numbers came
 from the inspection tick, so a highlight could caption numbers that described a
 different decision. It now reads the inspection payload's own `action`.
+
+#### Completion notes — 2026-07-20 (B1–B3)
+
+`EntityInspector.js` became `InspectorView.js` (the view, mountable on any host)
+plus `InspectorPanel.js` (the shell: floating popover or docked sidebar). The
+fourteen section formatters were **not** rewritten — they now return
+`{ id, title, badge, body }` instead of finished HTML with an `<h3>` baked in,
+which is what lets the view decide presentation. That inversion is the whole of
+B1: docking is a change of host, not a different panel.
+
+`describeSections` is exported alongside `structureSignature`, for the same
+reason and with the same justification — it is pure, it is the part worth
+testing, and the repo has no DOM test dependency to lean on.
+
+**The popover is deliberately not a modal.** `role="dialog"` describes it, but
+focus is never trapped: the entire point is to watch an animal while the
+simulation runs, so panning, zooming, and stepping must keep working with it
+open. A focus trap would make the inspector fight the thing it exists to
+inspect. Dragging the header **pins** it implicitly — having deliberately placed
+the panel, having it jump away on the next click is not helpful.
+
+Two wiring bugs were caught in review rather than by a test, both from the same
+root cause — the view owns its container and overwrites it wholesale on a
+structural rebuild:
+
+1. The docked "float" control was inserted *inside* the view's container, so it
+   survived exactly until the next selection changed. The docked host now gets
+   its own header plus a separate `.dock-body` for the view to own.
+2. `mount()` added listeners per call, so docking and undocking stacked them —
+   after five cycles a single toggle would have written the open-set five times.
+   Hosts are now bound once via a `WeakSet`.
+
+**Verified against a live simulation on 2026-07-20**: 40 real animals at tick
+603 produced 11 distinct section types (`herd`, `range`, `migration`, `mate`,
+`memories`, `traits`, `genome`, `utilities`, `perception`, `disease`, `family`)
+with no duplicate ids, no empty bodies, and no `undefined` / `NaN` /
+`[object Object]` leaking into any rendered row. `injuries` did not appear
+because nothing in that sample was hurt.
+
+⚠ **Not verified in a browser.** The pure logic is tested and the wiring was
+reviewed, but popover positioning, flipping, dragging, and the `<details>`
+toggle path have not been exercised by a real DOM — there is no browser
+automation here, and a hand-rolled DOM stub tested the stub more than the code.
+This is the one part of B1–B3 standing on review rather than evidence.
 
 ---
 
@@ -427,6 +472,8 @@ turns out to matter.
 | **P1** | A | Per-cell territory ownership is not shown — the protocol carries a claim only via a selected animal's `territory.standingOn` | Blocked on `PLAN.md` §1.4 **A36**; a claim layer would need to earn its per-snapshot cost |
 | **P2** | A2 | Two zoom levels (6px, 8px) were removed, so a 128-cell world no longer fits a typical viewport at minimum zoom | Accepted; drag-to-pan is the compensation, and a minimap was judged not worth it for one world size |
 | **P3** | B4 | The patch pass covers bulk-snapshot fields only; inspection-derived sections still rebuild structurally when a new payload arrives | Fine at the current fetch rate (once per selection). Revisit if B5's polling makes rebuilds visible |
+| **P9** | B2 | Popover geometry (anchoring, flipping, dragging) and the `<details>` toggle are verified by review and pure-function tests, not by a browser | Accepted for now; a browser-automation dependency is a bigger call than this phase warranted |
+| **P10** | B3 | The open-set is global rather than per-species or per-kind, so expanding Genome for a grazer also expands it for a carcass that has none (the section is simply absent) | Intended — a viewer's interest is in a *kind of question*, not in one animal |
 | **P4** | C4 | Manual steps above ~50 ticks flood the socket until the runner coalesces them | Cap the UI until C4 lands |
 | **P5** | D | The renderer cannot show a tick it never received (D2), and cannot move the engine backward at all (D3) | Stated in the UI rather than worked around |
 | **P6** | E3 | Fixture mode has no inspection or metrics data at all | E3 |

@@ -11,7 +11,7 @@ import { WebSocketRendererTransport } from './transports/WebSocketRendererTransp
 import { HttpRendererTransport } from './transports/HttpRendererTransport.js';
 import { FixtureRendererTransport } from './transports/FixtureRendererTransport.js';
 import { StatusPanel } from './ui/StatusPanel.js';
-import { EntityInspector } from './ui/EntityInspector.js';
+import { InspectorPanel } from './ui/InspectorPanel.js';
 import { MetricsPanel } from './ui/MetricsPanel.js';
 import { EventLog } from './ui/EventLog.js';
 import { Controls } from './ui/Controls.js';
@@ -40,9 +40,16 @@ const canvas = document.getElementById('biome-canvas');
 const appRef = { current: null };
 const ui = {
   statusPanel: new StatusPanel(document.getElementById('status-bar')),
-  inspector: new EntityInspector(document.getElementById('inspector-panel'), {
-    onCycle: () => appRef.current.cycleSelection(),
-    onFollowToggle: () => appRef.current.toggleFollow(),
+  // The inspector floats over the grid, anchored to the cell you clicked, and
+  // can be docked into the sidebar instead. Both are hosts for one view.
+  inspector: new InspectorPanel({
+    floatingHost: document.getElementById('viewport-wrap'),
+    dockHost: document.getElementById('inspector-panel'),
+    callbacks: {
+      onCycle: () => appRef.current.cycleSelection(),
+      onFollowToggle: () => appRef.current.toggleFollow(),
+      onClose: () => appRef.current.clearSelection(),
+    },
   }),
   metricsPanel: new MetricsPanel(document.getElementById('metrics-panel')),
   eventLog: new EventLog(document.getElementById('event-log-panel'), {

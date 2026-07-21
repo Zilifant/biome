@@ -33,9 +33,59 @@ function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * One collapsible section of the panel. Formatters return these rather than
+ * finished HTML so the view decides how a section is *presented* — collapsed by
+ * default here, but the same objects would render as plain blocks in a wider
+ * host without touching a single formatter.
+ *
+ * `badge` is raw HTML placed in a dim span, so a section that needs to shout
+ * (an injury's impairment) can override the tone with a nested class.
+ * Returns null for an empty body, which is how a formatter says "the protocol
+ * sent nothing here" — the section then does not exist at all rather than
+ * appearing empty.
+ *
+ * @param {string} id stable key for remembering open/closed state
+ * @param {string} title
+ * @param {string} badge raw HTML summary shown beside the title
+ * @param {string} body raw HTML rows
+ * @returns {{id: string, title: string, badge: string, body: string} | null}
+ */
+function section(id, title, badge, body) {
+  return body ? { id, title, badge, body } : null;
+}
+
+/** Sections a viewer has expanded, remembered across reloads. */
+const OPEN_SECTIONS_KEY = 'biome.inspector.openSections';
+
+/**
+ * Read the remembered open-set. Presentation state, so it lives in
+ * localStorage rather than the store — and a browser that refuses storage
+ * (private mode, disabled cookies) must degrade to "nothing expanded" rather
+ * than breaking the panel.
+ * @returns {Set<string>}
+ */
+function loadOpenSections() {
+  try {
+    const raw = globalThis.localStorage?.getItem(OPEN_SECTIONS_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** @param {Set<string>} open */
+function saveOpenSections(open) {
+  try {
+    globalThis.localStorage?.setItem(OPEN_SECTIONS_KEY, JSON.stringify([...open]));
+  } catch {
+    // Remembering is a convenience; failing to remember is not an error.
+  }
+}
+
 /** Render the scored action utilities (protocol v7 inspection), or nothing. */
 function formatUtilities(utilityBreakdown, chosen, actionTarget) {
-  if (!utilityBreakdown) return '';
+  if (!utilityBreakdown) return null;
   const rows = Object.entries(utilityBreakdown)
     .sort((a, b) => b[1] - a[1])
     .map(
@@ -44,7 +94,7 @@ function formatUtilities(utilityBreakdown, chosen, actionTarget) {
     )
     .join('');
   const target = actionTarget ? ` <span class="dim">→ (${actionTarget.cellX},${actionTarget.cellY})</span>` : '';
-  return `<h3>Decides <span class="dim">${escapeHtml(chosen ?? '')}</span>${target}</h3>${rows}`;
+  return section('utilities', 'Decides', `${escapeHtml(chosen ?? '')}${target}`, rows);
 }
 
 /**
@@ -53,7 +103,7 @@ function formatUtilities(utilityBreakdown, chosen, actionTarget) {
  */
 function formatInjuries(detail) {
   const injuries = detail?.injuries;
-  if (!injuries?.length) return '';
+  if (!injuries?.length) return null;
   const rows = injuries
     .map((injury) => {
       const bars = Math.max(1, Math.round(injury.severity * 5));
@@ -61,7 +111,7 @@ function formatInjuries(detail) {
     })
     .join('');
   const impairment = Math.round((detail.impairment ?? 0) * 100);
-  return `<h3>Injured <span class="warn">${impairment}% impaired</span></h3>${rows}`;
+  return section('injuries', 'Injured', `<span class="warn">${impairment}% impaired</span>`, rows);
 }
 
 /** Renderer-owned marks for the memory kinds the protocol sends (v14). */
@@ -73,7 +123,7 @@ const MEMORY_MARK = { food: '"', water: '~', barren: '·', danger: '!' };
  */
 function formatMemories(detail) {
   const memories = detail?.memories;
-  if (!memories?.length) return '';
+  if (!memories?.length) return null;
   const rows = memories
     .map((memory) => {
       const bars = Math.max(1, Math.round(memory.strength * 5));
@@ -81,7 +131,7 @@ function formatMemories(detail) {
       return `<div class="field"><span>${escapeHtml(mark)} ${escapeHtml(memory.kind)}</span><span>(${memory.cellX},${memory.cellY}) <span class="dim">${'▮'.repeat(bars)}${'▯'.repeat(5 - bars)} t${memory.tick}</span></span></div>`;
     })
     .join('');
-  return `<h3>Remembers <span class="dim">${memories.length} place${memories.length === 1 ? '' : 's'}</span></h3>${rows}`;
+  return section('memories', 'Remembers', `${memories.length} place${memories.length === 1 ? '' : 's'}`, rows);
 }
 
 /**
@@ -90,7 +140,7 @@ function formatMemories(detail) {
  * phenotype is the point — where they differ, a tradeoff is being paid.
  */
 function formatGenetics(detail) {
-  if (!detail?.genome || !detail?.genotype) return '';
+  if (!detail?.genome || !detail?.genotype) return null;
   const parents = (detail.parentTraits ?? []).filter((p) => p.traits);
   const rows = Object.entries(detail.genotype)
     .map(([locus, raw]) => {
@@ -111,7 +161,7 @@ function formatGenetics(detail) {
   const note = missing.length
     ? `<div class="field"><span class="dim">parents</span><span class="dim">${missing.map((p) => `#${p.id} ${p.status}`).join(', ')}</span></div>`
     : '';
-  return `<h3>Genome <span class="dim">alleles · genotype → phenotype${parents.length ? ' | parents' : ''}</span></h3>${rows}${note}`;
+  return section('genome', 'Genome', `alleles · genotype → phenotype${parents.length ? ' | parents' : ''}`, `${rows}${note}`);
 }
 
 /**
@@ -120,7 +170,7 @@ function formatGenetics(detail) {
  * 1.00 is exactly average; the bar is centred on it.
  */
 function formatTraits(detail) {
-  if (!detail?.traits) return '';
+  if (!detail?.traits) return null;
   const rows = Object.entries(detail.traits)
     .map(([name, value]) => {
       // Map roughly [0.5, 1.5] onto the bar, clamped, with the midpoint at average.
@@ -131,8 +181,8 @@ function formatTraits(detail) {
       return `<div class="field"><span>${escapeHtml(name)}</span><span><span class="dim">${bar}</span> <span class="${tone}">${value.toFixed(2)}</span></span></div>`;
     })
     .join('');
-  const adult = detail.adultMass != null ? ` <span class="dim">grows to ${detail.adultMass.toFixed(1)} kg</span>` : '';
-  return `<h3>Traits${adult}</h3>${rows}`;
+  const adult = detail.adultMass != null ? `grows to ${detail.adultMass.toFixed(1)} kg` : '';
+  return section('traits', 'Traits', adult, rows);
 }
 
 /**
@@ -140,7 +190,7 @@ function formatTraits(detail) {
  * or nothing when the inspection payload carries neither.
  */
 function formatFamily(detail) {
-  if (!detail) return '';
+  if (!detail) return null;
   const ids = (list) => list.map((id) => `#${id}`).join(', ');
   const rows = [];
   if (detail.parents?.length) {
@@ -164,8 +214,8 @@ function formatFamily(detail) {
         `<li><span class="dim">t${event.tick}</span> ${escapeHtml(event.type)}${event.cause ? ` <span class="dim">(${escapeHtml(event.cause)})</span>` : ''}${event.entityId != null ? ` <span class="dim">#${event.entityId}</span>` : ''}</li>`,
     )
     .join('');
-  if (rows.length === 0 && timeline === '') return '';
-  return `<h3>Family</h3>${rows.join('')}${timeline ? `<ul class="entity-events">${timeline}</ul>` : ''}`;
+  if (rows.length === 0 && timeline === '') return null;
+  return section('family', 'Family', '', `${rows.join('')}${timeline ? `<ul class="entity-events">${timeline}</ul>` : ''}`);
 }
 
 /**
@@ -181,7 +231,7 @@ function formatFamily(detail) {
  */
 function formatMateChoice(detail) {
   const mate = detail?.mateChoice;
-  if (!mate || (mate.choosiness === null && !mate.lastCourtship)) return '';
+  if (!mate || (mate.choosiness === null && !mate.lastCourtship)) return null;
   const rows = [];
   if (mate.preference?.trait) {
     rows.push(
@@ -203,8 +253,8 @@ function formatMateChoice(detail) {
       `<div class="field"><span>last courted</span><span>#${last.candidateId} ${last.quality.toFixed(2)}/${last.threshold.toFixed(2)} ${verdict} <span class="dim">t${last.tick}</span></span></div>`,
     );
   }
-  if (rows.length === 0) return '';
-  return `<h3>Mate choice</h3>${rows.join('')}`;
+  if (rows.length === 0) return null;
+  return section('mate', 'Mate choice', '', rows.join(''));
 }
 
 /**
@@ -219,7 +269,7 @@ function formatMateChoice(detail) {
  */
 function formatSocial(detail) {
   const social = detail?.social;
-  if (!social) return '';
+  if (!social) return null;
   const rows = [];
   const nearby = social.nearby;
   if (social.groupId !== null && social.groupId !== undefined) {
@@ -245,7 +295,7 @@ function formatSocial(detail) {
   if (social.lastContestTick != null) {
     rows.push(`<div class="field"><span>last contest</span><span class="dim">t${social.lastContestTick}</span></div>`);
   }
-  return `<h3>Herd</h3>${rows.join('')}`;
+  return section('herd', 'Herd', '', rows.join(''));
 }
 
 /**
@@ -259,7 +309,7 @@ function formatSocial(detail) {
  */
 function formatTerritory(detail) {
   const territory = detail?.territory;
-  if (!territory) return '';
+  if (!territory) return null;
   const rows = [];
   const range = territory.homeRange;
   if (range) {
@@ -286,7 +336,7 @@ function formatTerritory(detail) {
         : `<div class="field"><span>standing on</span><span class="warn">#${ground.ownerId}'s ground <span class="dim">${ground.strength.toFixed(2)}</span></span></div>`,
     );
   }
-  return `<h3>Range</h3>${rows.join('')}`;
+  return section('range', 'Range', '', rows.join(''));
 }
 
 /**
@@ -301,7 +351,7 @@ function formatTerritory(detail) {
  */
 function formatMigration(detail) {
   const migration = detail?.migration;
-  if (!migration) return '';
+  if (!migration) return null;
   const rows = [];
   if (migration.dispersing) {
     rows.push(
@@ -330,7 +380,7 @@ function formatMigration(detail) {
       `<div class="field"><span>settled from</span><span class="dim">${migration.settled.x.toFixed(0)},${migration.settled.y.toFixed(0)}</span></div>`,
     );
   }
-  return rows.length ? `<h3>Migration</h3>${rows.join('')}` : '';
+  return section('migration', 'Migration', '', rows.join(''));
 }
 
 /**
@@ -340,7 +390,7 @@ function formatMigration(detail) {
  */
 function formatDisease(detail) {
   const disease = detail?.disease;
-  if (!disease || disease.state === 'susceptible') return '';
+  if (!disease || disease.state === 'susceptible') return null;
   const tone = disease.symptomatic ? 'bad' : disease.state === 'recovered' ? 'ok' : 'warn';
   const rows = [`<div class="field"><span>state</span><span class="${tone}">${escapeHtml(disease.state)}</span></div>`];
   if (disease.infectious) {
@@ -354,12 +404,12 @@ function formatDisease(detail) {
   if (disease.severity > 0) {
     rows.push(`<div class="field"><span>impaired</span><span class="warn">${Math.round(disease.severity * 100)}%</span></div>`);
   }
-  return `<h3>Disease</h3>${rows.join('')}`;
+  return section('disease', 'Disease', '', rows.join(''));
 }
 
 /** Render the transient perception summary (protocol v6), or nothing. */
 function formatPerception(perception) {
-  if (!perception) return '';
+  if (!perception) return null;
   const cell = (c, label) =>
     c
       ? `<div class="field"><span>${label}</span><span>(${c.cellX},${c.cellY}) <span class="dim">d${c.distance.toFixed(1)}${c.level !== undefined ? ` lvl${c.level}` : ''}</span></span></div>`
@@ -367,12 +417,15 @@ function formatPerception(perception) {
   const nearest = perception.nearestAnimal
     ? `#${perception.nearestAnimal.id} <span class="dim">d${perception.nearestAnimal.distance.toFixed(1)}</span>`
     : '<span class="dim">none</span>';
-  return `
-    <h3>Perceives <span class="dim">(r${perception.radius})</span></h3>
-    <div class="field"><span>animals</span><span>${perception.animalCount} <span class="dim">nearest ${nearest}</span></span></div>
+  return section(
+    'perception',
+    'Perceives',
+    `r${perception.radius}`,
+    `<div class="field"><span>animals</span><span>${perception.animalCount} <span class="dim">nearest ${nearest}</span></span></div>
     ${cell(perception.nearestFood, 'food')}
     ${cell(perception.nearestWater, 'water')}
-    ${cell(perception.nearestObstacle, 'obstacle')}`;
+    ${cell(perception.nearestObstacle, 'obstacle')}`,
+  );
 }
 
 /**
@@ -484,26 +537,105 @@ export function structureSignature(store, selection, active, inspectionDetail, c
   ].join('#');
 }
 
-export class EntityInspector {
-  #container;
+/**
+ * The collapsible sections for an inspected animal, in the order they are
+ * shown — roughly by how often each answers the question you opened the panel
+ * with. A formatter whose data the protocol did not send returns null and its
+ * section does not exist at all, rather than appearing empty.
+ *
+ * Pure, and exported for the same reason `structureSignature` is: it is the
+ * part worth testing, and it needs no DOM. Nothing here reads the store or the
+ * document — the caller passes what it already has.
+ *
+ * @param {object | null} liveDetail the `entity.inspection` payload's entity
+ * @param {object | null} active the bulk-snapshot entity, for its live action
+ * @param {object[]} [events] recent domain events mentioning this entity
+ * @returns {Array<{id: string, title: string, badge: string, body: string}>}
+ */
+export function describeSections(liveDetail, active, events = []) {
+  const eventRows = events
+    .map((event) => `<li><span class="dim">t${event.tick}</span> ${escapeHtml(event.type)}</li>`)
+    .join('');
+  return [
+    formatInjuries(liveDetail),
+    formatDisease(liveDetail),
+    formatSocial(liveDetail),
+    formatTerritory(liveDetail),
+    formatMigration(liveDetail),
+    formatMateChoice(liveDetail),
+    formatFamily(liveDetail),
+    formatMemories(liveDetail),
+    formatTraits(liveDetail),
+    formatGenetics(liveDetail),
+    liveDetail
+      ? formatUtilities(liveDetail.utilityBreakdown, liveDetail.action ?? active?.action, liveDetail.actionTarget)
+      : null,
+    formatPerception(liveDetail?.perception ?? null),
+    eventRows ? section('events', 'Recent events', '', `<ul class="entity-events">${eventRows}</ul>`) : null,
+  ].filter(Boolean);
+}
+
+/**
+ * The inspector's *view*: it renders a described cell into whatever host
+ * element it is mounted on, and knows nothing about where that element lives.
+ * The floating popover and the docked sidebar are two hosts for this one view —
+ * forking it would mean maintaining fourteen section formatters in parallel.
+ */
+export class InspectorView {
+  /** @type {HTMLElement | null} */
+  #container = null;
   #callbacks;
   /** Structure signature of the markup currently in the DOM. */
   #signature = null;
   /** `data-live` key → node, cached by the structural pass. @type {Map<string, HTMLElement>} */
   #liveNodes = new Map();
+  /** Section ids the viewer has expanded. @type {Set<string>} */
+  #openSections = loadOpenSections();
+  /** Hosts whose listeners are already bound. @type {WeakSet<HTMLElement>} */
+  #boundHosts = new WeakSet();
 
   /**
-   * @param {HTMLElement} container
    * @param {{onCycle: () => void, onFollowToggle: () => void}} callbacks
    */
-  constructor(container, callbacks) {
-    this.#container = container;
+  constructor(callbacks) {
     this.#callbacks = callbacks;
-    container.addEventListener('click', (event) => {
-      const action = event.target?.dataset?.action;
+  }
+
+  /**
+   * Move the view to a host element. Remounting drops the cached markup — the
+   * new host is empty, so the next render must rebuild rather than try to patch
+   * nodes that are no longer in the document.
+   * @param {HTMLElement} host
+   */
+  mount(host) {
+    if (this.#container === host) return;
+    if (this.#container) this.#container.innerHTML = '';
+    this.#container = host;
+    this.#signature = null;
+    this.#liveNodes = new Map();
+    // Bind each host once. Docking and undocking remount repeatedly, and
+    // listeners added per mount would stack up silently — every toggle would
+    // then write the open-set once per past mount.
+    if (this.#boundHosts.has(host)) return;
+    this.#boundHosts.add(host);
+    host.addEventListener('click', (event) => {
+      const action = event.target?.closest?.('[data-action]')?.dataset?.action;
       if (action === 'cycle') this.#callbacks.onCycle();
       if (action === 'follow') this.#callbacks.onFollowToggle();
     });
+    // `toggle` does not bubble, so this listens in the capture phase rather
+    // than binding to every <details> on every rebuild.
+    host.addEventListener(
+      'toggle',
+      (event) => {
+        const id = event.target?.dataset?.section;
+        if (!id) return;
+        if (event.target.open) this.#openSections.add(id);
+        else this.#openSections.delete(id);
+        saveOpenSections(this.#openSections);
+      },
+      true,
+    );
   }
 
   /**
@@ -514,6 +646,7 @@ export class EntityInspector {
    *        the described ground of the selected cell, if any
    */
   render(store, inspectionDetail, cell = null) {
+    if (!this.#container) return;
     const selection = store.selection;
     const active = selection?.activeId != null ? store.getEntity(selection.activeId) : null;
     const signature = structureSignature(store, selection, active, inspectionDetail, cell);
@@ -617,49 +750,32 @@ export class EntityInspector {
     // action the animal has since switched to would caption them wrongly — and
     // a live value here would also force a structural rebuild every time an
     // animal changed its mind, which is most ticks.
-    const utilitiesBlock = liveDetail
-      ? formatUtilities(liveDetail.utilityBreakdown, liveDetail.action ?? active.action, liveDetail.actionTarget)
-      : '';
-    const perceptionBlock = formatPerception(liveDetail ? liveDetail.perception : null);
-    const diseaseBlock = formatDisease(liveDetail);
-    const territoryBlock = formatTerritory(liveDetail);
-    const migrationBlock = formatMigration(liveDetail);
-    const socialBlock = formatSocial(liveDetail);
-    const mateChoiceBlock = formatMateChoice(liveDetail);
-    const familyBlock = formatFamily(liveDetail);
-    const traitsBlock = formatTraits(liveDetail);
-    const geneticsBlock = formatGenetics(liveDetail);
-    const memoriesBlock = formatMemories(liveDetail);
-    const injuriesBlock = formatInjuries(liveDetail);
-
-    const events = active
-      ? store
-          .eventsForEntity(active.id, 8)
-          .map((event) => `<li><span class="dim">t${event.tick}</span> ${escapeHtml(event.type)}</li>`)
-          .join('')
-      : '';
+    const sections = describeSections(liveDetail, active, active ? store.eventsForEntity(active.id, 8) : []);
 
     this.#container.innerHTML = `
       <h2>Inspector <span class="dim">${occupants.length > 1 ? `${activeIndex + 1}/${occupants.length} in cell` : ''}</span></h2>
       ${occupants.length > 1 ? `<ul class="occupants">${occupantList}</ul>` : ''}
       ${fields}
       ${formatGround(cell)}
-      ${injuriesBlock}
-      ${memoriesBlock}
-      ${traitsBlock}
-      ${geneticsBlock}
-      ${diseaseBlock}
-      ${socialBlock}
-      ${territoryBlock}
-      ${migrationBlock}
-      ${mateChoiceBlock}
-      ${familyBlock}
-      ${utilitiesBlock}
-      ${perceptionBlock}
       <div class="inspector-actions">
         ${occupants.length > 1 ? '<button type="button" data-action="cycle">Cycle (Tab)</button>' : ''}
         ${active ? `<button type="button" data-action="follow">${following ? 'Unfollow (F)' : 'Follow (F)'}</button>` : ''}
       </div>
-      ${events ? `<h3>Recent events</h3><ul class="entity-events">${events}</ul>` : ''}`;
+      ${sections.map((entry) => this.#renderSection(entry)).join('')}`;
+  }
+
+  /**
+   * One section as a `<details>`. Collapsed unless the viewer has expanded this
+   * id before: an animal carries fourteen sections' worth of biology, and
+   * showing all of it at once is the readability problem this phase exists to
+   * fix. The open-set is re-applied on every rebuild, so expanding Genome once
+   * keeps it expanded across selections and reloads.
+   */
+  #renderSection({ id, title, badge, body }) {
+    const open = this.#openSections.has(id) ? ' open' : '';
+    return `<details class="inspector-section" data-section="${id}"${open}>
+      <summary><span class="section-title">${escapeHtml(title)}</span>${badge ? ` <span class="section-badge">${badge}</span>` : ''}</summary>
+      <div class="section-body">${body}</div>
+    </details>`;
   }
 }

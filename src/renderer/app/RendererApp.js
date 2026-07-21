@@ -263,7 +263,19 @@ export class RendererApp {
     const activeId = entityIds[0] ?? null;
     this.#store.setSelection({ cellX, cellY, entityIds, activeId });
     this.#inspectionDetail = null;
+    this.#anchorInspector(cellX, cellY);
     if (activeId !== null) this.#refreshInspection(activeId);
+  }
+
+  /**
+   * Point the inspector at a cell's on-screen position. The projection is the
+   * renderer's own, so this is the same arithmetic that decided which cell was
+   * clicked — the panel cannot end up beside the wrong cell.
+   */
+  #anchorInspector(cellX, cellY) {
+    const projection = createProjection(this.#camera, this.#grid.cssWidth, this.#grid.cssHeight);
+    const { px, py } = projection.cellToScreen(cellX, cellY);
+    this.#ui.inspector.anchorAt?.(px + projection.cellSize, py);
   }
 
   cycleSelection() {

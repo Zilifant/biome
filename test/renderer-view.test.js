@@ -10,7 +10,7 @@ import {
   UNKNOWN_APPEARANCE,
   CARCASS_APPEARANCE,
 } from '../src/renderer/app/rendering/EntityAppearance.js';
-import { structureSignature } from '../src/renderer/app/ui/EntityInspector.js';
+import { structureSignature, describeSections } from '../src/renderer/app/ui/InspectorView.js';
 
 describe('entity appearance', () => {
   test('appearance lookup is deterministic and species-aware', () => {
@@ -259,5 +259,65 @@ describe('inspector structure signature (the per-tick rebuild guard)', () => {
     const empty = { cellX: 4, cellY: 7, entityIds: [], activeId: null };
     assert.equal(sign(null, null, cell, empty), sign(null, null, cell, empty));
     assert.notEqual(sign(null, null, cell, empty), sign(animal()));
+  });
+});
+
+describe('inspector sections (progressive disclosure)', () => {
+  // Sections are what the tooltip collapses. A formatter whose data the
+  // protocol did not send must produce no section at all — an empty expandable
+  // row is worse than an absent one, and inventing a field is worse than both.
+  const ids = (sections) => sections.map((s) => s.id);
+
+  test('an entity with no inspection payload has no sections', () => {
+    assert.deepEqual(describeSections(null, { action: 'wander' }), []);
+  });
+
+  test('only the sections the protocol actually populated appear', () => {
+    const detail = {
+      injuries: [{ kind: 'gash', severity: 0.4, tick: 12 }],
+      impairment: 0.2,
+      memories: [{ kind: 'food', cellX: 3, cellY: 4, strength: 0.8, tick: 9 }],
+    };
+    assert.deepEqual(ids(describeSections(detail, null)), ['injuries', 'memories']);
+  });
+
+  test('recent events become a section, and no events becomes none', () => {
+    assert.deepEqual(ids(describeSections(null, null, [{ tick: 3, type: 'entity.fed' }])), ['events']);
+    assert.deepEqual(ids(describeSections(null, null, [])), []);
+  });
+
+  test('section ids are unique and stable, since they key the remembered open-set', () => {
+    const detail = {
+      injuries: [{ kind: 'gash', severity: 0.4, tick: 1 }],
+      impairment: 0.1,
+      memories: [{ kind: 'water', cellX: 1, cellY: 1, strength: 0.5, tick: 1 }],
+      traits: { size: 1.1 },
+      genome: { size: [1.0, 1.2] },
+      genotype: { size: 1.1 },
+      disease: { state: 'infectious', infectious: true, severity: 0 },
+      social: { groupId: 4, dominance: 12 },
+      territory: { homeRange: { x: 1, y: 2, radius: 3 } },
+      migration: { drift: { heading: 0, strength: 0.4 } },
+      mateChoice: { choosiness: 0.5, preference: { trait: 'size' } },
+      perception: { radius: 8, animalCount: 2 },
+      utilityBreakdown: { eat: 0.7 },
+      action: 'eat',
+    };
+    const sections = describeSections(detail, { action: 'eat' }, [{ tick: 2, type: 'entity.moved' }]);
+    assert.equal(new Set(ids(sections)).size, sections.length, `duplicate ids in ${ids(sections)}`);
+    // Every section carries a title and a non-empty body, or it should not exist.
+    for (const entry of sections) {
+      assert.ok(entry.title.length > 0, `${entry.id} has no title`);
+      assert.ok(entry.body.length > 0, `${entry.id} has an empty body`);
+    }
+  });
+
+  test('the utilities highlight follows the inspection tick, not the live action', () => {
+    // The utility numbers were computed on the inspection tick, so highlighting
+    // an action the animal has since switched to would caption them wrongly.
+    const detail = { utilityBreakdown: { eat: 0.9, flee: 0.2 }, action: 'eat' };
+    const [utilities] = describeSections(detail, { action: 'flee' });
+    assert.match(utilities.body, /▸ eat/);
+    assert.doesNotMatch(utilities.body, /▸ flee/);
   });
 });

@@ -198,6 +198,142 @@ input:focus-visible {
   margin-top: 6px;
 }
 
+/* ---- inspector popover ----
+   Floats over the grid, anchored to the selected cell. Positioned by
+   InspectorPanel within #viewport-wrap, which is already `position: relative`. */
+.inspector-popover {
+  position: absolute;
+  z-index: 10;
+  width: 320px;
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  background: var(--dracula-background-dark);
+  border: 1px solid var(--dracula-purple);
+  /* The only shadow in the renderer: the popover is the one element that has to
+     read as floating *above* the grid rather than drawn into it. */
+  box-shadow: 0 4px 16px rgb(0 0 0 / 55%);
+}
+
+.inspector-popover[hidden] {
+  display: none;
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: var(--dracula-background-light);
+  border-bottom: 1px solid var(--dracula-selection);
+  cursor: grab;
+  user-select: none;
+}
+
+.inspector-popover.dragging .popover-header {
+  cursor: grabbing;
+}
+
+.popover-grip {
+  color: var(--dracula-comment);
+  letter-spacing: -2px;
+}
+
+.popover-title {
+  flex: 1;
+  color: var(--dracula-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.popover-button {
+  padding: 0 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--dracula-comment);
+}
+
+.popover-button:hover:not(:disabled) {
+  color: var(--dracula-foreground);
+  border-color: var(--dracula-selection);
+}
+
+.popover-button.active {
+  color: var(--dracula-bright-yellow);
+  border-color: var(--dracula-selection);
+}
+
+.popover-body {
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+
+.popover-body h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dracula-purple);
+}
+
+.popover-body h3 {
+  margin: 8px 0 4px;
+  font-size: 11px;
+  color: var(--dracula-comment);
+}
+
+/* Docked, the view sits in its own body element so the header survives the
+   view's structural rebuilds. */
+#inspector-panel .popover-header {
+  margin: -6px -8px 6px;
+  cursor: default;
+}
+
+/* ---- collapsible sections ----
+   An animal carries fourteen sections of biology; showing all of it at once is
+   the readability problem these exist to fix. Collapsed by default, and the
+   open-set is remembered in localStorage. */
+.inspector-section {
+  border-top: 1px solid var(--dracula-background-light);
+}
+
+.inspector-section > summary {
+  cursor: pointer;
+  padding: 3px 0;
+  color: var(--dracula-comment);
+  list-style: none;
+}
+
+.inspector-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A text marker rather than a glyph, so the panel stays monospace-honest. */
+.inspector-section > summary::before {
+  content: "+ ";
+  color: var(--dracula-purple);
+}
+
+.inspector-section[open] > summary::before {
+  content: "- ";
+}
+
+.inspector-section > summary:hover .section-title {
+  color: var(--dracula-foreground);
+}
+
+.section-title {
+  color: var(--dracula-purple);
+}
+
+.section-badge {
+  color: var(--dracula-comment);
+}
+
+.section-body {
+  padding: 0 0 4px 10px;
+}
+
 .entity-events {
   list-style: none;
   margin: 0;

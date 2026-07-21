@@ -68,7 +68,8 @@ app/
   ui/
     StatusPanel.js            connection/tick/entities/camera/zoom bar
     CellDetail.js             pure description of one cell's ground (terrain, forage, wear, disturbances)
-    EntityInspector.js        ground + occupants, protocol fields, memories, traits, family + life history, action + utilities, perception, events
+    InspectorView.js          what the inspector says: ground + occupants, protocol fields, and the collapsible sections
+    InspectorPanel.js         where the inspector is: floating popover anchored to the cell, or docked in the sidebar
     MetricsPanel.js           population histograms, generations, selection differentials (polled)
     EventLog.js               bounded domain-event list (moves filtered by default)
     Controls.js               protocol-command buttons + camera buttons
@@ -125,10 +126,20 @@ independent channel, which is what lets a herd's composition read off the grid
 at a glance. A species with no `glyphBySex`, or an animal the protocol sends
 with `sex: null`, simply keeps its base glyph.
 
-**To show a new protocol-visible field in the inspector**: once the
-simulation protocol actually provides the field on snapshot entities or
-`entity.inspection` responses, add one `<div class="field">` row in
-`EntityInspector#render`. Do not invent fields the protocol doesn't send.
+**To show a new protocol-visible field in the inspector**: once the simulation
+protocol actually provides the field, add one `<div class="field">` row to the
+relevant formatter in `InspectorView.js`. Do not invent fields the protocol
+doesn't send. Two follow-ups are easy to miss and both fail silently:
+
+- if the row can **appear or disappear**, add it to `structureSignature`, or the
+  panel will patch a node that does not exist yet;
+- if the value **changes per tick**, add it to `liveFields` and give the span a
+  `data-live` key, or it will freeze at its build-time value.
+
+**To add a whole new section**: return `section(id, title, badge, body)` from a
+formatter — `null` when the protocol sent nothing, so the section does not exist
+rather than appearing empty — and add it to `describeSections`. The `id` keys
+the remembered open/closed state, so it must be stable.
 
 ## Controls
 
@@ -163,6 +174,37 @@ tolerance: making the target bigger is honest, whereas guessing which
 neighbouring cell was meant would let the selected cell disagree with the cell
 drawn under the cursor.
 
+## The inspector: one view, two hosts
+
+Clicking a cell opens a **popover** anchored beside it, floating over the grid.
+Its header drags, and dragging **pins** it — having deliberately placed the
+panel, having it jump away on the next click is not helpful. `dock` moves it
+into the sidebar instead; `float` brings it back; `×` or Esc closes it and
+clears the selection.
+
+`InspectorPanel` owns *where* the inspector is and `InspectorView` owns *what it
+says*, and the two hosts render the same view object — docking is a change of
+host, not a different panel. Forking the view would mean maintaining fourteen
+section formatters in parallel, which is why the formatters return
+`{ id, title, badge, body }` rather than finished HTML: presentation is the
+view's decision, not theirs.
+
+It is deliberately **not a modal**. `role="dialog"` describes it, but focus is
+never trapped and the grid behind it stays live — the whole point is to watch an
+animal while the simulation runs, so panning, zooming, and stepping keep
+working. A focus trap would make the inspector fight the thing it exists to
+inspect.
+
+**Sections are collapsed by default.** An animal carries fourteen sections'
+worth of biology — genome, traits, memories, herd, range, migration, mate
+choice, disease, injuries, family, utilities, perception — and showing all of it
+at once was the readability problem this replaced. What stays open is identity,
+condition, action, and the ground. Which sections a viewer expands is remembered
+in `localStorage` (`biome.inspector.openSections`) and re-applied on every
+rebuild, so expanding Genome once keeps it expanded across selections and
+reloads. That is renderer-owned presentation state, which is why it lives in the
+browser rather than in the store.
+
 ## Panel rendering: two passes
 
 The inspector is re-rendered on every store change — once per authoritative
@@ -178,10 +220,14 @@ has set. So rendering is split:
 
 `structureSignature` decides between them and is exported precisely because it
 *is* the mechanism — it is pure, so `renderer-view.test.js` covers it without a
-DOM. When in doubt it rebuilds: a missed signature field costs one wasted
-rebuild, while a missed field in `liveFields` would silently show a stale
-number. **Adding a row to the inspector means adding it to both** — the
-signature if it can appear or vanish, `liveFields` if it changes per tick.
+DOM. `describeSections` is exported for the same reason. When in doubt the panel
+rebuilds: a missed signature field costs one wasted rebuild, while a missed field
+in `liveFields` would silently show a stale number.
+
+One consequence worth knowing before editing: **the view owns its container and
+overwrites it wholesale on a structural rebuild.** A control placed inside that
+container survives exactly until the next selection — which is why the docked
+header sits outside the view's `.dock-body` rather than inside it.
 
 ## Dracula palette
 

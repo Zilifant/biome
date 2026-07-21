@@ -7,8 +7,8 @@ them.
 
 |                       |                                                              |
 | --------------------- | ------------------------------------------------------------ |
-| Phases complete       | A (cell selection), B4 (per-tick rebuild) — B1–B3 next        |
-| Tests                 | 624 passing / 0 failing, 163 suites (renderer: 63 / 13)      |
+| Phases complete       | A, B1–B4 — **B5 (poll while open) and B7 (legend) next**      |
+| Tests                 | 629 passing / 0 failing, 164 suites (renderer: 68 / 14)      |
 | Protocol understood   | 27 (`SUPPORTED_PROTOCOL_VERSION`), matching the engine        |
 | Zoom levels           | 10–32px; 10px is a floor, not a default                       |
 | Git                   | uncommitted, as with Steps 26–29 (the user handles git)       |
@@ -22,9 +22,20 @@ gap below before relying on it.
 **Phase A and B4 landed together**, in that order, because B4 was a prerequisite
 rather than a nicety: the inspector rebuilt itself from scratch on every store
 change, which is once per tick, and nothing built on top of it could keep state.
+**B1–B3 then landed on top of it**: the inspector is now a floating popover
+anchored to the clicked cell (dockable into the sidebar), with everything below
+the identity block collapsed into remembered `<details>` sections.
 
-What that means for the next phase: **the panel now survives a tick**, so the
-collapsible sections and anchored popover of B1–B3 have somewhere to live.
+⚠ **The popover has not been driven in a browser.** Its pure logic is tested and
+its wiring was reviewed — which caught two real bugs — but positioning,
+flipping, dragging, and the `<details>` toggle path stand on review rather than
+evidence (P9). If you have a browser open, that is the first thing worth
+clicking through: select a cell near the right edge (flip), drag the header
+(pin), press dock then float, expand Genome and reload (persistence).
+
+What remains in Phase B is **B5** (re-fetch inspection while the panel is open,
+so utilities and perception stop being frozen at selection time) and **B7** (the
+legend, still the highest value per line of code in the plan).
 
 ## Conventions that are easy to miss
 
@@ -36,6 +47,24 @@ or vanish. Miss the signature and you patch a node that does not exist (silently
 nothing); miss `liveFields` and the row freezes at its build-time value
 (silently stale). The signature errs toward rebuilding, so a mistake there costs
 a wasted rebuild rather than a wrong display — prefer that direction.
+
+⚠ **The view owns its container and overwrites it wholesale.** A structural
+rebuild is `container.innerHTML = …`, so anything you put *inside* the view's
+host survives until the next selection and then vanishes. This bit once already:
+the docked "float" button was inserted into the view's container and had to move
+out into its own header beside `.dock-body`. Controls go beside the view, never
+in it.
+
+⚠ **`mount()` is called repeatedly** — every dock and undock. Listeners are
+bound once per host through a `WeakSet` for exactly that reason; adding an
+unguarded `addEventListener` there stacks one handler per remount, and the
+symptom (a toggle firing five times) looks nothing like the cause.
+
+**Formatters return sections, not HTML.** `section(id, title, badge, body)`, or
+`null` when the protocol sent nothing — an absent section beats an empty
+expandable row. The `id` keys the remembered open-set, so it must be stable.
+`describeSections` assembles them and is pure, which is what makes the whole
+collapsible layer testable without a DOM.
 
 ⚠ **Selection is a cell, not an entity.** `store.selection` is
 `{ cellX, cellY, entityIds, activeId }` where `entityIds` may be empty and
@@ -77,25 +106,24 @@ fixtures predate several protocol layers, so `features[].wear` and
 server and feeding a real `/api/snapshot` through the store found nothing
 broken, but it is the check that would have.
 
-## Next phase specifics (B1–B3, the tooltip)
+## Next phase specifics (B5 and B7, then Phase C)
 
-- **B4 is done, so start from the panel that exists.** `EntityInspector.render`
-  already takes a described cell as its third argument and already separates
-  structure from values. B1's job is to split *presentation* out of it
-  (`InspectorView` rendering into any host), not to rewrite the 14 section
-  formatters — those are correct and were not touched.
-- **Mount twice, fork nothing.** The popover and the sidebar are two hosts for
-  one view. Forking the formatters is ~500 lines maintained in parallel.
-- **`#viewport-wrap` is already `position: relative`**, so the popover has an
-  anchor without touching the layout.
-- **`Esc` already clears the selection**; make it close the popover too rather
-  than inventing a second key.
-- **Section open/closed state goes in `localStorage`** — renderer-local
-  presentation state, which the store has no business holding.
-- ⚠ **B5 (polling inspection while open) needs B4 to hold up under a faster
-  cadence than one fetch per selection.** See P3 in `PLAN-RENDERER.md` §4: the
-  inspection-derived blocks still rebuild structurally when a payload arrives,
-  which is free today and may not be at 2s.
+- ⚠ **B5 (polling inspection while open) is where P3 gets tested.** A new
+  inspection payload changes `structureSignature` (its `tick` is in there), so
+  every poll is a **full structural rebuild** — free at one fetch per selection,
+  possibly not at one every two seconds with a section expanded. If it flickers,
+  the fix is to split the signature so inspection-derived sections rebuild
+  independently of the identity block, not to slow the poll.
+- **B5 should cancel on close and on selection change**, or a fast clicker
+  stacks intervals — the same shape as the `mount()` bug above.
+- **B7 (legend) is unblocked and cheap.** Generate it *from* the appearance
+  registries so it cannot drift from what is drawn; that is the whole reason the
+  registries are the single source of glyphs. It fits naturally as one more
+  collapsed section, or as its own sidebar panel.
+- **Phase C's transport bar** replaces `Controls.js` wholesale. C1 (poll
+  `/api/status`) is the one that removes a live wrong-answer: `#simPaused` in
+  `RendererApp` is fetched once at startup and Space acts on that guess.
+- ⚠ **C4 before raising the step cap.** See P4 below.
 
 ## Things deliberately left undone
 
@@ -108,9 +136,10 @@ next:
   protocol change.
 - **⚠ P1** — per-cell territory ownership is not shown, and cannot be without
   the claim layer being projected (`PLAN.md` §1.4 **A36**).
-- **P6** — fixture mode has no inspection or metrics data at all, so the tooltip
-  cannot be developed offline (E3). Worth doing *before* B1–B3 if the work is
-  going to be done away from a running server.
+- **⚠ P9** — the popover's DOM behaviour is unverified in a browser; see above.
+- **P6** — fixture mode has no inspection or metrics data at all, so the panel
+  shows ground and bulk fields but no sections at all offline (E3). More
+  annoying now that sections are the bulk of the panel.
 - **P2** — the 6px and 8px zoom levels are gone; a 128-cell world no longer fits
   the viewport at minimum zoom. Drag-panning is the compensation, and a minimap
   was judged not worth it for one world size.
