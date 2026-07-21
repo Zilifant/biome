@@ -52,12 +52,14 @@ Opening `http://localhost:3000` serves the **ASCII renderer** — a
 Dracula-themed, Canvas-2D character grid client that consumes the protocol
 over WebSocket/HTTP. `?mode=fixture` runs it offline against the committed
 fixtures. The renderer is a fully separate subsystem (`src/renderer/app/`)
-that imports nothing from the simulation, server, or protocol code; see
-`src/renderer/README-RENDERER.md` for its controls, architecture, and appearance
-configuration. The host serves it statically at `/renderer`. The renderer keeps
-its own roadmap and handoff beside that file (`PLAN-RENDERER.md`,
-`HANDOFF-RENDERER.md`), since its phases advance what can be seen and steered
-rather than what the engine simulates.
+that imports nothing from the simulation, server, or protocol code. Its reference
+documentation is `src/renderer/DOCS-RENDERER.md` (architecture, the panel model,
+conventions, and open items); `README-RENDERER.md` beside it is the operational
+companion — controls, and what the renderer does with each protocol layer. The
+host serves it statically at `/renderer`. Its now-complete phase roadmap and
+handoff (`PLAN-RENDERER.md`, `HANDOFF-RENDERER.md`) sit alongside for provenance,
+since its phases advance what can be seen and steered rather than what the engine
+simulates.
 
 ## Architecture
 

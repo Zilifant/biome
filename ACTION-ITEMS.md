@@ -10,14 +10,14 @@ mean "this is a defect or a trap" rather than "this is urgent".
 Each item keeps the identifier it has in the source docs, so cross-references in
 code comments and git history keep resolving. Fuller reasoning, evidence, and
 measurements for the engine items are in [`DOCS.md`](DOCS.md) §1; for the
-renderer items, in `src/renderer/PLAN-RENDERER.md` §4. ⚠ **This file and
-`DOCS.md` §1 must be updated together** — closing an item, or opening one, means
-editing both.
+renderer items, in [`src/renderer/DOCS-RENDERER.md`](src/renderer/DOCS-RENDERER.md)
+§1. ⚠ **This file and those two §1 sections must be updated together** — closing
+an item, or opening one, means editing both.
 
 **Not on this list:** items that were considered and **settled** (a decision not
 to build something, taken deliberately), and items already **closed**. Those are
-recorded in `DOCS.md` §1.3 and §1.6 and in `PLAN-RENDERER.md` §4 so they are not
-re-opened by accident.
+recorded in `DOCS.md` §1.3 / §1.6 and `src/renderer/DOCS-RENDERER.md` §1.5 so
+they are not re-opened by accident.
 
 ---
 
@@ -145,7 +145,7 @@ re-opened by accident.
   behind a `REVIEW t1234` badge, needing no protocol or engine change; **D3** a
   true engine rewind via a ring of `captureSimulationState` saves, which needs a
   new command, a protocol bump, and a forced full-snapshot resync — and which
-  belongs in the engine plan rather than the renderer's. `PLAN-RENDERER.md`
+  belongs in the engine plan rather than the renderer's. `DOCS-RENDERER.md` §1.2
   records D2 as its own recommendation. Whichever is chosen, a past tick must
   never be displayed as though it were the present.
 
@@ -163,7 +163,7 @@ re-opened by accident.
   adding an `entity.inspection` fixture to
   `scripts/generateRendererFixtures.js`.
 
-- **E4 — Keep `README-RENDERER.md`, `PLAN-RENDERER.md`, and
+- **E4 — Keep `README-RENDERER.md`, `DOCS-RENDERER.md`, `PLAN-RENDERER.md`, and
   `HANDOFF-RENDERER.md` current _with_ each phase** rather than after it. An
   ongoing discipline rather than a discrete task.
 

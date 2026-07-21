@@ -26,9 +26,13 @@ npm run dev            # then open http://localhost:3000
   commands are disabled, and the Reconnect button becomes "Replay". Fixture
   mode never pretends to be live.
 
-`PLAN-RENDERER.md` is this subsystem's development roadmap — phases, completion
-notes, and carried-forward issues; `HANDOFF-RENDERER.md` is the short version for
-picking the work back up. Both sit beside this file.
+**[`DOCS-RENDERER.md`](DOCS-RENDERER.md) is the reference documentation** —
+architecture, the selection and panel model, the conventions, and **§1: every
+open item**. This file (`README-RENDERER.md`) is the operational companion: how
+to run, the controls, and what the renderer does with each protocol layer.
+`PLAN-RENDERER.md` is the now-complete phase roadmap, kept for provenance (why
+and when a decision was made); `HANDOFF-RENDERER.md` is the superseded handoff
+summary. All sit beside this file.
 
 ## Architectural boundary
 
@@ -145,20 +149,20 @@ the remembered open/closed state, so it must be stable.
 
 ## Controls
 
-| Input | Action (all renderer-local except commands) |
-| --- | --- |
-| Drag | Pan camera (cancels follow; a drag never selects) |
-| Arrow keys / WASD | Pan camera (Shift = 10 cells) |
-| `+` / `-`, mouse wheel | Zoom (wheel is anchored near the cursor) |
-| Click | Select a cell — ground included (highest-priority occupant active) |
-| Click `#123` | Select and centre that entity, from the inspector or event log |
-| Tab | Cycle occupants of the selected cell |
-| F | Follow / unfollow the selected entity (camera-only) |
-| C | Recenter camera |
-| Esc | Clear selection |
-| Space | Pause/resume via protocol command (live mode) |
-| `[` / `]` | Slower / faster (steps the speed ladder) |
-| Buttons | Pause/resume, step `+1 / +10 / +100`, `Advance N`, speed — protocol commands; Recenter, Reconnect/Replay |
+| Input                  | Action (all renderer-local except commands)                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| Drag                   | Pan camera (cancels follow; a drag never selects)                                                        |
+| Arrow keys / WASD      | Pan camera (Shift = 10 cells)                                                                            |
+| `+` / `-`, mouse wheel | Zoom (wheel is anchored near the cursor)                                                                 |
+| Click                  | Select a cell — ground included (highest-priority occupant active)                                       |
+| Click `#123`           | Select and centre that entity, from the inspector or event log                                           |
+| Tab                    | Cycle occupants of the selected cell                                                                     |
+| F                      | Follow / unfollow the selected entity (camera-only)                                                      |
+| C                      | Recenter camera                                                                                          |
+| Esc                    | Clear selection                                                                                          |
+| Space                  | Pause/resume via protocol command (live mode)                                                            |
+| `[` / `]`              | Slower / faster (steps the speed ladder)                                                                 |
+| Buttons                | Pause/resume, step `+1 / +10 / +100`, `Advance N`, speed — protocol commands; Recenter, Reconnect/Replay |
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
@@ -175,7 +179,7 @@ and every command result carries the new `paused` / `speed`, so the poll is the
 source of truth and the results are only what stop it lagging behind your own
 click. Until the first reply lands the panel shows `…` rather than assuming a
 default. This replaced a locally-remembered flag that was fetched once at
-startup and updated only by commands *this* client sent — which meant anything
+startup and updated only by commands _this_ client sent — which meant anything
 else pausing the simulation left the renderer confidently wrong.
 
 **Stepping pauses first.** `simulation.step` is refused outright while the
@@ -196,7 +200,7 @@ not looking. The **Pause on** panel watches the event stream and stops the
 simulation when something you ticked goes by — a kill, a birth, a fire starting,
 an animal sickening — then reports what stopped it and jumps the camera there.
 
-This is renderer *policy* over authoritative output, not simulation logic: the
+This is renderer _policy_ over authoritative output, not simulation logic: the
 engine emits the events it always did, and the renderer replies with the
 ordinary `simulation.pause` command. `Watchlist.js` holds the mapping and
 `matchWatched` is pure, so the whole policy is testable without a DOM.
@@ -227,7 +231,7 @@ you were already given.
 
 A restart is the one change that cannot be a delta — the new world shares no
 ids, no tick, and not even a `simulationId` — so the host broadcasts a full
-snapshot and the store *replaces* its state. The renderer drops its selection,
+snapshot and the store _replaces_ its state. The renderer drops its selection,
 inspection detail, and follow target rather than leaving them pointing at
 animals that no longer exist. The run state (paused, speed) belongs to the host
 rather than the world and deliberately survives.
@@ -255,8 +259,8 @@ panel, having it jump away on the next click is not helpful. `dock` moves it
 into the sidebar instead; `float` brings it back; `×` or Esc closes it and
 clears the selection.
 
-`InspectorPanel` owns *where* the inspector is and `InspectorView` owns *what it
-says*, and the two hosts render the same view object — docking is a change of
+`InspectorPanel` owns _where_ the inspector is and `InspectorView` owns _what it
+says_, and the two hosts render the same view object — docking is a change of
 host, not a different panel. Forking the view would mean maintaining fourteen
 section formatters in parallel, which is why the formatters return
 `{ id, title, badge, body }` rather than finished HTML: presentation is the
@@ -301,19 +305,19 @@ tick. A full `innerHTML` rebuild at that cadence destroys scroll position, text
 selection, and (once sections become collapsible) any open/closed state a viewer
 has set. So rendering is split:
 
-- the **structural** pass builds the markup, and runs only when the *shape* of
+- the **structural** pass builds the markup, and runs only when the _shape_ of
   what is shown changes — a different cell, different occupants, a new
   inspection payload, or an optional row appearing or disappearing;
 - the **patch** pass runs every tick and writes only the ~10 bulk-snapshot values
   into nodes cached at build time, marked in the HTML with `data-live="<key>"`.
 
 `structureSignature` decides between them and is exported precisely because it
-*is* the mechanism — it is pure, so `renderer-view.test.js` covers it without a
+_is_ the mechanism — it is pure, so `renderer-view.test.js` covers it without a
 DOM. `describeSections` is exported for the same reason. When in doubt the panel
 rebuilds: a missed signature field costs one wasted rebuild, while a missed field
 in `liveFields` would silently show a stale number.
 
-Section *contents* are reconciled rather than rebuilt: `#patchSections` replaces
+Section _contents_ are reconciled rather than rebuilt: `#patchSections` replaces
 only the bodies and badges whose HTML actually changed, so an inspection poll
 touches the two or three sections that moved and leaves the rest — and their
 open/closed state — alone. The section **id set** is part of the signature,
@@ -342,8 +346,8 @@ legend for free. A hand-maintained legend would be wrong within one step.
 asserts that every species (with both sex glyphs), every terrain type, feature,
 disturbance, memory kind, and carcass decay stage reaches it, and that every
 colour token is a real Dracula value. Only the condition tints and bracket
-overlays are hand-written, because they describe how a glyph is *coloured* or
-*bracketed* rather than which glyph is drawn, and have no registry to read from.
+overlays are hand-written, because they describe how a glyph is _coloured_ or
+_bracketed_ rather than which glyph is drawn, and have no registry to read from.
 
 ## Dracula palette
 
@@ -366,14 +370,14 @@ a renderer exists.
 ## Protocol layers, newest first
 
 What the renderer does with each layer the protocol projects, and why. Open
-gaps and deferrals live in `PLAN-RENDERER.md` §4 rather than here.
+gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
 - Worn ground (protocol v27): trails and burrows arrive as a revision-gated
   sparse list (`{ revision, cells: [{ cellX, cellY, kind, wear }] }`) on both
   snapshots and deltas, and are drawn from `FEATURE_APPEARANCE` (`:` trail
-  orange, `o` burrow grey) *over* terrain and *under* everything that happens on
+  orange, `o` burrow grey) _over_ terrain and _under_ everything that happens on
   it — worn ground is the most permanent thing on the map and the least urgent
-  to see. The projection carries only cells deep enough to *be* something, so
+  to see. The projection carries only cells deep enough to _be_ something, so
   the pass walks a short list rather than the grid and costs nothing on a world
   nobody has worn down. `environment.feature` is routine-filtered in the event
   log, because ground genuinely turns over and the state already rides in every
@@ -382,7 +386,7 @@ gaps and deferrals live in `PLAN-RENDERER.md` §4 rather than here.
   snapshots and deltas as a bounded list of circles, so the renderer walks the
   visible cells of each active region rather than the whole grid, and costs
   nothing when nothing is happening. `DISTURBANCE_APPEARANCE` draws `^` fire,
-  `~` flood, `*` storm over the ground and *under* the animals — a disturbance
+  `~` flood, `*` storm over the ground and _under_ the animals — a disturbance
   happens to the ground rather than standing on it, and an animal caught in one
   has to stay visible, which is the whole point of watching it get caught. An
   **empty** list is the message that everything has stopped, not the absence of
@@ -393,14 +397,14 @@ gaps and deferrals live in `PLAN-RENDERER.md` §4 rather than here.
   animal is drifting and the live habitat reading that drift was computed from,
   beside each other for the same reason a courtship shows its threshold beside
   the quality: otherwise a bias is an arrow with no argument behind it. A
-  dispersing juvenile is called out separately, because that drive *overrides*
+  dispersing juvenile is called out separately, because that drive _overrides_
   the habitat reading rather than competing with it, and showing both without
   saying which is winning would mislead.
 - Disease (protocol v24). `diseaseState` rides in bulk snapshots so an outbreak
   is watchable, and a **symptomatic** animal is tinted purple — taking precedence
   over the hurt tint, since an outbreak crossing a herd is the thing worth
   seeing and a sick animal is usually losing health anyway. An **incubating**
-  animal is deliberately *not* tinted even though the protocol sends its state:
+  animal is deliberately _not_ tinted even though the protocol sends its state:
   the whole model rests on a carrier being invisible, and colouring one would
   hand the viewer information no animal in the world has. The inspector panel
   spells out `infectious` separately from `symptomatic` for the same reason.
@@ -423,9 +427,9 @@ gaps and deferrals live in `PLAN-RENDERER.md` §4 rather than here.
   the controls stay well under a second by default. A genuinely long run belongs
   in `npm run headless`.
 - There is no way to step **backward** — the engine only moves forward.
-  `PLAN-RENDERER.md` Phase D weighs the options.
+  [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.2 weighs the options.
 - Fixture mode has no inspection or metrics data at all (`http` is null there),
-  so those panels are empty offline. `PLAN-RENDERER.md` E3.
+  so those panels are empty offline. [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.4 (P6/E3).
 - Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.
 
 ## Protocol layers, older
@@ -444,7 +448,7 @@ for several steps, which is how the section came to mix the two.
   terrain (it is static).
 - Vegetation is authoritative cell biomass (protocol v3): full snapshots
   embed a `vegetation` block (`{ width, height, maxLevel, revision,
-  encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
+encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   carry sparse `vegetation: { revision, changes: [[cellIndex, level]] }`. The
   store decodes to a row-major `Uint8Array` (`vegetationLevelAt`) and patches
   it in place from deltas. The grid renderer draws a green density ramp over
@@ -476,12 +480,12 @@ for several steps, which is how the section came to mix the two.
   standing on.
 - Sociality (protocol v22). `groupId` rides in bulk snapshots — a herd you
   cannot see is not a visible result — and selecting an animal brackets its
-  groupmates in `comment` grey, *under* the family and hunt marks because a
+  groupmates in `comment` grey, _under_ the family and hunt marks because a
   groupmate is company rather than kin. There is no group roster in the
   protocol; the renderer scans the visible entities for a matching label, which
   is exactly what the engine does and for the same reason. The Herd inspector
   panel shows the label, how many groupmates are in range, this animal's
-  *derived* dominance (unitless — only comparisons mean anything), whether it is
+  _derived_ dominance (unitless — only comparisons mean anything), whether it is
   panicking and how many hops from the sighting, and who it is defending.
   `entity.alarmed` is filtered as routine by default, since a herd in view of a
   predator produces one per member.
@@ -489,7 +493,7 @@ for several steps, which is how the section came to mix the two.
   every bulk snapshot. The inspector panel shows what the species reads in a
   mate, this individual's choosiness, the standard it is holding right now
   (which falls as it goes unmated), and the last animal it sized up — with the
-  quality *and* the threshold, since a rejection with no visible standard just
+  quality _and_ the threshold, since a rejection with no visible standard just
   looks capricious. `entity.courted` in the event log is formatted the same way,
   for the same reason `entity.hunted` shows its odds.
 - Heredity (protocol v19) is inspection-only: the panel lists each locus with
@@ -509,7 +513,7 @@ for several steps, which is how the section came to mix the two.
   the ramp costs nothing per frame. Absolute `edibleMass` stays
   inspection-only, like every other absolute quantity. The event log formats
   `entity.decayed`.
-- Injuries (protocol v16) are inspection-only, but the *grid* still shows
+- Injuries (protocol v16) are inspection-only, but the _grid_ still shows
   condition: a living animal below `HURT_HEALTH_FRACTION` is drawn in the hurt
   tone, using the `healthFraction` that has been in every bulk snapshot since
   Step 4 — no protocol widening needed. `resolveColorToken` is deliberately
@@ -531,7 +535,7 @@ for several steps, which is how the section came to mix the two.
   animal is selected the grid marks its remembered cells with renderer-owned
   glyphs from `MEMORY_APPEARANCE` (`"` food, `~` water, `x` barren, `!`
   danger), alpha-faded by strength so forgetting is visible. These marks are
-  drawn *under* the entity and selection layers: they are one animal's private
+  drawn _under_ the entity and selection layers: they are one animal's private
   map, not world state. An unmapped memory kind draws nothing rather than
   guessing, so a newer engine cannot break this renderer.
 - Individual traits (protocol v13) arrive in the same inspection payload:

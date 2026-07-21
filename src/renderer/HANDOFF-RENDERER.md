@@ -1,3 +1,9 @@
+> **⚠ Superseded by [`DOCS-RENDERER.md`](DOCS-RENDERER.md).** The current-state
+> table, the conventions, and the open items below are consolidated there
+> alongside the architecture and panel-model reference, and kept in sync there
+> rather than here. Read `DOCS-RENDERER.md §1` for open work and `§10` for the
+> conventions. This file is retained as the historical handoff record.
+
 ## State at handoff
 
 **As of 2026-07-20.** The renderer's counterpart to the repository's
@@ -5,13 +11,13 @@
 fact — `PLAN-RENDERER.md` keeps the historical ones beside the phase that took
 them.
 
-|                       |                                                              |
-| --------------------- | ------------------------------------------------------------ |
-| Phases complete       | **A, B, C, F complete** — Phase D (stepping back) is next      |
-| Tests                 | 660 passing / 0 failing, 169 suites (renderer 84, runner 14) |
-| Protocol understood   | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine     |
-| Zoom levels           | 10–32px; 10px is a floor, not a default                       |
-| Git                   | uncommitted, as with Steps 26–29 (the user handles git)       |
+|                     |                                                              |
+| ------------------- | ------------------------------------------------------------ |
+| Phases complete     | **A, B, C, F complete** — Phase D (stepping back) is next    |
+| Tests               | 660 passing / 0 failing, 169 suites (renderer 84, runner 14) |
+| Protocol understood | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine   |
+| Zoom levels         | 10–32px; 10px is a floor, not a default                      |
+| Git                 | uncommitted, as with Steps 26–29 (the user handles git)      |
 
 Verify with: `npm test`, then `npm run dev` and open `http://localhost:3000`.
 `?mode=fixture` replays the committed fixtures offline — but see the fixture
@@ -40,7 +46,7 @@ registries.
 
 B5 is the one to understand before touching the panel, because it changed how
 rendering works rather than adding to it. Polling every two seconds was only
-viable once a fresh payload stopped counting as a change of *shape* — see the
+viable once a fresh payload stopped counting as a change of _shape_ — see the
 next section.
 
 **C1–C4 completed Phase C.** Run state is polled from the host rather than
@@ -52,8 +58,8 @@ the server-side behaviour is pinned.
 **Phase F** landed after C, on direct request rather than from the plan:
 auto-pause toggles (`Watchlist.js`), restart-with-seed (**protocol v28**), and
 speed as a `«`/`»` ladder. F2 is the first protocol change this plan has made —
-see the conventions below, because it also moved a line about *who is allowed to
-be random*.
+see the conventions below, because it also moved a line about _who is allowed to
+be random_.
 
 What remains is **Phase D** (stepping backward), which is a decision before it
 is an implementation: D1 don't offer it, **D2 a renderer-side review buffer
@@ -68,25 +74,25 @@ These are load-bearing and cost real time to rediscover.
 ⚠ **The panel has three update paths, and putting a value in the wrong one
 fails silently.** In increasing order of cost:
 
-| Path | For | Symptom of getting it wrong |
-| --- | --- | --- |
-| `liveFields` + a `data-live` span | any value that changes per tick or per poll | the row freezes at its build-time value |
-| `#patchSections` (automatic) | section bodies and badges | — reconciled by content hash |
-| `structureSignature` | anything that can **appear or vanish** | patching a node that does not exist: nothing happens |
+| Path                              | For                                         | Symptom of getting it wrong                          |
+| --------------------------------- | ------------------------------------------- | ---------------------------------------------------- |
+| `liveFields` + a `data-live` span | any value that changes per tick or per poll | the row freezes at its build-time value              |
+| `#patchSections` (automatic)      | section bodies and badges                   | — reconciled by content hash                         |
+| `structureSignature`              | anything that can **appear or vanish**      | patching a node that does not exist: nothing happens |
 
 The rule: **values are patched, shapes are rebuilt.** The signature errs toward
 rebuilding, so a mistake there costs a wasted rebuild rather than a wrong
 display — prefer that direction. A fresh inspection payload for the same animal
-must *not* change the signature, or B5's polling resets the panel every two
+must _not_ change the signature, or B5's polling resets the panel every two
 seconds; there is a test asserting exactly that.
 
-⚠ **Values that change under a *stationary* selection are easy to miss.** Grass
+⚠ **Values that change under a _stationary_ selection are easy to miss.** Grass
 grows, ground wears, and a fire counts down while nobody moves — those ground
 rows were baked in at build time from Phase A until B5 caught it. If a value
 comes from the world rather than from the selection, it is a live field.
 
 ⚠ **The view owns its container and overwrites it wholesale.** A structural
-rebuild is `container.innerHTML = …`, so anything you put *inside* the view's
+rebuild is `container.innerHTML = …`, so anything you put _inside_ the view's
 host survives until the next selection and then vanishes. This bit once already:
 the docked "float" button was inserted into the view's container and had to move
 out into its own header beside `.dock-body`. Controls go beside the view, never
@@ -99,7 +105,7 @@ symptom (a toggle firing five times) looks nothing like the cause.
 
 **Formatters return sections, not HTML.** `section(id, title, badge, body)`, or
 `null` when the protocol sent nothing — an absent section beats an empty
-expandable row. The `id` keys the remembered open-set *and* the reconciliation,
+expandable row. The `id` keys the remembered open-set _and_ the reconciliation,
 so it must be stable. `describeSections` assembles them and is pure, which is
 what makes the whole collapsible layer testable without a DOM.
 
@@ -142,7 +148,7 @@ terrain for the same reason: "not told" and "impassable" are different facts.
 ⚠ **Report host state, never remember it.** `#runState` in `RendererApp` is
 whatever `/api/status` last said, topped up from the `paused`/`speed` that every
 command result carries. `paused: null` means "not yet known" and renders as `…`.
-The previous version remembered what *this* client had asked for, which was
+The previous version remembered what _this_ client had asked for, which was
 wrong the moment anything else touched the simulation — and the symptom was
 Space doing the opposite of what the button said. Any future control over host
 state belongs in that same shape.
@@ -161,7 +167,7 @@ a number it was given or typed. If you find yourself wanting randomness in
 `app/`, that is the shape of the fix.
 
 ⚠ **A protocol change means regenerating the fixtures.** `SUPPORTED_PROTOCOL_VERSION`
-is checked on *every* message, so v28 without `npm run fixtures:renderer` leaves
+is checked on _every_ message, so v28 without `npm run fixtures:renderer` leaves
 fixture mode refusing everything as unsupported. Bump, regenerate, and check
 `?mode=fixture` still loads.
 
@@ -177,7 +183,7 @@ selection uses, so what a panel claims and what is drawn can never disagree.
 terrain pass and the selection overlay resolve ground identically.
 
 **Glyphs and colors live only in `EntityAppearance.js`.** Adding a species is
-one entry there and nothing else. Phase B7's legend is to be *generated* from
+one entry there and nothing else. Phase B7's legend is to be _generated_ from
 those registries precisely so the rule enforces itself.
 
 ⚠ **Verify against a live simulation, not only fixtures.** The committed
@@ -222,7 +228,7 @@ next:
 - **⚠ P12** — a coalesced delta is ~95% event payload, and a step long enough to
   overrun the bounded outbox drops events: ~77 000 emitted at 500 ticks, 8 810
   delivered. World state stays exact; the narration does not. If it ever
-  matters, the honest fix is for a long step to send *no* events rather than a
+  matters, the honest fix is for a long step to send _no_ events rather than a
   truncated set — which is a protocol question, not a renderer one.
 - **P13** — a large advance blocks the host for its whole run (~1.4 ms/tick), so
   10 000 ticks is ~14 s unresponsive. The UI's defaults stay under a second; a

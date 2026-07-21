@@ -1,15 +1,26 @@
 # biome renderer — development plan
 
+> **⚠ For reference documentation — architecture, the panel model, the
+> conventions, and every open item — read [`DOCS-RENDERER.md`](DOCS-RENDERER.md)
+> instead.** It consolidates this file and `HANDOFF-RENDERER.md` into
+> topic-organized reference, and nothing in it depends on reading this one.
+>
+> What this file still uniquely holds is **provenance**: each phase's dated
+> completion notes, in the order the work happened, including the measurements
+> and false starts behind every decision. Read it for _why_ or _when_ something
+> was decided. Phases A–C and F are complete; D is undecided (see
+> `DOCS-RENDERER.md` §1.2).
+
 The renderer's counterpart to the repository's `PLAN.md`: a linear, numbered
 sequence of phases with completion notes, carried-forward issues (§4), and the
 conventions for continuing the work. `HANDOFF-RENDERER.md` is the short version
-for picking it back up; `README-RENDERER.md` documents what the renderer *is*
+for picking it back up; `README-RENDERER.md` documents what the renderer _is_
 once a phase has landed.
 
 This plan covers `src/renderer/` only. It is deliberately separate from
 `PLAN.md`, whose Steps 1–29 built the engine and whose Step 30 is measured
-performance optimization: the engine plan advances the *simulation*, and this one
-advances what can be *seen and steered* in it. Where a phase needs a change
+performance optimization: the engine plan advances the _simulation_, and this one
+advances what can be _seen and steered_ in it. Where a phase needs a change
 outside `src/renderer/`, it says so explicitly and in one place (C4 and D3 are
 the only two).
 
@@ -31,17 +42,17 @@ test suites (`renderer-view`, `renderer-store`, `renderer-transport`,
 Every protocol layer through **v27** is drawn or inspectable. The renderer is
 not behind the engine on coverage.
 
-| Layer | Where | Status |
-| --- | --- | --- |
-| Terrain, vegetation density ramp | `AsciiGridRenderer` terrain pass | complete |
-| Worn ground — trails, burrows (v27) | `AsciiGridRenderer` feature pass | complete |
-| Disturbances — fire, flood, storm (v26) | `AsciiGridRenderer` disturbance pass | complete |
-| Entities, sex-by-case, hurt/sick tint, carcass decay ramp | `EntityAppearance` | complete, all three species |
-| Memory marks, home-range ring, herd/family/hunt brackets | `AsciiGridRenderer` overlay pass | complete |
-| Inspector: 14 sections incl. migration (v25), disease, genome | `EntityInspector` | complete |
-| Event log: every emitted event type formatted | `EventLog` | complete |
-| Population metrics, per-sex selection differentials | `MetricsPanel` | complete |
-| Live + fixture transports, desync recovery, epoch guard | `transports/` | complete |
+| Layer                                                         | Where                                | Status                      |
+| ------------------------------------------------------------- | ------------------------------------ | --------------------------- |
+| Terrain, vegetation density ramp                              | `AsciiGridRenderer` terrain pass     | complete                    |
+| Worn ground — trails, burrows (v27)                           | `AsciiGridRenderer` feature pass     | complete                    |
+| Disturbances — fire, flood, storm (v26)                       | `AsciiGridRenderer` disturbance pass | complete                    |
+| Entities, sex-by-case, hurt/sick tint, carcass decay ramp     | `EntityAppearance`                   | complete, all three species |
+| Memory marks, home-range ring, herd/family/hunt brackets      | `AsciiGridRenderer` overlay pass     | complete                    |
+| Inspector: 14 sections incl. migration (v25), disease, genome | `EntityInspector`                    | complete                    |
+| Event log: every emitted event type formatted                 | `EventLog`                           | complete                    |
+| Population metrics, per-sex selection differentials           | `MetricsPanel`                       | complete                    |
+| Live + fixture transports, desync recovery, epoch guard       | `transports/`                        | complete                    |
 
 The architectural boundary holds: nothing in `app/` imports from
 `src/simulation/`, `src/server/`, or `src/protocol/`, and
@@ -49,21 +60,21 @@ The architectural boundary holds: nothing in `app/` imports from
 
 ### 1.2 Defects and gaps found
 
-| Id | Finding | Phase |
-| --- | --- | --- |
-| **R1** | Only entities are inspectable. Clicking empty ground *clears* the selection, so terrain, vegetation level, worn ground, and the disturbance burning a cell are all drawn but unreachable — despite every value already being in the store | A |
-| **R2** | The inspector is a fixed 300px sidebar rendering all 14 sections unconditionally. Information-complete and unreadable | B |
-| **R3** | The inspector does `container.innerHTML = …` on *every* store change, i.e. once per tick. Scroll position, text selection, and any collapse state are destroyed each second | **B4 (blocking)** |
-| **R4** | Inspection detail is fetched once per selection and then goes stale. Utilities, perception, memories, stamina, and hunt target freeze at selection time while the animal keeps acting | B5 |
-| **R5** | Nothing shows whether the simulation is running. `#simPaused` is fetched once at startup and updated only by commands this client sends, so `Space` acts on a guess that can be wrong | C1 |
-| **R6** | `Step` is hardcoded to `{ ticks: 1 }` though the protocol allows 10 000, and it *fails* with `simulation-running` unless already paused — so the button prints a red error on a running sim | C2, C3 |
-| **R7** | Backward stepping does not exist and cannot be faked cheaply | D |
-| **R8** | No legend. ~25 distinct glyph meanings are on screen and nothing says what any of them mean | B7 |
-| **R9** | The minimum zoom level was 6px per cell, which is not a reliable click target | **A2** |
-| **R10** | The view pans by keyboard only — no drag-to-pan | **A2** |
-| **R11** | `#123` references in the event log and inspector are inert text | B6 |
-| **R12** | Fixture mode has `http === null`, so inspection detail *and* metrics are permanently empty — the tooltip cannot be developed offline | E3 |
-| **R13** | `README-RENDERER.md` was stale by three steps: its limitations list stopped at v24 and never mentioned migration, disturbances, or features | E4 |
+| Id      | Finding                                                                                                                                                                                                                                   | Phase             |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| **R1**  | Only entities are inspectable. Clicking empty ground _clears_ the selection, so terrain, vegetation level, worn ground, and the disturbance burning a cell are all drawn but unreachable — despite every value already being in the store | A                 |
+| **R2**  | The inspector is a fixed 300px sidebar rendering all 14 sections unconditionally. Information-complete and unreadable                                                                                                                     | B                 |
+| **R3**  | The inspector does `container.innerHTML = …` on _every_ store change, i.e. once per tick. Scroll position, text selection, and any collapse state are destroyed each second                                                               | **B4 (blocking)** |
+| **R4**  | Inspection detail is fetched once per selection and then goes stale. Utilities, perception, memories, stamina, and hunt target freeze at selection time while the animal keeps acting                                                     | B5                |
+| **R5**  | Nothing shows whether the simulation is running. `#simPaused` is fetched once at startup and updated only by commands this client sends, so `Space` acts on a guess that can be wrong                                                     | C1                |
+| **R6**  | `Step` is hardcoded to `{ ticks: 1 }` though the protocol allows 10 000, and it _fails_ with `simulation-running` unless already paused — so the button prints a red error on a running sim                                               | C2, C3            |
+| **R7**  | Backward stepping does not exist and cannot be faked cheaply                                                                                                                                                                              | D                 |
+| **R8**  | No legend. ~25 distinct glyph meanings are on screen and nothing says what any of them mean                                                                                                                                               | B7                |
+| **R9**  | The minimum zoom level was 6px per cell, which is not a reliable click target                                                                                                                                                             | **A2**            |
+| **R10** | The view pans by keyboard only — no drag-to-pan                                                                                                                                                                                           | **A2**            |
+| **R11** | `#123` references in the event log and inspector are inert text                                                                                                                                                                           | B6                |
+| **R12** | Fixture mode has `http === null`, so inspection detail _and_ metrics are permanently empty — the tooltip cannot be developed offline                                                                                                      | E3                |
+| **R13** | `README-RENDERER.md` was stale by three steps: its limitations list stopped at v24 and never mentioned migration, disturbances, or features                                                                                               | E4                |
 
 ---
 
@@ -86,7 +97,7 @@ plan never reaches for a shortcut through the engine.
 7. **Rendering frequency is independent of tick frequency.**
 
 A corollary that governs Phase D: the renderer may re-display authoritative
-output it has already received, but it may never *synthesize* a state the
+output it has already received, but it may never _synthesize_ a state the
 simulation did not report.
 
 ---
@@ -103,7 +114,7 @@ land any time before the step cap is raised.
 
 #### Objective
 
-Make everything on screen inspectable by making *selection* a cell rather than
+Make everything on screen inspectable by making _selection_ a cell rather than
 an entity, and make a cell a reliable click target.
 
 #### Why this phase comes now
@@ -111,7 +122,7 @@ an entity, and make a cell a reliable click target.
 R1 is the largest gap between what the renderer draws and what it will tell you
 about, and it is almost entirely local work: the store already holds terrain
 names, passability codes, vegetation levels, feature wear, and active
-disturbances. Phase B's tooltip needs something to *show* for empty ground, so
+disturbances. Phase B's tooltip needs something to _show_ for empty ground, so
 the data model has to exist first.
 
 #### A1 — Selection is a cell
@@ -123,7 +134,7 @@ clears to `null`. Consumers that read `selection.activeId` already tolerate
 `null` (`getEntity(null)` returns `null`), so the change is additive at every
 call site except the inspector.
 
-The grid marks the selected *cell* whether or not anything is standing in it —
+The grid marks the selected _cell_ whether or not anything is standing in it —
 selection is now a place, and a place you clicked but cannot see marked is a
 bug.
 
@@ -140,7 +151,7 @@ pointer-down/move/up on the canvas, with a small movement threshold so a click
 still selects and a drag never does. `Camera.panByPixels` carries the arithmetic
 so it stays pure and testable.
 
-Deliberately *not* done: a click tolerance that selects a near-miss occupant.
+Deliberately _not_ done: a click tolerance that selects a near-miss occupant.
 Making the target bigger is honest; guessing which neighbouring cell was meant
 is not, and it would make the selected cell disagree with the cell drawn under
 the cursor.
@@ -197,7 +208,7 @@ than a hypothetical.
 `describeCell` reports `inWorld: false` for cells beyond the world edge rather
 than throwing or inventing ground, so panning past the border is a described
 state like any other. The disturbance list is filtered by the same circle test
-the grid renderer draws with (`dx² + dy² ≤ r²` against the cell *centre*), so
+the grid renderer draws with (`dx² + dy² ≤ r²` against the cell _centre_), so
 what the tooltip claims covers a cell and what is drawn over it can never
 disagree.
 
@@ -224,11 +235,11 @@ the point of sharing it. `ticksRemaining` read 371 at tick 834 against
 Turn a 60-row sidebar dump into an anchored, readable, progressively disclosed
 tooltip that survives a running simulation.
 
-#### B4 — Stop rebuilding the panel every tick *(blocking prerequisite)*
+#### B4 — Stop rebuilding the panel every tick _(blocking prerequisite)_
 
 Split the inspector into two passes:
 
-- **Structural pass** — builds the HTML. Runs only when the *shape* of what is
+- **Structural pass** — builds the HTML. Runs only when the _shape_ of what is
   displayed changes: a different cell, different occupants, a different active
   entity, a newly arrived inspection payload, or an optional row appearing or
   disappearing. Caches references to every volatile node.
@@ -242,7 +253,7 @@ HTML with `data-live="<key>"`, so the patch pass is a single
 `querySelectorAll` at build time and a map write per tick.
 
 One subtlety worth stating, because it is not obvious: the utilities block
-highlights the *chosen* action, and it previously read that from the live bulk
+highlights the _chosen_ action, and it previously read that from the live bulk
 field while the utility numbers came from the inspection tick. Those two can
 disagree, and using the live value would also force a structural rebuild every
 time an animal changed its mind. The highlight now reads the inspection
@@ -302,7 +313,7 @@ line of code in this plan.
 
 #### Completion notes — 2026-07-20 (B4 only)
 
-The structure signature turned out to need the *presence* of every optional row,
+The structure signature turned out to need the _presence_ of every optional row,
 not just the selection identity — an animal gaining an `action` or a
 `hydrationFraction` changes the row count, and patching a node that does not
 exist yet is how this class of optimization usually breaks. Signature mismatches
@@ -310,7 +321,7 @@ fall back to a full rebuild, so a missed field is a wasted rebuild rather than a
 stale display.
 
 `structureSignature` is **exported**, which is unusual for what is otherwise a
-private detail of one panel. It is exported because it *is* the mechanism:
+private detail of one panel. It is exported because it _is_ the mechanism:
 whether the panel survives a tick is decided entirely there, it is a pure
 function, and testing it needs no DOM — the repo has no DOM test dependency and
 this did not justify adding one. `test/renderer-view.test.js` asserts the shape
@@ -318,7 +329,7 @@ is stable across an ordinary tick (position, age, energy, health all moving) and
 unstable the moment a row could appear or vanish.
 
 One correctness fix rode along rather than being a pure optimization: the
-utilities block highlighted the *live* action while the utility numbers came
+utilities block highlighted the _live_ action while the utility numbers came
 from the inspection tick, so a highlight could caption numbers that described a
 different decision. It now reads the inspection payload's own `action`.
 
@@ -346,7 +357,7 @@ Two wiring bugs were caught in review rather than by a test, both from the same
 root cause — the view owns its container and overwrites it wholesale on a
 structural rebuild:
 
-1. The docked "float" control was inserted *inside* the view's container, so it
+1. The docked "float" control was inserted _inside_ the view's container, so it
    survived exactly until the next selection changed. The docked host now gets
    its own header plus a separate `.dock-body` for the view to own.
 2. `mount()` added listeners per call, so docking and undocking stacked them —
@@ -375,7 +386,7 @@ felt like a flicker every two seconds. Three changes made polling free:
 
 1. The inspection-derived absolutes (energy, health, speed, edible mass,
    gestation) moved from baked-in text into `data-live` nodes, so a poll writes
-   numbers rather than markup. Only *which* of those rows exist is structural.
+   numbers rather than markup. Only _which_ of those rows exist is structural.
 2. Sections are reconciled per id instead of re-rendered: `#patchSections`
    replaces only the bodies (and badges) whose HTML actually changed. Most
    sections never change at all — a genome is fixed for life — so a poll touches
@@ -398,7 +409,7 @@ second** — the reverse order would let an event's own punctuation become marku
 There is a test asserting exactly that ordering.
 
 The herd id is linkable too, which is a judgement call worth recording: a
-`groupId` *is* an animal's id (a herd takes the smallest one its members can
+`groupId` _is_ an animal's id (a herd takes the smallest one its members can
 see), so following it is meaningful — but the animal it names may have died and
 left the label behind, in which case the click reports "not in view" rather than
 navigating. That seemed better than making the one id on screen that looks like
@@ -411,7 +422,7 @@ tests enforce that mechanically — every species (with both sex glyphs), every
 terrain, feature, disturbance, memory kind, and carcass stage must reach the
 legend, and every colour token must be a real Dracula value. Only the tints and
 bracket overlays are hand-written, because they describe how a glyph is
-*coloured* rather than which glyph is drawn and have no registry to read.
+_coloured_ rather than which glyph is drawn and have no registry to read.
 
 **Verified against a live simulation on 2026-07-20**: the legend renders 8
 groups / 34 entries with all three species showing both sex glyphs
@@ -443,7 +454,7 @@ guess. Show `RUNNING`/`PAUSED` and the speed in the status bar.
 
 #### C2 — A transport bar
 
-A single `⏸`/`▶` toggle reflecting *server* state, `+1` / `+10` / `+100`, a
+A single `⏸`/`▶` toggle reflecting _server_ state, `+1` / `+10` / `+100`, a
 numeric field with `Advance N`, and the speed select driven by server state
 rather than a hardcoded default.
 
@@ -453,7 +464,7 @@ Send `simulation.pause`, await `ok`, then `simulation.step`. Renderer-side
 sequencing of two existing commands; the Step button stops failing on a running
 simulation. No engine change.
 
-#### C4 — Coalesce large manual steps *(server-side; the one change outside `src/renderer/`)*
+#### C4 — Coalesce large manual steps _(server-side; the one change outside `src/renderer/`)_
 
 `SimulationRunner.stepManually` loops `#tickOnce`, and each iteration builds a
 full snapshot and emits a `tick` that the WebSocket transport broadcasts to
@@ -478,7 +489,7 @@ cadence moves. Until this lands, cap the UI at ~50 ticks per press.
 was fetched once at startup and updated only by commands this client sent, so
 anything else pausing the simulation left the renderer confidently incorrect and
 Space did the opposite of what the button said. Run state is now polled from
-`/api/status` on the existing metrics timer *and* adopted from every command
+`/api/status` on the existing metrics timer _and_ adopted from every command
 result — the poll is the source of truth, the results are what stop it lagging a
 few seconds behind your own click. `null` means "not yet known" and renders as
 `…` rather than guessing a default, because a control that claims a state it has
@@ -486,7 +497,7 @@ not been told is the bug this replaced.
 
 **C2** replaced `Controls.js` wholesale: one `⏸/▶` toggle whose label comes from
 the host, fixed `+1 / +10 / +100` steps, a numeric field with `go`, and a speed
-select that is *reflected* rather than assumed. The speed select is not written
+select that is _reflected_ rather than assumed. The speed select is not written
 back while it has focus — otherwise a poll landing mid-interaction yanks the
 dropdown out from under the pointer.
 
@@ -496,7 +507,7 @@ protocol.
 
 **C4 is the one change outside `src/renderer/`** — `SimulationRunner.stepManually`
 now advances N ticks and emits **one** delta covering the run, instead of one
-per tick. Safe because a delta is a *diff between two snapshots*, not a replay:
+per tick. Safe because a delta is a _diff between two snapshots_, not a replay:
 an animal born and eaten inside the window is simply absent from both ends, and
 `baseTick` still names the tick the client is on. `#tickOnce` and `stepManually`
 now share one `#emitSince(previous)`, so there is a single place that builds and
@@ -504,10 +515,10 @@ emits a delta.
 
 Measured on the demo, 2026-07-20:
 
-| | messages | bytes |
-| --- | --- | --- |
-| 300 ticks, coalesced | **1 delta** | 1 382 KiB |
-| 300 ticks, one at a time | 300 deltas | 26 742 KiB |
+|                          | messages    | bytes      |
+| ------------------------ | ----------- | ---------- |
+| 300 ticks, coalesced     | **1 delta** | 1 382 KiB  |
+| 300 ticks, one at a time | 300 deltas  | 26 742 KiB |
 
 **19× fewer bytes and 300× fewer messages.** A 500-tick step takes ~700 ms
 (~1.4 ms/tick at demo scale), which is what set the fixed step sizes at
@@ -518,7 +529,7 @@ Measured on the demo, 2026-07-20:
 delta is ~95% event payload, and the outbox is bounded (`maxBufferedEvents`
 5 000, buffer capped at twice that). A 500-tick step emits roughly 77 000 events
 and the delta carries **8 810** — the rest are dropped. The world state stays
-exact; what a long jump gives up is the *narration* of how it got there. That is
+exact; what a long jump gives up is the _narration_ of how it got there. That is
 inherent to a bounded outbox rather than something coalescing introduced, but
 coalescing is what makes it easy to hit.
 
@@ -536,7 +547,7 @@ Three options, recorded because the choice is a real one:
 
 **D1 — Don't offer it.** Label the control `Advance N`. Zero cost, honest.
 
-**D2 — Renderer-side review buffer** *(recommended)*. The renderer keeps a
+**D2 — Renderer-side review buffer** _(recommended)_. The renderer keeps a
 bounded ring (~300 ticks) of its own materialized state and scrubs back through
 it read-only, behind a loud `REVIEW t1234` badge and a "return to live" button.
 No protocol change, no engine change, no invariant violated: this is
@@ -570,7 +581,7 @@ turns out to matter.
   `scripts/generateRendererFixtures.js` so the tooltip is developable offline
   (R12). Fixture mode currently shows an empty inspector and empty metrics.
 - **E4** — Keep `README-RENDERER.md`, this file, and `HANDOFF-RENDERER.md`
-  current *with* each phase rather than after it. R13 is what happens otherwise.
+  current _with_ each phase rather than after it. R13 is what happens otherwise.
 - **E5** — `renderer-boundaries.test.js` needs nothing new; all of this lives
   inside `app/`.
 
@@ -578,28 +589,28 @@ turns out to matter.
 
 ## 4. Carried-forward deviations and open issues
 
-| Id | From | Issue | Resolution |
-| --- | --- | --- | --- |
-| **P1** | A | Per-cell territory ownership is not shown — the protocol carries a claim only via a selected animal's `territory.standingOn` | Blocked on `PLAN.md` §1.4 **A36**; a claim layer would need to earn its per-snapshot cost |
-| **P2** | A2 | Two zoom levels (6px, 8px) were removed, so a 128-cell world no longer fits a typical viewport at minimum zoom | Accepted; drag-to-pan is the compensation, and a minimap was judged not worth it for one world size |
-| ~~**P3**~~ | B4 | ~~Inspection-derived sections rebuild structurally when a new payload arrives~~ | **Closed by B5**: absolutes are patched as values and sections are reconciled per id, so a poll rewrites only what changed |
-| **P11** | B5 | Inspection polls at a fixed 2s regardless of whether the simulation is paused or running at 8× — it is wall-clock, not tick-driven | Still open after C1. The run state is now known, so backing the poll off while paused is a two-line change; left undone because re-fetching identical data is cheap and the complexity is not obviously worth it |
-| **P9** | B2 | Popover geometry (anchoring, flipping, dragging) and the `<details>` toggle are verified by review and pure-function tests, not by a browser | Accepted for now; a browser-automation dependency is a bigger call than this phase warranted |
-| **P10** | B3 | The open-set is global rather than per-species or per-kind, so expanding Genome for a grazer also expands it for a carcass that has none (the section is simply absent) | Intended — a viewer's interest is in a *kind of question*, not in one animal |
-| ~~**P4**~~ | C4 | ~~Manual steps above ~50 ticks flood the socket~~ | **Closed**: one delta per step, 19× fewer bytes measured |
-| **P12** | C4 | A coalesced delta is ~95% event payload, and a step long enough to overrun the bounded outbox drops events — ~77 000 emitted, 8 810 delivered at 500 ticks | Inherent to a bounded outbox. If it matters, the answer is for a long step to send *no* events rather than a truncated set, which is a protocol question |
-| **P13** | C2 | A large advance blocks the host's event loop for its whole duration (~1.4 ms/tick), so 10 000 ticks is ~14 s unresponsive | UI defaults keep it well under a second; a genuinely long run belongs in `npm run headless` |
-| **P5** | D | The renderer cannot show a tick it never received (D2), and cannot move the engine backward at all (D3) | Stated in the UI rather than worked around |
-| **P6** | E3 | Fixture mode has no inspection or metrics data at all | E3 |
-| **P7** | — | No interpolation between ticks; entities jump cell-to-cell. `previousPosition` is tracked for it | By design for v1 |
-| **P8** | — | The whole world is streamed; bounded subscription awaits region-scoped deltas | `requestSnapshot(bounds)` is isolated for when they exist |
+| Id         | From | Issue                                                                                                                                                                   | Resolution                                                                                                                                                                                                       |
+| ---------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **P1**     | A    | Per-cell territory ownership is not shown — the protocol carries a claim only via a selected animal's `territory.standingOn`                                            | Blocked on `PLAN.md` §1.4 **A36**; a claim layer would need to earn its per-snapshot cost                                                                                                                        |
+| **P2**     | A2   | Two zoom levels (6px, 8px) were removed, so a 128-cell world no longer fits a typical viewport at minimum zoom                                                          | Accepted; drag-to-pan is the compensation, and a minimap was judged not worth it for one world size                                                                                                              |
+| ~~**P3**~~ | B4   | ~~Inspection-derived sections rebuild structurally when a new payload arrives~~                                                                                         | **Closed by B5**: absolutes are patched as values and sections are reconciled per id, so a poll rewrites only what changed                                                                                       |
+| **P11**    | B5   | Inspection polls at a fixed 2s regardless of whether the simulation is paused or running at 8× — it is wall-clock, not tick-driven                                      | Still open after C1. The run state is now known, so backing the poll off while paused is a two-line change; left undone because re-fetching identical data is cheap and the complexity is not obviously worth it |
+| **P9**     | B2   | Popover geometry (anchoring, flipping, dragging) and the `<details>` toggle are verified by review and pure-function tests, not by a browser                            | Accepted for now; a browser-automation dependency is a bigger call than this phase warranted                                                                                                                     |
+| **P10**    | B3   | The open-set is global rather than per-species or per-kind, so expanding Genome for a grazer also expands it for a carcass that has none (the section is simply absent) | Intended — a viewer's interest is in a _kind of question_, not in one animal                                                                                                                                     |
+| ~~**P4**~~ | C4   | ~~Manual steps above ~50 ticks flood the socket~~                                                                                                                       | **Closed**: one delta per step, 19× fewer bytes measured                                                                                                                                                         |
+| **P12**    | C4   | A coalesced delta is ~95% event payload, and a step long enough to overrun the bounded outbox drops events — ~77 000 emitted, 8 810 delivered at 500 ticks              | Inherent to a bounded outbox. If it matters, the answer is for a long step to send _no_ events rather than a truncated set, which is a protocol question                                                         |
+| **P13**    | C2   | A large advance blocks the host's event loop for its whole duration (~1.4 ms/tick), so 10 000 ticks is ~14 s unresponsive                                               | UI defaults keep it well under a second; a genuinely long run belongs in `npm run headless`                                                                                                                      |
+| **P5**     | D    | The renderer cannot show a tick it never received (D2), and cannot move the engine backward at all (D3)                                                                 | Stated in the UI rather than worked around                                                                                                                                                                       |
+| **P6**     | E3   | Fixture mode has no inspection or metrics data at all                                                                                                                   | E3                                                                                                                                                                                                               |
+| **P7**     | —    | No interpolation between ticks; entities jump cell-to-cell. `previousPosition` is tracked for it                                                                        | By design for v1                                                                                                                                                                                                 |
+| **P8**     | —    | The whole world is streamed; bounded subscription awaits region-scoped deltas                                                                                           | `requestSnapshot(bounds)` is isolated for when they exist                                                                                                                                                        |
 
 ---
 
 ### Phase F — Steering the world (added 2026-07-20, after C)
 
 Requested directly rather than planned: auto-pause toggles, restart-with-seed,
-and speed buttons. Grouped here because all three are about *steering* rather
+and speed buttons. Grouped here because all three are about _steering_ rather
 than seeing.
 
 #### F1 — Auto-pause on notable events
@@ -609,11 +620,11 @@ types; `RendererApp` checks each arriving delta and sends the ordinary pause
 command on a match, then reports what stopped it and jumps the camera there.
 Renderer policy over authoritative output — no protocol change.
 
-⚠ It pauses *just after* the event. The delta for that tick is already applied
+⚠ It pauses _just after_ the event. The delta for that tick is already applied
 and the pause is a round trip on top, so high speeds overshoot. Exact stopping
 would be a breakpoint inside the runner, which is a protocol change.
 
-#### F2 — Restart with a seed *(protocol v28)*
+#### F2 — Restart with a seed _(protocol v28)_
 
 `simulation.restart { seed? }`, a runner-level command. A restart cannot be a
 delta — no shared ids, tick, or `simulationId` — so the runner emits its own
@@ -666,5 +677,5 @@ fixture mode would refuse every message as an unsupported version.
 - **A per-tick cost is a real budget.** The inspector rebuild (R3) was one; so is
   B5's polling and C4's snapshot flood. Measure before assuming.
 - **Update the three documents with the change, not after it.**
-  `README-RENDERER.md` says what the renderer *is*, this file says what is
-  *planned and why*, `HANDOFF-RENDERER.md` says where the work *stands*.
+  `README-RENDERER.md` says what the renderer _is_, this file says what is
+  _planned and why_, `HANDOFF-RENDERER.md` says where the work _stands_.

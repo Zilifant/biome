@@ -53,9 +53,11 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 | Species               | 3 (grazer, stalker, corvid) — all pure config          |
 | Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
 
-The renderer keeps its own roadmap and handoff (`src/renderer/PLAN-RENDERER.md`,
-`HANDOFF-RENDERER.md`, `README-RENDERER.md`), which advance independently of the
-engine.
+The renderer is a fully separate subsystem with its own reference documentation,
+[`src/renderer/DOCS-RENDERER.md`](src/renderer/DOCS-RENDERER.md) (and its own
+`README-RENDERER.md`, `PLAN-RENDERER.md`, `HANDOFF-RENDERER.md`), which advance
+independently of the engine. Its open items are in that file's §1 and in the
+repository-wide [`ACTION-ITEMS.md`](ACTION-ITEMS.md).
 
 ---
 
