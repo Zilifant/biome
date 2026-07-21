@@ -121,6 +121,18 @@ physiology → lifecycle → cleanup → observation`.
 The runner's pause/resume/speed only change _when_ ticks happen, never what
 a tick computes. Renderer interpolation between ticks is a client concern.
 
+A **manual** multi-tick step (`simulation.step` with `ticks: N`, only accepted
+while paused) advances the engine N times and then emits a **single** delta
+covering the whole run, rather than one per tick. The engine takes the same
+steps in the same order either way — a coalesced run and a tick-by-tick one end
+byte-identical, and `test/runner.test.js` asserts it — so this is a reporting
+cadence, not a simulation change. It is safe because a delta is a diff between
+two snapshots rather than a replay: an animal born and eaten inside the window is
+simply absent from both ends. Measured 2026-07-20, a 300-tick step costs 1
+message and 1.4 MiB instead of 300 messages and 26 MiB. The one thing a long
+step gives up is domain **events**: the outbox is bounded, so a 500-tick step
+emits ~77 000 events and the delta carries ~8 800.
+
 ### Time and units
 
 One authoritative tick represents **~1 in-world minute** (so a day is ~1440

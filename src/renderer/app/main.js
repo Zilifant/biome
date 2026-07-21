@@ -68,6 +68,9 @@ ui.controls = new Controls(document.getElementById('controls-panel'), {
     const result = await appRef.current.sendCommand(command);
     return result;
   },
+  // Stepping pauses first, so the button never fails on a running simulation.
+  onStep: (ticks) => appRef.current.stepTicks(ticks),
+  onToggleRun: () => appRef.current.toggleRun(),
   onRecenter: () => appRef.current.recenter(),
   onReconnect: () => appRef.current.reconnect(),
 });

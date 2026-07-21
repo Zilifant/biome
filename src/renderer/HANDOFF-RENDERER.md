@@ -7,8 +7,8 @@ them.
 
 |                       |                                                              |
 | --------------------- | ------------------------------------------------------------ |
-| Phases complete       | **A and B complete** — Phase C (controls) is next              |
-| Tests                 | 638 passing / 0 failing, 166 suites (renderer: 77 / 15)      |
+| Phases complete       | **A, B, C complete** — Phase D (stepping back) is next         |
+| Tests                 | 645 passing / 0 failing, 167 suites (renderer 77, runner 7)  |
 | Protocol understood   | 27 (`SUPPORTED_PROTOCOL_VERSION`), matching the engine        |
 | Zoom levels           | 10–32px; 10px is a floor, not a default                       |
 | Git                   | uncommitted, as with Steps 26–29 (the user handles git)       |
@@ -42,6 +42,18 @@ B5 is the one to understand before touching the panel, because it changed how
 rendering works rather than adding to it. Polling every two seconds was only
 viable once a fresh payload stopped counting as a change of *shape* — see the
 next section.
+
+**C1–C4 completed Phase C.** Run state is polled from the host rather than
+remembered, `Controls.js` was replaced with a transport bar, stepping pauses
+first, and — the one change outside `src/renderer/` — the runner coalesces a
+multi-tick step into a single delta. `test/runner.test.js` is new and is where
+the server-side behaviour is pinned.
+
+What remains is **Phase D** (stepping backward), which is a decision before it
+is an implementation: D1 don't offer it, **D2 a renderer-side review buffer
+(recommended)**, D3 a true engine rewind that belongs in `PLAN.md` as its own
+step because it changes the protocol. Then **Phase E** (fixtures and docs), of
+which E3 is the one with real value left.
 
 ## Conventions that are easy to miss
 
@@ -121,6 +133,19 @@ for kinds this build has not heard of, so a newer engine cannot break an older
 renderer. `terrainPassableAt` returns `null` rather than `false` outside the
 terrain for the same reason: "not told" and "impassable" are different facts.
 
+⚠ **Report host state, never remember it.** `#runState` in `RendererApp` is
+whatever `/api/status` last said, topped up from the `paused`/`speed` that every
+command result carries. `paused: null` means "not yet known" and renders as `…`.
+The previous version remembered what *this* client had asked for, which was
+wrong the moment anything else touched the simulation — and the symptom was
+Space doing the opposite of what the button said. Any future control over host
+state belongs in that same shape.
+
+⚠ **A poll must not fight the user.** The speed `<select>` is not written back
+while it has focus, or a poll landing mid-interaction yanks the dropdown out
+from under the pointer. Anything else that both polls and accepts input needs
+the same guard.
+
 ⚠ **A per-tick cost is a real budget, and the store notifies on every change.**
 `store.setFollowedEntity(null)` inside a pointermove handler re-renders every
 panel at pointer rate; it is guarded to fire once per drag. Look for that shape
@@ -142,33 +167,47 @@ fixtures predate several protocol layers, so `features[].wear` and
 server and feeding a real `/api/snapshot` through the store found nothing
 broken, but it is the check that would have.
 
-## Next phase specifics (Phase C — simulation controls)
+## Next phase specifics (Phase D — stepping backward)
 
-- **C1 removes a live wrong answer.** `#simPaused` in `RendererApp` is fetched
-  once at startup and updated only by commands this client sends, so Space acts
-  on a guess that is wrong if anything else pauses the sim. `/api/status`
-  already returns `paused`, `speed`, and `running`; poll it on the existing
-  metrics timer and delete the guess.
-- **C3 is pure sequencing.** `simulation.step` fails with `simulation-running`
-  unless already paused, so the Step button prints a red error on a running sim.
-  Send pause, await `ok`, then step. No engine change.
-- ⚠ **C4 is server-side and must land before the step cap is raised.** See P4.
-  It is the only change in this plan outside `src/renderer/`.
-- **The inspection poll is wall-clock (P11).** Once C1 knows the run state, it
-  is worth deciding whether the poll should back off while paused — nothing
-  changes between ticks, so it is currently re-fetching identical data.
-- **`Controls.js` is the smallest file in `ui/`** and Phase C replaces it
-  wholesale; do not try to grow it incrementally.
+**Decide before implementing.** The engine only moves forward; there is no
+reverse command and `validateCommand` requires `ticks >= 1`.
+
+- **D2 is the recommendation**: a bounded ring (~300 ticks) of state the
+  renderer has already received, scrubbed read-only behind a loud `REVIEW t1234`
+  badge with a "return to live" button. No protocol change, no engine change,
+  and it does not violate the §2 corollary — re-displaying authoritative output
+  already received is allowed; synthesizing a state is not. State its two limits
+  in the UI rather than hiding them: only what this client has seen since
+  connecting, and bulk snapshot fields only (inspection detail is not buffered).
+- **D3 (true engine rewind) belongs in `PLAN.md`, not here.** The persistence
+  layer already supports it — ring of `captureSimulationState`, restore nearest,
+  replay forward — but it needs a new command, a protocol version bump, and a
+  forced full-snapshot resync for every client. That is an engine step.
+- ⚠ **Whatever D does, it must not look live.** The one thing the renderer must
+  never do is show a past tick as though it were the present.
+
+After D, **Phase E** is mostly bookkeeping except **E3** (an `entity.inspection`
+fixture), which is what would make the panel developable offline — and that
+matters more now that sections are the bulk of it.
+
+- **P11 is still open and now cheap.** The run state is known, so backing the
+  inspection poll off while paused is a two-line change; it was left undone
+  because re-fetching identical data is cheap and the complexity is not
+  obviously worth it. Judgement call, not an oversight.
 
 ## Things deliberately left undone
 
 Recorded in `PLAN-RENDERER.md` §4 with reasoning; the ones most likely to matter
 next:
 
-- **⚠ P4** — manual steps above ~50 ticks flood the socket, because
-  `SimulationRunner.stepManually` emits one full snapshot and one delta *per
-  tick*. Cap the UI until C4 coalesces them. C4 is server-side and needs no
-  protocol change.
+- **⚠ P12** — a coalesced delta is ~95% event payload, and a step long enough to
+  overrun the bounded outbox drops events: ~77 000 emitted at 500 ticks, 8 810
+  delivered. World state stays exact; the narration does not. If it ever
+  matters, the honest fix is for a long step to send *no* events rather than a
+  truncated set — which is a protocol question, not a renderer one.
+- **P13** — a large advance blocks the host for its whole run (~1.4 ms/tick), so
+  10 000 ticks is ~14 s unresponsive. The UI's defaults stay under a second; a
+  genuinely long run belongs in `npm run headless`.
 - **⚠ P1** — per-cell territory ownership is not shown, and cannot be without
   the claim layer being projected (`PLAN.md` §1.4 **A36**).
 - **⚠ P9** — the popover's DOM behaviour is unverified in a browser; see above.

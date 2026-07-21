@@ -467,10 +467,60 @@ cadence moves. Until this lands, cap the UI at ~50 ticks per press.
 
 #### Acceptance criteria
 
-- [ ] The status bar shows run state and speed, sourced from the server
-- [ ] Stepping works on a running simulation without an error
-- [ ] `Advance N` accepts an arbitrary N within the protocol's limit
-- [ ] A large advance produces one delta, not N
+- [x] The status bar shows run state and speed, sourced from the server
+- [x] Stepping works on a running simulation without an error
+- [x] `Advance N` accepts an arbitrary N within the protocol's limit
+- [x] A large advance produces one delta, not N
+
+#### Completion notes — 2026-07-20 (C1–C4)
+
+**C1 deleted a live wrong answer rather than adding a feature.** `#simPaused`
+was fetched once at startup and updated only by commands this client sent, so
+anything else pausing the simulation left the renderer confidently incorrect and
+Space did the opposite of what the button said. Run state is now polled from
+`/api/status` on the existing metrics timer *and* adopted from every command
+result — the poll is the source of truth, the results are what stop it lagging a
+few seconds behind your own click. `null` means "not yet known" and renders as
+`…` rather than guessing a default, because a control that claims a state it has
+not been told is the bug this replaced.
+
+**C2** replaced `Controls.js` wholesale: one `⏸/▶` toggle whose label comes from
+the host, fixed `+1 / +10 / +100` steps, a numeric field with `go`, and a speed
+select that is *reflected* rather than assumed. The speed select is not written
+back while it has focus — otherwise a poll landing mid-interaction yanks the
+dropdown out from under the pointer.
+
+**C3** is two existing commands in sequence: pause, await `ok`, then step. The
+Step button no longer fails on a running simulation. Nothing was added to the
+protocol.
+
+**C4 is the one change outside `src/renderer/`** — `SimulationRunner.stepManually`
+now advances N ticks and emits **one** delta covering the run, instead of one
+per tick. Safe because a delta is a *diff between two snapshots*, not a replay:
+an animal born and eaten inside the window is simply absent from both ends, and
+`baseTick` still names the tick the client is on. `#tickOnce` and `stepManually`
+now share one `#emitSince(previous)`, so there is a single place that builds and
+emits a delta.
+
+Measured on the demo, 2026-07-20:
+
+| | messages | bytes |
+| --- | --- | --- |
+| 300 ticks, coalesced | **1 delta** | 1 382 KiB |
+| 300 ticks, one at a time | 300 deltas | 26 742 KiB |
+
+**19× fewer bytes and 300× fewer messages.** A 500-tick step takes ~700 ms
+(~1.4 ms/tick at demo scale), which is what set the fixed step sizes at
+1/10/100 and the field's default at 500 — 1 000 is a visible stall and 10 000
+(the protocol's ceiling) is ~14 s of blocked event loop.
+
+⚠ **A long step really does lose events, and now there is a number for it.** The
+delta is ~95% event payload, and the outbox is bounded (`maxBufferedEvents`
+5 000, buffer capped at twice that). A 500-tick step emits roughly 77 000 events
+and the delta carries **8 810** — the rest are dropped. The world state stays
+exact; what a long jump gives up is the *narration* of how it got there. That is
+inherent to a bounded outbox rather than something coalescing introduced, but
+coalescing is what makes it easy to hit.
 
 ---
 
@@ -533,10 +583,12 @@ turns out to matter.
 | **P1** | A | Per-cell territory ownership is not shown — the protocol carries a claim only via a selected animal's `territory.standingOn` | Blocked on `PLAN.md` §1.4 **A36**; a claim layer would need to earn its per-snapshot cost |
 | **P2** | A2 | Two zoom levels (6px, 8px) were removed, so a 128-cell world no longer fits a typical viewport at minimum zoom | Accepted; drag-to-pan is the compensation, and a minimap was judged not worth it for one world size |
 | ~~**P3**~~ | B4 | ~~Inspection-derived sections rebuild structurally when a new payload arrives~~ | **Closed by B5**: absolutes are patched as values and sections are reconciled per id, so a poll rewrites only what changed |
-| **P11** | B5 | Inspection polls at a fixed 2s regardless of whether the simulation is paused or running at 8× — it is wall-clock, not tick-driven | Deliberate: it is a UI refresh, not an observation. Revisit alongside C1, which will know the run state |
+| **P11** | B5 | Inspection polls at a fixed 2s regardless of whether the simulation is paused or running at 8× — it is wall-clock, not tick-driven | Still open after C1. The run state is now known, so backing the poll off while paused is a two-line change; left undone because re-fetching identical data is cheap and the complexity is not obviously worth it |
 | **P9** | B2 | Popover geometry (anchoring, flipping, dragging) and the `<details>` toggle are verified by review and pure-function tests, not by a browser | Accepted for now; a browser-automation dependency is a bigger call than this phase warranted |
 | **P10** | B3 | The open-set is global rather than per-species or per-kind, so expanding Genome for a grazer also expands it for a carcass that has none (the section is simply absent) | Intended — a viewer's interest is in a *kind of question*, not in one animal |
-| **P4** | C4 | Manual steps above ~50 ticks flood the socket until the runner coalesces them | Cap the UI until C4 lands |
+| ~~**P4**~~ | C4 | ~~Manual steps above ~50 ticks flood the socket~~ | **Closed**: one delta per step, 19× fewer bytes measured |
+| **P12** | C4 | A coalesced delta is ~95% event payload, and a step long enough to overrun the bounded outbox drops events — ~77 000 emitted, 8 810 delivered at 500 ticks | Inherent to a bounded outbox. If it matters, the answer is for a long step to send *no* events rather than a truncated set, which is a protocol question |
+| **P13** | C2 | A large advance blocks the host's event loop for its whole duration (~1.4 ms/tick), so 10 000 ticks is ~14 s unresponsive | UI defaults keep it well under a second; a genuinely long run belongs in `npm run headless` |
 | **P5** | D | The renderer cannot show a tick it never received (D2), and cannot move the engine backward at all (D3) | Stated in the UI rather than worked around |
 | **P6** | E3 | Fixture mode has no inspection or metrics data at all | E3 |
 | **P7** | — | No interpolation between ticks; entities jump cell-to-cell. `previousPosition` is tracked for it | By design for v1 |

@@ -156,10 +156,31 @@ the remembered open/closed state, so it must be stable.
 | C | Recenter camera |
 | Esc | Clear selection |
 | Space | Pause/resume via protocol command (live mode) |
-| Buttons | Pause, Resume, Step, speed — protocol commands; Recenter, Reconnect/Replay |
+| Buttons | Pause/resume, step `+1 / +10 / +100`, `Advance N`, speed — protocol commands; Recenter, Reconnect/Replay |
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
+
+## Run state is reported, not remembered
+
+Whether the world is moving is the one thing a viewer cannot read off the
+grid — a paused simulation and a quiet one look identical — so the status bar
+states it: `RUNNING 4x` or `PAUSED`, with the play/pause button and speed select
+showing the same thing.
+
+All of it comes from the **host**. `/api/status` is polled on the metrics timer
+and every command result carries the new `paused` / `speed`, so the poll is the
+source of truth and the results are only what stop it lagging behind your own
+click. Until the first reply lands the panel shows `…` rather than assuming a
+default. This replaced a locally-remembered flag that was fetched once at
+startup and updated only by commands *this* client sent — which meant anything
+else pausing the simulation left the renderer confidently wrong.
+
+**Stepping pauses first.** `simulation.step` is refused outright while the
+runner's timer is going, so the step controls send `simulation.pause`, await it,
+and then step — two existing commands in sequence, entirely renderer-side. A
+step of N ticks arrives as **one** delta rather than N (see the host note in the
+root `README.md`), so `Advance 500` is a single message.
 
 **The cell is the unit of selection, not the entity.** Clicking bare ground
 selects the ground and reports it — terrain and its authoritative passability,
@@ -344,9 +365,15 @@ gaps and deferrals live in `PLAN-RENDERER.md` §4 rather than here.
   projected (`PLAN.md` §1.4 A36), and a selected animal's
   `territory.standingOn` answers that for one animal rather than for a cell. The
   cell description stays silent about ownership rather than guessing.
-- Simulation controls are still minimal — one-tick stepping, and the run state
-  in the status bar is a local guess rather than the server's. `PLAN-RENDERER.md`
-  Phase C.
+- A long manual step loses domain **events**, though never world state: the
+  engine's outbox is bounded, so a 500-tick step emits ~77 000 events and the
+  delta carries ~8 800. The jump is exact; the narration of how it happened is
+  what a long advance gives up.
+- A large advance blocks the host while it runs (~1.4 ms/tick at demo scale), so
+  the controls stay well under a second by default. A genuinely long run belongs
+  in `npm run headless`.
+- There is no way to step **backward** — the engine only moves forward.
+  `PLAN-RENDERER.md` Phase D weighs the options.
 - Fixture mode has no inspection or metrics data at all (`http` is null there),
   so those panels are empty offline. `PLAN-RENDERER.md` E3.
 - Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.

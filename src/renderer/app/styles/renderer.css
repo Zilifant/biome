@@ -54,6 +54,19 @@ body {
   background: var(--dracula-orange);
 }
 
+/* Whether the world is moving. A paused simulation and a quiet one look
+   identical on the grid, so this is the one state that has to be stated. */
+.run-badge {
+  padding: 0 6px;
+  background: var(--dracula-green);
+  color: var(--dracula-background-darker);
+  font-weight: bold;
+}
+
+.run-badge.paused {
+  background: var(--dracula-orange);
+}
+
 .ok { color: var(--dracula-green); }
 .warn { color: var(--dracula-orange); }
 .bad { color: var(--dracula-red); }
@@ -132,6 +145,28 @@ body {
   gap: 4px;
   align-items: center;
   margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+/* The one control whose label changes with the state it reports, so it gets a
+   fixed width — a button that resizes between Pause and Resume shifts the whole
+   row every time you use it. */
+.run-toggle {
+  min-width: 6.5em;
+  text-align: left;
+}
+
+.run-toggle.paused {
+  color: var(--dracula-green);
+}
+
+#ctl-step-n {
+  width: 5em;
+  font: inherit;
+  color: var(--dracula-foreground);
+  background: var(--dracula-background-light);
+  border: 1px solid var(--dracula-selection);
+  padding: 2px 4px;
 }
 
 button,

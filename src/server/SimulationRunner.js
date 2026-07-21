@@ -70,14 +70,48 @@ export class SimulationRunner extends EventEmitter {
   }
 
   /**
-   * Advance ticks immediately, without waiting for real time. Emits the same
-   * 'tick' events as timer-driven ticks. Used while paused and by tests.
+   * Advance ticks immediately, without waiting for real time. Used while paused
+   * and by tests.
+   *
+   * A multi-tick step emits **one** 'tick' event covering the whole run rather
+   * than one per tick. Every emission builds a full snapshot and broadcasts a
+   * delta to every connected client, so a 500-tick step used to build 500
+   * snapshots and flood the socket with 500 deltas — for a jump the viewer
+   * experiences as a single move. Coalescing is safe because a delta is a
+   * *diff* between two snapshots, not a replay: an entity born and eaten inside
+   * the window is simply absent from both ends, and `baseTick` still names the
+   * tick the client is on.
+   *
+   * The engine is untouched by this — it takes the same number of steps in the
+   * same order, so a coalesced run and a tick-by-tick one end in identical
+   * state. Only the reporting cadence changes.
+   *
+   * ⚠ Domain events are the one real cost: the outbox is bounded
+   * (`config.events.maxBufferedEvents`), so a step long enough to overrun it
+   * drops the oldest events from the batch. The world state stays exact; the
+   * *narration* of how it got there is what a long jump gives up.
+   *
    * @param {number} [ticks]
    */
   stepManually(ticks = 1) {
+    if (ticks < 1) return;
+    const previous = this.#lastSnapshot;
     for (let i = 0; i < ticks; i += 1) {
-      this.#tickOnce();
+      this.engine.step();
     }
+    this.#emitSince(previous);
+  }
+
+  /**
+   * Build and emit the delta from a base snapshot to the current state.
+   * @param {object} previous snapshot to diff against
+   */
+  #emitSince(previous) {
+    const snapshot = this.getFullSnapshot();
+    const events = this.engine.eventsSince(previous.lastEventSeq);
+    const delta = buildDeltaSnapshot(previous, snapshot, events);
+    this.#lastSnapshot = snapshot;
+    this.emit('tick', { snapshot, delta });
   }
 
   #schedule() {
@@ -95,13 +129,9 @@ export class SimulationRunner extends EventEmitter {
   }
 
   #tickOnce() {
-    this.engine.step();
     const previous = this.#lastSnapshot;
-    const snapshot = this.getFullSnapshot();
-    const events = this.engine.eventsSince(previous.lastEventSeq);
-    const delta = buildDeltaSnapshot(previous, snapshot, events);
-    this.#lastSnapshot = snapshot;
-    this.emit('tick', { snapshot, delta });
+    this.engine.step();
+    this.#emitSince(previous);
   }
 
   /**

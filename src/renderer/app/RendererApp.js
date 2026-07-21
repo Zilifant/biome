@@ -35,7 +35,15 @@ export class RendererApp {
   #dirty = true;
   #hasCentered = false;
   #recovering = false;
-  #simPaused = null;
+  /**
+   * The host's run state, as *reported* rather than remembered (C1). This used
+   * to be a single `paused` flag fetched once at startup and updated only by
+   * commands this client sent — so anything else pausing the simulation left
+   * the renderer confidently wrong, and Space did the opposite of what the
+   * button said. `null` means "not yet known".
+   * @type {{paused: boolean | null, speed: number, running: boolean}}
+   */
+  #runState = { paused: null, speed: 1, running: false };
   /** @type {object | null} last entity.inspection payload */
   #inspectionDetail = null;
   /** @type {object | null} last metrics query payload */
@@ -92,29 +100,30 @@ export class RendererApp {
     if (this.#mode === 'fixture') {
       this.#ui.controls.setSimulationCommandsEnabled(false, 'fixture mode replays recorded data; no live simulation');
       this.#ui.controls.setReconnectLabel('Replay');
-    } else {
-      this.#http
-        ?.getStatus()
-        .then((status) => {
-          this.#simPaused = status.paused ?? null;
-        })
-        .catch(() => {});
     }
 
     // Metrics are a summary view, so they are polled rather than streamed —
     // histograms for every trait of every species would dwarf the per-tick
-    // payload, and nothing here needs tick resolution.
+    // payload, and nothing here needs tick resolution. The run state rides the
+    // same timer: it is equally cheap, equally not per-tick, and polling it is
+    // the whole of C1 — the renderer reports what the host says rather than
+    // what it last told the host to do.
     if (this.#http) {
-      const pollMetrics = async () => {
+      const poll = async () => {
         try {
           this.#metrics = await this.#http.requestMetrics();
           this.#ui.metricsPanel.render(this.#metrics);
         } catch {
           // Optional enrichment; the rest of the view stands alone.
         }
+        try {
+          this.#applyRunState(await this.#http.getStatus());
+        } catch {
+          // Leave the last known state rather than claiming a wrong one.
+        }
       };
-      pollMetrics();
-      this.#metricsTimer = setInterval(pollMetrics, this.#metricsIntervalMs);
+      poll();
+      this.#metricsTimer = setInterval(poll, this.#metricsIntervalMs);
     } else {
       this.#ui.metricsPanel.render(null);
     }
@@ -132,7 +141,7 @@ export class RendererApp {
           groupId: this.#selectedGroupId(),
           homeRange: this.#selectedHomeRange(),
         });
-        this.#ui.statusPanel.update(this.#store, this.#camera);
+        this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
       }
       requestAnimationFrame(frame);
     };
@@ -237,10 +246,54 @@ export class RendererApp {
     } else {
       result = await this.#transport.sendCommand(command);
     }
-    if (result?.ok) {
-      if (command.type === 'simulation.pause') this.#simPaused = true;
-      if (command.type === 'simulation.resume') this.#simPaused = false;
+    // Command results already carry the new run state (`paused`, `speed`), so
+    // the panel updates immediately rather than waiting out the poll interval.
+    // The poll remains the source of truth; this is only how it stops lagging.
+    if (result?.ok) this.#applyRunState(result);
+    return result;
+  }
+
+  /**
+   * Adopt whatever the host reported about its run state. Fields are taken only
+   * when present, since a command result carries a subset of what `/api/status`
+   * does.
+   * @param {{paused?: boolean, speed?: number, running?: boolean}} report
+   */
+  #applyRunState(report) {
+    if (typeof report?.paused === 'boolean') this.#runState.paused = report.paused;
+    if (typeof report?.speed === 'number') this.#runState.speed = report.speed;
+    if (typeof report?.running === 'boolean') this.#runState.running = report.running;
+    this.#ui.controls.setRunState(this.#runState);
+    this.#dirty = true;
+  }
+
+  /**
+   * Advance the simulation by whole ticks, pausing first if it is running (C3).
+   *
+   * `simulation.step` is refused outright while the runner's timer is going —
+   * so a Step button on a running simulation used to print a red error rather
+   * than doing the obvious thing. Pausing first is two existing commands in
+   * sequence, entirely renderer-side.
+   * @param {number} ticks
+   */
+  async stepTicks(ticks) {
+    if (this.#runState.paused !== true) {
+      const paused = await this.sendCommand({ type: 'simulation.pause' });
+      if (!paused?.ok) {
+        this.#ui.controls.showResult({ type: 'simulation.pause' }, paused);
+        return paused;
+      }
     }
+    const result = await this.sendCommand({ type: 'simulation.step', ticks });
+    this.#ui.controls.showResult({ type: 'simulation.step', ticks }, result);
+    return result;
+  }
+
+  /** Pause or resume, whichever the host is not currently doing. */
+  async toggleRun() {
+    const command = { type: this.#runState.paused ? 'simulation.resume' : 'simulation.pause' };
+    const result = await this.sendCommand(command);
+    this.#ui.controls.showResult(command, result);
     return result;
   }
 
@@ -565,11 +618,7 @@ export class RendererApp {
           else handled = false;
           break;
         case ' ':
-          if (this.#mode === 'live') {
-            this.sendCommand({ type: this.#simPaused ? 'simulation.resume' : 'simulation.pause' }).then((result) =>
-              this.#ui.controls.showResult({ type: this.#simPaused ? 'simulation.pause' : 'simulation.resume' }, result),
-            );
-          }
+          if (this.#mode === 'live') this.toggleRun();
           break;
         default:
           handled = false;
@@ -600,7 +649,7 @@ export class RendererApp {
   // ----------------------------------------------------------------- panels
 
   #updatePanels() {
-    this.#ui.statusPanel.update(this.#store, this.#camera);
+    this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
     this.#ui.inspector.render(this.#store, this.#inspectionDetail, this.#selectedCellDetail());
     this.#ui.eventLog.render(this.#store);
   }
