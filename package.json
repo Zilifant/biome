@@ -14,7 +14,11 @@
     "benchmark": "node src/scripts/benchmark.js",
     "fixtures:renderer": "node src/scripts/generateRendererFixtures.js",
     "test": "node --test",
-    "test:watch": "node --test --watch"
+    "test:watch": "node --test --watch",
+    "test:ui": "playwright test",
+    "test:ui:headed": "playwright test --headed",
+    "test:ui:update": "playwright test --update-snapshots",
+    "test:ui:report": "playwright show-report"
   },
   "dependencies": {
     "express": "^5.1.0",
