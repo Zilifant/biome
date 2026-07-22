@@ -111,8 +111,11 @@ export class AsciiGridRenderer {
    *        (protocol v22), so its groupmates can be picked out of a crowd
    * @param {{x: number, y: number, radius: number} | null} [options.homeRange]
    *        the selected animal's settled range (protocol v23), drawn as a ring
+   * @param {{cellX: number, cellY: number} | null} [options.hoverCell]
+   *        the cell under the pointer, framed in yellow corner brackets (the
+   *        cursor is hidden over the grid) — grey fill stays selection-only
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -298,6 +301,17 @@ export class AsciiGridRenderer {
       const cell = worldCellOf(followed, world);
       const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
       this.#drawBrackets(px, py, cellSize, this.#color('cyan'));
+    }
+    // Hover mark, drawn last so it sits above everything: yellow corner brackets
+    // on the cell under the pointer, standing in for the hidden cursor. Skipped
+    // when it coincides with the selected cell, which already carries brackets
+    // (over its grey fill) — the grey fill is deliberately selection-only.
+    if (
+      hoverCell &&
+      !(selectedCell && hoverCell.cellX === selectedCell.cellX && hoverCell.cellY === selectedCell.cellY)
+    ) {
+      const { px, py } = projection.cellToScreen(hoverCell.cellX, hoverCell.cellY);
+      this.#drawBrackets(px, py, cellSize, this.#color('bright-yellow'));
     }
   }
 

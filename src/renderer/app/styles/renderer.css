@@ -72,12 +72,37 @@ body {
 .bad { color: var(--dracula-red); }
 .dim { color: var(--dracula-comment); }
 
-/* ---- main area ---- */
+/* ---- main area ----
+   Three columns: the event log has its own column on the left, the grid in the
+   middle, the controls/inspector/legend/metrics sidebar on the right. */
 #main {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 260px 1fr 300px;
   gap: 4px;
   min-height: 0;
+}
+
+/* ---- events column (left) ---- */
+#events-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#events-column section {
+  background: var(--dracula-background-dark);
+  border: 1px solid var(--dracula-selection);
+  padding: 6px 8px;
+}
+
+#events-column h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dracula-purple);
 }
 
 #viewport-wrap {
@@ -90,19 +115,24 @@ body {
 
 #biome-canvas {
   display: block;
-  cursor: grab;
+  /* The cursor is hidden over the grid; the hovered cell is marked by yellow
+     corner brackets drawn on the canvas instead (RendererApp tracks the hover
+     cell). An arrow points between cells — brackets frame the one you mean. */
+  cursor: none;
   /* The canvas handles its own pan gesture; without this a drag selects text
      and the browser's own scroll takes over on touch. */
   touch-action: none;
 }
 
 #biome-canvas.dragging {
-  cursor: grabbing;
+  cursor: move;
 }
 
+/* No focus ring on the grid. It is redundant with the on-canvas selection and
+   hover marks, and pressing Esc used to flip :focus-visible on and paint a
+   purple border around the whole map. */
 #biome-canvas:focus-visible {
-  outline: 2px solid var(--dracula-purple);
-  outline-offset: -2px;
+  outline: none;
 }
 
 /* ---- sidebar ---- */
@@ -132,6 +162,39 @@ body {
   margin: 8px 0 4px;
   font-size: 11px;
   color: var(--dracula-comment);
+}
+
+/* ---- minimizable panels ----
+   Each top-level panel whose header is an <h2> (Controls, Population, Events)
+   toggles a `collapsed` class on its <section> when the header is clicked (see
+   ui/collapsible.js); the open-set is remembered in localStorage. The Legend is
+   already a <details>, so it collapses on its own. A text +/- marker keeps the
+   panels monospace-honest and matches the inspector's collapsible sections. */
+#sidebar section > h2,
+#events-column section > h2 {
+  cursor: pointer;
+  user-select: none;
+}
+
+#sidebar section > h2::before,
+#events-column section > h2::before {
+  content: "- ";
+}
+
+#sidebar section.collapsed > h2::before,
+#events-column section.collapsed > h2::before {
+  content: "+ ";
+}
+
+/* Collapsed: keep the header, hide everything else in the panel. */
+#sidebar section.collapsed > :not(h2),
+#events-column section.collapsed > :not(h2) {
+  display: none;
+}
+
+#sidebar section.collapsed > h2,
+#events-column section.collapsed > h2 {
+  margin-bottom: 0;
 }
 
 .hint {
@@ -449,12 +512,19 @@ input:focus-visible {
   padding: 0;
 }
 
-/* ---- event log ---- */
+/* ---- event log ----
+   It lives in its own left column and fills it, unless collapsed (then it
+   shrinks to just its header). */
 #event-log-panel {
   flex: 1;
   min-height: 120px;
   display: flex;
   flex-direction: column;
+}
+
+#event-log-panel.collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .log-filter {

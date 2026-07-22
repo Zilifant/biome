@@ -79,6 +79,7 @@ app/
     EventLog.js               bounded domain-event list (moves filtered by default)
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
+    collapsible.js            click a panel's h2 header to minimize it (state in localStorage)
   styles/
     dracula.css               the Dracula Classic palette (single source of color)
     renderer.css              layout and panel styling
@@ -151,10 +152,11 @@ the remembered open/closed state, so it must be stable.
 
 | Input                  | Action (all renderer-local except commands)                                                              |
 | ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| Drag                   | Pan camera (cancels follow; a drag never selects)                                                        |
+| Hover                  | Cursor is hidden over the grid; the cell under the pointer is framed in yellow corner brackets           |
+| Drag                   | Pan camera (`move` cursor; cancels follow; a drag never selects)                                          |
 | Arrow keys / WASD      | Pan camera (Shift = 10 cells)                                                                            |
 | `+` / `-`, mouse wheel | Zoom (wheel is anchored near the cursor)                                                                 |
-| Click                  | Select a cell — ground included (highest-priority occupant active)                                       |
+| Click                  | Select a cell — ground included (highest-priority occupant active); grey fill marks the selected cell    |
 | Click `#123`           | Select and centre that entity, from the inspector or event log                                           |
 | Tab                    | Cycle occupants of the selected cell                                                                     |
 | F                      | Follow / unfollow the selected entity (camera-only)                                                      |
@@ -166,6 +168,12 @@ the remembered open/closed state, so it must be stable.
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
+
+**Layout.** The event log has its own column on the left; the grid is in the
+middle; the controls, inspector, legend, and metrics sit in the sidebar on the
+right. Every panel minimizes — click its header (the Legend is a `<details>`, the
+rest toggle a `collapsed` class via `collapsible.js`); the collapsed set is
+remembered in `localStorage`.
 
 ## Run state is reported, not remembered
 

@@ -16,6 +16,7 @@ import { InspectorPanel } from './ui/InspectorPanel.js';
 import { MetricsPanel } from './ui/MetricsPanel.js';
 import { EventLog } from './ui/EventLog.js';
 import { Controls } from './ui/Controls.js';
+import { makeSectionsCollapsible } from './ui/collapsible.js';
 
 const params = new URLSearchParams(window.location.search);
 const fixtureMode = params.get('mode') === 'fixture' || params.get('fixture') === '1';
@@ -75,6 +76,14 @@ ui.controls = new Controls(document.getElementById('controls-panel'), {
   onRecenter: () => appRef.current.recenter(),
   onReconnect: () => appRef.current.reconnect(),
 });
+
+// Each h2-headed panel folds up when its header is clicked (the Legend is
+// already a <details>, so it is not listed here).
+makeSectionsCollapsible([
+  document.getElementById('controls-panel'),
+  document.getElementById('metrics-panel'),
+  document.getElementById('event-log-panel'),
+]);
 
 const app = new RendererApp({
   store,

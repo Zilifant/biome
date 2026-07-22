@@ -37,6 +37,13 @@ export class RendererApp {
   #hasCentered = false;
   #recovering = false;
   /**
+   * The cell under the pointer, or null when the pointer is off the grid or a
+   * drag is in progress. Drawn as yellow corner brackets (the cursor itself is
+   * hidden over the grid), distinct from the selected cell's grey fill.
+   * @type {{cellX: number, cellY: number} | null}
+   */
+  #hoverCell = null;
+  /**
    * The host's run state, as *reported* rather than remembered (C1). This used
    * to be a single `paused` flag fetched once at startup and updated only by
    * commands this client sent — so anything else pausing the simulation left
@@ -141,6 +148,7 @@ export class RendererApp {
           huntTargetId: this.#huntTargetId(),
           groupId: this.#selectedGroupId(),
           homeRange: this.#selectedHomeRange(),
+          hoverCell: this.#hoverCell,
         });
         this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
       }
@@ -588,6 +596,32 @@ export class RendererApp {
 
   // -------------------------------------------------------------------- input
 
+  /**
+   * Set the hovered cell (or clear it with null), redrawing only when it
+   * actually changes so pointer moves within one cell cost nothing.
+   * @param {{cellX: number, cellY: number} | null} cell
+   */
+  #setHoverCell(cell) {
+    const same =
+      cell === null
+        ? this.#hoverCell === null
+        : this.#hoverCell !== null && this.#hoverCell.cellX === cell.cellX && this.#hoverCell.cellY === cell.cellY;
+    if (same) return;
+    this.#hoverCell = cell;
+    this.#dirty = true;
+  }
+
+  /** The in-world cell under a pointer event, or null if it is off the map. */
+  #cellUnderPointer(event) {
+    const rect = this.#canvas.getBoundingClientRect();
+    const projection = createProjection(this.#camera, this.#grid.cssWidth, this.#grid.cssHeight);
+    const cell = projection.cellAtScreen(event.clientX - rect.left, event.clientY - rect.top);
+    const world = this.#store.world;
+    const inWorld =
+      world && cell.cellX >= 0 && cell.cellY >= 0 && cell.cellX < world.width && cell.cellY < world.height;
+    return inWorld ? cell : null;
+  }
+
   #bindPointer() {
     // Drag-to-pan. The minimum cell size is 10px, so a large world does not fit
     // the viewport at any zoom level and the mouse has to be able to reach the
@@ -597,11 +631,18 @@ export class RendererApp {
     let dragging = null;
     this.#canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      // Hide the hover mark while a press is held — it re-appears on the next
+      // move once the press is a click (selection) or a drag (pan) is done.
+      this.#setHoverCell(null);
       dragging = { startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false };
       this.#canvas.setPointerCapture(event.pointerId);
     });
     this.#canvas.addEventListener('pointermove', (event) => {
-      if (!dragging) return;
+      if (!dragging) {
+        // Not dragging: track the hovered cell for the on-canvas hover marker.
+        this.#setHoverCell(this.#cellUnderPointer(event));
+        return;
+      }
       const dx = event.clientX - dragging.lastX;
       const dy = event.clientY - dragging.lastY;
       if (
@@ -623,6 +664,9 @@ export class RendererApp {
       this.#canvas.classList.add('dragging');
       this.#dirty = true;
     });
+    // Leaving the grid clears the hover mark; a pointer over the sidebar is not
+    // over any cell.
+    this.#canvas.addEventListener('pointerleave', () => this.#setHoverCell(null));
     const endDrag = (event) => {
       if (!dragging) return;
       const wasDrag = dragging.moved;
