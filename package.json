@@ -21,6 +21,9 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/cli": "^0.1.17",
+    "@playwright/test": "^1.61.1",
     "nodemon": "^3.1.0"
   }
 }
