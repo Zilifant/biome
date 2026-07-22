@@ -128,7 +128,7 @@ describe('terrain-aware movement', () => {
 describe('movement sandbox scenario (seed fixed)', () => {
   test('an animal blocked by rock turns away and never breaches the wall', () => {
     const engine = createDemoSimulation({ seed: 42 });
-    // The demo terrain has a rock ridge; run and assert the invariant that no
+    // The demo terrain has scattered rock; run and assert the invariant that no
     // living animal is ever on rock, and that blocked animals keep a valid
     // intent (they re-target rather than getting stuck on the wall).
     let sawBlockedRetarget = false;

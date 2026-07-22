@@ -79,30 +79,6 @@ note is the step that opened the item.
 
 These are real problems in shipped code, not deliberate simplifications.
 
-**⚠ C8 — Animals pile up at the world boundary** _(from Steps 5, 28)_
-
-Animals spend about **49% of their time within two cells of the world
-boundary**, which is 6% of the map area — a 13× concentration. Movement
-_clamps_ at the edge, so an animal whose heading points off-map slides along the
-wall instead of turning away, and they accumulate there.
-
-Measured with ecosystem engineering **disabled**, so it is pre-existing and not
-caused by trails; engineering adds only ~4.6 points on top via trail attraction.
-It has been present since terrain-aware locomotion landed and was invisible
-until the feature layer gave the world an occupancy heatmap — 78% of trail cells
-formed on the edge, which is what led to looking.
-
-_Why it is still open:_ reflecting the heading at a boundary instead of clamping
-is the obvious fix, but it changes movement behaviour for **every** system that
-reads position, and the demo's balance is a knife edge (see D14). It needs its
-own ten-seed measurement, which is more than a bug fix. It is also **not a
-performance item** despite being inherited by the optimization step — it is a
-behaviour bug wearing a performance costume, and any occupancy-sensitive
-optimization (spatial hashing, culling) should know the distribution is that
-lopsided before assuming uniformity.
-
-This is the largest open item in the project.
-
 **⚠ A31 — The selection sandbox has never demonstrated its claim** _(from Steps
 21, 23)_
 
@@ -290,6 +266,7 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | C5  | Reproduction exploded exponentially (8 → 1037 by tick 20 000)                                                                | Step 16 — predation is the limiter                                                                                                                                                                                                                        |
 | C6  | Two separate neighbour walks per animal per tick                                                                             | Step 30 — perception publishes its walk; sociality reads it (15.30 → 5.03 ms/tick)                                                                                                                                                                        |
 | C7  | Movement uses the **current** cell's terrain modifier, and feeding is **in-cell**                                            | _Settled_ — two deliberate modelling choices                                                                                                                                                                                                              |
+| C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge |
 
 ---
 
@@ -828,9 +805,20 @@ steps along the intent, applies the terrain speed modifier, refuses impassable
 cells, and on a block turns around (π) and expires the commitment so decision
 re-commits. Sprinting spends stamina; exhausted animals drop to a walk.
 
-Two deliberate modelling choices: movement uses the **current** cell's terrain
-modifier (the terrain the animal is moving _through_), and positions are
-**clamped** at world bounds — which is the cause of ⚠ C8 (§1.1).
+⚠ **A step that would cross a world wall is reflected, not clamped** (this
+closed C8, §1.6). If the raw target leaves the map on an axis, that velocity
+component is flipped and the heading re-derived, so an animal aimed off-map
+bounces back inward and the reflected heading is committed (it keeps leading
+away rather than re-aiming at the wall next tick). Clamping the target used to
+pin animals to the boundary — the clamped edge cell is still passable, so they
+moved there and stayed — and they spent ~49% of their time in the 2-cell edge
+band; reflection cut that to ~14% over ten seeds with no loss of demo survival.
+Reflection preserves the step _length_ (it flips a component's sign), so the
+single-step speed ceiling still holds. `world.clampX/clampY` remain as a
+final safety net but are a no-op in the common case.
+
+One deliberate modelling choice remains: movement uses the **current** cell's
+terrain modifier (the terrain the animal is moving _through_).
 
 ### Metabolism and physiology
 

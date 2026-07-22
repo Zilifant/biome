@@ -70,13 +70,30 @@ export class MovementSystem extends SimulationSystem {
       // compartment on read, so it can never disagree with the disease state.
       const ill = 1 - diseaseSeverity(entity, this.diseaseSpeedPenalty);
       const step = entity.speed * pace * injured * ill * world.speedModifierAt(entity.x, entity.y);
-      const targetX = world.clampX(entity.x + Math.cos(intent.heading) * step);
-      const targetY = world.clampY(entity.y + Math.sin(intent.heading) * step);
+
+      // Reflect the heading off any world wall this step would cross, so an
+      // animal aimed off-map turns back inward instead of sliding along the edge
+      // (C8). Clamping the target used to pin it to the boundary: the clamped
+      // cell is still passable, so it moved there and stayed, and animals spent
+      // ~half their time in the 2-cell edge band. Reflection is a bounce — flip
+      // the offending velocity component and re-derive the heading — and the new
+      // heading is committed so it keeps leading away rather than re-aiming at
+      // the wall next tick.
+      let heading = intent.heading;
+      let dx = Math.cos(heading) * step;
+      let dy = Math.sin(heading) * step;
+      let bounced = false;
+      if (entity.x + dx < 0 || entity.x + dx > world.width) { dx = -dx; bounced = true; }
+      if (entity.y + dy < 0 || entity.y + dy > world.height) { dy = -dy; bounced = true; }
+      if (bounced) heading = normalizeAngle(Math.atan2(dy, dx));
+      const targetX = world.clampX(entity.x + dx);
+      const targetY = world.clampY(entity.y + dy);
 
       if (world.isPassableAt(targetX, targetY)) {
         const from = { x: entity.x, y: entity.y };
-        world.moveEntity(entity, targetX, targetY, intent.heading);
+        world.moveEntity(entity, targetX, targetY, heading);
         entity.lastMoveDistance = Math.hypot(entity.x - from.x, entity.y - from.y);
+        if (bounced) intent.heading = heading;
         context.emit(EventTypes.ENTITY_MOVED, {
           entityId: entity.id,
           from,

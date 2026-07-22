@@ -23,13 +23,6 @@ they are not re-opened by accident.
 
 ## Engine — known defects
 
-- **⚠ C8 — Animals pile up at the world boundary.** They spend ~49% of their
-  time within two cells of the edge (6% of the map area) because movement
-  _clamps_ there instead of turning away. Present since terrain-aware locomotion
-  landed; measured with engineering disabled, so trails are not the cause.
-  Reflecting the heading instead of clamping changes movement for every system
-  that reads position, so it needs its own ten-seed measurement.
-
 - **⚠ A31 — The selection sandbox has never demonstrated its claim.** An unmet
   acceptance criterion. Over seven seeds the trait rose in 3 and fell in 4 (mean
   change −0.0002), with the selection differential negative in five and its sign
