@@ -7,10 +7,16 @@
  * `countColor`, since a `<canvas>` grid is opaque to DOM queries — `getImageData`
  * is the only way to see what was actually drawn.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { test as base, expect, chromium } from '@playwright/test';
-import { installAppRoutes, LAUNCH_OPTIONS, APP_ORIGIN } from './serveApp.js';
+import { installAppRoutes, LAUNCH_OPTIONS, APP_ORIGIN, REPO_ROOT } from './serveApp.js';
 
 export { expect };
+
+/** The committed full snapshot, used to render a world in mocked live mode. */
+const SNAPSHOT = JSON.parse(readFileSync(path.join(REPO_ROOT, 'src/renderer/fixtures/example-full-snapshot.json'), 'utf8'));
+const PROTOCOL_VERSION = SNAPSHOT.protocolVersion;
 
 const CONTEXT_OPTIONS = {
   baseURL: APP_ORIGIN,
@@ -38,7 +44,7 @@ function isBrowserCrash(error) {
  *    never create a throwaway probe — the page we render is the page the test
  *    uses.
  */
-async function launchRenderedPage(attempts = 8) {
+async function launchAndNavigate(navigate, attempts = 8) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     let browser;
@@ -47,8 +53,8 @@ async function launchRenderedPage(attempts = 8) {
       const context = await browser.newContext(CONTEXT_OPTIONS);
       await installAppRoutes(context);
       const page = await context.newPage();
-      await gotoFixture(page);
-      return { browser, page };
+      const extra = await navigate(page);
+      return { browser, page, extra };
     } catch (error) {
       lastError = error;
       if (browser) await browser.close().catch(() => {});
@@ -65,9 +71,24 @@ export const test = base.extend({
   // single-process browser. The browser lifecycle is owned here (not via the
   // built-in fixtures) so the launch retry can re-run the full navigate+render.
   appPage: async ({}, use) => {
-    const { browser, page } = await launchRenderedPage();
+    const { browser, page } = await launchAndNavigate(gotoFixture);
     try {
       await use(page);
+    } finally {
+      await browser.close().catch(() => {});
+    }
+  },
+
+  // Live mode against a mocked host: the WebSocket delivers the fixture snapshot
+  // (so a world renders and controls are live) and captures the commands the UI
+  // sends. Provides `{ page, commands }`, where `commands` is the array of
+  // protocol commands the UI has emitted so far — the way to test that a control
+  // sends the right thing. Commands travel over the WS in live mode (HTTP is
+  // only a fallback), so the mock echoes a `command.result` to each.
+  live: async ({}, use) => {
+    const { browser, page, extra } = await launchAndNavigate(gotoLive);
+    try {
+      await use({ page, commands: extra });
     } finally {
       await browser.close().catch(() => {});
     }
@@ -78,6 +99,73 @@ export const test = base.extend({
 export async function gotoFixture(page) {
   await page.goto('/?mode=fixture', { waitUntil: 'load' });
   await waitForRender(page);
+}
+
+/**
+ * Navigate to the app in live mode against a mocked host, and wait until the
+ * mocked world has painted. Returns the `commands` array the mock appends to as
+ * the UI emits protocol commands.
+ */
+export async function gotoLive(page) {
+  const commands = [];
+  await installLiveMocks(page, commands);
+  await page.goto('/', { waitUntil: 'load' });
+  await waitForRender(page);
+  return commands;
+}
+
+/**
+ * Mock the host in live mode. The WebSocket sends the snapshot on connect and
+ * records commands (echoing a result so the UI's pending promise resolves); the
+ * REST endpoints return benign canned data so status polling and recovery never
+ * error. Page-level routes take precedence over the context's static file server.
+ */
+async function installLiveMocks(page, commands) {
+  const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
+  const status = () => ({ protocolVersion: PROTOCOL_VERSION, running: true, paused: false, speed: 1, tick: SNAPSHOT.tick ?? 0, seed: 42, simulationId: SNAPSHOT.simulationId ?? 'test-live' });
+  const commandResult = (command) => ({ protocolVersion: PROTOCOL_VERSION, ok: true, tick: SNAPSHOT.tick ?? 0, seed: command?.seed ?? 42, simulationId: SNAPSHOT.simulationId ?? 'test-live', paused: command?.type === 'simulation.pause', speed: command?.multiplier ?? 1 });
+
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname.endsWith('/api/commands')) {
+      let command = {};
+      try {
+        command = route.request().postDataJSON();
+      } catch {
+        // no body
+      }
+      commands.push(command);
+      await route.fulfill(json(commandResult(command)));
+    } else if (pathname.endsWith('/api/status')) {
+      await route.fulfill(json(status()));
+    } else if (pathname.includes('/api/snapshot')) {
+      await route.fulfill(json(SNAPSHOT));
+    } else if (pathname.includes('/api/metrics')) {
+      await route.fulfill(json({ protocolVersion: PROTOCOL_VERSION, tick: SNAPSHOT.tick ?? 0, species: [] }));
+    } else if (pathname.includes('/api/entities/')) {
+      await route.fulfill(json({ protocolVersion: PROTOCOL_VERSION, found: false }));
+    } else {
+      await route.fulfill(json({ protocolVersion: PROTOCOL_VERSION, ok: true }));
+    }
+  });
+
+  await page.routeWebSocket('**/ws', (ws) => {
+    // Render a world immediately.
+    ws.send(JSON.stringify({ type: 'snapshot.full', payload: SNAPSHOT }));
+    // Capture commands and acknowledge them so the UI does not time out.
+    ws.onMessage((message) => {
+      let frame;
+      try {
+        frame = JSON.parse(typeof message === 'string' ? message : message.toString());
+      } catch {
+        return;
+      }
+      if (frame?.type === 'command') {
+        commands.push(frame.command);
+        ws.send(JSON.stringify({ type: 'command.result', requestId: frame.requestId, payload: commandResult(frame.command) }));
+      }
+    });
+  });
 }
 
 /**

@@ -38,7 +38,10 @@ unsandboxed.
 
 ## Writing a test
 
-Use the `appPage` fixture — a page already booted in fixture mode and painted:
+Two fixtures cover the two kinds of UI work.
+
+**`appPage`** — a page booted in offline fixture mode and painted. Use it for
+layout, panels, styling, canvas rendering, and grid interaction:
 
 ```js
 import { test, expect } from './helpers/app.js';
@@ -47,6 +50,26 @@ test('…', async ({ appPage: page }) => {
   await expect(page.locator('#events-column')).toBeVisible();
 });
 ```
+
+**`live`** — the app in live mode against a *mocked* host: a mocked WebSocket
+renders the fixture world and records every command the UI sends. Use it for any
+control that steers the simulation (pause/step/speed/restart, and their
+validation). It yields `{ page, commands }`, where `commands` is the growing
+array of protocol commands emitted:
+
+```js
+test('a control sends the right command', async ({ live: { page, commands } }) => {
+  const before = commands.length;
+  await page.locator('#ctl-faster').click();
+  await expect.poll(() => commands.slice(before).map((c) => c.type)).toContain('simulation.setSpeed');
+});
+```
+
+Snapshot the length before the action and assert on `commands.slice(before)`, so
+background commands don't confuse the check. `controls.spec.js` is the worked
+example (pause, speed, restart-with-parameters, client-side validation). The
+mocked host is `installLiveMocks` in `helpers/app.js`; extend it (e.g. a richer
+`/api/metrics`) when a test needs more than the default canned data.
 
 ### Asserting on the canvas
 

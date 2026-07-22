@@ -34,6 +34,24 @@ to run, the controls, and what the renderer does with each protocol layer.
 and when a decision was made); `HANDOFF-RENDERER.md` is the superseded handoff
 summary. All sit beside this file.
 
+## UI tests
+
+Browser-level tests live in [`tests-ui/`](../../tests-ui/) (Playwright), separate
+from the engine's `node --test` suite:
+
+```bash
+npm run test:ui           # headless; runs offline, no server, no prompts
+npm run test:ui:headed    # watch in a window
+```
+
+**When you add or change a UI feature, add or update a test there.** Two
+fixtures cover the two cases: `appPage` (offline fixture mode — layout, panels,
+canvas rendering, selection/hover/drag) and `live` (a mocked host — for controls
+that send commands, exposing the `commands` the UI emitted). The canvas is
+tested by sampling pixels, since it is opaque to DOM queries. See
+[`tests-ui/README.md`](../../tests-ui/README.md) for how it runs offline and how
+to write a test.
+
 ## Architectural boundary
 
 The renderer is fully self-contained in `app/`. It imports **nothing** from
