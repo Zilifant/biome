@@ -221,6 +221,16 @@ The **Restart** panel rebuilds the world from a seed (protocol v28). Name a seed
 for a specific world, press **Random seed** to get any world, or **Replay this
 one** to start the current seed over.
 
+The panel also sets the **world size** (width × height) and the **starting
+numbers** of herbivores, predators, and scavengers. These describe the world to
+build, so they apply to whichever restart button you press — the seed only
+varies which world you get within those settings. The fields open on the demo
+defaults (128×128, 120/8/10) and their maxima are deliberately high — up to a
+1024×1024 world and tens of thousands of founders — so you can push the sim to
+its performance ceiling; a world near both maxima runs slowly but does not
+crash. Each field is validated against the same bounds the host enforces, and an
+omitted field falls back to the host's default.
+
 **The host picks the random seed, not the renderer.** Presentation has to be
 reproducible from its inputs, and `Math.random` is banned in `app/` for the same
 reason it is banned in the engine —

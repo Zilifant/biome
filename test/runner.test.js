@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationRunner } from '../src/server/SimulationRunner.js';
-import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { createDemoSimulation, buildDemoConfig } from '../src/fixtures/createDemoSimulation.js';
 import { applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 
 /** A paused runner over the demo world, with every emission captured. */
@@ -118,6 +118,48 @@ describe('runner: restart', () => {
     // feature rests on.
     const reference = new SimulationRunner({ engine: createDemoSimulation({ seed: 7 }) });
     assert.deepEqual(runner.getFullSnapshot().entities, reference.getFullSnapshot().entities);
+  });
+
+  test('restart composition options reach the engine factory (world size and founders)', () => {
+    // The runner does not know how a world is composed — it hands the options to
+    // the factory the host supplied. This mirrors createServer's factory, which
+    // routes them through buildDemoConfig.
+    const runner = new SimulationRunner({
+      engine: createDemoSimulation({ seed: 1 }),
+      createEngine: (nextSeed, options) => createDemoSimulation({ seed: nextSeed, config: buildDemoConfig(options ?? {}) }),
+    });
+    runner.pause();
+    const result = runner.handleCommand({
+      type: 'simulation.restart',
+      seed: 3,
+      width: 200,
+      height: 96,
+      herbivores: 40,
+      predators: 5,
+      scavengers: 0,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(runner.engine.world.width, 200);
+    assert.equal(runner.engine.world.height, 96);
+    const counts = {};
+    for (const entity of runner.engine.world.entities.all()) {
+      if (entity.kind === 'animal') counts[entity.speciesId] = (counts[entity.speciesId] ?? 0) + 1;
+    }
+    assert.equal(counts['herbivore.grazer'], 40);
+    assert.equal(counts['predator.stalker'], 5);
+    assert.equal(counts['scavenger.corvid'] ?? 0, 0, 'a zero count clears the role');
+  });
+
+  test('a restart with no composition options keeps the demo defaults', () => {
+    const runner = new SimulationRunner({
+      engine: createDemoSimulation({ seed: 1 }),
+      createEngine: (nextSeed, options) => createDemoSimulation({ seed: nextSeed, config: buildDemoConfig(options ?? {}) }),
+    });
+    runner.pause();
+    runner.handleCommand({ type: 'simulation.restart', seed: 3 });
+    const reference = createDemoSimulation({ seed: 3 });
+    assert.equal(runner.engine.world.width, reference.world.width);
+    assert.deepEqual(runner.getFullSnapshot().entities, new SimulationRunner({ engine: reference }).getFullSnapshot().entities);
   });
 
   test('restarting broadcasts a full snapshot, never a delta', () => {

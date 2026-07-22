@@ -9,9 +9,14 @@
 import {
   CommandTypes,
   ENTITY_KINDS,
+  MAX_FOUNDING_HERBIVORES,
+  MAX_FOUNDING_PREDATORS,
+  MAX_FOUNDING_SCAVENGERS,
   MAX_MANUAL_STEP_TICKS,
   MAX_SEED,
   MAX_SPEED_MULTIPLIER,
+  MAX_WORLD_DIMENSION,
+  MIN_WORLD_DIMENSION,
   SEXES,
 } from './commands.js';
 
@@ -32,6 +37,20 @@ function isPlainObject(value) {
 function requireFiniteNumber(value, path, errors) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     errors.push({ path, message: 'must be a finite number' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Validate a field that is optional but, when present, must be an integer in
+ * [min, max]. Pushes one error and returns false on a violation; a missing
+ * field is silently accepted.
+ */
+function validateOptionalIntInRange(value, path, min, max, errors) {
+  if (value === undefined) return true;
+  if (!Number.isInteger(value) || value < min || value > max) {
+    errors.push({ path, message: `must be an integer in [${min}, ${max}]` });
     return false;
   }
   return true;
@@ -126,6 +145,15 @@ export function validateCommand(command) {
           errors.push({ path: 'seed', message: `must be an integer in [0, ${MAX_SEED}]` });
         }
       }
+      // Optional world composition: dimensions and per-role founder counts.
+      // Each is independently optional; an omitted field keeps the demo default.
+      // Bounds are the protocol's, so a hostile or fat-fingered field is refused
+      // here rather than crashing the build (see MAX_* in commands.js).
+      validateOptionalIntInRange(command.width, 'width', MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION, errors);
+      validateOptionalIntInRange(command.height, 'height', MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION, errors);
+      validateOptionalIntInRange(command.herbivores, 'herbivores', 0, MAX_FOUNDING_HERBIVORES, errors);
+      validateOptionalIntInRange(command.predators, 'predators', 0, MAX_FOUNDING_PREDATORS, errors);
+      validateOptionalIntInRange(command.scavengers, 'scavengers', 0, MAX_FOUNDING_SCAVENGERS, errors);
       break;
     case CommandTypes.ENTITY_SPAWN:
       validateSpawnEntity(command.entity, errors);

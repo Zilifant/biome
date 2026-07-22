@@ -36,6 +36,31 @@ const MAX_STEP_TICKS = 10000;
 /** Matches the protocol's MAX_SEED (unsigned 32-bit), restated for the same reason. */
 const MAX_SEED = 0xffffffff;
 
+/**
+ * World-composition bounds, restated from the protocol's MAX_* (the renderer
+ * imports nothing from `src/protocol`; the host validates regardless). The
+ * maxima are deliberately high — a ~1M-cell world, tens of thousands of
+ * founders — so the fields can push the sim to its performance ceiling without
+ * letting through a value certain to be refused.
+ */
+const MIN_WORLD_DIMENSION = 16;
+const MAX_WORLD_DIMENSION = 1024;
+const MAX_FOUNDING = Object.freeze({ herbivores: 20000, predators: 5000, scavengers: 5000 });
+
+/**
+ * Default world composition, restated so the restart fields open on the demo's
+ * actual starting values. The host still applies its own defaults for any field
+ * a command omits; these only prefill the inputs. Keep in step with
+ * `defaultSimulationConfig.world` and `.demo.founding`.
+ */
+const DEFAULTS = Object.freeze({
+  width: 128,
+  height: 128,
+  herbivores: 120,
+  predators: 8,
+  scavengers: 10,
+});
+
 export class Controls {
   #els;
   #callbacks;
@@ -99,6 +124,25 @@ export class Controls {
             <button type="button" id="ctl-restart-random">Random seed</button>
             <button type="button" id="ctl-restart-same">Replay this one</button>
           </div>
+          <p class="hint">World size and starting numbers apply to whichever restart you run. Big values stress the sim.</p>
+          <div class="control-row">
+            <label for="ctl-world-w" class="dim">world</label>
+            <input type="number" id="ctl-world-w" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.width}" aria-label="World width" />
+            <span class="dim">×</span>
+            <input type="number" id="ctl-world-h" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.height}" aria-label="World height" />
+          </div>
+          <div class="control-row">
+            <label for="ctl-herbivores" class="dim">herbivores</label>
+            <input type="number" id="ctl-herbivores" min="0" max="${MAX_FOUNDING.herbivores}" step="1" value="${DEFAULTS.herbivores}" aria-label="Starting herbivores" />
+          </div>
+          <div class="control-row">
+            <label for="ctl-predators" class="dim">predators</label>
+            <input type="number" id="ctl-predators" min="0" max="${MAX_FOUNDING.predators}" step="1" value="${DEFAULTS.predators}" aria-label="Starting predators" />
+          </div>
+          <div class="control-row">
+            <label for="ctl-scavengers" class="dim">scavengers</label>
+            <input type="number" id="ctl-scavengers" min="0" max="${MAX_FOUNDING.scavengers}" step="1" value="${DEFAULTS.scavengers}" aria-label="Starting scavengers" />
+          </div>
         </div>
       </details>
       <p id="command-status" class="command-status" aria-live="polite"></p>`;
@@ -118,6 +162,11 @@ export class Controls {
       restart: container.querySelector('#ctl-restart'),
       restartRandom: container.querySelector('#ctl-restart-random'),
       restartSame: container.querySelector('#ctl-restart-same'),
+      worldW: container.querySelector('#ctl-world-w'),
+      worldH: container.querySelector('#ctl-world-h'),
+      herbivores: container.querySelector('#ctl-herbivores'),
+      predators: container.querySelector('#ctl-predators'),
+      scavengers: container.querySelector('#ctl-scavengers'),
       status: container.querySelector('#command-status'),
     };
 
@@ -202,8 +251,42 @@ export class Controls {
       this.setStatus(`seed must be a whole number in [0, ${MAX_SEED}]`, 'bad');
       return;
     }
-    const command = seed === undefined ? { type: 'simulation.restart' } : { type: 'simulation.restart', seed };
+    // The world-composition fields apply to every restart (seeded, random, or
+    // replay): they describe the world to build, and the seed only varies which
+    // one within it. A blank or out-of-range field stops the restart with an
+    // explanation rather than silently falling back.
+    const composition = this.#compositionParams();
+    if (!composition) return;
+    const command = { type: 'simulation.restart', ...composition };
+    if (seed !== undefined) command.seed = seed;
     this.#callbacks.onRestart(command);
+  }
+
+  /**
+   * Read and validate the world-composition fields. Returns
+   * `{ width, height, herbivores, predators, scavengers }` or null (after
+   * setting a status message) if any field is out of range. Bounds mirror the
+   * host's; the host validates again regardless.
+   * @returns {object | null}
+   */
+  #compositionParams() {
+    const fields = [
+      ['width', this.#els.worldW, MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION],
+      ['height', this.#els.worldH, MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION],
+      ['herbivores', this.#els.herbivores, 0, MAX_FOUNDING.herbivores],
+      ['predators', this.#els.predators, 0, MAX_FOUNDING.predators],
+      ['scavengers', this.#els.scavengers, 0, MAX_FOUNDING.scavengers],
+    ];
+    const params = {};
+    for (const [key, element, min, max] of fields) {
+      const value = Math.round(Number(element.value));
+      if (!Number.isFinite(value) || value < min || value > max) {
+        this.setStatus(`${key} must be a whole number in [${min}, ${max}]`, 'bad');
+        return null;
+      }
+      params[key] = value;
+    }
+    return params;
   }
 
   #advance() {
@@ -281,6 +364,11 @@ export class Controls {
       this.#els.restartRandom,
       this.#els.restartSame,
       this.#els.seed,
+      this.#els.worldW,
+      this.#els.worldH,
+      this.#els.herbivores,
+      this.#els.predators,
+      this.#els.scavengers,
       ...this.#els.steps,
     ]) {
       element.disabled = !enabled;

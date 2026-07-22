@@ -17,7 +17,7 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
-  SIMULATION_RESTART: 'simulation.restart', //     { seed? } rebuild the world
+  SIMULATION_RESTART: 'simulation.restart', //     { seed?, width?, height?, herbivores?, predators?, scavengers? } rebuild the world
   ENTITY_SPAWN: 'entity.spawn', //                { entity: {...} }
   ENTITY_REMOVE: 'entity.remove', //              { entityId }
 });
@@ -52,6 +52,23 @@ export const MAX_SPEED_MULTIPLIER = 64;
 /** Seeds are unsigned 32-bit, matching the engine's `seed >>> 0`. */
 export const MAX_SEED = 0xffffffff;
 export const MAX_MANUAL_STEP_TICKS = 10000;
+
+/**
+ * Bounds for the optional world-composition fields on `simulation.restart`.
+ * Chosen to let a caller push the engine toward its performance ceiling — a
+ * ~1M-cell world and tens of thousands of founders — without an out-of-memory
+ * or a runaway build: terrain/vegetation layers are typed arrays that stay in
+ * the tens of MB at the maximum dimension, founder spawning always terminates
+ * (rejection sampling falls back to a deterministic scan), and the runner ticks
+ * on a wall clock so a heavy world slows the tick rather than wedging the host.
+ * They are the guardrails, not recommendations; a caller combining both maxima
+ * on the same world will find it very slow, just not broken.
+ */
+export const MIN_WORLD_DIMENSION = 16;
+export const MAX_WORLD_DIMENSION = 1024;
+export const MAX_FOUNDING_HERBIVORES = 20000;
+export const MAX_FOUNDING_PREDATORS = 5000;
+export const MAX_FOUNDING_SCAVENGERS = 5000;
 
 /**
  * Successful command result.

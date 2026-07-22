@@ -33,6 +33,7 @@ import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
 import { DiseaseSystem } from '../simulation/systems/DiseaseSystem.js';
 import { infect } from '../simulation/disease/disease.js';
 import { getSpecies } from '../simulation/config/species/index.js';
+import { defaultSimulationConfig } from '../simulation/config/defaultSimulationConfig.js';
 import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
 import { Sexes } from '../simulation/mating/mateChoice.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
@@ -293,6 +294,49 @@ function populateDemoWorld(engine) {
       infect(patientZero, 0, incubationTicks);
     }
   }
+}
+
+/**
+ * The demo founding roles the renderer's restart panel exposes, mapped to the
+ * species that fill them. The roster in `config.demo.founding` is keyed by
+ * species id; the UI speaks in roles, so this is the one place that bridges the
+ * two. A species not named here keeps whatever count the default roster gives
+ * it.
+ */
+const FOUNDING_ROLE_BY_SPECIES = Object.freeze({
+  'herbivore.grazer': 'herbivores',
+  'predator.stalker': 'predators',
+  'scavenger.corvid': 'scavengers',
+});
+
+/**
+ * Translate the optional world-composition fields of a `simulation.restart`
+ * command into a config override merged over the demo defaults. Every field is
+ * optional: an omitted dimension or role count keeps the default. Bounds are
+ * the protocol's responsibility (validated before this runs); this only maps.
+ * @param {{width?: number, height?: number, herbivores?: number, predators?: number, scavengers?: number}} [options]
+ * @returns {object} partial config for createDemoSimulation
+ */
+export function buildDemoConfig(options = {}) {
+  const config = {};
+  if (options.width !== undefined || options.height !== undefined) {
+    config.world = {};
+    if (options.width !== undefined) config.world.width = options.width;
+    if (options.height !== undefined) config.world.height = options.height;
+  }
+  const overridesFounding =
+    options.herbivores !== undefined || options.predators !== undefined || options.scavengers !== undefined;
+  if (overridesFounding) {
+    config.demo = {
+      founding: defaultSimulationConfig.demo.founding.map(({ speciesId, count }) => {
+        const role = FOUNDING_ROLE_BY_SPECIES[speciesId];
+        const override = role ? options[role] : undefined;
+        // `?? count` (not `|| count`) so an explicit 0 clears a role.
+        return { speciesId, count: override ?? count };
+      }),
+    };
+  }
+  return config;
 }
 
 /**

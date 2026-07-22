@@ -74,16 +74,19 @@ export class SimulationRunner extends EventEmitter {
    * the seed you were already given.
    *
    * @param {number} [seed] omit to have the host pick one at random
+   * @param {object} [options] world-composition overrides (dimensions, founder
+   *        counts) handed to the engine factory; the factory decides what they
+   *        mean, keeping world *composition* out of the runner.
    * @returns {{seed: number, simulationId: string}}
    */
-  restart(seed) {
+  restart(seed, options = {}) {
     if (!this.#createEngine) {
       throw new Error('this runner was built without an engine factory and cannot restart');
     }
     const chosen = seed === undefined ? Math.floor(Math.random() * 0x100000000) : seed;
     const wasPaused = this.paused;
     this.#clearTimer();
-    this.engine = this.#createEngine(chosen >>> 0);
+    this.engine = this.#createEngine(chosen >>> 0, options);
     this.#lastSnapshot = this.getFullSnapshot();
     // The run state is the *host's*, not the world's, so it survives a restart:
     // a viewer who paused to look at something has not asked to be un-paused.
@@ -252,7 +255,8 @@ export class SimulationRunner extends EventEmitter {
         return okResult({ tick: this.engine.tick });
       case CommandTypes.SIMULATION_RESTART: {
         try {
-          const { seed, simulationId } = this.restart(command.seed);
+          const { width, height, herbivores, predators, scavengers } = command;
+          const { seed, simulationId } = this.restart(command.seed, { width, height, herbivores, predators, scavengers });
           return okResult({ seed, simulationId, tick: this.engine.tick, paused: this.paused, speed: this.speed });
         } catch (error) {
           return errorResult('restart-unsupported', String(error.message ?? error));

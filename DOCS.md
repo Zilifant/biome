@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 665 passing / 0 failing, 171 suites                    |
+| Tests                 | 667 passing / 0 failing, 171 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
 | Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |
@@ -1350,6 +1350,16 @@ or omit it and the **host** picks at random and reports back which it chose. The
 host rolls that die because `src/simulation`, `src/protocol`, and the renderer
 all ban unseeded randomness — a client that wants to replay a world simply names
 the seed it was given.
+
+It also takes optional **world-composition** fields — `width`, `height`, and the
+per-role founder counts `herbivores`, `predators`, `scavengers` — each bounded in
+`commands.js` (`MAX_WORLD_DIMENSION` and `MAX_FOUNDING_*`, set high enough to
+reach the performance ceiling without an OOM or a non-terminating build). They
+are additive and optional, so omitting them is the original behaviour and the
+protocol version did not move. The runner never learns world _composition_: it
+passes the options to the engine factory, and `buildDemoConfig` (in the demo
+fixture) is the single place that maps a role to its species id and to a
+`config.demo.founding` override.
 
 ### Snapshots
 

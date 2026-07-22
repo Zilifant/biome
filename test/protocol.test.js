@@ -33,6 +33,13 @@ describe('command validation', () => {
     { type: 'entity.remove' },
     { type: 'entity.remove', entityId: -1 },
     { type: 'entity.remove', entityId: 1.5 },
+    { type: 'simulation.restart', seed: -1 },
+    { type: 'simulation.restart', width: 8 }, // below MIN_WORLD_DIMENSION
+    { type: 'simulation.restart', height: 4096 }, // above MAX_WORLD_DIMENSION
+    { type: 'simulation.restart', width: 128.5 },
+    { type: 'simulation.restart', herbivores: -1 },
+    { type: 'simulation.restart', predators: 999999 },
+    { type: 'simulation.restart', scavengers: 2.5 },
   ];
 
   test('malformed commands are rejected with structured errors', () => {
@@ -52,6 +59,11 @@ describe('command validation', () => {
       { type: 'simulation.step', ticks: 5 },
       { type: 'entity.spawn', entity: { kind: 'plant', speciesId: 'demo.grass', x: 1, y: 2 } },
       { type: 'entity.remove', entityId: 123 },
+      { type: 'simulation.restart' },
+      { type: 'simulation.restart', seed: 7 },
+      { type: 'simulation.restart', seed: 7, width: 256, height: 128, herbivores: 300, predators: 20, scavengers: 0 },
+      { type: 'simulation.restart', width: 16, height: 1024 }, // the exact bounds are inclusive
+      { type: 'simulation.restart', herbivores: 20000, predators: 5000, scavengers: 5000 },
     ];
     for (const command of wellFormed) {
       assert.equal(validateCommand(command).ok, true, `expected acceptance: ${JSON.stringify(command)}`);

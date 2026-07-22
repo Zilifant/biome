@@ -7,7 +7,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { createDemoSimulation } from '../fixtures/createDemoSimulation.js';
+import { createDemoSimulation, buildDemoConfig } from '../fixtures/createDemoSimulation.js';
 import { SimulationRunner } from './SimulationRunner.js';
 import { createHttpRouter } from './transports/HttpTransport.js';
 import { attachWebSocketTransport } from './transports/WebSocketTransport.js';
@@ -37,7 +37,8 @@ export function createServer({
   const runner = new SimulationRunner({
     engine,
     tickIntervalMs,
-    createEngine: (nextSeed) => createDemoSimulation({ seed: nextSeed }),
+    createEngine: (nextSeed, options) =>
+      createDemoSimulation({ seed: nextSeed, config: buildDemoConfig(options ?? {}) }),
   });
 
   const app = express();

@@ -475,10 +475,25 @@ which is the check that no toggle is decorative.
 
 ### Restart with a seed (protocol v28)
 
-`simulation.restart { seed? }`, a runner-level command. A restart is the one
-change that cannot be a delta — no shared ids, tick, or `simulationId` — so the
-runner emits its own `restart` event and the WebSocket transport broadcasts a
-**full snapshot**, and the store _replaces_ its state. The renderer drops its
+`simulation.restart { seed?, width?, height?, herbivores?, predators?, scavengers? }`,
+a runner-level command. A restart is the one change that cannot be a delta — no
+shared ids, tick, or `simulationId` — so the runner emits its own `restart` event
+and the WebSocket transport broadcasts a **full snapshot**, and the store
+_replaces_ its state.
+
+The optional world-composition fields (dimensions and per-role founder counts)
+were added additively — omitting them reproduces the original behaviour, so the
+protocol version did not move. The layering is deliberate: the **renderer**
+speaks in roles (herbivores/predators/scavengers) and validates against restated
+bounds; the **runner** stays ignorant of world composition and hands the options
+to the engine factory the host gave it; `createServer`'s factory routes them
+through `buildDemoConfig`, which is the single place that maps a role to its
+species id (`herbivore.grazer`, `predator.stalker`, `scavenger.corvid`) and
+turns a count into a `config.demo.founding` override. Bounds are the protocol's
+(`MAX_WORLD_DIMENSION`, `MAX_FOUNDING_*` in `commands.js`), chosen high enough to
+reach the sim's performance ceiling — a ~1M-cell world, tens of thousands of
+founders — without an out-of-memory or a non-terminating build. An explicit `0`
+count clears a role (`?? count`, not `|| count`). The renderer drops its
 selection, inspection detail, and follow target rather than leaving them pointing
 at animals that no longer exist; the run state (paused, speed) belongs to the host
 and survives.
