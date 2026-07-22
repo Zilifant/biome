@@ -10,7 +10,7 @@
  */
 import { StoreDesyncError, RendererProtocolError } from './state/RendererStore.js';
 import { Camera } from './rendering/Camera.js';
-import { createProjection, occupantsInCell } from './rendering/GridProjection.js';
+import { createProjection, occupantsInCell, worldCellOf } from './rendering/GridProjection.js';
 import { compareOccupants } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
 import { TransportEvents } from './transports/RendererTransport.js';

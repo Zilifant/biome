@@ -170,7 +170,7 @@ the remembered open/closed state, so it must be stable.
 
 | Input                  | Action (all renderer-local except commands)                                                              |
 | ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| Hover                  | Cursor is hidden over the grid; the cell under the pointer is framed in yellow corner brackets           |
+| Hover                  | Crosshair cursor over the grid; the cell under the pointer is framed in yellow corner brackets            |
 | Drag                   | Pan camera (`move` cursor; cancels follow; a drag never selects)                                          |
 | Arrow keys / WASD      | Pan camera (Shift = 10 cells)                                                                            |
 | `+` / `-`, mouse wheel | Zoom (wheel is anchored near the cursor)                                                                 |

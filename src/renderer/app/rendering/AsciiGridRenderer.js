@@ -113,7 +113,7 @@ export class AsciiGridRenderer {
    *        the selected animal's settled range (protocol v23), drawn as a ring
    * @param {{cellX: number, cellY: number} | null} [options.hoverCell]
    *        the cell under the pointer, framed in yellow corner brackets (the
-   *        cursor is hidden over the grid) — grey fill stays selection-only
+   *        crosshair cursor aims at it) — grey fill stays selection-only
    */
   draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null }) {
     const ctx = this.#context;
@@ -303,9 +303,9 @@ export class AsciiGridRenderer {
       this.#drawBrackets(px, py, cellSize, this.#color('cyan'));
     }
     // Hover mark, drawn last so it sits above everything: yellow corner brackets
-    // on the cell under the pointer, standing in for the hidden cursor. Skipped
-    // when it coincides with the selected cell, which already carries brackets
-    // (over its grey fill) — the grey fill is deliberately selection-only.
+    // on the cell under the pointer (the crosshair cursor aims within them).
+    // Skipped when it coincides with the selected cell, which already carries
+    // brackets (over its grey fill) — the grey fill is deliberately selection-only.
     if (
       hoverCell &&
       !(selectedCell && hoverCell.cellX === selectedCell.cellX && hoverCell.cellY === selectedCell.cellY)

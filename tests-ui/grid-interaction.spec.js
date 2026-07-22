@@ -5,11 +5,11 @@ const GX = 300;
 const GY = 300;
 
 test.describe('grid interaction', () => {
-  test('the cursor is hidden over the grid; hovering a cell draws yellow brackets that clear on leave', async ({
+  test('the grid shows a crosshair cursor; hovering a cell draws yellow brackets that clear on leave', async ({
     appPage: page,
   }) => {
-    // Static canvas cursor is hidden — the hover brackets stand in for it.
-    expect(await canvasCursor(page)).toBe('none');
+    // A crosshair aims at the cell the pointer is over; the hover brackets frame it.
+    expect(await canvasCursor(page)).toBe('crosshair');
 
     // Baseline: pointer parked over the sidebar, so the grid cell is unmarked.
     const parkAway = async () => {

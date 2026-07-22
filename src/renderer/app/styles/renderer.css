@@ -115,10 +115,10 @@ body {
 
 #biome-canvas {
   display: block;
-  /* The cursor is hidden over the grid; the hovered cell is marked by yellow
-     corner brackets drawn on the canvas instead (RendererApp tracks the hover
-     cell). An arrow points between cells — brackets frame the one you mean. */
-  cursor: none;
+  /* A crosshair over the grid, since the pointer is aiming at a cell; the hovered
+     cell is also framed in yellow corner brackets drawn on the canvas
+     (RendererApp tracks the hover cell). */
+  cursor: crosshair;
   /* The canvas handles its own pan gesture; without this a drag selects text
      and the browser's own scroll takes over on touch. */
   touch-action: none;

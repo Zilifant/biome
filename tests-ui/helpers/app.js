@@ -223,7 +223,7 @@ export function countColor(data, [r, g, b], tol = 26) {
   return n;
 }
 
-/** The canvas cursor as the browser computes it (static `none`, `move` while dragging). */
+/** The canvas cursor as the browser computes it (`crosshair` at rest, `move` while dragging). */
 export async function canvasCursor(page) {
   return page.evaluate(() => getComputedStyle(document.getElementById('biome-canvas')).cursor);
 }
