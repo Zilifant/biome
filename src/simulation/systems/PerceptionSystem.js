@@ -27,11 +27,16 @@ export class PerceptionSystem extends SimulationSystem {
    * @param {number} [options.foodMinLevel] vegetation level that counts as food
    * @param {number} [options.updateInterval]
    */
-  constructor({ defaultRadius = 5, foodMinLevel = 1, maxMateCandidates = 6, updateInterval = 1 } = {}) {
+  constructor({ defaultRadius = 5, foodMinLevel = 1, maxMateCandidates = 6, lineOfSight = true, updateInterval = 1 } = {}) {
     super({ id: 'perception', phase: 'perception', priority: 0, updateInterval });
     this.defaultRadius = defaultRadius;
     this.foodMinLevel = foodMinLevel;
     this.maxMateCandidates = maxMateCandidates;
+    // Whether an opaque obstacle (rock today, more later) hides the animals
+    // behind it. Applied to *animals and carcasses*, not the cell-feature scan:
+    // concealment is about who can see whom, and the cell scan is the engine's
+    // hottest loop (§1.4 C6). Off restores sight through everything.
+    this.lineOfSight = lineOfSight;
   }
 
   update(world, context) {
@@ -55,6 +60,7 @@ export class PerceptionSystem extends SimulationSystem {
    */
   #perceive(world, entity, radius) {
     const radiusSquared = radius * radius;
+    const los = this.lineOfSight;
 
     // --- Animals: sub-quadratic via the spatial grid (already radius-filtered).
     let animalCount = 0;
@@ -77,7 +83,7 @@ export class PerceptionSystem extends SimulationSystem {
       // Carcasses are what a carnivore actually eats (Step 16), so they are
       // sensed alongside the living.
       if (other.kind === 'carcass') {
-        if (other.edibleMass > 0) {
+        if (other.edibleMass > 0 && (!los || hasLineOfSight(world, entity.x, entity.y, other.x, other.y))) {
           const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
           if (nearestCarcass === null || distance < nearestCarcass.distance) {
             const cell = world.cellOf(other.x, other.y);
@@ -96,8 +102,18 @@ export class PerceptionSystem extends SimulationSystem {
       }
       if (other.kind !== 'animal' || !other.alive) continue;
       const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
+      // The neighbour list is the shared walk the social system reuses (§1.4
+      // C6), so it stays the raw radius set — reuse must remain byte-identical to
+      // a fresh grid walk. Line of sight gates what this animal *perceives* — a
+      // prey, a threat, a mate, its guardian — not who is nearby for herding and
+      // alarm, since cohesion and a panic call are not strictly line-of-sight (an
+      // alarm is a sound that carries around a rock).
       neighbours.push(otherId, distance);
       animalCount += 1;
+      // Concealment: an animal behind an opaque obstacle is not *seen*, so it is
+      // none of the things below. This is what makes rock (and later, cover) a
+      // hiding place from predators and prey alike.
+      if (los && !hasLineOfSight(world, entity.x, entity.y, other.x, other.y)) continue;
       if (nearestAnimal === null || distance < nearestAnimal.distance) {
         // speciesId lets behaviour distinguish conspecifics (e.g. mate seeking).
         nearestAnimal = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
@@ -252,6 +268,53 @@ export class PerceptionSystem extends SimulationSystem {
       nearestCover: cellRecord(coverX, coverY, coverDist),
     };
   }
+}
+
+/**
+ * Whether nothing opaque stands between two continuous positions — the sight
+ * test perception gates animals on. Walks the grid cells the segment crosses
+ * (Amanatides–Woo voxel traversal) and asks `world.blocksSightAt` about each
+ * one *between* the endpoints; the endpoints themselves are exempt, since an
+ * animal standing next to a rock can still be seen. Cost is one grid step per
+ * cell crossed — at most ~2r — so it scales with the perception radius, not the
+ * map.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {number} x0 @param {number} y0 viewer position
+ * @param {number} x1 @param {number} y1 target position
+ * @returns {boolean}
+ */
+export function hasLineOfSight(world, x0, y0, x1, y1) {
+  let cx = Math.floor(x0);
+  let cy = Math.floor(y0);
+  const tx = Math.floor(x1);
+  const ty = Math.floor(y1);
+  if (cx === tx && cy === ty) return true; // same cell, nothing between
+
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
+  const stepY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+  const tDeltaX = dx !== 0 ? Math.abs(1 / dx) : Infinity;
+  const tDeltaY = dy !== 0 ? Math.abs(1 / dy) : Infinity;
+  let tMaxX = dx !== 0 ? (stepX > 0 ? cx + 1 - x0 : x0 - cx) * tDeltaX : Infinity;
+  let tMaxY = dy !== 0 ? (stepY > 0 ? cy + 1 - y0 : y0 - cy) * tDeltaY : Infinity;
+
+  // Bounded by the cells the segment can cross, so a float edge case can never
+  // spin: it fails open (visible) rather than looping.
+  const maxSteps = Math.abs(tx - cx) + Math.abs(ty - cy) + 2;
+  for (let step = 0; step < maxSteps; step += 1) {
+    if (tMaxX < tMaxY) {
+      cx += stepX;
+      tMaxX += tDeltaX;
+    } else {
+      cy += stepY;
+      tMaxY += tDeltaY;
+    }
+    if (cx === tx && cy === ty) return true; // reached the target unobstructed
+    if (world.blocksSightAt(cx + 0.5, cy + 0.5)) return false;
+  }
+  return true;
 }
 
 /**

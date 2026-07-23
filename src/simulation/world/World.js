@@ -197,6 +197,22 @@ export class World {
   }
 
   /**
+   * Whether line of sight is blocked at a continuous position — the single
+   * chokepoint perception raycasts against. Terrain opacity today (only rock is
+   * opaque; deep water is impassable but transparent), and the one place to fold
+   * in non-terrain blockers later — a fire's smoke, a future wall — exactly as
+   * `speedModifierAt` folds in disturbances and worn ground, so no system has to
+   * learn a new source of concealment to be hidden by one. Nothing here is
+   * specific to rock.
+   * @param {number} x @param {number} y
+   * @returns {boolean}
+   */
+  blocksSightAt(x, y) {
+    const { cellX, cellY } = this.cellOf(x, y);
+    return this.terrain.blocksSightAt(cellX, cellY);
+  }
+
+  /**
    * Whether the cell at a continuous position gives shelter from the weather
    * (Step 19). Cover is the only sheltering terrain today; keeping the test
    * here rather than in a system means "what counts as shelter" has one home.

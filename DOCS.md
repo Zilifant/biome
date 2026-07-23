@@ -638,6 +638,9 @@ problem, not a forage one.
 
 - `world.speedModifierAt` carries terrain, disturbances, **and** worn ground.
 - `world.isShelteredAt` carries cover **and** burrows.
+- `world.blocksSightAt` carries terrain opacity today (only rock), and is the one
+  place a future sight-blocker — smoke, a wall, concealing cover — is added, so
+  perception's raycast never learns a new source to be hidden by one.
 - `thermalStress` (in `world/Environment.js`) carries weather **and** storms, and
   is shared by the system that _charges_ for stress and the system that _decides
   to walk out of it_, so the two cannot drift.
@@ -768,6 +771,29 @@ Classification rides _inside_ the neighbour loop it was already walking: what I
 hunt, what hunts me, my guardian, and a bounded set of mate candidates all come
 out of one pass. That is why predation, parenting, and mate choice each cost
 essentially nothing on top.
+
+⚠ **Line of sight gates what an animal _sees_, not who is nearby.** An animal
+behind an opaque obstacle is not a prey, a threat, a mate, or a guardian —
+`hasLineOfSight` raycasts the grid (Amanatides–Woo, one step per cell crossed, so
+it scales with the radius not the map) against `world.blocksSightAt`, and a
+blocked target is dropped from the summary. Opacity is its **own** terrain
+property, deliberately not passability: **only rock is opaque today** (deep water
+is impassable but you see across a lake), and the sight chokepoint is built to
+fold in non-terrain blockers — a fire's smoke, a future wall, cover if it is ever
+made concealing — the way `speedModifierAt` folds in disturbances, so nothing is
+specific to rock. Toggle: `perception.lineOfSight`.
+
+Two deliberate scope limits. It gates **animals and carcasses**, not the
+cell-feature scan — concealment is about who sees whom, and the cell scan is the
+engine's hottest loop. And the **shared neighbour list stays raw** (see below):
+line of sight shapes perception, but herding and alarm read the unfiltered
+neighbours, because cohesion and a panic call are not strictly line-of-sight (an
+alarm is a sound that carries around a rock). ⚠ **Measured, its effect on the
+demo is currently near zero** — rock covers ~3% of the map, so a boulder rarely
+sits exactly on a sightline (concealment fires on ~1% of predator–prey pairs). It
+is the _enabling mechanism_ for terrain concealment; it needs sight-blocking
+terrain in quantity (denser rock, or opaque cover) to change the ecology. Cost:
+about +8% engine time for the raycasts.
 
 ⚠ **There is exactly one neighbour walk per tick, and it is perception's.**
 Since Step 30, perception publishes the ids and distances it computed to

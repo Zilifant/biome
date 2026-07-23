@@ -56,6 +56,35 @@ export function isPassableCode(code) {
 }
 
 /**
+ * Which terrain codes block line of sight, indexed by code. Sight-blocking is a
+ * property of its own, *not* the same as impassability: deep water stops
+ * movement but you see straight across a lake, and (later) cover could conceal
+ * without stopping anything. Only solid rock is opaque today — this array is the
+ * single place the next opaque terrain gets added. Reads go through
+ * `world.blocksSightAt`, the chokepoint built to fold in non-terrain blockers
+ * (a fire's smoke, a future wall) the way `speedModifierAt` folds in
+ * disturbances, so nothing was built specific to rock.
+ */
+const SIGHT_BLOCKING_BY_CODE = Object.freeze([
+  false, // ground
+  false, // water — see across a lake
+  true, //  rock — opaque
+  false, // cover — does not conceal yet
+  false, // deep water — see across it
+]);
+
+/**
+ * Whether a terrain code blocks line of sight, for callers that already have the
+ * code. `codeAt` reports ROCK out of bounds and ROCK is opaque, so the world
+ * edge blocks sight without a separate bounds guard.
+ * @param {number} code
+ * @returns {boolean}
+ */
+export function isSightBlockingCode(code) {
+  return SIGHT_BLOCKING_BY_CODE[code];
+}
+
+/**
  * Per-code traversal speed multiplier (authoritative movement cost, not
  * presentation). Ground is unimpeded; wading water and pushing through cover
  * are slower; rock is impassable so its value is unused. Indexed by
@@ -159,6 +188,17 @@ export class TerrainGrid {
   speedModifierAt(cellX, cellY) {
     if (!this.#inBounds(cellX, cellY)) return 0;
     return SPEED_MODIFIER_BY_CODE[this.#cells[this.#index(cellX, cellY)]];
+  }
+
+  /**
+   * Whether the cell blocks line of sight. Out-of-bounds is ROCK, which is
+   * opaque, so the world edge blocks sight without a separate guard.
+   * @param {number} cellX @param {number} cellY
+   * @returns {boolean}
+   */
+  blocksSightAt(cellX, cellY) {
+    if (!this.#inBounds(cellX, cellY)) return true;
+    return SIGHT_BLOCKING_BY_CODE[this.#cells[this.#index(cellX, cellY)]];
   }
 
   /** Count of cells per code, for tests and metrics. @returns {number[]} */

@@ -95,6 +95,10 @@ export const defaultSimulationConfig = Object.freeze({
     defaultRadius: 5,
     foodMinLevel: 1,
     maxMateCandidates: 6, // bounded set of possible mates sensed (Step 22)
+    // Line of sight: an animal behind an opaque obstacle (rock today) is not
+    // sensed — the basis of terrain concealment. Applied to animals/carcasses
+    // only, not the hot cell-feature scan. False sees through everything.
+    lineOfSight: true,
     updateInterval: 1,
   }),
   // Reproduction and mate choice (see systems/ReproductionSystem.js and
