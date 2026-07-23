@@ -551,13 +551,25 @@ methods.
 
 ### Terrain
 
-Four cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
-`COVER (3)` — generated deterministically at world init from circular lakes,
-**irregular rock formations**, and clumped cover patches, then finished by a
-**connectivity pass**. Out-of-bounds cells report `ROCK`, so passability checks
-are safe without a separate bounds guard.
+Five cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
+`COVER (3)`, `DEEP_WATER (4, impassable)` — generated deterministically at world
+init from circular lakes, **irregular rock formations**, and clumped cover
+patches, then finished by a **connectivity pass**. Out-of-bounds cells report
+`ROCK`, so passability checks are safe without a separate bounds guard.
 
-Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, rock 0 (impassable).
+Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, rock and deep water 0
+(impassable).
+
+⚠ **A lake is a shallow ring around an impassable deep core.** Each lake stamps a
+shallow `WATER` disc, then a `DEEP_WATER` disc of `lakeDeepFraction` of the
+radius at the same centre — so the drinkable water is the ring at the edge, the
+only reach an animal has (swimming is future work). The deep stamp reuses the
+already-drawn radius and adds no random draw, so it shifts nothing downstream;
+only the cells change. Perception already reports shallow water as drinkable and
+any impassable cell as an obstacle, so the two halves need no new plumbing: an
+animal walks to the ring to drink and treats the core as a wall. The connectivity
+pass counts deep water among the impassable, so the shallow ring stays connected
+to land.
 
 ⚠ **Rock is scattered outcrops, not one dividing ridge.** The generator used to
 lay a single straight rock ridge across the world, which paired with the single
@@ -1102,6 +1114,24 @@ Three properties follow, and they are why the shape was chosen:
    eight directions sampled, no search, no route, no map — but a heading is held
    for 8–24 ticks and re-chosen the same way while the gradient persists, so a
    weak preference integrated over a long walk carries an animal a long way.
+
+**The same channel carries a thirst cue** (`tracksWater`). Water is one lake,
+too far to perceive (radius 6) or even recall (`recallRange` 60) across most of
+the map — measured, 39–72% of grazers sit beyond recall of it at any moment — so
+without a long-range cue a thirsty animal has no idea which way water is and only
+finds it by drifting into it. `world.nearestWater` is that cue: a bearing field
+flooded once from the shallow-water cells through passable ground (cached, no
+draws), the point-source analogue of the forage gradient. When thirsty, the
+wander bends lakeward, scaled by thirst exactly as forage is scaled by hunger,
+and **whichever need is more urgent sets the drift** — the same "greater of
+hunger and thirst wins" the decision utilities use. Like forage it only bends a
+wander; once close enough to perceive or recall the lake, `seekWater` /
+`recallWater` take the wheel. Measured (`waterBiasWeight` 0 → 0.5, ten-seed
+style over five): mean hydration **~56 → ~66**, dehydration-crisis time
+**~6% → ~2%**, occupancy within 20 cells of the lake **~17% → ~30%** (the lake
+becomes a real gathering point), and grazer population _rose_ (fewer die of
+thirst) with survival unchanged — the water counterpart of the forage gradient,
+built for a point source instead of a field.
 
 **Nothing in it is seasonal, and nothing in it knows what a season is.** Season
 arrives through the grass: a green spring flattens the gradient to nothing and

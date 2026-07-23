@@ -50,6 +50,10 @@ export const herbivoreGrazer = Object.freeze({
   // this world does not simulate; see migration/migration.js, where that
   // assumption is stated rather than buried. `dispersalTicks` is how long a
   // juvenile holds its outward heading after leaving its guardian.
-  migration: Object.freeze({ tracksForage: true, cueRadius: 18, dispersalTicks: 400 }),
+  // `tracksWater` gives a thirsty grazer the same long-range steer toward the
+  // lake that `tracksForage` gives it toward grass — it drinks, and the single
+  // lake is otherwise unreachable knowledge from most of the map (see
+  // world/World.js `nearestWater` and the migration system's thirst cue).
+  migration: Object.freeze({ tracksForage: true, tracksWater: true, cueRadius: 18, dispersalTicks: 400 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

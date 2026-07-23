@@ -7,6 +7,7 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { ParentingSystem } from '../src/simulation/systems/ParentingSystem.js';
 import { TerritorySystem } from '../src/simulation/systems/TerritorySystem.js';
+import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 import {
   SAMPLE_DIRECTIONS,
   beginDispersal,
@@ -366,7 +367,65 @@ describe('migration: what steers a wander', () => {
     assert.ok(Math.abs(control) < 0.1, `an unbiased walk has no direction (got ${control.toFixed(3)})`);
     assert.ok(drifted > 0.15, `migration steers east (got ${drifted.toFixed(3)})`);
   });
+
+  test('a thirsty animal is steered toward the lake it cannot see', () => {
+    // The thirst cue is the water counterpart of the forage gradient: a coarse
+    // long-range steer toward the nearest lake, which perception (radius 6) and
+    // recall (range 60) cannot reach across most of the map. A world with one
+    // lake and no forage isolates it — the only drift available is water.
+    const engine = new SimulationEngine({
+      seed: 5,
+      // One lake, nothing else, so the wander has water and only water to follow.
+      config: { world: { width: 64, height: 64 }, terrain: { lakes: 1, ridges: 0, coverPatchDensity: 0 } },
+    });
+    engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
+    clearVegetation(engine); // no forage signal at all
+    const world = engine.world;
+
+    // Find the lake, then place a parched animal a good way off from it — beyond
+    // perception and recall, where without the cue it would have no idea where
+    // water is.
+    let sx = 0, sy = 0, n = 0;
+    for (let y = 0; y < world.terrain.height; y += 1) {
+      for (let x = 0; x < world.terrain.width; x += 1) {
+        if (world.terrain.codeAt(x, y) === TerrainType.WATER) { sx += x; sy += y; n += 1; }
+      }
+    }
+    const lake = { x: sx / n, y: sy / n };
+    // A passable land cell far from the lake: walk out along the axis away from it.
+    const start = pickThirstyStart(world, lake);
+    const id = spawn(engine, { x: start.x, y: start.y, hydration: 15 }); // parched
+
+    engine.step(1); // migration writes the drift
+    const entity = world.entities.get(id);
+    assert.ok(entity.migrationStrength > 0, 'thirst produces a drift');
+    const toLake = Math.atan2(lake.y - entity.y, lake.x - entity.x);
+    assert.ok(
+      angleGapDeg(entity.migrationHeading, toLake) < 30,
+      `drift ${entity.migrationHeading} should aim at the lake ${toLake}`,
+    );
+
+    // And a fully hydrated animal at the same spot is not pulled at all.
+    const sated = spawn(engine, { x: start.x, y: start.y, hydration: GRAZER.maxHydration });
+    engine.step(1);
+    assert.equal(world.entities.get(sated).migrationStrength, 0, 'a hydrated animal drifts nowhere');
+  });
 });
+
+/** A passable land cell well away from the lake, for a water-cue test. */
+function pickThirstyStart(world, lake) {
+  const { width, height } = world;
+  for (const [x, y] of [[6, 6], [width - 6, height - 6], [6, height - 6], [width - 6, 6], [width / 2, 6]]) {
+    if (world.isPassableAt(x, y) && Math.hypot(x - lake.x, y - lake.y) > 20) return { x, y };
+  }
+  return { x: 6, y: 6 };
+}
+
+function angleGapDeg(a, b) {
+  const norm = (r) => ((r % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  let d = Math.abs((norm(a) - norm(b)) * (180 / Math.PI)) % 360;
+  return d > 180 ? 360 - d : d;
+}
 
 describe('migration: natal dispersal', () => {
   test('leaving home takes an outward heading, clears the range, and reports where it left', () => {

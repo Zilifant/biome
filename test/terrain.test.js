@@ -47,7 +47,10 @@ const countComponents = (grid, predicate) => {
   return components;
 };
 
-const isPassable = (code) => code !== TerrainType.ROCK;
+// Impassable is now rock *and* deep water, so read passability off the legend
+// rather than special-casing rock — the connectivity guarantee is about cells an
+// animal can actually stand on.
+const isPassable = (code) => TERRAIN_LEGEND[code].passable;
 
 describe('terrain grid', () => {
   test('generation is deterministic: same seed + size + params → identical cells', () => {
@@ -105,7 +108,7 @@ describe('terrain projection', () => {
     assert.equal(projection.width, 64);
     assert.deepEqual(
       projection.cellTypes.map((entry) => entry.name),
-      ['ground', 'water', 'rock', 'cover'],
+      ['ground', 'water', 'rock', 'cover', 'deep_water'],
     );
     const serialized = JSON.stringify(projection);
     assert.ok(!/glyph|color|dracula/i.test(serialized), 'projection must carry no presentation');

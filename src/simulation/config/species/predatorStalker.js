@@ -71,6 +71,6 @@ export const predatorStalker = Object.freeze({
   // that is the important half: a young stalker cannot inherit its parent's
   // ground, so it must leave and found its own. It walks out for longer than a
   // grazer does, because it has further to go before the ground is unclaimed.
-  migration: Object.freeze({ tracksForage: false, cueRadius: 0, dispersalTicks: 700 }),
+  migration: Object.freeze({ tracksForage: false, tracksWater: false, cueRadius: 0, dispersalTicks: 700 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

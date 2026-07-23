@@ -76,6 +76,6 @@ export const scavengerCorvid = Object.freeze({
   // Does not track forage (grass is not food) but disperses like everything
   // else. What it follows is carrion, through perception — the same pipeline
   // the stalker uses to follow prey.
-  migration: Object.freeze({ tracksForage: false, cueRadius: 0, dispersalTicks: 500 }),
+  migration: Object.freeze({ tracksForage: false, tracksWater: false, cueRadius: 0, dispersalTicks: 500 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

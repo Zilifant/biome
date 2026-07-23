@@ -49,10 +49,11 @@ export class MigrationSystem extends SimulationSystem {
    * @param {number} [options.dispersalWeight] how hard a disperser holds its outward heading
    * @param {number} [options.updateInterval] habitat evaluation cadence (staggered)
    */
-  constructor({ cueReference = 4, biasWeight = 0.5, dispersalWeight = 0.9, updateInterval = 10 } = {}) {
+  constructor({ cueReference = 4, biasWeight = 0.5, waterBiasWeight = 0.5, dispersalWeight = 0.9, updateInterval = 10 } = {}) {
     super({ id: 'migration', phase: 'decision', priority: -5, updateInterval });
     this.cueReference = cueReference;
     this.biasWeight = biasWeight;
+    this.waterBiasWeight = waterBiasWeight;
     this.dispersalWeight = dispersalWeight;
   }
 
@@ -71,22 +72,43 @@ export class MigrationSystem extends SimulationSystem {
         entity.migrationHeading = entity.dispersalHeading;
         entity.migrationStrength = this.dispersalWeight;
       } else {
+        // Two long-range drives, each a bias on the wander heading and each
+        // throttled by how much the animal actually needs it, so a satisfied
+        // animal drifts nowhere. Whichever need is more urgent sets the drift —
+        // the same "greater of hunger and thirst wins" the decision utilities
+        // already use.
+        //
+        // Forage gradient (Step 26): a full stomach standing on adequate ground
+        // goes nowhere, whatever the compass says, and because it scales with
+        // hunger exactly as `seekFood` does the two never contend — seekFood only
+        // fires with food in sight, this only steers a wander when there is not.
         const gradient = species.tracksForage
           ? forageGradient(world, entity, { cueRadius: species.cueRadius, reference: this.cueReference })
           : null;
-        if (gradient === null) {
+        const hunger = entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0;
+        const forageStrength = gradient ? gradient.strength * this.biasWeight * Math.max(0, hunger) : 0;
+
+        // Thirst cue: the long-range analogue of the forage gradient for a point
+        // source. Water is one lake, too far to see (perception 6) or even recall
+        // (recallRange 60) for much of the map, so without this a thirsty animal
+        // beyond that range has no idea which way to go and only finds water by
+        // drifting into it. `world.nearestWater` is the coarse "smell of water on
+        // the wind": steer toward the nearest shallow ring, harder the thirstier.
+        // Like forage, it only bends a wander — once close enough to perceive or
+        // recall the lake, seekWater/recallWater take the wheel and this is moot.
+        const thirst = entity.maxHydration > 0 ? 1 - entity.hydration / entity.maxHydration : 0;
+        const water = species.tracksWater && thirst > 0 ? world.nearestWater(entity.x, entity.y) : null;
+        const waterStrength = water ? this.waterBiasWeight * thirst : 0;
+
+        if (waterStrength <= 0 && forageStrength <= 0) {
           entity.migrationHeading = null;
           entity.migrationStrength = 0;
+        } else if (waterStrength >= forageStrength) {
+          entity.migrationHeading = water.heading;
+          entity.migrationStrength = waterStrength;
         } else {
-          // Hunger is the throttle, and it is the honest one: an animal with a
-          // full stomach standing on adequate ground is not going anywhere,
-          // whatever the compass says. It also means the pull cannot fight
-          // `seekFood`, which scales the same way — the two never contend,
-          // because seekFood only fires when there is food in sight and this
-          // only steers a wander when there is not.
-          const hunger = entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0;
           entity.migrationHeading = gradient.heading;
-          entity.migrationStrength = gradient.strength * this.biasWeight * Math.max(0, hunger);
+          entity.migrationStrength = forageStrength;
         }
       }
 

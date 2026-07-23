@@ -213,6 +213,35 @@ export class World {
     return sheltersAt(this.features, cellX, cellY);
   }
 
+  /**
+   * Direction and straight-line distance from a continuous position to the
+   * nearest drinkable (shallow) water cell, or null if the world has no water.
+   * Backed by a bearing field flooded once from the static terrain (lakes do not
+   * move), so this is an O(1) lookup after the first call — transient, like
+   * `perception`, and never serialized (it rebuilds from the regenerated terrain
+   * on load).
+   *
+   * This is the long-range analogue of *perceiving* water: the coarse "smell of
+   * water on the wind" a real animal has and this world does not otherwise model,
+   * and the cue the migration system steers a thirsty wander by. The field floods
+   * only through passable cells from shallow-water sources, so it always points a
+   * walkable way to the shallow ring — never at the impassable deep core.
+   * @param {number} x @param {number} y
+   * @returns {{heading: number, distance: number} | null}
+   */
+  nearestWater(x, y) {
+    if (this._waterField === undefined) this._waterField = buildWaterField(this.terrain);
+    const field = this._waterField;
+    if (field === null) return null;
+    const { cellX, cellY } = this.cellOf(x, y);
+    const i = cellY * this.terrain.width + cellX;
+    const sx = field.srcX[i];
+    if (sx < 0) return null;
+    const dx = sx + 0.5 - x;
+    const dy = field.srcY[i] + 0.5 - y;
+    return { heading: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) };
+  }
+
   /** @param {number} x */
   clampX(x) {
     return Math.min(Math.max(x, 0), this.width);
@@ -267,4 +296,53 @@ export class World {
       this.grid.insert(entity.id, entity.x, entity.y);
     }
   }
+}
+
+/**
+ * Nearest drinkable-water source per cell, by a breadth-first flood through
+ * passable cells outward from every shallow-water cell. Each reached cell records
+ * the coordinates of the nearest shallow-water cell (in graph distance), from
+ * which `nearestWater` derives a bearing on read. Returns null when the terrain
+ * has no shallow water at all.
+ *
+ * Sources are shallow `WATER` cells only, and the flood steps through passable
+ * cells only — so deep water and rock are neither drinking spots nor stepped
+ * across, and every passable cell ends up pointing a walkable way to a drink
+ * (the connectivity guarantee means every passable cell reaches one). Pure
+ * function of the static terrain: no randomness, computed once, cached.
+ * @param {import('./TerrainGrid.js').TerrainGrid} terrain
+ * @returns {{srcX: Int16Array, srcY: Int16Array} | null}
+ */
+function buildWaterField(terrain) {
+  const W = terrain.width;
+  const H = terrain.height;
+  const n = W * H;
+  const srcX = new Int16Array(n).fill(-1);
+  const srcY = new Int16Array(n).fill(-1);
+  const queue = new Int32Array(n);
+  let head = 0;
+  let tail = 0;
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      if (terrain.codeAt(x, y) === TerrainType.WATER) {
+        const i = y * W + x;
+        srcX[i] = x;
+        srcY[i] = y;
+        queue[tail++] = i;
+      }
+    }
+  }
+  if (tail === 0) return null;
+  while (head < tail) {
+    const i = queue[head++];
+    const x = i % W;
+    const y = (i - x) / W;
+    const sx = srcX[i];
+    const sy = srcY[i];
+    if (x > 0 && srcX[i - 1] < 0 && terrain.isPassable(x - 1, y)) { srcX[i - 1] = sx; srcY[i - 1] = sy; queue[tail++] = i - 1; }
+    if (x < W - 1 && srcX[i + 1] < 0 && terrain.isPassable(x + 1, y)) { srcX[i + 1] = sx; srcY[i + 1] = sy; queue[tail++] = i + 1; }
+    if (y > 0 && srcX[i - W] < 0 && terrain.isPassable(x, y - 1)) { srcX[i - W] = sx; srcY[i - W] = sy; queue[tail++] = i - W; }
+    if (y < H - 1 && srcX[i + W] < 0 && terrain.isPassable(x, y + 1)) { srcX[i + W] = sx; srcY[i + W] = sy; queue[tail++] = i + W; }
+  }
+  return { srcX, srcY };
 }

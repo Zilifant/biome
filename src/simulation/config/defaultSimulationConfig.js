@@ -312,6 +312,12 @@ export const defaultSimulationConfig = Object.freeze({
     // below 1 — this bends an aimless walk, it does not aim it. Measured; see
     // the sweep recorded in PLAN.md's Step 26 completion notes.
     biasWeight: 0.5,
+    // Cap on how hard the thirst cue steers a wander toward the nearest lake —
+    // the water counterpart of `biasWeight`, mirrored deliberately. A thirsty
+    // animal beyond perception/recall range of the single lake would otherwise
+    // have no idea which way water is; this bends its wander lakeward, harder the
+    // thirstier it gets. Same "bends, does not aim" intent as the forage cue.
+    waterBiasWeight: 0.5,
     // A dispersing juvenile holds its outward heading hard — not at 1, because
     // an animal that ignored terrain entirely would walk into a lake and stand
     // there (the movement system refuses impassable cells, so the residual

@@ -17,6 +17,11 @@ export const TerrainType = Object.freeze({
   WATER: 1,
   ROCK: 2,
   COVER: 3,
+  // Deep water: the impassable core of a lake, leaving a shallow `WATER` ring at
+  // the edge that is the only place an animal can reach to drink (swimming is
+  // future work). Impassable like rock, but semantically water — a distinct code
+  // so the renderer and the perception/obstacle logic can tell the two apart.
+  DEEP_WATER: 4,
 });
 
 /**
@@ -30,6 +35,7 @@ export const TERRAIN_LEGEND = Object.freeze([
   Object.freeze({ code: TerrainType.WATER, name: 'water', passable: true }),
   Object.freeze({ code: TerrainType.ROCK, name: 'rock', passable: false }),
   Object.freeze({ code: TerrainType.COVER, name: 'cover', passable: true }),
+  Object.freeze({ code: TerrainType.DEEP_WATER, name: 'deep_water', passable: false }),
 ]);
 
 const PASSABLE_BY_CODE = TERRAIN_LEGEND.map((entry) => entry.passable);
@@ -60,11 +66,16 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
   0.5, // water
   0, // rock (impassable)
   0.6, // cover
+  0, // deep water (impassable)
 ]);
 
 export const DEFAULT_TERRAIN_PARAMS = Object.freeze({
   lakes: 1,
   lakeRadiusFraction: 0.14,
+  // Fraction of a lake's radius that is deep (impassable) water at its centre,
+  // leaving a shallow drinkable ring of the remaining radius. 0 disables it (a
+  // fully shallow lake). See #carveLakes.
+  lakeDeepFraction: 0.55,
   // Rock is placed as irregular formations of varying size, not one straight
   // ridge. `ridges` is the formation count (0 disables rock); each formation is
   // a short random walk of overlapping discs whose radii and step count vary,
@@ -217,11 +228,18 @@ export class TerrainGrid {
 
   #carveLakes(random, params) {
     const radius = params.lakeRadiusFraction * Math.min(this.#width, this.#height);
+    const deepFraction = params.lakeDeepFraction ?? 0;
     for (let n = 0; n < params.lakes; n += 1) {
       const cx = random.int(0, this.#width - 1);
       const cy = random.int(0, this.#height - 1);
       const r = radius * random.float(0.7, 1.15);
       this.#stampDisc(cx, cy, r, TerrainType.WATER);
+      // A deep, impassable core leaves a shallow ring at the water's edge — the
+      // only reach an animal has to drink. Stamped with the same centre and the
+      // already-drawn radius, so it adds no draw and shifts nothing downstream;
+      // only the cells change. `onlyGround` is false so it overwrites the
+      // shallow water it sits inside.
+      if (deepFraction > 0) this.#stampDisc(cx, cy, r * deepFraction, TerrainType.DEEP_WATER);
     }
   }
 
