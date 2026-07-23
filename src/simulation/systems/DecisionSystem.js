@@ -137,6 +137,16 @@ export class DecisionSystem extends SimulationSystem {
     commitTickSpan = 16,
     wanderJitter = 0.5,
     foodMinLevel = 1,
+    // How close to a world edge (world units) a fleeing animal starts running
+    // ALONG the wall rather than straight into it (option 3). A few steps, so
+    // the correction only bites when pinning is imminent and open-field flight
+    // is untouched. 0 restores the pre-fix "straight away from the threat"
+    // behaviour, which is how the change is measured against its own control.
+    fleeWallMargin = 6,
+    // How far ahead (world units) a cornered animal judges "open room" when it
+    // has to break past a predator (option 5). Roughly a sprint's worth of
+    // horizon; larger sees more escape routes at more grid reads.
+    fleeLookahead = 8,
     updateInterval = 1,
   } = {}) {
     super({ id: 'decision', phase: 'decision', priority: 0, updateInterval });
@@ -181,6 +191,8 @@ export class DecisionSystem extends SimulationSystem {
     this.commitTickSpan = commitTickSpan;
     this.wanderJitter = wanderJitter;
     this.foodMinLevel = foodMinLevel;
+    this.fleeWallMargin = fleeWallMargin;
+    this.fleeLookahead = fleeLookahead;
   }
 
   update(world, context) {
@@ -432,7 +444,7 @@ export class DecisionSystem extends SimulationSystem {
       // What to run away from: the predator if it can see one, otherwise the
       // place a neighbour's alarm said one was.
       const fleeFrom = threat ?? (alarmed ? entity.alarmSource : null);
-      entity.moveIntent = this.#intentFor(action, entity, target, roll, candidateHeading, fleeFrom);
+      entity.moveIntent = this.#intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom);
       // The animal this one is standing over, so the hunting system can read the
       // defense and an observer can see it. Owned here, like `huntTargetId`.
       entity.defendingId = action === 'defend' ? ward.id : null;
@@ -506,7 +518,7 @@ export class DecisionSystem extends SimulationSystem {
     return this.followWeight * (0.5 + 0.5 * drift);
   }
 
-  #intentFor(action, entity, target, roll, candidateHeading, fleeFrom) {
+  #intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom) {
     switch (action) {
       case 'eat':
       case 'drink':
@@ -514,10 +526,18 @@ export class DecisionSystem extends SimulationSystem {
         // Stationary: keep a heading for facing, but do not move.
         return { heading: entity.moveIntent?.heading ?? candidateHeading, ttl: 0, moving: false, sprint: false };
       case 'flee': {
-        // Straight away from the threat — or from wherever the alarm said it
-        // was, for an animal that never saw it — at a sprint.
-        const heading = Math.atan2(entity.y - fleeFrom.y, entity.x - fleeFrom.x);
-        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: true };
+        // Away from the threat — or from wherever the alarm said it was, for an
+        // animal that never saw it — at a sprint, but made aware of the world's
+        // edges so a driven prey runs ALONG a wall rather than smearing into it
+        // and pinning in the corner (option 3). This re-commits every tick, so
+        // fixing it at the movement layer's one-step reflection was never
+        // enough — the decision has to pick a boundary-honest heading in the
+        // first place. `escapeHeading` is the seam options 4 (soft edge
+        // repulsion) and 5 (cornered break-past) extend.
+        const heading = escapeHeading(
+          world, entity.x, entity.y, fleeFrom.x, fleeFrom.y, this.fleeWallMargin, this.fleeLookahead,
+        );
+        return { heading, ttl: 1, moving: true, sprint: true };
       }
       case 'defend': {
         // Toward the threat, but at a walk: this is interposing, not charging,
@@ -616,6 +636,127 @@ export class DecisionSystem extends SimulationSystem {
       }
     }
   }
+}
+
+// Cornered break-past (option 5) tuning. Fixed and small so a flee decision
+// costs the same whatever the world looks like — the perf convention the rest
+// of the decision system holds to. `ESCAPE_SAMPLES` directions are probed,
+// each in `ESCAPE_PROBE_STEP` increments out to the caller's lookahead.
+const ESCAPE_SAMPLES = 16;
+const ESCAPE_PROBE_STEP = 2;
+// A heading that edges toward the predator must clear this much more open
+// ground than a safe one to be chosen (multiplicative). It is what keeps a
+// cornered animal from charging until hugging the wall has genuinely run out of
+// room: at 0.5 a toward-predator break needs 2× the room of the safest
+// heading, so open flight never charges and a map corner rarely does — but a
+// prey walled into a terrain pocket, with the predator in the only gap, will.
+const ESCAPE_AWAY_BIAS = 0.5;
+// A heading that stays clear all the way to the horizon is worth more than one
+// that dead-ends at a wall the same distance on — it is the difference between a
+// way out and a deeper pocket. Without this, straight-line room rewards running
+// into the closed end of a cul-de-sac; with it, the prey favours the direction
+// that actually leads to open ground, which is what makes the break-past find
+// the exit rather than the back wall.
+const ESCAPE_OPEN_BONUS = 1.5;
+
+/**
+ * Clear distance ahead of (px,py) along heading `h`, out to `lookahead`,
+ * stopping at the first off-map or impassable cell. This is the terrain
+ * awareness that readies the escape logic for the restrictive terrain to come:
+ * a prey backed against a rock reads it exactly as it reads a map edge, so the
+ * same break-past logic covers both without a special case.
+ *
+ * @param {{width:number,height:number,isPassableAt:Function}} world
+ */
+function roomAhead(world, px, py, h, lookahead) {
+  const dx = Math.cos(h);
+  const dy = Math.sin(h);
+  for (let d = ESCAPE_PROBE_STEP; d <= lookahead; d += ESCAPE_PROBE_STEP) {
+    const x = px + dx * d;
+    const y = py + dy * d;
+    if (x < 0 || x > world.width || y < 0 || y > world.height || !world.isPassableAt(x, y)) {
+      return d - ESCAPE_PROBE_STEP;
+    }
+  }
+  return lookahead;
+}
+
+/**
+ * Heading for an animal fleeing a threat, made aware of the world's edges and
+ * terrain. Three behaviours, in escalating desperation, all from one honest
+ * starting instinct ("straight away from the threat"):
+ *
+ *   1. **Open flight.** Nothing blocks the away-heading — take it. The common
+ *      case, and kept O(1)-cheap: one room probe and done.
+ *   2. **Along-wall glide (option 3).** The away-heading points into a nearby
+ *      world edge, so drop the component that goes through it and run *along*
+ *      the wall instead of smearing into it — provided that glide has room.
+ *   3. **Cornered break-past (option 5).** The glide is itself walled off (a map
+ *      corner, or a rock hard against the wall). Choose by trading open room
+ *      against staying away from the predator, sampling every direction. When
+ *      every safer heading is blocked, the only direction left with room is the
+ *      gap the predator is standing in — so a truly cornered animal breaks
+ *      *past* it rather than stand still to be caught. That charge is not a
+ *      special case; it is what this scoring does when nothing safer survives,
+ *      which is why it will keep working when terrain gets restrictive.
+ *
+ * Pure geometry and grid reads — no draws — so the decision system's fixed
+ * two-draw budget per animal per tick is untouched and determinism holds.
+ * `margin` 0 disables wall-awareness entirely and returns "straight away".
+ *
+ * @param {{width:number,height:number,isPassableAt:Function}} world
+ * @param {number} px @param {number} py fleeing animal's position
+ * @param {number} fromX @param {number} fromY what it is fleeing
+ * @param {number} margin world-units from an edge at which wall-awareness bites
+ * @param {number} lookahead how far ahead room is judged
+ * @returns {number} committed escape heading, normalized to [0, 2π)
+ */
+export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead) {
+  const away = Math.atan2(py - fromY, px - fromX);
+  // Wall-awareness off: the honest "straight away from the threat" instinct,
+  // unmodified. This is the pre-fix control the change is measured against.
+  if (!(margin > 0)) return normalizeAngle(away);
+
+  // Options 1 & 3: keep the away-heading, but drop any component pointing into a
+  // nearby world edge so it glides along the wall. With no edge in range this
+  // leaves the away-heading untouched (open flight).
+  let ax = px - fromX;
+  let ay = py - fromY;
+  if (px < margin && ax < 0) ax = 0;
+  if (px > world.width - margin && ax > 0) ax = 0;
+  if (py < margin && ay < 0) ay = 0;
+  if (py > world.height - margin && ay > 0) ay = 0;
+  if (ax !== 0 || ay !== 0) {
+    const glide = normalizeAngle(Math.atan2(ay, ax));
+    // Take it only if the glide is clear all the way to the horizon. A glide
+    // that dead-ends short — the along-wall run into a corner, or terrain hard
+    // up against the wall — falls through to the break-past, which weighs it
+    // against every other direction instead of committing to it blindly.
+    if (roomAhead(world, px, py, glide, lookahead) >= lookahead) return glide;
+  }
+
+  // Option 5: cornered. Score every sampled heading by how much open room it
+  // has — bonused when that room runs unobstructed to the horizon, discounted
+  // for pointing toward the predator — and take the best. The away-discount is
+  // multiplicative, so a heading only wins by charging the predator's gap when
+  // every safer heading has run out of room: the escalation to a charge is what
+  // the scoring already does, not a separate branch, which is why it will hold
+  // up when terrain gets restrictive enough to make the gap the only way out.
+  let best = away;
+  let bestScore = -Infinity;
+  for (let i = 0; i < ESCAPE_SAMPLES; i += 1) {
+    const h = away + (i / ESCAPE_SAMPLES) * TWO_PI;
+    const room = roomAhead(world, px, py, h, lookahead);
+    if (room <= 0) continue;
+    const awayN = (Math.cos(h - away) + 1) / 2; // 1 = straight away, 0 = straight at it
+    const open = room >= lookahead ? ESCAPE_OPEN_BONUS : 1;
+    const score = room * (ESCAPE_AWAY_BIAS + (1 - ESCAPE_AWAY_BIAS) * awayN) * open;
+    if (score > bestScore) {
+      bestScore = score;
+      best = h;
+    }
+  }
+  return normalizeAngle(best);
 }
 
 /** Highest-utility action; ties broken by a fixed, deterministic order. */

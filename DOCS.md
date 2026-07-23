@@ -266,7 +266,7 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | C5  | Reproduction exploded exponentially (8 → 1037 by tick 20 000)                                                                | Step 16 — predation is the limiter                                                                                                                                                                                                                        |
 | C6  | Two separate neighbour walks per animal per tick                                                                             | Step 30 — perception publishes its walk; sociality reads it (15.30 → 5.03 ms/tick)                                                                                                                                                                        |
 | C7  | Movement uses the **current** cell's terrain modifier, and feeding is **in-cell**                                            | _Settled_ — two deliberate modelling choices                                                                                                                                                                                                              |
-| C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge |
+| C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge. **Follow-up 2026-07-22:** reflection closed only the _wander_ half; the residual crowding was predator-driven `flee` re-aiming into the wall every tick, closed at the decision layer by edge-aware fleeing (`escapeHeading`, §7 Decision). 2-cell edge occupancy ~19% → ~9%, acute corner pinning ~×4–9 → ~×1.5, survival unchanged. Remaining outer-ring occupancy is a herd-distribution effect for the forage-taper change, not flee-pinning |
 
 ---
 
@@ -603,6 +603,23 @@ capacity simply stops growing, and a slower rate cannot brown it off. Scaling
 `capacityScale` plus a dieback term made the swing real: **85.8k in summer
 against 30.4k in winter**. A test pins the distinction directly.
 
+**Edge forage taper (`buildEdgeTaper`, off by default).** A static per-cell
+capacity multiplier that ramps forage from 0 at the map boundary up to full over
+an inland band — gradual, slightly irregular (a coherent-noise coastline), and
+rounded hardest at the corners (the two axis tapers multiply, plus a radial
+corner term). It is groundwork for the eventual irregular-island world, and it
+was tried as the habitat half of the edge-congregation fix. ⚠ **Measurement
+declined it for that purpose.** It shapes the map correctly but does not thin the
+edge/corner crowding: predators follow the forage into the interior, so the
+barren margin becomes a predator-light refuge that fleeing grazers run _to_
+(the outermost corner band went the wrong way, 16 → 58 grazers), and removing a
+third of the forage roughly halved grazer carrying capacity — a knife-edge risk
+for a two-species demo. So it stays implemented, unit-tested, and deterministic
+(a dedicated noise stream leaves the vegetation RNG sequence untouched, and it is
+inert on maps below `edgeTaperMinDimension`, keeping every sandbox byte-identical)
+but `edgeTaperFraction` ships at 0. Clearing the outer ring is a predator-side
+problem, not a forage one.
+
 ### Chokepoints
 
 **Effects belong at existing chokepoints.** Look for one before adding a reader:
@@ -785,6 +802,35 @@ This is the most expensive lesson in the project. Patrol was added as a real
 action and cost the demo two seeds in five, because wandering is how a grazing
 animal finds its next meal and anything that displaces it starves the animal.
 
+**Edge-aware fleeing (`escapeHeading`).** `flee` no longer aims blindly away
+from the threat; the heading is chosen in three escalating tiers, all from that
+same honest instinct, so a predator can no longer smear prey into a wall or jam
+them into a corner (this closed the half of C8 the movement layer's reflection
+could not — see §7 Movement):
+
+1. **Open flight** — nothing blocks the away-heading, so take it. The common
+   case, one room probe and done.
+2. **Along-wall glide** — the away-heading points into a nearby world edge, so
+   the component through the wall is dropped and the animal runs _along_ it,
+   provided that glide is clear to the horizon.
+3. **Cornered break-past** — the glide itself dead-ends (a map corner, or, once
+   terrain gets restrictive, a rock hard against the wall). Every direction is
+   scored by open room `roomAhead` — bonused when clear to the horizon,
+   discounted for pointing toward the predator — and the best is taken. The
+   discount is multiplicative, so a heading wins by _charging the predator's
+   gap_ only when every safer direction has run out of room. That escalation is
+   the scoring, not a special case, which is why it is already terrain-ready:
+   `roomAhead` reads a rock exactly as it reads a map edge. **Known limit:** in
+   a _wide_ concave pocket whose exit is farther than `fleeLookahead`, local
+   room probing cannot tell a diagonal that merely stays clear within the
+   horizon from one that leads out — deferred to real exit-detection when
+   restrictive terrain exists to tune against (`test/escape-heading.test.js`
+   pins the current behaviour).
+
+Pure geometry and grid reads — no draws — so the two-draw-per-animal budget and
+determinism hold. `fleeWallMargin` (0 disables, restoring straight-away flight)
+and `fleeLookahead` are the knobs.
+
 **Four consecutive steps then added no action at all:**
 
 - _Disease avoidance_ is a **subtraction** — a visibly sick animal is simply not
@@ -816,6 +862,22 @@ band; reflection cut that to ~14% over ten seeds with no loss of demo survival.
 Reflection preserves the step _length_ (it flips a component's sign), so the
 single-step speed ceiling still holds. `world.clampX/clampY` remain as a
 final safety net but are a no-op in the common case.
+
+⚠ **Reflection closed only half of C8.** It stopped _wandering_ animals sliding
+along a wall, but the residual edge crowding was a different mechanism it could
+not touch: `flee` re-derives "straight away from the threat" **every tick**
+(ttl 1), so a predator pushing prey at a wall had them re-aim into it the tick
+after the movement layer bounced them off — a one-step reflection cannot fix a
+heading that is regenerated each tick. Measuring by action confirmed it: with
+predators removed the demo's edge occupancy is already uniform (~4%); with them
+it is not, and ~half of all _fleeing_ ticks were spent in the 2-cell edge band.
+The fix is therefore at the **decision layer**, where the heading is chosen —
+see §7 Decision, `escapeHeading` (edge-aware fleeing). Ten-seed style
+measurement over five seeds: 2-cell edge occupancy **~19% → ~9%**, acute corner
+pinning (within 4 units of a corner point) **~×4–9 → ~×1.5**, demo survival
+unchanged (predators and both species 5/5). The broad outer-ring occupancy
+(mean radius ~62 vs ~50 uniform, centre still sparse) is _not_ a flee-pinning
+effect and is left for the forage-taper habitat change.
 
 One deliberate modelling choice remains: movement uses the **current** cell's
 terrain modifier (the terrain the animal is moving _through_).

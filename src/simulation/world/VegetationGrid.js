@@ -25,6 +25,16 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
   minFertility: 0.55, // per-cell fertility varies in [minFertility, 1]
   coverSuitability: 1.35, // cover terrain is more fertile than open ground
   quantizeLevels: 4, // biomass projects to integer levels 0..quantizeLevels
+  // Edge forage taper (off here; the demo world turns it on). Carrying capacity
+  // ramps from 0 at the map boundary up to full over an inland band, so grazers
+  // have a productive interior to be in rather than a uniformly green map right
+  // up to the wall — the habitat half of the edge-congregation fix, paired with
+  // edge-aware fleeing. See buildEdgeTaper below for the shape (gradual,
+  // slightly irregular, and rounded harder at the corners).
+  edgeTaperFraction: 0, // band width as a fraction of the smaller map dimension; 0 = no taper
+  edgeTaperIrregularity: 0.4, // coastline wobble, as a fraction of the band width
+  edgeTaperCornerBoost: 1.5, // extra corner-rounding radius (× band width); 0 = square corners
+  edgeTaperMinDimension: 96, // maps smaller than this get no taper (keeps test sandboxes untouched)
 });
 
 /**
@@ -41,6 +51,97 @@ function suitabilityFor(terrainCode, coverSuitability) {
     default:
       return 0; // water, rock
   }
+}
+
+function clamp01(value) {
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+/** Smooth 0→1 ramp with zero slope at both ends (Hermite). */
+function smoothstep01(t) {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+}
+
+/**
+ * Coherent value noise on a coarse lattice, bilinearly interpolated with a
+ * smooth fade — enough to wobble a coastline without the static look of
+ * per-cell white noise, and far cheaper than gradient noise. Values in [-1, 1].
+ * @param {import('../random/SeededRandom.js').SeededRandom} random
+ * @param {number} res lattice cells per axis (low → long, smooth waves)
+ */
+function makeValueNoise(random, res) {
+  const stride = res + 1;
+  const grid = new Float32Array(stride * stride);
+  for (let i = 0; i < grid.length; i += 1) grid[i] = random.float(-1, 1);
+  return (x, y, width, height) => {
+    const gx = (x / width) * res;
+    const gy = (y / height) * res;
+    const x0 = Math.min(res - 1, Math.max(0, Math.floor(gx)));
+    const y0 = Math.min(res - 1, Math.max(0, Math.floor(gy)));
+    const tx = smoothstep01(gx - x0);
+    const ty = smoothstep01(gy - y0);
+    const at = (ix, iy) => grid[iy * stride + ix];
+    const top = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx;
+    const bottom = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
+    return top * (1 - ty) + bottom * ty;
+  };
+}
+
+/**
+ * A per-cell carrying-capacity multiplier in [0, 1] that tapers forage off the
+ * map's edges, or `null` when the taper is disabled or the map is too small to
+ * bother. It is the habitat half of the edge-congregation fix: grazers pushed to
+ * the boundary find nothing to eat there, so the productive interior is where
+ * they want to be, rather than the map being uniformly green up to the wall.
+ *
+ * Three shape choices, all deliberate:
+ *
+ *   - **Gradual.** Capacity ramps from 0 at the boundary to full over an inland
+ *     band (`edgeTaperFraction` of the smaller dimension) via `smoothstep`, so
+ *     there is a forage gradient to drift up rather than a green/barren cliff.
+ *   - **Slightly irregular.** Each edge's distance is nudged by low-frequency
+ *     coherent noise, so the productive coastline wobbles instead of being a
+ *     perfect rectangle — which also reads naturally once the world becomes an
+ *     irregular island.
+ *   - **Rounder at the corners.** The two axis tapers are *multiplied*, so a
+ *     corner (inside both bands) is suppressed far more than a straight edge; a
+ *     `edgeTaperCornerBoost` radial term carves the corners back further still.
+ *     A right-angle corner is both the worst predator trap and the least
+ *     island-like shape, so it is rounded off hardest on purpose.
+ *
+ * The noise draws from a dedicated stream, so enabling the taper never shifts
+ * the vegetation grid's own per-cell RNG sequence.
+ *
+ * @param {{width:number,height:number,seed:number,params:object}} options
+ * @returns {((x:number, y:number) => number) | null}
+ */
+export function buildEdgeTaper({ width, height, seed, params }) {
+  const fraction = params.edgeTaperFraction ?? 0;
+  const minDim = Math.min(width, height);
+  if (!(fraction > 0) || minDim < (params.edgeTaperMinDimension ?? 0)) return null;
+
+  const band = Math.max(1, fraction * minDim);
+  const irregular = (params.edgeTaperIrregularity ?? 0) * band;
+  const cornerBoost = Math.max(0, params.edgeTaperCornerBoost ?? 0);
+  const noiseRandom = new SeededRandom((seed ^ 0x5f356495) >>> 0);
+  const noiseX = makeValueNoise(noiseRandom, 5);
+  const noiseY = makeValueNoise(noiseRandom, 5);
+
+  return (x, y) => {
+    const dx = Math.min(x, width - 1 - x);
+    const dy = Math.min(y, height - 1 - y);
+    const fx = smoothstep01((dx + noiseX(x, y, width, height) * irregular) / band);
+    const fy = smoothstep01((dy + noiseY(x, y, width, height) * irregular) / band);
+    let t = fx * fy;
+    if (cornerBoost > 0) {
+      // Extra corner rounding: a quarter-disc of low forage carved out of each
+      // corner, using the true (un-wobbled) corner distance so the rounding is
+      // stable while the coastline around it wanders.
+      t *= smoothstep01(Math.hypot(dx, dy) / (band * cornerBoost));
+    }
+    return clamp01(t);
+  };
 }
 
 export class VegetationGrid {
@@ -69,7 +170,10 @@ export class VegetationGrid {
     const total = this.#width * this.#height;
     this.#biomass = new Float32Array(total);
     this.#capacityPerCell = new Float32Array(total);
-    this.#seed(new SeededRandom(seed), terrain, merged);
+    // Built from a dedicated stream so its noise never shifts the per-cell
+    // fertility/biomass draws below; null when disabled or the map is too small.
+    const taper = buildEdgeTaper({ width: this.#width, height: this.#height, seed, params: merged });
+    this.#seed(new SeededRandom(seed), terrain, merged, taper);
   }
 
   get width() {
@@ -97,19 +201,26 @@ export class VegetationGrid {
   }
 
   /**
-   * Seed static carrying capacity (terrain suitability × per-cell fertility)
-   * and an initial biomass field. Two draws per cell, fixed order → seeded and
-   * deterministic.
+   * Seed static carrying capacity (terrain suitability × per-cell fertility ×
+   * optional edge taper) and an initial biomass field. Two draws per cell, fixed
+   * order → seeded and deterministic.
+   *
+   * The taper multiplies the *stored* capacity but not the draw decision: both
+   * draws still happen exactly when `suitability > 0`, as before, so turning the
+   * taper on shifts no part of the RNG stream — only the capacity and initial
+   * biomass values in the edge band change. Initial biomass is clamped to the
+   * tapered capacity so an edge cell never starts above what it can sustain.
    */
-  #seed(random, terrain, params) {
+  #seed(random, terrain, params, taper) {
     for (let y = 0; y < this.#height; y += 1) {
       for (let x = 0; x < this.#width; x += 1) {
         const i = this.#index(x, y);
         const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability);
         const fertility = random.float(params.minFertility, 1);
-        const capacity = suitability > 0 ? this.#capacity * suitability * fertility : 0;
+        const baseCapacity = suitability > 0 ? this.#capacity * suitability * fertility : 0;
+        const capacity = taper !== null && baseCapacity > 0 ? baseCapacity * taper(x, y) : baseCapacity;
         this.#capacityPerCell[i] = capacity;
-        this.#biomass[i] = capacity > 0 ? capacity * random.float(0, params.initialFraction) : 0;
+        this.#biomass[i] = baseCapacity > 0 ? Math.min(capacity, baseCapacity * random.float(0, params.initialFraction)) : 0;
       }
     }
     this.#revision += 1;

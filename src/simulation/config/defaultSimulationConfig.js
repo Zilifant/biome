@@ -55,6 +55,22 @@ export const defaultSimulationConfig = Object.freeze({
     // Scaling growth alone cannot brown off a field already at capacity.
     diebackRate: 0.04,
     updateInterval: 5, // regrowth runs every N ticks (staggered)
+    // Edge forage taper (see world/VegetationGrid.js `buildEdgeTaper`). Carrying
+    // capacity ramps from 0 at the boundary to full over an inland band —
+    // gradual, slightly irregular, and rounded hardest at the corners (a square
+    // corner is the worst predator trap and the least island-like shape).
+    //
+    // ⚠ Off by default (fraction 0). Measured 2026-07-22: the taper shapes the
+    // map as intended but does NOT reduce edge/corner congregation — predators
+    // follow the forage into the interior, which turns the barren margin into a
+    // predator-light refuge that fleeing grazers run to, and it cuts grazer
+    // carrying capacity ~in half (a knife-edge risk). It is the map-shaping
+    // groundwork for the irregular-island direction, not a congregation fix; set
+    // `edgeTaperFraction` (~0.10–0.18 on the 128 demo) to enable it there.
+    edgeTaperFraction: 0, // 0 = uniform map; the demo ships with the taper off
+    edgeTaperIrregularity: 0.4, // coastline wobble as a fraction of the band width
+    edgeTaperCornerBoost: 1.5, // carve corners back ~1.5 band widths (rounds them)
+    edgeTaperMinDimension: 96, // no taper below this size — keeps test sandboxes uniform
   }),
   events: Object.freeze({
     maxBufferedEvents: 5000,
@@ -638,6 +654,17 @@ export const defaultSimulationConfig = Object.freeze({
     // threat. Hunting is gated on real hunger and a usable sprint budget, so a
     // fed or exhausted predator leaves prey alone.
     fleeWeight: 2.0,
+    // Edge-aware fleeing. A prey driven toward a world edge runs ALONG it rather
+    // than smearing into the corner (`fleeWallMargin` is how close to an edge
+    // that kicks in); a prey walled into a true corner or terrain pocket judges
+    // open room out to `fleeLookahead` and breaks past the predator when no
+    // safer heading has room left. These fix the residual edge/corner
+    // congregation the movement system's wall-reflection (C8) could not: flee
+    // re-commits every tick, so the escape has to be boundary-honest at the
+    // decision layer, not patched one step later. `fleeWallMargin: 0` restores
+    // the pre-fix "straight away from the threat" behaviour.
+    fleeWallMargin: 6,
+    fleeLookahead: 8,
     // Sociality (Step 23). Herding is deliberately weak — it ranks below every
     // real need, so a hungry animal grazes its way out of the group and a fed
     // one drifts back in, which is what makes a herd loose and living rather
