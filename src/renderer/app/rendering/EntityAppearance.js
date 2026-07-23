@@ -119,6 +119,7 @@ export const TERRAIN_APPEARANCE = Object.freeze({
   rock: Object.freeze({ glyph: '#', colorToken: 'background-lighter' }),
   cover: Object.freeze({ glyph: ',', colorToken: 'comment' }),
   deep_water: Object.freeze({ glyph: '≈', colorToken: 'cyan' }),
+  thicket: Object.freeze({ glyph: '♣', colorToken: 'green' }),
   outOfBounds: Object.freeze({ glyph: '#', colorToken: 'background-lighter' }),
   unknown: Object.freeze({ glyph: '.', colorToken: 'selection' }),
 });

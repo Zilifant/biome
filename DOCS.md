@@ -551,14 +551,32 @@ methods.
 
 ### Terrain
 
-Five cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
-`COVER (3)`, `DEEP_WATER (4, impassable)` — generated deterministically at world
-init from circular lakes, **irregular rock formations**, and clumped cover
-patches, then finished by a **connectivity pass**. Out-of-bounds cells report
-`ROCK`, so passability checks are safe without a separate bounds guard.
+Six cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
+`COVER (3)`, `DEEP_WATER (4, impassable)`, `THICKET (5)` — generated
+deterministically at world init from circular lakes, **irregular rock
+formations**, clumped cover patches, and **thicket stands**, then finished by a
+**connectivity pass**. Out-of-bounds cells report `ROCK`, so passability checks
+are safe without a separate bounds guard.
 
-Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, rock and deep water 0
-(impassable).
+Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, thicket 0.1, rock and
+deep water 0 (impassable).
+
+⚠ **A thicket is a spatial refuge (A18), the static MVP of the shrub layer
+(A50).** A dense stand of tall brush / small trees, generated in clumps exactly
+like rock formations but **more prevalent** (`thickets` count, on open ground
+only) and with three refuge properties: it **blocks line of sight** (opaque like
+rock), **shelters from the weather** (like cover), and is **passable but a
+crawl** (speed 0.1). The crawl alone would only make animals _accumulate_ in
+thickets — slow ground is high-occupancy — so the refuge behaviour lives in the
+movement system: an animal treats a thicket edge as a wall and **turns away,
+unless it is fleeing** (diving into cover is worth the slog) **or already inside**
+(so it can push back out). A pursuer that is not itself fleeing therefore stops
+at the edge, and — because line of sight is blocked — loses the prey it followed
+in. Measured (thickets 0 → 14): concealment on predator–prey pairs **~1% → ~11%**
+(line of sight finally bites), **23–42% of fleeing grazers shelter inside**, and
+edge/corner occupancy and mean radius all eased slightly, with demo survival
+unchanged. It does not grow, is not eaten, and is not sought — the growing,
+grazable, maturing version is A50.
 
 ⚠ **A lake is a shallow ring around an impassable deep core.** Each lake stamps a
 shallow `WATER` disc, then a `DEEP_WATER` disc of `lakeDeepFraction` of the
@@ -637,7 +655,7 @@ problem, not a forage one.
 **Effects belong at existing chokepoints.** Look for one before adding a reader:
 
 - `world.speedModifierAt` carries terrain, disturbances, **and** worn ground.
-- `world.isShelteredAt` carries cover **and** burrows.
+- `world.isShelteredAt` carries cover, burrows, **and** thicket.
 - `world.blocksSightAt` carries terrain opacity today (only rock), and is the one
   place a future sight-blocker — smoke, a wall, concealing cover — is added, so
   perception's raycast never learns a new source to be hidden by one.

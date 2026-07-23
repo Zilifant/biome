@@ -89,7 +89,16 @@ export class MovementSystem extends SimulationSystem {
       const targetX = world.clampX(entity.x + dx);
       const targetY = world.clampY(entity.y + dy);
 
-      if (world.isPassableAt(targetX, targetY)) {
+      // Thicket is passable but a crawl, so an animal treats its edge as a wall
+      // and turns away — *unless* it is fleeing (diving into cover is worth the
+      // slog, and a pursuer that is not fleeing stops at the edge, which is what
+      // makes a thicket a refuge, A18) or it is already inside one (so it can
+      // push back out rather than being trapped). Standing still (eat/rest/drink)
+      // never triggers this — only a committed step does.
+      const refusesThicket =
+        world.isThicketAt(targetX, targetY) && entity.action !== 'flee' && !world.isThicketAt(entity.x, entity.y);
+
+      if (world.isPassableAt(targetX, targetY) && !refusesThicket) {
         const from = { x: entity.x, y: entity.y };
         world.moveEntity(entity, targetX, targetY, heading);
         entity.lastMoveDistance = Math.hypot(entity.x - from.x, entity.y - from.y);

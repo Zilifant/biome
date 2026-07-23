@@ -12,7 +12,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 function feedingEngine(params = {}) {
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 16, height: 16 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 16, height: 16 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
   });
   engine.registerSystem(
     new FeedingSystem({ intakeRate: 0.6, energyPerBiomass: 10, efficiency: 0.6, ...params }),

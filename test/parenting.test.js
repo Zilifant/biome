@@ -27,7 +27,7 @@ const PARENTING = {
 function parentingEngine({ config = {}, ...params } = {}) {
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
   });
   engine.registerSystem(new ParentingSystem({ ...PARENTING, ...params }));
   return engine;
@@ -169,7 +169,7 @@ describe('parenting: dependent juveniles follow and do not graze', () => {
   function followEngine() {
     const engine = new SimulationEngine({
       seed: 5,
-      config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+      config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
     });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1 }));
     engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));

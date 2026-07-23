@@ -49,7 +49,36 @@ they are not re-opened by accident.
 ## Engine — behaviour and modelling
 
 - **A18 — Prey have no spatial refuge from predators.** Cover slows both
-  equally. Part of why the founding counts are a knife edge.
+  equally. Part of why the founding counts are a knife edge. The static `thicket`
+  terrain (A50) is a first refuge: it blocks line of sight and predators will not
+  follow prey into it.
+
+- **A50 — Dynamic shrub layer (large bush / small tree).** A new *dynamic* plant
+  layer — deliberately **not** a terrain code, because terrain is static and a
+  shrub grows, is grazed, and matures. It mirrors the vegetation architecture: a
+  static seeded *capacity* placed in clumps, plus dynamic *state* (biomass + a
+  woody floor) that serializes; its obstacle/cover properties fold into the
+  existing `speedModifierAt` / `blocksSightAt` / `isShelteredAt` chokepoints, so
+  no system learns shrubs exist to be slowed, hidden, or sheltered by one. Six
+  features: (1) blocks line of sight once **mature**; (2) passable but extremely
+  slowing; (3) weather shelter; (4) edible but not preferred — and once mature,
+  eating strips only the leaves down to a **woody floor**, so the trunk/branches
+  and the cover they give remain; (5) grows in clumps, some already mature at
+  world init; (6) denser than rock. Maturity (`woodyFloor > 0`) is the stable
+  flag driving sight/slow/shelter, so a grazed shrub still blocks and shelters,
+  while leaf biomass (`biomass − woodyFloor`) is the edible, regrowing part.
+  Suggested build order, gated behind `shrub.enabled` (default off) and measured
+  via a config override so the suite stays green each step: **(1)** `ShrubGrid` +
+  `ShrubSystem` + the three chokepoints — measure whether dense sight-blocking
+  cover finally makes line of sight bite and eases the outer-ring/corner
+  gathering; **(2)** floored, non-preferred feeding; **(3)** protocol + renderer
+  layer (RLE + revision-gated deltas, a glyph, protocol-version bump, fixtures);
+  **(4)** persistence (serialize biomass + woody floor, save-version bump); **(5)**
+  tune density / slow factor / food value and enable. The **static `thicket`
+  terrain type is the shipped MVP of this** (blocks sight, shelters,
+  passable-but-avoided, placed like rock); the dynamic layer is the
+  growth/grazing/maturity superset. Relates to A18 (spatial refuge) and A3 (the
+  reserved `plant` entity kind — this uses a field, not entities).
 
 - **A35 — Territory is a predator-only phenomenon** at ~9 individuals. Grazers
   get a home range but no site fidelity and no claims.

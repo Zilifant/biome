@@ -26,7 +26,7 @@ const STALKER = getSpecies('predator.stalker');
 function sandbox({ seed = 3, size = 44, systems = [] } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;

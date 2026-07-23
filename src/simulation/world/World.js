@@ -213,6 +213,19 @@ export class World {
   }
 
   /**
+   * Whether a continuous position is inside a thicket — passable ground so slow
+   * to cross that the movement system only lets an animal push in when it is
+   * fleeing (or already inside, so it can push back out). The one predicate that
+   * turns "extremely slow" into "avoided unless it is the last choice".
+   * @param {number} x @param {number} y
+   * @returns {boolean}
+   */
+  isThicketAt(x, y) {
+    const { cellX, cellY } = this.cellOf(x, y);
+    return this.terrain.codeAt(cellX, cellY) === TerrainType.THICKET;
+  }
+
+  /**
    * Whether the cell at a continuous position gives shelter from the weather
    * (Step 19). Cover is the only sheltering terrain today; keeping the test
    * here rather than in a system means "what counts as shelter" has one home.
@@ -221,7 +234,9 @@ export class World {
    */
   isShelteredAt(x, y) {
     const { cellX, cellY } = this.cellOf(x, y);
-    if (this.terrain.codeAt(cellX, cellY) === TerrainType.COVER) return true;
+    const code = this.terrain.codeAt(cellX, cellY);
+    // Cover (low brush) and thicket (a dense stand) both break the weather.
+    if (code === TerrainType.COVER || code === TerrainType.THICKET) return true;
     // A burrow is shelter an animal made (Step 28). Landing it here rather than
     // in the metabolism system means thermoregulation and the `shelter` action
     // both pick it up for free, and neither of them knows the difference between

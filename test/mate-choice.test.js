@@ -41,7 +41,7 @@ function genomeWith(overrides = {}) {
 function sandbox({ seed = 1, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;

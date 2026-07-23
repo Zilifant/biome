@@ -29,7 +29,7 @@ function sandbox({ seed = 1, systems = [], config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 },
+      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
       ...config,
     },
   });

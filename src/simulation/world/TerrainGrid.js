@@ -22,6 +22,12 @@ export const TerrainType = Object.freeze({
   // future work). Impassable like rock, but semantically water — a distinct code
   // so the renderer and the perception/obstacle logic can tell the two apart.
   DEEP_WATER: 4,
+  // Thicket: a dense stand of tall brush / small trees. Passable but so slow to
+  // push through that an animal only does so as a last resort (see the movement
+  // system), it blocks line of sight, and it shelters from the weather — a
+  // spatial refuge (A18). The static MVP of the dynamic shrub layer (A50); it
+  // does not grow, is not eaten, and is placed in clumps like rock.
+  THICKET: 5,
 });
 
 /**
@@ -36,6 +42,7 @@ export const TERRAIN_LEGEND = Object.freeze([
   Object.freeze({ code: TerrainType.ROCK, name: 'rock', passable: false }),
   Object.freeze({ code: TerrainType.COVER, name: 'cover', passable: true }),
   Object.freeze({ code: TerrainType.DEEP_WATER, name: 'deep_water', passable: false }),
+  Object.freeze({ code: TerrainType.THICKET, name: 'thicket', passable: true }),
 ]);
 
 const PASSABLE_BY_CODE = TERRAIN_LEGEND.map((entry) => entry.passable);
@@ -69,8 +76,9 @@ const SIGHT_BLOCKING_BY_CODE = Object.freeze([
   false, // ground
   false, // water — see across a lake
   true, //  rock — opaque
-  false, // cover — does not conceal yet
+  false, // cover — low brush; too short to hide a grazer
   false, // deep water — see across it
+  true, //  thicket — tall, dense; blocks sight
 ]);
 
 /**
@@ -96,6 +104,7 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
   0, // rock (impassable)
   0.6, // cover
   0, // deep water (impassable)
+  0.1, // thicket — passable, but a crawl; an animal only pushes through to escape
 ]);
 
 export const DEFAULT_TERRAIN_PARAMS = Object.freeze({
@@ -121,6 +130,16 @@ export const DEFAULT_TERRAIN_PARAMS = Object.freeze({
   // ~1 run per cell). Density is patches per 1000 cells.
   coverPatchDensity: 1.5,
   coverPatchRadius: 3,
+  // Thicket stands, placed exactly like rock formations (a short random walk of
+  // overlapping discs, organic outline) but **more prevalent** than rock and on
+  // open ground only. `thickets` is the formation count (0 disables). See
+  // #carveThicketFormations.
+  thickets: 14,
+  thicketMinRadius: 1.5,
+  thicketMaxRadius: 4,
+  thicketMinSteps: 2,
+  thicketMaxSteps: 7,
+  thicketDrift: 1,
 });
 
 export class TerrainGrid {
@@ -238,8 +257,13 @@ export class TerrainGrid {
     this.#carveLakes(random, params);
     this.#carveRockFormations(random, params);
     this.#growCoverPatches(random, params);
+    // Thickets last of the placement steps (before connectivity), so their draws
+    // never shift lakes, rock, or cover — the existing map is unchanged and
+    // thicket is simply added on top of open ground.
+    this.#carveThicketFormations(random, params);
     // Run last, so the guarantee holds over the finished map: every passable
-    // cell reaches every other passable cell without crossing rock.
+    // cell reaches every other passable cell without crossing rock. Thicket is
+    // passable, so it neither strands ground nor is carved through.
     this.#ensureConnectivity();
   }
 
@@ -301,6 +325,36 @@ export class TerrainGrid {
       for (let s = 0; s < steps; s += 1) {
         const r = random.float(minR, maxR);
         this.#stampDisc(cx, cy, r, TerrainType.ROCK);
+        const angle = random.float(0, Math.PI * 2);
+        const stepLen = r * drift;
+        cx += Math.cos(angle) * stepLen;
+        cy += Math.sin(angle) * stepLen;
+      }
+    }
+  }
+
+  /**
+   * Thicket stands, grown exactly like rock formations — a short random walk of
+   * overlapping discs — but on **open ground only** (`onlyGround`), so a stand
+   * never buries a lake, rock, or an existing cover patch, and more of them than
+   * rock. Passable but sight-blocking and near-impassable to move through; the
+   * generation is identical in shape to rock, which is why an animal reads a
+   * thicket as a soft obstacle rather than a wall.
+   */
+  #carveThicketFormations(random, params) {
+    const count = Math.max(0, Math.round(params.thickets ?? 0));
+    const minR = Math.max(0.5, params.thicketMinRadius);
+    const maxR = Math.max(minR, params.thicketMaxRadius);
+    const minSteps = Math.max(1, Math.round(params.thicketMinSteps));
+    const maxSteps = Math.max(minSteps, Math.round(params.thicketMaxSteps));
+    const drift = params.thicketDrift;
+    for (let n = 0; n < count; n += 1) {
+      let cx = random.float(0, this.#width);
+      let cy = random.float(0, this.#height);
+      const steps = random.int(minSteps, maxSteps);
+      for (let s = 0; s < steps; s += 1) {
+        const r = random.float(minR, maxR);
+        this.#stampDisc(cx, cy, r, TerrainType.THICKET, true);
         const angle = random.float(0, Math.PI * 2);
         const stepLen = r * drift;
         cx += Math.cos(angle) * stepLen;

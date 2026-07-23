@@ -26,7 +26,7 @@ function traits(overrides = {}) {
 function sandbox({ seed = 3, size = 44, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;

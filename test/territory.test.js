@@ -32,7 +32,7 @@ function sandbox({ seed = 2, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 },
+      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
       ...config,
     },
   });
@@ -543,7 +543,7 @@ describe('territory: the residency sandbox', () => {
       seed,
       config: {
         world: { width: 80, height: 80 },
-        terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 },
+        terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
         vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
         environment: { ticksPerYear: 8000, temperatureAmplitude: 0, meanTemperature: 14 },
       },

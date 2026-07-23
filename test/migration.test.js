@@ -43,7 +43,7 @@ function sandbox({ seed = 3, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 },
+      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
       ...config,
     },
   });
@@ -376,7 +376,7 @@ describe('migration: what steers a wander', () => {
     const engine = new SimulationEngine({
       seed: 5,
       // One lake, nothing else, so the wander has water and only water to follow.
-      config: { world: { width: 64, height: 64 }, terrain: { lakes: 1, ridges: 0, coverPatchDensity: 0 } },
+      config: { world: { width: 64, height: 64 }, terrain: { lakes: 1, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
     });
     engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
     clearVegetation(engine); // no forage signal at all

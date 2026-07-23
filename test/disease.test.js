@@ -35,7 +35,7 @@ function genomeWith(overrides = {}) {
 function sandbox({ seed = 4, config = {} } = {}) {
   return new SimulationEngine({
     seed,
-    config: { world: { width: 64, height: 64 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: 64, height: 64 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
   });
 }
 

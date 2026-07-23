@@ -112,7 +112,7 @@ describe('decision: thirst competes with hunger', () => {
   test('a very thirsty, mildly hungry animal at water drinks rather than eats', () => {
     const engine = new SimulationEngine({
       seed: 5,
-      config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0 } },
+      config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0 } },
     });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 8 }));
     engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));

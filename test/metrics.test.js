@@ -29,7 +29,7 @@ function uniformGenome(value) {
 function sandbox({ seed = 1, systems = [] } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -227,7 +227,7 @@ describe('metrics: selection sandbox', () => {
       seed,
       config: {
         world: { width: 36, height: 36 },
-        terrain: { lakes: 1, ridges: 0, coverPatchDensity: 0.5 },
+        terrain: { lakes: 1, ridges: 0, thickets: 0, coverPatchDensity: 0.5 },
         demo: { founding: [{ speciesId: 'herbivore.grazer', count: 70 }] },
         // Sparse food and an expensive body are the pressure, retuned in Step 22
         // (from capacity 1.4 at the default basal rate of 0.04). The old

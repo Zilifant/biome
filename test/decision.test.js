@@ -17,7 +17,7 @@ function foragingEngine() {
     seed: 3,
     // Disable natural terrain features so the sandbox is open ground with one
     // planted food patch (set below).
-    config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
   });
   engine.registerSystem(new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1 }));
   engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));

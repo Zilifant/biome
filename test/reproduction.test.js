@@ -36,7 +36,7 @@ function reproEngine(params = {}) {
   const reproduction = { ...PARAMS, ...params };
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0 }, reproduction },
+    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0 }, reproduction },
   });
   engine.registerSystem(new ReproductionSystem(reproduction));
   return engine;

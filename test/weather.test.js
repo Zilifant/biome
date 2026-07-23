@@ -32,7 +32,7 @@ const GRAZER = getSpecies('herbivore.grazer');
 function sandbox({ seed = 3, size = 44, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -255,7 +255,7 @@ describe('weather: thermal stress and shelter', () => {
     const build = (temperature) => {
       const engine = sandbox({
         size: 48,
-        config: { terrain: { lakes: 0, ridges: 0, coverPatchDensity: 3 } },
+        config: { terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 3 } },
         systems: [
           new PerceptionSystem(CONFIG.perception),
           new DecisionSystem({
