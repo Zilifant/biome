@@ -12,6 +12,7 @@
     "dev": "nodemon src/server/createServer.js",
     "headless": "node src/scripts/runHeadless.js",
     "benchmark": "node src/scripts/benchmark.js",
+    "ethologist": "node src/scripts/ethologist.js",
     "fixtures:renderer": "node src/scripts/generateRendererFixtures.js",
     "test": "node --test",
     "test:watch": "node --test --watch",
