@@ -35,14 +35,42 @@ export class MovementSystem extends SimulationSystem {
    * @param {number} [options.sprintMultiplier] speed multiplier while sprinting
    * @param {number} [options.sprintStaminaCost] stamina spent per sprinting tick
    * @param {number} [options.injurySpeedPenalty] speed lost at full impairment
+   * @param {number|null} [options.maxOccupantsPerCell] refuse a step into a cell
+   *        already holding this many living animals; null disables the cap
    * @param {number} [options.updateInterval]
    */
-  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, updateInterval = 1 } = {}) {
+  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, maxOccupantsPerCell = null, updateInterval = 1 } = {}) {
     super({ id: 'movement.execute', phase: 'movement', priority: 0, updateInterval });
     this.sprintMultiplier = sprintMultiplier;
     this.sprintStaminaCost = sprintStaminaCost;
     this.diseaseSpeedPenalty = diseaseSpeedPenalty;
     this.injurySpeedPenalty = injurySpeedPenalty;
+    // A finite, positive cap turns the crowding check on; anything else is "off".
+    this.maxOccupantsPerCell =
+      typeof maxOccupantsPerCell === 'number' && maxOccupantsPerCell > 0 ? maxOccupantsPerCell : null;
+  }
+
+  /**
+   * Whether the target cell already holds the maximum number of living animals.
+   * Counted through the spatial grid (never a global scan), and only same-cell
+   * occupants count — a query radius of 1.5 safely covers a 1×1 cell, then exact
+   * cell equality filters the rest out. The mover itself and any carcasses are
+   * excluded. No randomness; the grid reflects every earlier move this tick, so
+   * the outcome is a deterministic function of iteration order.
+   * @param {import('../world/World.js').World} world
+   * @param {number} cellX @param {number} cellY @param {number} moverId
+   * @returns {boolean}
+   */
+  #cellFull(world, cellX, cellY, moverId) {
+    let count = 0;
+    for (const id of world.grid.queryRadius(cellX + 0.5, cellY + 0.5, 1.5)) {
+      if (id === moverId) continue;
+      const other = world.entities.get(id);
+      if (!other || other.kind !== 'animal' || !other.alive) continue;
+      const cell = world.cellOf(other.x, other.y);
+      if (cell.cellX === cellX && cell.cellY === cellY && (count += 1) >= this.maxOccupantsPerCell) return true;
+    }
+    return false;
   }
 
   update(world, context) {
@@ -105,7 +133,21 @@ export class MovementSystem extends SimulationSystem {
         !world.isThicketAt(entity.x, entity.y) &&
         intent.breakThicket !== true;
 
-      if (world.isPassableAt(targetX, targetY) && !refusesThicket) {
+      // Soft crowding cap (optional): a step into a *different* cell that is
+      // already full is refused like a wall. Moving within the current cell, or
+      // out of a full one, is always allowed — occupancy only gates entry — so
+      // the cap thins stacking without ever trapping an animal. A cheap grid
+      // count, skipped entirely when the cap is off.
+      let refusesCrowd = false;
+      if (this.maxOccupantsPerCell !== null) {
+        const here = world.cellOf(entity.x, entity.y);
+        const there = world.cellOf(targetX, targetY);
+        refusesCrowd =
+          (there.cellX !== here.cellX || there.cellY !== here.cellY) &&
+          this.#cellFull(world, there.cellX, there.cellY, entity.id);
+      }
+
+      if (world.isPassableAt(targetX, targetY) && !refusesThicket && !refusesCrowd) {
         const from = { x: entity.x, y: entity.y };
         world.moveEntity(entity, targetX, targetY, heading);
         entity.lastMoveDistance = Math.hypot(entity.x - from.x, entity.y - from.y);

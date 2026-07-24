@@ -711,6 +711,11 @@ describe('mate choice: the sexual-selection sandbox', () => {
         // mate choice as the loudest thing in the world, not to model a meadow.
         vegetation: { capacity: 14, growthRate: 0.3, minFertility: 0.9, initialFraction: 1 },
         environment: { ticksPerYear: 8000, temperatureAmplitude: 0, meanTemperature: 14 },
+        // Hold the crowding cap off in this sandbox, the way weather and forage
+        // variation are held off: the selection differential is a knife-edge
+        // metric (§1.4 A31), and the demo's default per-cell cap is an unrelated
+        // movement confound that should not be measured alongside mate choice.
+        locomotion: { maxOccupantsPerCell: null },
         aging: { maturityAge: 300, juvenileUntil: 120, subadultUntil: 300, adultUntil: 2200, maxAge: 3000 },
         reproduction: { gestationTicks: 200, cooldownTicks: 400, minEnergyFraction: 0.6, acceptanceThreshold: acceptance },
         // Variation concentrated in the displayed trait, so nothing else drifts

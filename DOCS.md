@@ -41,7 +41,7 @@ npm run benchmark                           # performance + a determinism check
 npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as possible
 ```
 
-### Current state (measured 2026-07-21)
+### Current state (measured 2026-07-24)
 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
@@ -49,8 +49,9 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 | Tests                 | 717 passing / 0 failing, 187 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
-| Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |
+| Benchmark (large-5k)  | 67.25 ms/tick, 5733→7777 entities                      |
 | Species               | 3 (grazer, stalker, corvid) — all pure config          |
+| Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
 
 The renderer is a fully separate subsystem with its own reference documentation,
@@ -988,6 +989,37 @@ effect and is left for the forage-taper habitat change.
 
 One deliberate modelling choice remains: movement uses the **current** cell's
 terrain modifier (the terrain the animal is moving _through_).
+
+**Per-cell crowding cap (`locomotion.maxOccupantsPerCell`, default 2).** With no
+cap, nothing stops animals sharing a 1×1 cell, and a tight herd genuinely
+stacks — measured up to **~20 animals in a single cell**, with **~10% of
+animal-ticks** spent in a cell holding more than two, which is not what a herd
+grazing a meadow looks like. The cap refuses a step _into_ a cell already holding
+N living animals, treated exactly like a wall (turn around, re-commit); moving
+_out of_ or _within_ an over-full cell is always allowed, so it thins stacking
+without ever trapping an animal, and carcasses do not count (a scavenger can
+still stand on the body it is eating). A birth can still momentarily seat three
+in a cell (a newborn spawns on its parent, no move involved); movement then
+spreads them.
+
+Because every pairwise interaction (predation, mating, courtship, provisioning)
+needs exactly two animals and its distance gate is satisfied by adjacent cells,
+**N = 2 breaks no behaviour** — verified across four seeds (demo + the corner-lake
+world) with the cap on and off: every species survives, every death cause still
+fires, and reproduction still runs. It is a real ecological change rather than a
+no-op — final populations shift by ±15–55% per seed with **no systematic
+direction** (the corner-lake world's grazers rose 44 → 68 and its exposure deaths
+halved; another seed's grazers fell), the same magnitude as re-rolling the seed,
+and it is deterministic (the outcome is a fixed function of movement iteration
+order). `null` disables it, restoring the pre-cap uncapped movement — which is
+what the mate-choice selection sandbox does (§1.4 A31), holding crowding off the
+way it holds weather off, to keep a knife-edge evolutionary metric clean.
+
+⚠ **This shifted the demo baseline on 2026-07-24.** Renderer fixtures were
+regenerated and the benchmark re-measured; the older dated readings scattered
+through this document (edge occupancy, migration, thicket concealment, …) predate
+the cap and were taken uncapped — re-measure rather than inherit, per the reading
+convention above.
 
 ### Metabolism and physiology
 

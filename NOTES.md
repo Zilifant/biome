@@ -20,6 +20,7 @@ DO NOT EDIT
 - turn world into island
 - sea creatures
 - paths aren't very path-y
+- open/closed mode; in open mode, new animals can spawn in based on population size
 
 ### Ideas - UI
 

@@ -520,6 +520,24 @@ export const defaultSimulationConfig = Object.freeze({
     shelterWeight: 0.9, // how strongly the weather pulls an animal toward cover
     shelterStressThreshold: 2, // °C of stress before moving is worth it
     shelterStressSpan: 10, // °C at which that pull is at full strength
+    // Soft per-cell crowding cap. A number N refuses a step INTO a world cell
+    // that already holds N living animals — the same treatment a wall or a
+    // thicket edge gets, so a blocked animal simply turns and re-commits. It
+    // never traps: moving *out* of, or *within*, an over-full cell is always
+    // allowed, and carcasses do not count (a scavenger can still stand on the
+    // body it is eating). `null` disables it entirely (movement unconstrained,
+    // the pre-2026-07-24 behaviour).
+    //
+    // Default 2: every pairwise interaction (predation, mating, courtship,
+    // provisioning) involves exactly two animals and its distance gates are
+    // satisfied by adjacent cells, so N = 2 costs no behaviour — verified across
+    // four seeds, every species surviving and every death cause still firing —
+    // while stopping the literal stacking the uncapped model allows (measured up
+    // to ~20 animals in one 1×1 cell, ~10% of animal-ticks in cells holding more
+    // than two). It is a real ecological change, not a no-op: it perturbs
+    // per-seed outcomes by the same magnitude as re-rolling the seed, with no
+    // systematic direction.
+    maxOccupantsPerCell: 2,
   }),
   // Bounded, decaying spatial memory (see memory/memories.js and
   // systems/MemorySystem.js). Animals remember where they ate, drank, searched

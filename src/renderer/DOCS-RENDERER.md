@@ -42,7 +42,7 @@ numbers, so re-measure rather than inherit.
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 85, runner 16 (of 708 repo-wide)                  |
+| Tests               | renderer 85, runner 16 (of 717 repo-wide)                  |
 | Protocol understood | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v28 is drawn or inspectable   |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |

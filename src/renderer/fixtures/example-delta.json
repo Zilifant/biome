@@ -10,20 +10,20 @@
       "id": 1,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 123.23979581335216,
-      "y": 96.23691731176925,
-      "heading": 3.8595327782086546,
+      "x": 125.21507039995645,
+      "y": 91.79783034161035,
+      "heading": 4.71238898038469,
       "age": 256,
-      "energyFraction": 0.8626414989688962,
+      "energyFraction": 0.826326059560264,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 10.646838342761992,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "groupId": null,
+      "groupId": 1,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -178,17 +178,17 @@
       "id": 9,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 114.75398656074664,
-      "y": 107.33356570157294,
-      "heading": 4.251944482565406,
+      "x": 122.34744096548235,
+      "y": 95.1017190755759,
+      "heading": 4.71238898038469,
       "age": 764,
-      "energyFraction": 0.9160885792290813,
+      "energyFraction": 0.9133450992069341,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 22.02710871468587,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 9,
+      "groupId": 1,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -304,11 +304,11 @@
       "id": 15,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 125.19154286901559,
-      "y": 16.729932368937625,
-      "heading": 1.9545909143360376,
+      "x": 125.19788697047876,
+      "y": 14.560580575444748,
+      "heading": 4.334443221416996,
       "age": 270,
-      "energyFraction": 0.7866402707810045,
+      "energyFraction": 0.7513399331048655,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 11.824453025968278,
       "healthFraction": 1,
@@ -317,7 +317,7 @@
       "groupId": 15,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -451,11 +451,11 @@
       "id": 22,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 50.99753400048556,
-      "y": 52.903046249604785,
-      "heading": 3.0525942574899343,
+      "x": 54.15278911185307,
+      "y": 50.332851488914685,
+      "heading": 4.511136014646993,
       "age": 929,
-      "energyFraction": 0.8918927309476203,
+      "energyFraction": 0.8921928901744514,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 24.82334903297217,
       "healthFraction": 1,
@@ -724,9 +724,9 @@
       "id": 35,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 47.62568864196242,
-      "y": 73.02175790423944,
-      "heading": 4.117057935410166,
+      "x": 48.57178513861858,
+      "y": 74.8432395928552,
+      "heading": 1.679666014672038,
       "age": 1391,
       "energyFraction": 0.6663123830269702,
       "hydrationFraction": 0.9961500000000004,
@@ -737,7 +737,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "leaveThicket",
       "alive": true,
       "decayStage": 0
     },
@@ -871,9 +871,9 @@
       "id": 42,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 39.21391797823157,
-      "y": 12.250966982210622,
-      "heading": 3.653236295729739,
+      "x": 38.07075358795227,
+      "y": 11.625386670477338,
+      "heading": 4.320692648383326,
       "age": 76,
       "energyFraction": 0.9959377403803319,
       "hydrationFraction": 0.9961500000000004,
@@ -884,7 +884,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1039,9 +1039,9 @@
       "id": 50,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 39.13334449672367,
-      "y": 62.72995352317423,
-      "heading": 2.0459968130424926,
+      "x": 39.252709483810406,
+      "y": 62.637909977866656,
+      "heading": 1.4387662303621669,
       "age": 918,
       "energyFraction": 0.6973723412146415,
       "hydrationFraction": 0.9961500000000004,
@@ -1052,7 +1052,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "leaveThicket",
       "alive": true,
       "decayStage": 0
     },
@@ -1123,11 +1123,11 @@
       "id": 54,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 73.61653211036494,
-      "y": 95.33652851264648,
-      "heading": 3.1433211303862194,
+      "x": 83.07553313621567,
+      "y": 97.4978071623193,
+      "heading": 0.7431916646242112,
       "age": 1413,
-      "energyFraction": 0.7973717285983324,
+      "energyFraction": 0.8555552620824887,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.684174900129438,
       "healthFraction": 1,
@@ -1144,11 +1144,11 @@
       "id": 55,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 55.54820927344876,
-      "y": 51.642370589686124,
-      "heading": 2.751474277941881,
+      "x": 55.83661434077278,
+      "y": 52.064926928394286,
+      "heading": 2.333909177101539,
       "age": 70,
-      "energyFraction": 0.8431092053800477,
+      "energyFraction": 0.8431094628995911,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 6.895357783784391,
       "healthFraction": 1,
@@ -1157,7 +1157,7 @@
       "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1270,11 +1270,11 @@
       "id": 61,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 53.08778287292256,
-      "y": 52.710659772128764,
-      "heading": 2.9409037816047032,
+      "x": 54.150444073851666,
+      "y": 52.494485457848604,
+      "heading": 6.082496435194507,
       "age": 1075,
-      "energyFraction": 0.9229521834841425,
+      "energyFraction": 0.9231650898200179,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 31.51796891768463,
       "healthFraction": 1,
@@ -1354,20 +1354,20 @@
       "id": 65,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 125.48300325004068,
-      "y": 95.55772190172796,
-      "heading": 3.7888153136837115,
+      "x": 126.02681201138871,
+      "y": 92.30165279799992,
+      "heading": 4.71238898038469,
       "age": 483,
-      "energyFraction": 0.9634579853111613,
+      "energyFraction": 0.9632659578457594,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 16.368634332733368,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 1,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1417,17 +1417,17 @@
       "id": 68,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 114.70205910049756,
-      "y": 106.90778611011845,
-      "heading": 4.269374726118338,
+      "x": 121.94487314735468,
+      "y": 102.48043380798093,
+      "heading": 5.697642164907318,
       "age": 1315,
-      "energyFraction": 0.678683836911461,
+      "energyFraction": 0.6774830217600194,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 29.294422516738994,
       "healthFraction": 0.8103622140137986,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": 9,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -1585,11 +1585,11 @@
       "id": 76,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 122.49358276730521,
-      "y": 19.592227702636027,
-      "heading": 2.7960920575712223,
+      "x": 123.45789480356287,
+      "y": 17.35000763806301,
+      "heading": 5.637924779838104,
       "age": 1356,
-      "energyFraction": 0.9314516540296073,
+      "energyFraction": 0.9309525903642565,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 28.478477329714224,
       "healthFraction": 1,
@@ -1598,7 +1598,7 @@
       "groupId": 15,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "rest",
       "alive": true,
       "decayStage": 0
     },
@@ -1732,17 +1732,17 @@
       "id": 83,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 113.75874152825294,
-      "y": 106.22724140416416,
-      "heading": 4.208556421223101,
+      "x": 113.15793470458594,
+      "y": 107.43659518629526,
+      "heading": 5.533738380749806,
       "age": 1363,
-      "energyFraction": 0.8512493437611199,
+      "energyFraction": 0.8504703634572722,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 30.356668993667704,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": 9,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -2026,9 +2026,9 @@
       "id": 97,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 111.78647608045475,
-      "y": 90.91139743258786,
-      "heading": 4.60663759688406,
+      "x": 110.39788632655798,
+      "y": 90.42914403176053,
+      "heading": 4.609220243401519,
       "age": 663,
       "energyFraction": 0.8952207158445495,
       "hydrationFraction": 0.9961500000000004,
@@ -2173,9 +2173,9 @@
       "id": 104,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 31.14382053371742,
-      "y": 37.883180360351844,
-      "heading": 2.208933302284432,
+      "x": 32.02677228731993,
+      "y": 37.4444105529176,
+      "heading": 1.149351528179782,
       "age": 1334,
       "energyFraction": 0.6961307568375547,
       "hydrationFraction": 0.9961500000000004,
@@ -2183,10 +2183,10 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": 36,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "leaveThicket",
       "alive": true,
       "decayStage": 0
     },
@@ -2278,17 +2278,17 @@
       "id": 109,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 118.89175165188432,
-      "y": 106.46241475726413,
-      "heading": 4.798985895695349,
+      "x": 118.85057775938664,
+      "y": 106.47192840838815,
+      "heading": 5.863365545060638,
       "age": 998,
-      "energyFraction": 0.6803441265404033,
+      "energyFraction": 0.6803441265404035,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 27.816350745435944,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 9,
+      "groupId": 109,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -2299,9 +2299,9 @@
       "id": 110,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 54.669305776370365,
-      "y": 52.38893481513185,
-      "heading": 6.082496435194496,
+      "x": 52.181643451439534,
+      "y": 52.89499328116254,
+      "heading": 2.940903781604714,
       "age": 1125,
       "energyFraction": 0.8634907218538728,
       "hydrationFraction": 0.9961500000000004,
@@ -2425,11 +2425,11 @@
       "id": 116,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 125.37232864410662,
-      "y": 18.056567582572608,
-      "heading": 6.212628734538342,
+      "x": 126.31708235812806,
+      "y": 15.643852958518771,
+      "heading": 5.594276236069186,
       "age": 580,
-      "energyFraction": 0.8354692718530435,
+      "energyFraction": 0.9213757802155506,
       "hydrationFraction": 0.9961500000000004,
       "bodyMass": 19.459123533071946,
       "healthFraction": 1,
@@ -2488,9 +2488,9 @@
       "id": 119,
       "kind": "animal",
       "speciesId": "herbivore.grazer",
-      "x": 36.549404521544226,
-      "y": 7.558039116481742,
-      "heading": 1.0473348430619307,
+      "x": 36.417589919697846,
+      "y": 7.622949500881031,
+      "heading": 1.1790999947935328,
       "age": 998,
       "energyFraction": 0.8955281518782284,
       "hydrationFraction": 0.9961500000000004,
@@ -2501,7 +2501,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -2530,11 +2530,11 @@
       "id": 121,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 111.05254652725239,
-      "y": 99.68436266611155,
-      "heading": 4.845605705126618,
+      "x": 112.12232479464237,
+      "y": 108.35309151731626,
+      "heading": 5.5044185918384265,
       "age": 252,
-      "energyFraction": 0.7479822641082289,
+      "energyFraction": 0.7479826003475957,
       "hydrationFraction": 0.9969199999999994,
       "bodyMass": 15.30962921070517,
       "healthFraction": 1,
@@ -2543,7 +2543,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "chase",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -2677,9 +2677,9 @@
       "id": 128,
       "kind": "animal",
       "speciesId": "predator.stalker",
-      "x": 122.6327177566609,
-      "y": 25.952845645190976,
-      "heading": 2.717199302635686,
+      "x": 122.63238931830585,
+      "y": 25.95198447876637,
+      "heading": 2.7175577204761083,
       "age": 460,
       "energyFraction": 0.7901396004889847,
       "hydrationFraction": 0.9969199999999994,
@@ -2824,11 +2824,11 @@
       "id": 135,
       "kind": "animal",
       "speciesId": "scavenger.corvid",
-      "x": 62.14154305387472,
-      "y": 48.42974242859395,
-      "heading": 1.6534801550916622,
+      "x": 66.92343822836631,
+      "y": 32.279578528938565,
+      "heading": 1.696293991751718,
       "age": 929,
-      "energyFraction": 0.6169754069789098,
+      "energyFraction": 0.6171738460979055,
       "hydrationFraction": 0.9966999999999999,
       "bodyMass": 4.448151393802837,
       "healthFraction": 1,
@@ -2868,7 +2868,7 @@
       "speciesId": "scavenger.corvid",
       "x": 101.1813077635729,
       "y": 28.62477709583871,
-      "heading": 5.533747353989234,
+      "heading": 5.534700336686024,
       "age": 579,
       "energyFraction": 0.5522461435119084,
       "hydrationFraction": 0.9966999999999999,
@@ -2908,21 +2908,21 @@
   "removed": [],
   "events": [
     {
-      "seq": 1454,
+      "seq": 1452,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 1,
       "from": {
-        "x": 124.15473995995934,
-        "y": 97.03605701110949
+        "x": 125.21507039995645,
+        "y": 93.74151561685665
       },
       "to": {
-        "x": 123.23979581335216,
-        "y": 96.23691731176925
+        "x": 125.21507039995645,
+        "y": 91.79783034161035
       }
     },
     {
-      "seq": 1455,
+      "seq": 1453,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 2,
@@ -2936,7 +2936,7 @@
       }
     },
     {
-      "seq": 1456,
+      "seq": 1454,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 3,
@@ -2950,7 +2950,7 @@
       }
     },
     {
-      "seq": 1457,
+      "seq": 1455,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 4,
@@ -2964,7 +2964,7 @@
       }
     },
     {
-      "seq": 1458,
+      "seq": 1456,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 5,
@@ -2978,7 +2978,7 @@
       }
     },
     {
-      "seq": 1459,
+      "seq": 1457,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 6,
@@ -2992,7 +2992,7 @@
       }
     },
     {
-      "seq": 1460,
+      "seq": 1458,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 7,
@@ -3006,7 +3006,7 @@
       }
     },
     {
-      "seq": 1461,
+      "seq": 1459,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 8,
@@ -3020,21 +3020,21 @@
       }
     },
     {
-      "seq": 1462,
+      "seq": 1460,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 9,
       "from": {
-        "x": 114.84693538727353,
-        "y": 107.52096158487456
+        "x": 122.34744096548235,
+        "y": 97.193529330621
       },
       "to": {
-        "x": 114.75398656074664,
-        "y": 107.33356570157294
+        "x": 122.34744096548235,
+        "y": 95.1017190755759
       }
     },
     {
-      "seq": 1463,
+      "seq": 1461,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 10,
@@ -3048,7 +3048,7 @@
       }
     },
     {
-      "seq": 1464,
+      "seq": 1462,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 11,
@@ -3062,7 +3062,7 @@
       }
     },
     {
-      "seq": 1465,
+      "seq": 1463,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 12,
@@ -3076,7 +3076,7 @@
       }
     },
     {
-      "seq": 1466,
+      "seq": 1464,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 14,
@@ -3090,7 +3090,21 @@
       }
     },
     {
-      "seq": 1467,
+      "seq": 1465,
+      "tick": 11,
+      "type": "entity.moved",
+      "entityId": 15,
+      "from": {
+        "x": 125.6290430821365,
+        "y": 15.64652663129529
+      },
+      "to": {
+        "x": 125.19788697047876,
+        "y": 14.560580575444748
+      }
+    },
+    {
+      "seq": 1466,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 16,
@@ -3104,7 +3118,7 @@
       }
     },
     {
-      "seq": 1468,
+      "seq": 1467,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 17,
@@ -3118,7 +3132,7 @@
       }
     },
     {
-      "seq": 1469,
+      "seq": 1468,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 18,
@@ -3132,7 +3146,7 @@
       }
     },
     {
-      "seq": 1470,
+      "seq": 1469,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 19,
@@ -3146,7 +3160,7 @@
       }
     },
     {
-      "seq": 1471,
+      "seq": 1470,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 20,
@@ -3160,7 +3174,7 @@
       }
     },
     {
-      "seq": 1472,
+      "seq": 1471,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 21,
@@ -3174,21 +3188,21 @@
       }
     },
     {
-      "seq": 1473,
+      "seq": 1472,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 22,
       "from": {
-        "x": 52.28652857841886,
-        "y": 52.7880239528472
+        "x": 54.30800322617225,
+        "y": 51.093649722985674
       },
       "to": {
-        "x": 50.99753400048556,
-        "y": 52.903046249604785
+        "x": 54.15278911185307,
+        "y": 50.332851488914685
       }
     },
     {
-      "seq": 1474,
+      "seq": 1473,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 23,
@@ -3202,7 +3216,7 @@
       }
     },
     {
-      "seq": 1475,
+      "seq": 1474,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 24,
@@ -3216,7 +3230,7 @@
       }
     },
     {
-      "seq": 1476,
+      "seq": 1475,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 25,
@@ -3230,7 +3244,7 @@
       }
     },
     {
-      "seq": 1477,
+      "seq": 1476,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 26,
@@ -3244,7 +3258,7 @@
       }
     },
     {
-      "seq": 1478,
+      "seq": 1477,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 27,
@@ -3258,7 +3272,7 @@
       }
     },
     {
-      "seq": 1479,
+      "seq": 1478,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 28,
@@ -3272,7 +3286,7 @@
       }
     },
     {
-      "seq": 1480,
+      "seq": 1479,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 29,
@@ -3286,7 +3300,7 @@
       }
     },
     {
-      "seq": 1481,
+      "seq": 1480,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 31,
@@ -3300,7 +3314,7 @@
       }
     },
     {
-      "seq": 1482,
+      "seq": 1481,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 33,
@@ -3314,7 +3328,7 @@
       }
     },
     {
-      "seq": 1483,
+      "seq": 1482,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 34,
@@ -3328,21 +3342,21 @@
       }
     },
     {
-      "seq": 1484,
+      "seq": 1483,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 35,
       "from": {
-        "x": 47.69112228302595,
-        "y": 73.11836682243454
+        "x": 48.58446326451918,
+        "y": 74.72724774149785
       },
       "to": {
-        "x": 47.62568864196242,
-        "y": 73.02175790423944
+        "x": 48.57178513861858,
+        "y": 74.8432395928552
       }
     },
     {
-      "seq": 1485,
+      "seq": 1484,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 36,
@@ -3356,7 +3370,7 @@
       }
     },
     {
-      "seq": 1486,
+      "seq": 1485,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 37,
@@ -3370,7 +3384,7 @@
       }
     },
     {
-      "seq": 1487,
+      "seq": 1486,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 38,
@@ -3384,7 +3398,7 @@
       }
     },
     {
-      "seq": 1488,
+      "seq": 1487,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 40,
@@ -3398,7 +3412,7 @@
       }
     },
     {
-      "seq": 1489,
+      "seq": 1488,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 41,
@@ -3412,21 +3426,21 @@
       }
     },
     {
-      "seq": 1490,
+      "seq": 1489,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 42,
       "from": {
-        "x": 39.31902997007499,
-        "y": 12.309989321957364
+        "x": 38.1167741587397,
+        "y": 11.736806033618898
       },
       "to": {
-        "x": 39.21391797823157,
-        "y": 12.250966982210622
+        "x": 38.07075358795227,
+        "y": 11.625386670477338
       }
     },
     {
-      "seq": 1491,
+      "seq": 1490,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 43,
@@ -3440,7 +3454,7 @@
       }
     },
     {
-      "seq": 1492,
+      "seq": 1491,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 44,
@@ -3454,7 +3468,7 @@
       }
     },
     {
-      "seq": 1493,
+      "seq": 1492,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 45,
@@ -3468,7 +3482,7 @@
       }
     },
     {
-      "seq": 1494,
+      "seq": 1493,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 46,
@@ -3482,7 +3496,7 @@
       }
     },
     {
-      "seq": 1495,
+      "seq": 1494,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 47,
@@ -3496,7 +3510,7 @@
       }
     },
     {
-      "seq": 1496,
+      "seq": 1495,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 48,
@@ -3510,7 +3524,7 @@
       }
     },
     {
-      "seq": 1497,
+      "seq": 1496,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 49,
@@ -3524,21 +3538,21 @@
       }
     },
     {
-      "seq": 1498,
+      "seq": 1497,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 50,
       "from": {
-        "x": 39.18943710154504,
-        "y": 62.62093543069485
+        "x": 39.236569277943254,
+        "y": 62.51637472142617
       },
       "to": {
-        "x": 39.13334449672367,
-        "y": 62.72995352317423
+        "x": 39.252709483810406,
+        "y": 62.637909977866656
       }
     },
     {
-      "seq": 1499,
+      "seq": 1498,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 51,
@@ -3552,7 +3566,7 @@
       }
     },
     {
-      "seq": 1500,
+      "seq": 1499,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 52,
@@ -3566,7 +3580,7 @@
       }
     },
     {
-      "seq": 1501,
+      "seq": 1500,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 53,
@@ -3580,35 +3594,21 @@
       }
     },
     {
-      "seq": 1502,
+      "seq": 1501,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 54,
       "from": {
-        "x": 73.73827852305,
-        "y": 95.33673894870543
+        "x": 82.17909749843746,
+        "y": 96.67401927953469
       },
       "to": {
-        "x": 73.61653211036494,
-        "y": 95.33652851264648
+        "x": 83.07553313621567,
+        "y": 97.4978071623193
       }
     },
     {
-      "seq": 1503,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 55,
-      "from": {
-        "x": 56.68961836496712,
-        "y": 51.173030819823474
-      },
-      "to": {
-        "x": 55.54820927344876,
-        "y": 51.642370589686124
-      }
-    },
-    {
-      "seq": 1504,
+      "seq": 1502,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 57,
@@ -3622,7 +3622,7 @@
       }
     },
     {
-      "seq": 1505,
+      "seq": 1503,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 58,
@@ -3636,7 +3636,7 @@
       }
     },
     {
-      "seq": 1506,
+      "seq": 1504,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 59,
@@ -3650,21 +3650,21 @@
       }
     },
     {
-      "seq": 1507,
+      "seq": 1505,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 61,
       "from": {
-        "x": 54.150444073851666,
-        "y": 52.4944854578486
-      },
-      "to": {
         "x": 53.08778287292256,
         "y": 52.710659772128764
+      },
+      "to": {
+        "x": 54.150444073851666,
+        "y": 52.494485457848604
       }
     },
     {
-      "seq": 1508,
+      "seq": 1506,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 62,
@@ -3678,7 +3678,7 @@
       }
     },
     {
-      "seq": 1509,
+      "seq": 1507,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 63,
@@ -3692,7 +3692,7 @@
       }
     },
     {
-      "seq": 1510,
+      "seq": 1508,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 64,
@@ -3706,21 +3706,21 @@
       }
     },
     {
-      "seq": 1511,
+      "seq": 1509,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 65,
       "from": {
-        "x": 126.46120117821631,
-        "y": 96.29707444177065
+        "x": 126.02681201138871,
+        "y": 94.26353817049137
       },
       "to": {
-        "x": 125.48300325004068,
-        "y": 95.55772190172796
+        "x": 126.02681201138871,
+        "y": 92.30165279799992
       }
     },
     {
-      "seq": 1512,
+      "seq": 1510,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 66,
@@ -3734,21 +3734,21 @@
       }
     },
     {
-      "seq": 1513,
+      "seq": 1511,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 68,
       "from": {
-        "x": 114.77794208674842,
-        "y": 107.06771886053464
+        "x": 120.46955228007198,
+        "y": 103.45874846307095
       },
       "to": {
-        "x": 114.70205910049756,
-        "y": 106.90778611011845
+        "x": 121.94487314735468,
+        "y": 102.48043380798093
       }
     },
     {
-      "seq": 1514,
+      "seq": 1512,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 70,
@@ -3762,7 +3762,7 @@
       }
     },
     {
-      "seq": 1515,
+      "seq": 1513,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 71,
@@ -3776,7 +3776,7 @@
       }
     },
     {
-      "seq": 1516,
+      "seq": 1514,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 72,
@@ -3790,7 +3790,7 @@
       }
     },
     {
-      "seq": 1517,
+      "seq": 1515,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 75,
@@ -3804,7 +3804,7 @@
       }
     },
     {
-      "seq": 1518,
+      "seq": 1516,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 77,
@@ -3818,7 +3818,7 @@
       }
     },
     {
-      "seq": 1519,
+      "seq": 1517,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 80,
@@ -3832,7 +3832,7 @@
       }
     },
     {
-      "seq": 1520,
+      "seq": 1518,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 81,
@@ -3846,7 +3846,7 @@
       }
     },
     {
-      "seq": 1521,
+      "seq": 1519,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 82,
@@ -3860,21 +3860,21 @@
       }
     },
     {
-      "seq": 1522,
+      "seq": 1520,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 83,
       "from": {
-        "x": 113.85740228184667,
-        "y": 106.40620506003388
+        "x": 113.00833167301883,
+        "y": 107.57581036997819
       },
       "to": {
-        "x": 113.75874152825294,
-        "y": 106.22724140416416
+        "x": 113.15793470458594,
+        "y": 107.43659518629526
       }
     },
     {
-      "seq": 1523,
+      "seq": 1521,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 84,
@@ -3888,7 +3888,7 @@
       }
     },
     {
-      "seq": 1524,
+      "seq": 1522,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 85,
@@ -3902,7 +3902,7 @@
       }
     },
     {
-      "seq": 1525,
+      "seq": 1523,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 87,
@@ -3916,7 +3916,7 @@
       }
     },
     {
-      "seq": 1526,
+      "seq": 1524,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 88,
@@ -3930,7 +3930,7 @@
       }
     },
     {
-      "seq": 1527,
+      "seq": 1525,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 89,
@@ -3944,7 +3944,7 @@
       }
     },
     {
-      "seq": 1528,
+      "seq": 1526,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 90,
@@ -3958,7 +3958,7 @@
       }
     },
     {
-      "seq": 1529,
+      "seq": 1527,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 92,
@@ -3972,7 +3972,7 @@
       }
     },
     {
-      "seq": 1530,
+      "seq": 1528,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 93,
@@ -3986,7 +3986,7 @@
       }
     },
     {
-      "seq": 1531,
+      "seq": 1529,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 94,
@@ -4000,7 +4000,7 @@
       }
     },
     {
-      "seq": 1532,
+      "seq": 1530,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 95,
@@ -4014,7 +4014,7 @@
       }
     },
     {
-      "seq": 1533,
+      "seq": 1531,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 96,
@@ -4028,21 +4028,21 @@
       }
     },
     {
-      "seq": 1534,
+      "seq": 1532,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 97,
       "from": {
-        "x": 111.98172042043747,
-        "y": 92.75076786347945
+        "x": 110.58837957703834,
+        "y": 92.26901257485133
       },
       "to": {
-        "x": 111.78647608045475,
-        "y": 90.91139743258786
+        "x": 110.39788632655798,
+        "y": 90.42914403176053
       }
     },
     {
-      "seq": 1535,
+      "seq": 1533,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 98,
@@ -4056,7 +4056,7 @@
       }
     },
     {
-      "seq": 1536,
+      "seq": 1534,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 99,
@@ -4070,7 +4070,7 @@
       }
     },
     {
-      "seq": 1537,
+      "seq": 1535,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 100,
@@ -4084,7 +4084,7 @@
       }
     },
     {
-      "seq": 1538,
+      "seq": 1536,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 101,
@@ -4098,7 +4098,7 @@
       }
     },
     {
-      "seq": 1539,
+      "seq": 1537,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 102,
@@ -4112,21 +4112,21 @@
       }
     },
     {
-      "seq": 1540,
+      "seq": 1538,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 104,
       "from": {
-        "x": 31.22004720633856,
-        "y": 37.78040079815458
+        "x": 31.97442589435064,
+        "y": 37.32764583578329
       },
       "to": {
-        "x": 31.14382053371742,
-        "y": 37.883180360351844
+        "x": 32.02677228731993,
+        "y": 37.4444105529176
       }
     },
     {
-      "seq": 1541,
+      "seq": 1539,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 105,
@@ -4140,7 +4140,7 @@
       }
     },
     {
-      "seq": 1542,
+      "seq": 1540,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 106,
@@ -4154,7 +4154,7 @@
       }
     },
     {
-      "seq": 1543,
+      "seq": 1541,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 108,
@@ -4168,21 +4168,21 @@
       }
     },
     {
-      "seq": 1544,
+      "seq": 1542,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 109,
       "from": {
-        "x": 118.87385376481787,
-        "y": 106.6685782876232
+        "x": 118.66160887261698,
+        "y": 106.55627587690145
       },
       "to": {
-        "x": 118.89175165188432,
-        "y": 106.46241475726413
+        "x": 118.85057775938664,
+        "y": 106.47192840838815
       }
     },
     {
-      "seq": 1545,
+      "seq": 1543,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 110,
@@ -4191,12 +4191,12 @@
         "y": 52.6419640481472
       },
       "to": {
-        "x": 54.669305776370365,
-        "y": 52.38893481513185
+        "x": 52.181643451439534,
+        "y": 52.89499328116254
       }
     },
     {
-      "seq": 1546,
+      "seq": 1544,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 111,
@@ -4210,7 +4210,7 @@
       }
     },
     {
-      "seq": 1547,
+      "seq": 1545,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 112,
@@ -4224,7 +4224,7 @@
       }
     },
     {
-      "seq": 1548,
+      "seq": 1546,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 113,
@@ -4238,7 +4238,7 @@
       }
     },
     {
-      "seq": 1549,
+      "seq": 1547,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 114,
@@ -4252,7 +4252,7 @@
       }
     },
     {
-      "seq": 1550,
+      "seq": 1548,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 115,
@@ -4266,21 +4266,21 @@
       }
     },
     {
-      "seq": 1551,
+      "seq": 1549,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 116,
       "from": {
-        "x": 125.25168370286691,
-        "y": 18.06509402970244
+        "x": 125.38345288445285,
+        "y": 16.412700290974136
       },
       "to": {
-        "x": 125.37232864410662,
-        "y": 18.056567582572608
+        "x": 126.31708235812806,
+        "y": 15.643852958518771
       }
     },
     {
-      "seq": 1552,
+      "seq": 1550,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 117,
@@ -4294,7 +4294,7 @@
       }
     },
     {
-      "seq": 1553,
+      "seq": 1551,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 118,
@@ -4308,7 +4308,7 @@
       }
     },
     {
-      "seq": 1554,
+      "seq": 1552,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 119,
@@ -4317,12 +4317,12 @@
         "y": 6.591566818817613
       },
       "to": {
-        "x": 36.549404521544226,
-        "y": 7.558039116481742
+        "x": 36.417589919697846,
+        "y": 7.622949500881031
       }
     },
     {
-      "seq": 1555,
+      "seq": 1553,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 120,
@@ -4336,21 +4336,21 @@
       }
     },
     {
-      "seq": 1556,
+      "seq": 1554,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 121,
       "from": {
-        "x": 110.80203260302439,
-        "y": 101.55372431709398
+        "x": 111.28328137883986,
+        "y": 109.18107993604751
       },
       "to": {
-        "x": 111.05254652725239,
-        "y": 99.68436266611155
+        "x": 112.12232479464237,
+        "y": 108.35309151731626
       }
     },
     {
-      "seq": 1557,
+      "seq": 1555,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 122,
@@ -4364,7 +4364,7 @@
       }
     },
     {
-      "seq": 1558,
+      "seq": 1556,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 123,
@@ -4378,7 +4378,7 @@
       }
     },
     {
-      "seq": 1559,
+      "seq": 1557,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 124,
@@ -4392,7 +4392,7 @@
       }
     },
     {
-      "seq": 1560,
+      "seq": 1558,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 125,
@@ -4406,7 +4406,7 @@
       }
     },
     {
-      "seq": 1561,
+      "seq": 1559,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 126,
@@ -4420,7 +4420,7 @@
       }
     },
     {
-      "seq": 1562,
+      "seq": 1560,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 127,
@@ -4434,21 +4434,21 @@
       }
     },
     {
-      "seq": 1563,
+      "seq": 1561,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 128,
       "from": {
-        "x": 123.8065099340805,
-        "y": 25.422464782162358
+        "x": 123.80637151829028,
+        "y": 25.42202435785333
       },
       "to": {
-        "x": 122.6327177566609,
-        "y": 25.952845645190976
+        "x": 122.63238931830585,
+        "y": 25.95198447876637
       }
     },
     {
-      "seq": 1564,
+      "seq": 1562,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 129,
@@ -4462,7 +4462,7 @@
       }
     },
     {
-      "seq": 1565,
+      "seq": 1563,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 130,
@@ -4476,7 +4476,7 @@
       }
     },
     {
-      "seq": 1566,
+      "seq": 1564,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 131,
@@ -4490,7 +4490,7 @@
       }
     },
     {
-      "seq": 1567,
+      "seq": 1565,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 132,
@@ -4504,7 +4504,7 @@
       }
     },
     {
-      "seq": 1568,
+      "seq": 1566,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 133,
@@ -4518,7 +4518,7 @@
       }
     },
     {
-      "seq": 1569,
+      "seq": 1567,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 134,
@@ -4532,21 +4532,7 @@
       }
     },
     {
-      "seq": 1570,
-      "tick": 11,
-      "type": "entity.moved",
-      "entityId": 135,
-      "from": {
-        "x": 62.262535327962226,
-        "y": 46.96976621632134
-      },
-      "to": {
-        "x": 62.14154305387472,
-        "y": 48.42974242859395
-      }
-    },
-    {
-      "seq": 1571,
+      "seq": 1568,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 136,
@@ -4560,7 +4546,7 @@
       }
     },
     {
-      "seq": 1572,
+      "seq": 1569,
       "tick": 11,
       "type": "entity.moved",
       "entityId": 138,
@@ -4574,7 +4560,7 @@
       }
     },
     {
-      "seq": 1573,
+      "seq": 1570,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 13,
@@ -4585,18 +4571,7 @@
       "amount": 0.329122394323349
     },
     {
-      "seq": 1574,
-      "tick": 11,
-      "type": "entity.fed",
-      "entityId": 15,
-      "cell": {
-        "cellX": 125,
-        "cellY": 16
-      },
-      "amount": 0.6
-    },
-    {
-      "seq": 1575,
+      "seq": 1571,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 32,
@@ -4607,7 +4582,7 @@
       "amount": 0.6
     },
     {
-      "seq": 1576,
+      "seq": 1572,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 39,
@@ -4618,7 +4593,18 @@
       "amount": 0.6
     },
     {
-      "seq": 1577,
+      "seq": 1573,
+      "tick": 11,
+      "type": "entity.fed",
+      "entityId": 55,
+      "cell": {
+        "cellX": 55,
+        "cellY": 52
+      },
+      "amount": 0.6
+    },
+    {
+      "seq": 1574,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 69,
@@ -4629,7 +4615,7 @@
       "amount": 0.6
     },
     {
-      "seq": 1578,
+      "seq": 1575,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 73,
@@ -4640,7 +4626,7 @@
       "amount": 0.11962725967168808
     },
     {
-      "seq": 1579,
+      "seq": 1576,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 74,
@@ -4651,7 +4637,7 @@
       "amount": 0.0736786499619484
     },
     {
-      "seq": 1580,
+      "seq": 1577,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 79,
@@ -4662,7 +4648,7 @@
       "amount": 0.6
     },
     {
-      "seq": 1581,
+      "seq": 1578,
       "tick": 11,
       "type": "entity.fed",
       "entityId": 107,
@@ -4673,7 +4659,7 @@
       "amount": 0.6
     },
     {
-      "seq": 1582,
+      "seq": 1579,
       "tick": 11,
       "type": "entity.courted",
       "entityId": 31,
@@ -4681,20 +4667,11 @@
       "quality": 0.6823623976619604,
       "threshold": 0.7005068343854697,
       "accepted": false
-    },
-    {
-      "seq": 1583,
-      "tick": 11,
-      "type": "environment.feature",
-      "cellX": 54,
-      "cellY": 52,
-      "kind": "trail",
-      "state": "formed"
     }
   ],
-  "lastEventSeq": 1583,
+  "lastEventSeq": 1579,
   "vegetation": {
-    "revision": 302,
+    "revision": 307,
     "changes": [
       [
         5317,
@@ -4719,16 +4696,5 @@
     "growthModifier": 1.35,
     "capacityModifier": 0.9
   },
-  "disturbances": [],
-  "features": {
-    "revision": 1,
-    "cells": [
-      {
-        "cellX": 54,
-        "cellY": 52,
-        "kind": "trail",
-        "wear": 0.5
-      }
-    ]
-  }
+  "disturbances": []
 }
