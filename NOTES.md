@@ -8,12 +8,6 @@ DO NOT EDIT
 
 ## Tier 1 - UI
 
-- [x] when clicking one the entity (?) numbers in the events feed and other UI sections, the browser throws this error:
-      Uncaught ReferenceError: worldCellOf is not defined
-      at RendererApp.selectEntity (RendererApp.js:484:18)
-      at onSelectEntity (main.js:63:50)
-      at HTMLElement.<anonymous> (EventLog.js:174:21)
-
 ### Ideas - Sim
 
 - deep water
