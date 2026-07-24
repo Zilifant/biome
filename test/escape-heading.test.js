@@ -119,3 +119,48 @@ describe('escapeHeading: determinism', () => {
     assert.equal(a, b);
   });
 });
+
+describe('escapeHeading: thicket is a wall to skirt, not to dive into', () => {
+  // A thicket-aware mock: `thicket(x,y)` marks the crawl terrain a fleeing
+  // animal treats as a soft wall when `avoidThicket` is passed.
+  function thicketWorld(width, height, thicket, blocked = () => false) {
+    return {
+      width,
+      height,
+      isPassableAt: (x, y) => !blocked(x, y),
+      isThicketAt: (x, y) => thicket(x, y),
+    };
+  }
+
+  test('with open ground beside it, a fleeing animal runs ALONG the thicket edge', () => {
+    // Threat due west → away is due east, straight into a thicket that fills the
+    // half-plane to the east. With thicket-awareness on, the animal must not aim
+    // into it; open ground lies north and south, so it skirts the edge.
+    const world = thicketWorld(128, 128, (x) => x > 64);
+    const h = escapeHeading(world, 64, 64, 54, 64, 6, 8, /* avoidThicket */ true);
+    assert.ok(angleGapDeg(h, 0) > 60, `should skirt the edge, not dive east into thicket; got ${deg(h).toFixed(1)}°`);
+    // And the direction it picked is genuinely open (not into the thicket).
+    assert.ok(!world.isThicketAt(64 + Math.cos(h), 64 + Math.sin(h)), 'skirt heading stays out of the thicket');
+  });
+
+  test('walled in with only the thicket left, it breaks into the thicket', () => {
+    // A pocket open ONLY to the east, where the ground gives way to thicket:
+    // rock closes it off to the west, north, and south. Threat to the west. Every
+    // open (non-thicket) direction is walled, so the only room left is into the
+    // thicket — the cornered animal dives into cover as its last choice.
+    const rock = (x, y) => !(x > 62 && y > 62 && y < 66); // channel open eastward
+    const world = thicketWorld(128, 128, (x) => x > 66, rock);
+    const h = escapeHeading(world, 64, 64, 55, 64, 6, 8, /* avoidThicket */ true);
+    assert.ok(Math.cos(h) > 0.5, `expected a break east into the thicket, got ${deg(h).toFixed(1)}°`);
+    assert.ok(world.isThicketAt(64 + Math.cos(h) * 3, 64), 'the break-in heading leads into the thicket');
+  });
+
+  test('an animal already inside a thicket ignores thicket-awareness (avoidThicket off)', () => {
+    // Passing avoidThicket=false (what the decision system does when the animal
+    // is already in a thicket) reproduces the plain terrain behaviour, so it can
+    // still compute a straight-away escape through the cover it is standing in.
+    const world = thicketWorld(128, 128, () => true); // all thicket
+    const h = escapeHeading(world, 64, 64, 54, 64, 6, 8, /* avoidThicket */ false);
+    assert.ok(angleGapDeg(h, 0) < 1e-6, `straight away, got ${deg(h).toFixed(1)}°`);
+  });
+});

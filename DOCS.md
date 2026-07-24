@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 708 passing / 0 failing, 186 suites                    |
+| Tests                 | 717 passing / 0 failing, 187 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
 | Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |
@@ -569,15 +569,34 @@ only) and with three refuge properties: it **blocks line of sight** (opaque like
 rock), **shelters from the weather** (like cover), and is **passable but a
 crawl** (speed 0.1). The crawl alone would only make animals _accumulate_ in
 thickets — slow ground is high-occupancy — so the refuge behaviour lives in the
-movement system: an animal treats a thicket edge as a wall and **turns away,
-unless it is fleeing** (diving into cover is worth the slog) **or already inside**
-(so it can push back out). A pursuer that is not itself fleeing therefore stops
-at the edge, and — because line of sight is blocked — loses the prey it followed
-in. Measured (thickets 0 → 14): concealment on predator–prey pairs **~1% → ~11%**
-(line of sight finally bites), **23–42% of fleeing grazers shelter inside**, and
-edge/corner occupancy and mean radius all eased slightly, with demo survival
-unchanged. It does not grow, is not eaten, and is not sought — the growing,
-grazable, maturing version is A51.
+movement and decision systems: an animal treats a thicket edge as a wall and
+**turns away**, and the only ways it ever steps in are the deliberate ones, all
+last-resort:
+
+- **A cornered flee.** `escapeHeading` (§7 Decision) treats thicket as a wall to
+  _skirt_, exactly as it skirts a rock or a map edge: a driven prey runs **along**
+  the thicket edge, and only when no open ground is left does the geometry aim
+  into the thicket — a break-in the decision system marks (`intent.breakThicket`)
+  so movement lets it juke into cover. ⚠ **Merely fleeing is not enough** to drive
+  an animal in (it was, before 2026-07-24): a pursuer that is not itself cornered
+  stops at the edge, and so does the prey until it must.
+- **Pushing through a thin band to walled water or food.** A thirsty or hungry
+  animal will crawl into thicket toward a resource within a few cells of it
+  (`thicketReachDistance`), the corner-lake case where the only water is ringed by
+  thicket and refusing the crawl means dying at its edge. Tightly gated so it is
+  never a shortcut into deep cover.
+- **Already inside** — it can always push back out, and in fact **prioritizes
+  leaving** (the `leaveThicket` action, §7 Decision): a safe animal caught in a
+  thicket heads for the nearest open cell rather than crawling around in it,
+  unless a predator is within a few spaces, in which case the thicket is refuge
+  and it stays.
+
+A pursuer that is not itself cornered therefore stops at the edge, and — because
+line of sight is blocked — loses the prey it followed in. Measured (thickets 0 →
+14): concealment on predator–prey pairs **~1% → ~11%** (line of sight finally
+bites), and edge/corner occupancy eased slightly, with demo survival unchanged.
+It does not grow, is not eaten, and is not sought — the growing, grazable,
+maturing version is A51.
 
 ⚠ **A lake is a shallow ring around an impassable deep core.** Each lake stamps a
 shallow `WATER` disc, then a `DEEP_WATER` disc of `lakeDeepFraction` of the
@@ -840,12 +859,30 @@ demo ticks down each path and asserts the serialized states match byte for byte.
 The scored candidate set is:
 
 `flee` · `chase` · `stalk` · `eat` · `seekFood` · `drink` · `seekWater` ·
-`recallFood` · `recallWater` · `followParent` · `seekMate` · `herd` · `defend` ·
-`shelter` · `patrol` · `retreat` · `rest` · `wander`
+`recallFood` · `recallWater` · `followParent` · `seekMate` · `leaveThicket` ·
+`herd` · `defend` · `shelter` · `patrol` · `retreat` · `rest` · `wander`
 
 Inputs are hunger, thirst, readiness, dependency, perception, memory,
 temperament, threat, thermal stress, and the social summary. A small
 `explorationRate` chance wanders regardless; ties break by fixed order.
+
+**`leaveThicket`** heads an animal caught in a thicket toward the nearest open
+cell rather than leaving it crawling around in cover at speed 0.1 (§7 Terrain).
+It ranks above every idle/discretionary action (`herd`/`retreat`/`rest`/`patrol`/
+`wander`) and below every real need and directed goal — those lead out of the
+thicket anyway, since nothing grows or drinks in one — and it is suppressed when a
+predator is within a few spaces, because then the thicket is refuge and the
+animal stays.
+
+⚠ **Acute hunger or thirst suspends the territorial pulls** (`patrol`, `retreat`)
+and **lengthens an aimless wander**. A starving or dehydrating animal that a home
+range keeps dragging back to the same empty quarter of the map dies there; above
+`needOverridesTerritory` the territorial pulls stand down so it can follow the
+long-range forage/water cue somewhere new. And with an unmet need but _no_
+directional cue to follow, a wander strikes out in longer, straighter excursions
+(`rangingThreshold`) so the animal covers new ground instead of re-searching the
+patch it is standing in — inert once a drift gives it a direction, and for a fed,
+watered animal, so the patrol lesson below still holds.
 
 ⚠ **`#intentFor` is a `switch` with fallthrough groups.** Adding a bare `case`
 in the middle of one silently redirects everything above it. This happened: a
@@ -886,9 +923,20 @@ could not — see §7 Movement):
    restrictive terrain exists to tune against (`test/escape-heading.test.js`
    pins the current behaviour).
 
+⚠ **Thicket is one of those walls (`avoidThicket`, 2026-07-24).** A fleeing
+animal that is not already inside a thicket treats its edge exactly as `roomAhead`
+treats a rock, so the along-wall glide and the break-past route it **along** the
+thicket rather than into the crawl — a merely-fleeing animal no longer dives into
+cover (§7 Terrain). Only when the break-past finds no open ground left does the
+heading point into the thicket; the decision system detects that (the escape aims
+into thicket ⟺ cornered) and marks `intent.breakThicket` so the movement system
+lets the animal juke inside as its last choice. An animal _already_ inside passes
+`avoidThicket: false`, so it can still compute a straight-away escape through the
+cover it is standing in.
+
 Pure geometry and grid reads — no draws — so the two-draw-per-animal budget and
-determinism hold. `fleeWallMargin` (0 disables, restoring straight-away flight)
-and `fleeLookahead` are the knobs.
+determinism hold. `fleeWallMargin` (0 disables, restoring straight-away flight),
+`fleeLookahead`, and `avoidThicket` are the knobs.
 
 **Four consecutive steps then added no action at all:**
 
@@ -1180,6 +1228,24 @@ becomes a real gathering point), and grazer population _rose_ (fewer die of
 thirst) with survival unchanged — the water counterpart of the forage gradient,
 built for a point source instead of a field.
 
+⚠ **Every species tracks water, even the ones that do not track forage**
+(`tracksWater: true` for the stalker and corvid since 2026-07-24; they stay
+`tracksForage: false`). A predator gets most of its water from what it eats and
+rarely needs the lake — but _rarely_ is not _never_, and a stalker that spends
+its life in a far corner of the map can dry out having **never once encountered
+water**, with no cue to tell it which way to go. Measured on a corner-lake seed
+(one lake jammed in a corner, 180×120): before, the last stalkers died of thirst
+at the opposite corner having never perceived water; after, they cross the whole
+map to the lake and drink, and predators survive a run that had previously
+collapsed to zero (13 alive at t9000 against 0). The cue only bends a wander and
+only while the animal is thirsty, so a fed, watered predator behaves exactly as
+before. Two more pieces make it land: acute thirst or hunger **suspends the
+territorial pulls** (`patrol`/`retreat`, §7 Decision) so a home range stops
+dragging a dying animal back to the quarter it is dehydrating in, and a
+remembered drinking spot **never fades** (water memory decay is 0 — a lake does
+not move, §6 Memory), so an animal that drank once is not left to forget the only
+water on the map.
+
 **Nothing in it is seasonal, and nothing in it knows what a season is.** Season
 arrives through the grass: a green spring flattens the gradient to nothing and
 animals scatter; a grazed-out winter sharpens it and they concentrate.
@@ -1287,9 +1353,13 @@ not a scatter of worn dots.
 
 At most **8** remembered places per animal, ever. Kinds are `food` / `water` /
 `barren` / `danger`, and **decay rates are per kind and deliberately unequal**,
-each for a stated reason: water fades slowest (~1250 ticks — a lake does not
-move), then danger (~1000), then food (~250 — a patch may already be grazed out),
-and `barren` fastest of all (~170, because vegetation regrows).
+each for a stated reason: ⚠ **water never fades at all** (decay 0 — a lake does
+not move, so a place an animal drank is remembered for good; forgetting a static
+lake is never correct, and it was measured doing exactly that — a stalker that
+drank eight times died with zero water memories), then danger (~1000), then food
+(~250 — a patch may already be grazed out), and `barren` fastest of all (~170,
+because vegetation regrows). Staying at full strength also keeps a water memory
+from being the entry evicted when the bounded list overflows.
 
 Re-experiencing a place **refreshes** the existing entry rather than adding one,
 so standing in a patch for 200 ticks cannot fill the list.

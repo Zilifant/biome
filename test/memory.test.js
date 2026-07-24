@@ -122,6 +122,15 @@ describe('memory: fading', () => {
     assert.equal(entity.memories.length, 0, 'forgotten once too faint');
   });
 
+  test('water never fades at all — a lake does not move, so a drinking spot is remembered for good', () => {
+    const engine = sandbox({ systems: [new MemorySystem({ ...CONFIG.memory, updateInterval: 1 })] });
+    const entity = engine.world.entities.get(spawnAnimal(engine, { x: 10, y: 10 }));
+    recordMemory(entity, MemoryKinds.WATER, 5, 5, 0);
+    engine.step(5000); // far longer than any other memory would survive
+    assert.equal(entity.memories.length, 1, 'the water memory is still held');
+    assert.equal(entity.memories[0].strength, 1, 'and at full strength — water does not decay');
+  });
+
   test('water outlasts food, and "nothing here" fades fastest — lakes do not move', () => {
     const engine = sandbox({ systems: [new MemorySystem({ ...CONFIG.memory, updateInterval: 1 })] });
     const id = spawnAnimal(engine, { x: 10, y: 10 });

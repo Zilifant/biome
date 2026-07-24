@@ -75,7 +75,11 @@ export const scavengerCorvid = Object.freeze({
   territory: Object.freeze({ defends: false, rangeRadius: 30, settleTicks: 600 }),
   // Does not track forage (grass is not food) but disperses like everything
   // else. What it follows is carrion, through perception — the same pipeline
-  // the stalker uses to follow prey.
-  migration: Object.freeze({ tracksForage: false, tracksWater: false, cueRadius: 0, dispersalTicks: 500 }),
+  // the stalker uses to follow prey. It **does** track water, for the same
+  // reason the stalker does: it gets most of its water from carrion and rarely
+  // needs the lake, but a thirsty corvid far from it needs a long-range steer
+  // rather than to circle its patch until it dies. The cue only bends a wander
+  // and only while thirsty.
+  migration: Object.freeze({ tracksForage: false, tracksWater: true, cueRadius: 0, dispersalTicks: 500 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

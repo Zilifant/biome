@@ -117,6 +117,38 @@ export class DecisionSystem extends SimulationSystem {
     patrolSpanFactor = 1.5,
     retreatWeight = 0.7,
     intrusionThreshold = 0.35,
+    // An animal caught in a thicket heads back out rather than crawling around
+    // in it — unless a predator is within `thicketRefugeRadius`, in which case
+    // the thicket is cover and it stays. The weight sits above idle behaviour
+    // (wander/rest/patrol/herd) and below every real need and directed goal, so
+    // a hungry, thirsty, or hunted animal still does the more urgent thing (and
+    // those goals lead out of the thicket anyway, since nothing grows or drinks
+    // in one). `thicketExitRadius` bounds the search for a way out.
+    leaveThicketWeight = 0.6,
+    thicketRefugeRadius = 5,
+    thicketExitRadius = 12,
+    // Acute hunger or thirst (fraction depleted at or above this) suspends the
+    // territorial pulls — patrol back to a home range and retreat off a rival's
+    // ground. A starving or dehydrating animal that a home range keeps dragging
+    // back to the same empty quarter of the map dies there; letting need win
+    // frees it to follow the long-range forage/water cue somewhere new.
+    needOverridesTerritory = 0.5,
+    // With that same unmet need and no directional cue to follow, a wander
+    // strikes out in longer, straighter excursions (`rangingCommitBonus` extra
+    // commit ticks, jitter scaled by `rangingJitterScale`) so the animal covers
+    // new ground instead of re-searching the patch it is standing in. Inert once
+    // a migration drift gives it a direction, and for a fed, watered animal.
+    rangingThreshold = 0.5,
+    rangingCommitBonus = 16,
+    rangingJitterScale = 0.4,
+    // A thirsty/hungry animal will crawl through a **thin** thicket band to reach
+    // water or food just beyond it — the corner-lake case, where the only water
+    // is ringed by thicket and refusing the crawl means dying at its edge. Gated
+    // hard so it is never a shortcut into deep cover: the need must be at least
+    // `thicketReachNeed` and the resource within `thicketReachDistance` cells (a
+    // thin band, not a march to death across a crawl at 0.1 speed).
+    thicketReachNeed = 0.45,
+    thicketReachDistance = 4,
     huntWeight = 1.4,
     stalkDiscount = 0.8,
     chaseRange = 4.0,
@@ -171,6 +203,15 @@ export class DecisionSystem extends SimulationSystem {
     this.patrolSpanFactor = patrolSpanFactor;
     this.retreatWeight = retreatWeight;
     this.intrusionThreshold = intrusionThreshold;
+    this.leaveThicketWeight = leaveThicketWeight;
+    this.thicketRefugeRadius = thicketRefugeRadius;
+    this.thicketExitRadius = thicketExitRadius;
+    this.needOverridesTerritory = needOverridesTerritory;
+    this.rangingThreshold = rangingThreshold;
+    this.rangingCommitBonus = rangingCommitBonus;
+    this.rangingJitterScale = rangingJitterScale;
+    this.thicketReachNeed = thicketReachNeed;
+    this.thicketReachDistance = thicketReachDistance;
     this.huntWeight = huntWeight;
     this.stalkDiscount = stalkDiscount;
     this.chaseRange = chaseRange;
@@ -321,6 +362,12 @@ export class DecisionSystem extends SimulationSystem {
       const rangeDrift =
         territory && homeRange ? Math.hypot(entity.x - homeRange.x, entity.y - homeRange.y) : 0;
       const rangeLimit = territory ? territory.rangeRadius : 0;
+      // Acute hunger or thirst suspends both territorial pulls: an animal that
+      // needs food or water more than it needs to be on its own ground follows
+      // the long-range cue somewhere new rather than being dragged home to the
+      // quarter of the map it is starving or drying out in (this is what let a
+      // thirsty stalker circle its range until it died on a corner-lake seed).
+      const acuteNeed = Math.max(hunger, thirst) >= this.needOverridesTerritory;
       // The ramp spans *half* the range radius, not all of it. Spanning the
       // full radius meant patrol only reached full strength at twice the range
       // — so an animal one range-width from home still preferred to wander,
@@ -336,7 +383,7 @@ export class DecisionSystem extends SimulationSystem {
       // ground; for one that follows food it is a liability, so the home range
       // stays descriptive (measured, inspectable) and pulls on nothing.
       const patrolPull =
-        territory?.defends && homeRange && rangeDrift > rangeLimit
+        territory?.defends && homeRange && rangeDrift > rangeLimit && !acuteNeed
           ? this.patrolWeight * clamp01((rangeDrift - rangeLimit) / patrolSpan)
           : 0;
       const claimOwner = territory ? world.scent.ownerAt(entity.x, entity.y) : 0;
@@ -350,7 +397,7 @@ export class DecisionSystem extends SimulationSystem {
       // a condition rather than a null check further down. (Without it a
       // newborn standing on a claim steered at a null target and crashed the
       // tick; rare enough that only a 16 000-tick run found it.)
-      const retreatPull = intruding && homeRange ? this.retreatWeight * (territory.defends ? 1 : 0.5) : 0;
+      const retreatPull = intruding && homeRange && !acuteNeed ? this.retreatWeight * (territory.defends ? 1 : 0.5) : 0;
       const prey = perceived?.nearestPrey ?? null;
       const recovering = entity.lastHuntTick !== null && context.tick - entity.lastHuntTick < this.huntCooldownTicks;
       const willHunt =
@@ -369,6 +416,16 @@ export class DecisionSystem extends SimulationSystem {
       const hungerDrive = this.hungerWeight * hunger * caution;
       const thirstDrive = this.thirstWeight * thirst * caution;
 
+      // Getting out of a thicket (A18). An animal standing in one heads for the
+      // nearest open cell rather than crawling around at thicket speed — unless a
+      // predator is within a few spaces, in which case the thicket is refuge and
+      // it stays (flee/hunt logic takes over anyway). The exit scan runs only for
+      // the few animals actually in thicket, so it is free on open ground.
+      const inThicket = world.isThicketAt(entity.x, entity.y);
+      const predatorNear = threat !== null && threat.distance <= this.thicketRefugeRadius;
+      const thicketExit =
+        inThicket && !predatorNear ? nearestOpenCell(world, entity.x, entity.y, this.thicketExitRadius) : null;
+
       const utilities = {
         defend: defendUrgency,
         flee: Math.max(fleeUrgency, alarmFlee),
@@ -386,6 +443,7 @@ export class DecisionSystem extends SimulationSystem {
         shelter: wantsShelter ? this.shelterWeight * clamp01(stress / this.shelterStressSpan) : 0,
         followParent: followPull,
         seekMate: mateCandidate ? this.mateWeight : 0,
+        leaveThicket: thicketExit ? this.leaveThicketWeight : 0,
         rest: nearDanger ? 0 : this.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
         wander: this.wanderBias * boldness,
       };
@@ -437,7 +495,9 @@ export class DecisionSystem extends SimulationSystem {
                 ? recalledWater.memory
                 : action === 'shelter'
                   ? cover
-                  : null;
+                  : action === 'leaveThicket'
+                    ? thicketExit
+                    : null;
       entity.actionTarget = target
         ? { cellX: target.cellX ?? Math.floor(target.x), cellY: target.cellY ?? Math.floor(target.y) }
         : null;
@@ -528,16 +588,25 @@ export class DecisionSystem extends SimulationSystem {
       case 'flee': {
         // Away from the threat — or from wherever the alarm said it was, for an
         // animal that never saw it — at a sprint, but made aware of the world's
-        // edges so a driven prey runs ALONG a wall rather than smearing into it
-        // and pinning in the corner (option 3). This re-commits every tick, so
-        // fixing it at the movement layer's one-step reflection was never
-        // enough — the decision has to pick a boundary-honest heading in the
-        // first place. `escapeHeading` is the seam options 4 (soft edge
-        // repulsion) and 5 (cornered break-past) extend.
+        // edges AND of thicket so a driven prey runs ALONG a wall (or a thicket
+        // edge) rather than smearing into it and pinning in the corner (option
+        // 3). This re-commits every tick, so fixing it at the movement layer's
+        // one-step reflection was never enough — the decision has to pick a
+        // boundary-honest heading in the first place. `escapeHeading` is the seam
+        // options 4 (soft edge repulsion) and 5 (cornered break-past) extend.
+        //
+        // Thicket is treated as a wall to skirt *unless* the animal is already
+        // inside one (then it is refuge to move through). If, after skirting,
+        // the only heading left points into thicket, the animal is cornered —
+        // its last choice is to juke into cover, so mark the break-in for the
+        // movement system (which otherwise refuses a fleeing step into thicket).
+        const avoidThicket = !world.isThicketAt(entity.x, entity.y);
         const heading = escapeHeading(
-          world, entity.x, entity.y, fleeFrom.x, fleeFrom.y, this.fleeWallMargin, this.fleeLookahead,
+          world, entity.x, entity.y, fleeFrom.x, fleeFrom.y, this.fleeWallMargin, this.fleeLookahead, avoidThicket,
         );
-        return { heading, ttl: 1, moving: true, sprint: true };
+        const breakThicket =
+          avoidThicket && world.isThicketAt(entity.x + Math.cos(heading), entity.y + Math.sin(heading));
+        return { heading, ttl: 1, moving: true, sprint: true, breakThicket };
       }
       case 'defend': {
         // Toward the threat, but at a walk: this is interposing, not charging,
@@ -584,19 +653,52 @@ export class DecisionSystem extends SimulationSystem {
       case 'recallFood':
       case 'recallWater':
       case 'shelter':
+      case 'leaveThicket':
       case 'stalk': {
         // Cell targets aim at the cell centre; a mate target carries an exact
         // position.
         const tx = target.x ?? target.cellX + 0.5;
         const ty = target.y ?? target.cellY + 0.5;
         const heading = Math.atan2(ty - entity.y, tx - entity.x);
+        // A desperate animal pushes through a thin thicket band to reach water or
+        // food just beyond it (the corner-lake case). Only for the resource-seeking
+        // actions, only when the need is real and the resource is a few cells away
+        // (a thin band, not deep cover), and only when the next step actually lands
+        // in thicket — otherwise the movement system refuses the crawl, and the
+        // animal dies of thirst at the water's edge.
+        const seekingWater = action === 'seekWater' || action === 'recallWater';
+        const seekingFood = action === 'seekFood' || action === 'recallFood';
+        let breakThicket = false;
+        if (seekingWater || seekingFood) {
+          const need = seekingWater
+            ? entity.maxHydration > 0 ? 1 - entity.hydration / entity.maxHydration : 0
+            : entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0;
+          const distance = Math.hypot(tx - entity.x, ty - entity.y);
+          breakThicket =
+            need >= this.thicketReachNeed &&
+            distance <= this.thicketReachDistance &&
+            world.isThicketAt(entity.x + Math.cos(heading), entity.y + Math.sin(heading));
+        }
         // Stalking closes at a walk — spending the sprint budget before the
         // prey is even in range is how a predator loses a chase.
-        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false };
+        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false, breakThicket };
       }
       case 'wander':
       default: {
         const intent = entity.moveIntent;
+        // Ranging: an animal with an unmet need (hunger or thirst) and no
+        // migration drift to point it anywhere strikes out in longer, straighter
+        // excursions rather than milling — it covers new ground instead of
+        // re-searching the patch it is standing in, which is what a stalker
+        // circling one corner of the map until it dies of thirst needed. Gated
+        // hard: off entirely once a drift gives it a direction (the drift is the
+        // better cue), and off for a fed, watered animal, so the A34 lesson holds
+        // — this only lengthens a wander that was already aimless and failing.
+        const need = Math.max(
+          entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0,
+          entity.maxHydration > 0 ? 1 - entity.hydration / entity.maxHydration : 0,
+        );
+        const roaming = need >= this.rangingThreshold && entity.migrationStrength <= 1e-6;
         if (!intent || !intent.moving || intent.ttl <= 0) {
           // Migration (Step 26) enters here and **only** here. A fresh wander
           // commitment is the one heading in the whole system that was going to
@@ -622,13 +724,13 @@ export class DecisionSystem extends SimulationSystem {
           const trail = entity.trailHeading;
           return {
             heading: trail === null ? withDrift : blendHeadings(withDrift, trail, entity.trailStrength),
-            ttl: this.minCommitTicks + Math.floor(roll * this.commitTickSpan),
+            ttl: this.minCommitTicks + (roaming ? this.rangingCommitBonus : 0) + Math.floor(roll * this.commitTickSpan),
             moving: true,
             sprint: false,
           };
         }
         return {
-          heading: normalizeAngle(intent.heading + (roll - 0.5) * this.wanderJitter),
+          heading: normalizeAngle(intent.heading + (roll - 0.5) * this.wanderJitter * (roaming ? this.rangingJitterScale : 1)),
           ttl: intent.ttl - 1,
           moving: true,
           sprint: false,
@@ -668,13 +770,21 @@ const ESCAPE_OPEN_BONUS = 1.5;
  *
  * @param {{width:number,height:number,isPassableAt:Function}} world
  */
-function roomAhead(world, px, py, h, lookahead) {
+function roomAhead(world, px, py, h, lookahead, avoidThicket = false) {
   const dx = Math.cos(h);
   const dy = Math.sin(h);
   for (let d = ESCAPE_PROBE_STEP; d <= lookahead; d += ESCAPE_PROBE_STEP) {
     const x = px + dx * d;
     const y = py + dy * d;
     if (x < 0 || x > world.width || y < 0 || y > world.height || !world.isPassableAt(x, y)) {
+      return d - ESCAPE_PROBE_STEP;
+    }
+    // A thicket edge reads as a wall to a fleeing animal that is not already
+    // inside one, so the along-wall glide and the break-past both route along
+    // thicket the way they route along rock — the animal skirts the edge and
+    // only breaks in when nothing open is left. Off (the default) when the
+    // animal is already in thicket, so it can still compute a way out.
+    if (avoidThicket && world.isThicketAt(x, y)) {
       return d - ESCAPE_PROBE_STEP;
     }
   }
@@ -709,9 +819,12 @@ function roomAhead(world, px, py, h, lookahead) {
  * @param {number} fromX @param {number} fromY what it is fleeing
  * @param {number} margin world-units from an edge at which wall-awareness bites
  * @param {number} lookahead how far ahead room is judged
+ * @param {boolean} [avoidThicket] treat thicket as a wall to skirt (a fleeing
+ *        animal not already inside one), so it runs along the edge rather than
+ *        diving into the crawl — and only breaks in when nothing open remains
  * @returns {number} committed escape heading, normalized to [0, 2π)
  */
-export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead) {
+export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead, avoidThicket = false) {
   const away = Math.atan2(py - fromY, px - fromX);
   // Wall-awareness off: the honest "straight away from the threat" instinct,
   // unmodified. This is the pre-fix control the change is measured against.
@@ -732,7 +845,7 @@ export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead) {
     // that dead-ends short — the along-wall run into a corner, or terrain hard
     // up against the wall — falls through to the break-past, which weighs it
     // against every other direction instead of committing to it blindly.
-    if (roomAhead(world, px, py, glide, lookahead) >= lookahead) return glide;
+    if (roomAhead(world, px, py, glide, lookahead, avoidThicket) >= lookahead) return glide;
   }
 
   // Option 5: cornered. Score every sampled heading by how much open room it
@@ -746,7 +859,7 @@ export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead) {
   let bestScore = -Infinity;
   for (let i = 0; i < ESCAPE_SAMPLES; i += 1) {
     const h = away + (i / ESCAPE_SAMPLES) * TWO_PI;
-    const room = roomAhead(world, px, py, h, lookahead);
+    const room = roomAhead(world, px, py, h, lookahead, avoidThicket);
     if (room <= 0) continue;
     const awayN = (Math.cos(h - away) + 1) / 2; // 1 = straight away, 0 = straight at it
     const open = room >= lookahead ? ESCAPE_OPEN_BONUS : 1;
@@ -757,6 +870,45 @@ export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead) {
     }
   }
   return normalizeAngle(best);
+}
+
+/**
+ * The nearest passable, non-thicket cell to a position — where an animal caught
+ * in a thicket heads to get back out. A ring-by-ring outward scan, so it returns
+ * the closest exit and stops the moment it finds one; bounded by `maxRadius` and
+ * only ever called for the handful of animals actually standing in thicket, so
+ * it costs nothing on open ground. Pure grid reads, no draws — determinism and
+ * the decision system's fixed draw budget are untouched.
+ *
+ * @param {{cellOf: Function, isPassableAt: Function, isThicketAt: Function}} world
+ * @param {number} x @param {number} y
+ * @param {number} maxRadius rings to search outward (cells)
+ * @returns {{cellX: number, cellY: number} | null} nearest open cell, or null
+ */
+function nearestOpenCell(world, x, y, maxRadius) {
+  const { cellX, cellY } = world.cellOf(x, y);
+  for (let r = 1; r <= maxRadius; r += 1) {
+    let best = null;
+    let bestDistance = Infinity;
+    for (let dy = -r; dy <= r; dy += 1) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        // The shell of this ring only — inner rings were searched already.
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const gx = cellX + dx;
+        const gy = cellY + dy;
+        const cx = gx + 0.5;
+        const cy = gy + 0.5;
+        if (!world.isPassableAt(cx, cy) || world.isThicketAt(cx, cy)) continue;
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = { cellX: gx, cellY: gy };
+        }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
 }
 
 /** Highest-utility action; ties broken by a fixed, deterministic order. */
@@ -783,6 +935,11 @@ function argmaxUtility(utilities) {
     'stalk',
     'followParent',
     'seekMate',
+    // Getting out of a thicket beats every discretionary/idle behaviour below
+    // (an animal should not sit crawling in cover once the danger has passed),
+    // but loses to every real need and directed goal above — those lead out of
+    // the thicket anyway, since nothing grows or drinks in one.
+    'leaveThicket',
     // Keeping up with the herd is discretionary — it loses to every real need,
     // which is what makes a hungry animal willing to graze its way out of the
     // group and a fed one drift back into it.

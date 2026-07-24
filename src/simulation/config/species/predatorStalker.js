@@ -67,10 +67,18 @@ export const predatorStalker = Object.freeze({
   // Migration (Step 26). A stalker does **not** track forage: its food is the
   // grazer, and it already follows that through perception and the hunt
   // pipeline — a vegetation gradient would point it at grass it cannot eat.
-  // What it does share is **natal dispersal**, and for a territorial species
+  // It **does** track water: a predator gets most of its water from what it
+  // eats and so rarely needs the lake, but when it does dry out it needs the
+  // same long-range steer toward it a grazer has — without it a stalker that
+  // spends its life in a corner of the map far from the one lake can dehydrate
+  // having never encountered water, with no cue to tell it which way to go
+  // (measured on a corner-lake seed: the last stalkers died of thirst having
+  // never perceived water once). The cue only bends a wander and only while the
+  // animal is thirsty, so a fed, watered predator behaves exactly as before.
+  // What it also shares is **natal dispersal**, and for a territorial species
   // that is the important half: a young stalker cannot inherit its parent's
   // ground, so it must leave and found its own. It walks out for longer than a
   // grazer does, because it has further to go before the ground is unclaimed.
-  migration: Object.freeze({ tracksForage: false, tracksWater: false, cueRadius: 0, dispersalTicks: 700 }),
+  migration: Object.freeze({ tracksForage: false, tracksWater: true, cueRadius: 0, dispersalTicks: 700 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

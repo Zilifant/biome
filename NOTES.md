@@ -5,8 +5,11 @@ DO NOT EDIT
 ## Tier 1 - Sim
 
 - animals still tend to congregate around the edges of the map and especially corners. fix this. a fix that uses RNG is acceptible if it is more robust and/or more performant
+- floods/storms/droughts should cover MUCH larger areas of the map
 
 ## Tier 1 - UI
+
+- ESC should also unfollow
 
 ### Ideas - Sim
 
@@ -16,6 +19,7 @@ DO NOT EDIT
 - elevation changes
 - turn world into island
 - sea creatures
+- paths aren't very path-y
 
 ### Ideas - UI
 

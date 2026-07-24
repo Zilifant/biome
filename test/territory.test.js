@@ -444,12 +444,33 @@ describe('territory: behaviour', () => {
     const animal = engine.world.entities.get(id);
     engine.step(600);
     engine.world.moveEntity(animal, animal.homeRange.x + 40, animal.homeRange.y);
-    // A grazer right beside it: hunting has to win over going home.
+    // A grazer right beside it: hunting has to win over going home. A moderate
+    // hunger (0.45) — enough to hunt, but below `needOverridesTerritory` (0.5),
+    // so the patrol pull is still *present* and genuinely outscored rather than
+    // suspended (that suspension is the next test).
     spawn(engine, { x: animal.x + 1, y: animal.y });
-    animal.energy = animal.maxEnergy * 0.3;
+    animal.energy = animal.maxEnergy * 0.55;
     engine.step(1);
     assert.ok(animal.utilityBreakdown.patrol > 0, 'it did want to go home');
     assert.ok(['chase', 'stalk'].includes(animal.action), `but hunted instead (${animal.action})`);
+  });
+
+  test('acute hunger or thirst suspends the territorial pulls entirely', () => {
+    // Beyond a moderate need, patrol and retreat stand down completely, so a
+    // starving or parched animal is free to follow a long-range cue somewhere new
+    // rather than being dragged home to the quarter it is dying in — this is what
+    // let a thirsty stalker circle its own range until it died on a corner-lake
+    // seed. Same setup as above, but nothing beside it and a deeper need, so if
+    // patrol still fired it would be the winning action.
+    const engine = behaviourEngine();
+    const id = spawn(engine, { x: 30, y: 30, speciesId: STALKER.id });
+    const animal = engine.world.entities.get(id);
+    engine.step(600);
+    engine.world.moveEntity(animal, animal.homeRange.x + 40, animal.homeRange.y);
+    animal.hydration = animal.maxHydration * 0.2; // parched, well past the threshold
+    engine.step(1);
+    assert.equal(animal.utilityBreakdown.patrol, 0, 'acute thirst stands the patrol pull down');
+    assert.notEqual(animal.action, 'patrol', `should not be trudging home while dying of thirst (${animal.action})`);
   });
 });
 

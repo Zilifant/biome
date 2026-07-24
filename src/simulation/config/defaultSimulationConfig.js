@@ -524,15 +524,16 @@ export const defaultSimulationConfig = Object.freeze({
   // Bounded, decaying spatial memory (see memory/memories.js and
   // systems/MemorySystem.js). Animals remember where they ate, drank, searched
   // in vain, and met danger. Decay rates are per kind and deliberately unequal:
-  // a lake stays put, a grass patch may already be grazed out, and "nothing
-  // here" expires fastest because vegetation regrows.
+  // a grass patch may already be grazed out and "nothing here" expires fastest
+  // because vegetation regrows, while a lake **never moves** — so water does not
+  // fade at all, and a place an animal drank is remembered for good.
   memory: Object.freeze({
     maxMemories: 8, // hard cap per animal (also enforced in memory/memories.js)
     forgetBelow: 0.05, // strength at which a memory is dropped entirely
     updateInterval: 5, // decay runs every N ticks, scaled so the rate is unchanged
     decay: Object.freeze({
       food: 0.004, //   ~250 ticks
-      water: 0.0008, // ~1250 ticks
+      water: 0, //      never — a lake does not move (see memory/memories.js)
       barren: 0.006, // ~170 ticks
       danger: 0.001, // ~1000 ticks
     }),

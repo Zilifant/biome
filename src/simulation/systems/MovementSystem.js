@@ -90,13 +90,20 @@ export class MovementSystem extends SimulationSystem {
       const targetY = world.clampY(entity.y + dy);
 
       // Thicket is passable but a crawl, so an animal treats its edge as a wall
-      // and turns away — *unless* it is fleeing (diving into cover is worth the
-      // slog, and a pursuer that is not fleeing stops at the edge, which is what
-      // makes a thicket a refuge, A18) or it is already inside one (so it can
-      // push back out rather than being trapped). Standing still (eat/rest/drink)
-      // never triggers this — only a committed step does.
+      // and turns away. Two exceptions, and *only* two: it is already inside one
+      // (so it can push back out rather than being trapped), or the decision
+      // system has explicitly marked this step a **break-in** (`intent.breakThicket`).
+      // The decision system sets that flag in exactly two situations, both of
+      // last resort: a *cornered* flee with no open ground left to skirt to, and
+      // an animal in acute need pushing through a thin band toward water or food
+      // just beyond it (the corner-lake case). Merely fleeing is no longer enough
+      // to drive an animal into cover (A18): a pursuer that is not itself cornered
+      // stops at the edge, and so does the prey until it must juke inside. Standing
+      // still (eat/rest/drink) never triggers this — only a committed step does.
       const refusesThicket =
-        world.isThicketAt(targetX, targetY) && entity.action !== 'flee' && !world.isThicketAt(entity.x, entity.y);
+        world.isThicketAt(targetX, targetY) &&
+        !world.isThicketAt(entity.x, entity.y) &&
+        intent.breakThicket !== true;
 
       if (world.isPassableAt(targetX, targetY) && !refusesThicket) {
         const from = { x: entity.x, y: entity.y };

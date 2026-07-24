@@ -33,13 +33,18 @@ export const MAX_MEMORIES = 8;
 
 /**
  * How fast each kind fades, in strength per tick. The differences are the
- * point: a lake stays where it is, so water is worth remembering ten times
- * longer than a grass patch that may already have been grazed out, while
- * "nothing here" expires fastest of all because vegetation regrows.
+ * point: a grass patch may already have been grazed out and "nothing here"
+ * expires fastest of all because vegetation regrows, while a lake **never
+ * moves** — so a place an animal drank is worth remembering for good. Water
+ * therefore does not fade at all (decay 0): forgetting a static lake is never
+ * correct, and a permanent water memory is what lets an animal that drank once
+ * find its way back rather than dying of thirst having "forgotten" the only
+ * water on the map. Staying at full strength also keeps it from being the entry
+ * evicted when the bounded memory list overflows.
  */
 export const DEFAULT_DECAY = Object.freeze({
   [MemoryKinds.FOOD]: 0.004, //    ~250 ticks
-  [MemoryKinds.WATER]: 0.0008, //  ~1250 ticks
+  [MemoryKinds.WATER]: 0, //       never — a lake does not move
   [MemoryKinds.BARREN]: 0.006, //  ~170 ticks
   [MemoryKinds.DANGER]: 0.001, //  ~1000 ticks
 });

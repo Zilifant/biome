@@ -410,6 +410,40 @@ describe('migration: what steers a wander', () => {
     engine.step(1);
     assert.equal(world.entities.get(sated).migrationStrength, 0, 'a hydrated animal drifts nowhere');
   });
+
+  test('a thirsty predator is steered toward water too — it does not live on the lake', () => {
+    // A stalker gets most of its water from prey and rarely needs the lake, so it
+    // does not track forage — but it now tracks WATER, because a stalker parked
+    // in a far corner of the map can dry out having never encountered water, and
+    // without a cue it only circles its range until it dies. The steer fires only
+    // while it is actually thirsty.
+    const engine = new SimulationEngine({
+      seed: 5,
+      config: { world: { width: 64, height: 64 }, terrain: { lakes: 1, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    });
+    engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
+    clearVegetation(engine);
+    const world = engine.world;
+
+    let sx = 0, sy = 0, n = 0;
+    for (let y = 0; y < world.terrain.height; y += 1) {
+      for (let x = 0; x < world.terrain.width; x += 1) {
+        if (world.terrain.codeAt(x, y) === TerrainType.WATER) { sx += x; sy += y; n += 1; }
+      }
+    }
+    const lake = { x: sx / n, y: sy / n };
+    const start = pickThirstyStart(world, lake);
+    const thirsty = spawn(engine, { speciesId: STALKER.id, x: start.x, y: start.y, hydration: 15 });
+    engine.step(1);
+    const entity = world.entities.get(thirsty);
+    assert.ok(entity.migrationStrength > 0, 'a thirsty stalker now has a water drift');
+    const toLake = Math.atan2(lake.y - entity.y, lake.x - entity.x);
+    assert.ok(angleGapDeg(entity.migrationHeading, toLake) < 30, 'the drift aims at the lake');
+
+    const sated = spawn(engine, { speciesId: STALKER.id, x: start.x, y: start.y, hydration: STALKER.maxHydration });
+    engine.step(1);
+    assert.equal(world.entities.get(sated).migrationStrength, 0, 'a watered stalker drifts nowhere');
+  });
 });
 
 /** A passable land cell well away from the lake, for a water-cue test. */
