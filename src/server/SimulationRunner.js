@@ -75,8 +75,8 @@ export class SimulationRunner extends EventEmitter {
    *
    * @param {number} [seed] omit to have the host pick one at random
    * @param {object} [options] world-composition overrides (dimensions, founder
-   *        counts) handed to the engine factory; the factory decides what they
-   *        mean, keeping world *composition* out of the runner.
+   *        counts, terrain prevalence) handed to the engine factory; the factory
+   *        decides what they mean, keeping world *composition* out of the runner.
    * @returns {{seed: number, simulationId: string}}
    */
   restart(seed, options = {}) {
@@ -255,8 +255,16 @@ export class SimulationRunner extends EventEmitter {
         return okResult({ tick: this.engine.tick });
       case CommandTypes.SIMULATION_RESTART: {
         try {
-          const { width, height, herbivores, predators, scavengers } = command;
-          const { seed, simulationId } = this.restart(command.seed, { width, height, herbivores, predators, scavengers });
+          const { width, height, herbivores, predators, scavengers, rocks, thickets } = command;
+          const { seed, simulationId } = this.restart(command.seed, {
+            width,
+            height,
+            herbivores,
+            predators,
+            scavengers,
+            rocks,
+            thickets,
+          });
           return okResult({ seed, simulationId, tick: this.engine.tick, paused: this.paused, speed: this.speed });
         } catch (error) {
           return errorResult('restart-unsupported', String(error.message ?? error));

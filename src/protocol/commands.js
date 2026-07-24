@@ -17,7 +17,7 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
-  SIMULATION_RESTART: 'simulation.restart', //     { seed?, width?, height?, herbivores?, predators?, scavengers? } rebuild the world
+  SIMULATION_RESTART: 'simulation.restart', //     { seed?, width?, height?, herbivores?, predators?, scavengers?, rocks?, thickets? } rebuild the world
   ENTITY_SPAWN: 'entity.spawn', //                { entity: {...} }
   ENTITY_REMOVE: 'entity.remove', //              { entityId }
 });
@@ -69,6 +69,17 @@ export const MAX_WORLD_DIMENSION = 1024;
 export const MAX_FOUNDING_HERBIVORES = 20000;
 export const MAX_FOUNDING_PREDATORS = 5000;
 export const MAX_FOUNDING_SCAVENGERS = 5000;
+
+/**
+ * `rocks` and `thickets` are abstract **prevalence** levels, not counts: how
+ * much of the new world the terrain type takes up. 0 is none at all and
+ * MAX_TERRAIN_PREVALENCE is dense enough to crowd out open grazing ground. The
+ * mapping from a level to actual generator formation counts lives host-side (see
+ * buildDemoConfig), so the protocol stays in terms the UI can offer directly.
+ * The demo's default terrain is DEFAULT_TERRAIN_PREVALENCE on this scale.
+ */
+export const MAX_TERRAIN_PREVALENCE = 10;
+export const DEFAULT_TERRAIN_PREVALENCE = 2;
 
 /**
  * Successful command result.

@@ -48,10 +48,20 @@ const MAX_WORLD_DIMENSION = 1024;
 const MAX_FOUNDING = Object.freeze({ herbivores: 20000, predators: 5000, scavengers: 5000 });
 
 /**
+ * Terrain prevalence is an abstract 0..MAX scale (matching the protocol's
+ * MAX_TERRAIN_PREVALENCE), not a count: 0 is none of that terrain at all, the
+ * top of the scale crowds out open grazing ground, and the host maps the level
+ * to generator formation counts. Offered as a dropdown rather than a free number
+ * because the scale is small and unitless.
+ */
+const MAX_TERRAIN_PREVALENCE = 10;
+
+/**
  * Default world composition, restated so the restart fields open on the demo's
  * actual starting values. The host still applies its own defaults for any field
  * a command omits; these only prefill the inputs. Keep in step with
- * `defaultSimulationConfig.world` and `.demo.founding`.
+ * `defaultSimulationConfig.world`, `.demo.founding`, and the protocol's
+ * DEFAULT_TERRAIN_PREVALENCE.
  */
 const DEFAULTS = Object.freeze({
   width: 128,
@@ -59,7 +69,24 @@ const DEFAULTS = Object.freeze({
   herbivores: 120,
   predators: 8,
   scavengers: 10,
+  rocks: 2,
+  thickets: 2,
 });
+
+/**
+ * A `<select>` for a terrain-prevalence level (0..MAX_TERRAIN_PREVALENCE), with
+ * `selected` chosen. A dropdown rather than a number field: the scale is small,
+ * unitless, and reads better as a labelled list of steps.
+ * @param {string} id @param {number} selected @param {string} ariaLabel
+ * @returns {string}
+ */
+function prevalenceSelect(id, selected, ariaLabel) {
+  const options = Array.from({ length: MAX_TERRAIN_PREVALENCE + 1 }, (_, level) => {
+    const label = level === 0 ? '0 (none)' : level === MAX_TERRAIN_PREVALENCE ? `${level} (most)` : String(level);
+    return `<option value="${level}"${level === selected ? ' selected' : ''}>${label}</option>`;
+  }).join('');
+  return `<select id="${id}" aria-label="${ariaLabel}">${options}</select>`;
+}
 
 export class Controls {
   #els;
@@ -143,6 +170,15 @@ export class Controls {
             <label for="ctl-scavengers" class="dim">scavengers</label>
             <input type="number" id="ctl-scavengers" min="0" max="${MAX_FOUNDING.scavengers}" step="1" value="${DEFAULTS.scavengers}" aria-label="Starting scavengers" />
           </div>
+          <p class="hint">How much of the map is rock or thicket rather than open grazing ground — 0 is none, ${MAX_TERRAIN_PREVALENCE} crowds it out.</p>
+          <div class="control-row">
+            <label for="ctl-rocks" class="dim">rocks</label>
+            ${prevalenceSelect('ctl-rocks', DEFAULTS.rocks, 'Rock prevalence')}
+          </div>
+          <div class="control-row">
+            <label for="ctl-thickets" class="dim">thickets</label>
+            ${prevalenceSelect('ctl-thickets', DEFAULTS.thickets, 'Thicket prevalence')}
+          </div>
         </div>
       </details>
       <p id="command-status" class="command-status" aria-live="polite"></p>`;
@@ -167,6 +203,8 @@ export class Controls {
       herbivores: container.querySelector('#ctl-herbivores'),
       predators: container.querySelector('#ctl-predators'),
       scavengers: container.querySelector('#ctl-scavengers'),
+      rocks: container.querySelector('#ctl-rocks'),
+      thickets: container.querySelector('#ctl-thickets'),
       status: container.querySelector('#command-status'),
     };
 
@@ -276,6 +314,10 @@ export class Controls {
       ['herbivores', this.#els.herbivores, 0, MAX_FOUNDING.herbivores],
       ['predators', this.#els.predators, 0, MAX_FOUNDING.predators],
       ['scavengers', this.#els.scavengers, 0, MAX_FOUNDING.scavengers],
+      // Prevalence dropdowns only offer valid levels, so the range check is a
+      // formality — but it keeps every composition field validated the same way.
+      ['rocks', this.#els.rocks, 0, MAX_TERRAIN_PREVALENCE],
+      ['thickets', this.#els.thickets, 0, MAX_TERRAIN_PREVALENCE],
     ];
     const params = {};
     for (const [key, element, min, max] of fields) {
@@ -369,6 +411,8 @@ export class Controls {
       this.#els.herbivores,
       this.#els.predators,
       this.#els.scavengers,
+      this.#els.rocks,
+      this.#els.thickets,
       ...this.#els.steps,
     ]) {
       element.disabled = !enabled;

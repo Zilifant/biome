@@ -15,6 +15,7 @@ import {
   MAX_MANUAL_STEP_TICKS,
   MAX_SEED,
   MAX_SPEED_MULTIPLIER,
+  MAX_TERRAIN_PREVALENCE,
   MAX_WORLD_DIMENSION,
   MIN_WORLD_DIMENSION,
   SEXES,
@@ -154,6 +155,10 @@ export function validateCommand(command) {
       validateOptionalIntInRange(command.herbivores, 'herbivores', 0, MAX_FOUNDING_HERBIVORES, errors);
       validateOptionalIntInRange(command.predators, 'predators', 0, MAX_FOUNDING_PREDATORS, errors);
       validateOptionalIntInRange(command.scavengers, 'scavengers', 0, MAX_FOUNDING_SCAVENGERS, errors);
+      // Terrain prevalence (rocks, thickets): an abstract 0..MAX level the host
+      // maps to generator formation counts, not a count itself.
+      validateOptionalIntInRange(command.rocks, 'rocks', 0, MAX_TERRAIN_PREVALENCE, errors);
+      validateOptionalIntInRange(command.thickets, 'thickets', 0, MAX_TERRAIN_PREVALENCE, errors);
       break;
     case CommandTypes.ENTITY_SPAWN:
       validateSpawnEntity(command.entity, errors);

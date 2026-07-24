@@ -143,13 +143,16 @@ The first herbivore, `herbivore.grazer`, maps to `g`/yellow. Nothing in the
 grid-rendering algorithm changes. `colorToken` must be a key of
 `DRACULA_COLORS` (rendered from the `--dracula-<token>` CSS variable).
 
-**Sex is drawn by letter case** (protocol v21): lowercase female, uppercase
-male — `g`/`G` grazer, `s`/`S` stalker — via an optional `glyphBySex` map on the
-appearance entry. Colour still says species and priority still decides who wins
-a shared cell, so a hunt reads as the predator either way; case is a third,
-independent channel, which is what lets a herd's composition read off the grid
-at a glance. A species with no `glyphBySex`, or an animal the protocol sends
-with `sex: null`, simply keeps its base glyph.
+**Age and sex are two independent glyph channels** on top of the species letter.
+**Letter case is age**: a mature animal (`lifeStage` adult or senescent) is
+UPPERCASE, an immature one (juvenile or subadult) lowercase — `g`/`G` grazer,
+`s`/`S` stalker. **Italic is sex**: a female is drawn in italic, a male (or an
+animal the protocol sends with `sex: null`) upright. Colour still says species
+and priority still decides who wins a shared cell, so both are additions rather
+than substitutions; a hunt reads as the predator either way, and a herd's age and
+sex structure reads off the grid at a glance. An absent or unrecognized life
+stage reads as not-yet-grown (lowercase). Both channels are animal-only — a
+carcass, plant, or unknown kind keeps its base glyph.
 
 **To show a new protocol-visible field in the inspector**: once the simulation
 protocol actually provides the field, add one `<div class="field">` row to the
@@ -247,15 +250,18 @@ The **Restart** panel rebuilds the world from a seed (protocol v28). Name a seed
 for a specific world, press **Random seed** to get any world, or **Replay this
 one** to start the current seed over.
 
-The panel also sets the **world size** (width × height) and the **starting
-numbers** of herbivores, predators, and scavengers. These describe the world to
-build, so they apply to whichever restart button you press — the seed only
-varies which world you get within those settings. The fields open on the demo
-defaults (128×128, 120/8/10) and their maxima are deliberately high — up to a
-1024×1024 world and tens of thousands of founders — so you can push the sim to
-its performance ceiling; a world near both maxima runs slowly but does not
-crash. Each field is validated against the same bounds the host enforces, and an
-omitted field falls back to the host's default.
+The panel also sets the **world size** (width × height), the **starting numbers**
+of herbivores, predators, and scavengers, and how prevalent **rocks** and
+**thickets** are. These describe the world to build, so they apply to whichever
+restart button you press — the seed only varies which world you get within those
+settings. The number fields open on the demo defaults (128×128, 120/8/10) and
+their maxima are deliberately high — up to a 1024×1024 world and tens of
+thousands of founders — so you can push the sim to its performance ceiling; a
+world near both maxima runs slowly but does not crash. **Rocks** and **thickets**
+are dropdowns on a 0–10 prevalence scale, not counts: 0 puts none of that terrain
+on the map, 10 crowds out open grazing ground, and the default of 2 reproduces
+the demo's own terrain. Each field is validated against the same bounds the host
+enforces, and an omitted field falls back to the host's default.
 
 **The host picks the random seed, not the renderer.** Presentation has to be
 reproducible from its inputs, and `Math.random` is banned in `app/` for the same
@@ -379,9 +385,10 @@ cannot drift from what is actually drawn, and adding a species updates the
 legend for free. A hand-maintained legend would be wrong within one step.
 
 `describeLegend()` is pure and returns plain data; `renderer-view.test.js`
-asserts that every species (with both sex glyphs), every terrain type, feature,
-disturbance, memory kind, and carcass decay stage reaches it, and that every
-colour token is a real Dracula value. Only the condition tints and bracket
+asserts that every species (in both its young and grown case), every terrain
+type, feature, disturbance, memory kind, and carcass decay stage reaches it, and
+that every colour token is a real Dracula value. The age/sex key (`young /
+grown` and the italic `female` row), the condition tints, and the bracket
 overlays are hand-written, because they describe how a glyph is _coloured_ or
 _bracketed_ rather than which glyph is drawn, and have no registry to read from.
 

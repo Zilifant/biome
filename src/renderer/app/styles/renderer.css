@@ -223,8 +223,14 @@ body {
   color: var(--dracula-green);
 }
 
-#ctl-step-n,
-#ctl-seed {
+/* Text and number inputs are themed by *type*, not by id, so a new field is
+   themed the moment it is added — styling one control at a time is how the
+   world-composition inputs ended up as bare white browser widgets in a dark
+   panel. `select` and `button` are themed the same way below; keep new controls
+   reachable by a shared selector rather than a per-id rule. Widths are the only
+   thing set per-id, since only the field itself knows how wide it wants to be. */
+input[type='number'],
+input[type='text'] {
   font: inherit;
   color: var(--dracula-foreground);
   background: var(--dracula-background-light);
@@ -282,7 +288,8 @@ select:hover:not(:disabled) {
 }
 
 button:disabled,
-select:disabled {
+select:disabled,
+input:disabled {
   color: var(--dracula-comment);
   cursor: not-allowed;
 }

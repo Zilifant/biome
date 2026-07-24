@@ -310,11 +310,50 @@ const FOUNDING_ROLE_BY_SPECIES = Object.freeze({
 });
 
 /**
+ * Terrain-prevalence mapping. The restart panel offers `rocks` and `thickets` as
+ * an abstract 0..MAX_TERRAIN_PREVALENCE level (DEFAULT_TERRAIN_PREVALENCE is the
+ * demo's terrain); the generator wants a formation count. This is the one place
+ * the two meet — the same shape as FOUNDING_ROLE_BY_SPECIES, keeping the UI and
+ * protocol in "how much" while the config stays in "how many formations".
+ *
+ * The map is linear through the default: level DEFAULT_TERRAIN_PREVALENCE lands
+ * on the demo's own formation count (rock 8, thicket 14 — kept in step with
+ * defaultSimulationConfig.terrain.ridges and TerrainGrid's `thickets` default),
+ * level 0 clears the terrain, and the top of the scale is several times the
+ * default — enough discs that, after they overlap, the type dominates open
+ * ground. The counts are restated here rather than imported so this file owns
+ * the "level 2 == the demo you know" contract, exactly as DEFAULTS does in the
+ * renderer's Controls.
+ * @type {Record<'ridges'|'thickets', number>} config key → count at the default level
+ */
+const FORMATION_COUNT_AT_DEFAULT = Object.freeze({ ridges: 8, thickets: 14 });
+
+/**
+ * The prevalence level that reproduces the demo's own terrain. Restated here
+ * rather than imported from the protocol (fixtures speak the simulation's
+ * language, not the protocol's) — it must match the protocol's
+ * DEFAULT_TERRAIN_PREVALENCE, which is what the renderer's dropdowns default to.
+ */
+const DEFAULT_TERRAIN_PREVALENCE = 2;
+
+/**
+ * Translate an abstract prevalence level into a generator formation count,
+ * linear through the default level. Rounded to a whole formation count; a level
+ * of 0 yields 0 (the type is disabled).
+ * @param {number} level 0..MAX_TERRAIN_PREVALENCE
+ * @param {number} countAtDefault formation count at DEFAULT_TERRAIN_PREVALENCE
+ * @returns {number}
+ */
+function formationCountForPrevalence(level, countAtDefault) {
+  return Math.round((level / DEFAULT_TERRAIN_PREVALENCE) * countAtDefault);
+}
+
+/**
  * Translate the optional world-composition fields of a `simulation.restart`
  * command into a config override merged over the demo defaults. Every field is
  * optional: an omitted dimension or role count keeps the default. Bounds are
  * the protocol's responsibility (validated before this runs); this only maps.
- * @param {{width?: number, height?: number, herbivores?: number, predators?: number, scavengers?: number}} [options]
+ * @param {{width?: number, height?: number, herbivores?: number, predators?: number, scavengers?: number, rocks?: number, thickets?: number}} [options]
  * @returns {object} partial config for createDemoSimulation
  */
 export function buildDemoConfig(options = {}) {
@@ -323,6 +362,19 @@ export function buildDemoConfig(options = {}) {
     config.world = {};
     if (options.width !== undefined) config.world.width = options.width;
     if (options.height !== undefined) config.world.height = options.height;
+  }
+  // Terrain prevalence maps to generator formation counts. `ridges` is rock's
+  // formation count and `thickets` is the thicket count (see TerrainGrid); the
+  // partial terrain block merges recursively over the defaults, so the other
+  // terrain params are untouched.
+  if (options.rocks !== undefined || options.thickets !== undefined) {
+    config.terrain = {};
+    if (options.rocks !== undefined) {
+      config.terrain.ridges = formationCountForPrevalence(options.rocks, FORMATION_COUNT_AT_DEFAULT.ridges);
+    }
+    if (options.thickets !== undefined) {
+      config.terrain.thickets = formationCountForPrevalence(options.thickets, FORMATION_COUNT_AT_DEFAULT.thickets);
+    }
   }
   const overridesFounding =
     options.herbivores !== undefined || options.predators !== undefined || options.scavengers !== undefined;

@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 705 passing / 0 failing, 186 suites                    |
+| Tests                 | 708 passing / 0 failing, 186 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
 | Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { SimulationRunner } from '../src/server/SimulationRunner.js';
 import { createDemoSimulation, buildDemoConfig } from '../src/fixtures/createDemoSimulation.js';
 import { applyDeltaSnapshot } from '../src/protocol/snapshots.js';
+import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 
 /** A paused runner over the demo world, with every emission captured. */
 function pausedRunner(seed = 42) {
@@ -148,6 +149,35 @@ describe('runner: restart', () => {
     assert.equal(counts['herbivore.grazer'], 40);
     assert.equal(counts['predator.stalker'], 5);
     assert.equal(counts['scavenger.corvid'] ?? 0, 0, 'a zero count clears the role');
+  });
+
+  test('terrain prevalence maps to formation counts, the default level being the demo', () => {
+    // buildDemoConfig is the bridge from the UI's abstract 0..10 prevalence to
+    // the generator's formation counts. Level 2 (the demo's default) reproduces
+    // the demo's own terrain, 0 clears the type, and higher is denser.
+    assert.equal(buildDemoConfig({ rocks: 2 }).terrain.ridges, 8, 'level 2 rock == demo default');
+    assert.equal(buildDemoConfig({ thickets: 2 }).terrain.thickets, 14, 'level 2 thicket == demo default');
+    assert.equal(buildDemoConfig({ rocks: 0 }).terrain.ridges, 0, 'level 0 clears rock');
+    assert.equal(buildDemoConfig({ thickets: 0 }).terrain.thickets, 0, 'level 0 clears thicket');
+    assert.ok(buildDemoConfig({ rocks: 10 }).terrain.ridges > 8, 'the top of the scale is denser');
+    // Omitting them leaves terrain entirely to the defaults — no override object.
+    assert.equal(buildDemoConfig({ herbivores: 5 }).terrain, undefined);
+  });
+
+  test('a restart clearing rocks and thickets reaches the terrain generator', () => {
+    // Proves the mapping actually plumbs through to world generation, not just
+    // the config object: level 0 for both leaves neither terrain type on the map.
+    const runner = new SimulationRunner({
+      engine: createDemoSimulation({ seed: 1 }),
+      createEngine: (nextSeed, options) => createDemoSimulation({ seed: nextSeed, config: buildDemoConfig(options ?? {}) }),
+    });
+    runner.pause();
+    const result = runner.handleCommand({ type: 'simulation.restart', seed: 3, rocks: 0, thickets: 0 });
+    assert.equal(result.ok, true);
+    const counts = runner.engine.world.terrain.countByType();
+    // The connectivity pass may carve a few rock corridors, so rock can be
+    // non-zero, but thicket has no such backstop and must be gone entirely.
+    assert.equal(counts[TerrainType.THICKET] ?? 0, 0, 'thickets 0 leaves no thicket cells');
   });
 
   test('a restart with no composition options keeps the demo defaults', () => {

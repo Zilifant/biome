@@ -39,12 +39,32 @@ export const DRACULA_COLORS = Object.freeze({
 
 /**
  * @typedef {object} Appearance
- * @property {string} glyph single ASCII character
- * @property {Record<string, string>} [glyphBySex] per-sex glyph override (protocol v21)
+ * @property {string} glyph single ASCII character (see resolveAppearance for the
+ *        life-stage case transform)
+ * @property {boolean} [italic] true when the glyph is drawn in italic (female)
  * @property {string} colorToken key into DRACULA_COLORS
  * @property {number} priority higher wins when a cell has multiple occupants
  * @property {string} label human-readable category for the inspector
  */
+
+/**
+ * Life stages the engine reports (see AgingSystem: juvenile, subadult, adult,
+ * senescent). "Mature" folds the two grown stages together — an animal that has
+ * finished growing, whether or not it has aged past its prime. It is what letter
+ * case encodes on the grid (see resolveAppearance).
+ */
+const MATURE_STAGES = Object.freeze(new Set(['adult', 'senescent']));
+
+/**
+ * Whether a life stage is drawn UPPERCASE (a grown animal) rather than lowercase.
+ * An unknown or absent stage reads as not-yet-grown, so a newer engine's stage
+ * name simply draws lowercase rather than throwing.
+ * @param {string | undefined | null} lifeStage
+ * @returns {boolean}
+ */
+export function isMatureStage(lifeStage) {
+  return MATURE_STAGES.has(lifeStage);
+}
 
 /** Defaults by protocol `kind`. */
 export const KIND_APPEARANCE = Object.freeze({
@@ -60,7 +80,6 @@ export const KIND_APPEARANCE = Object.freeze({
 export const SPECIES_APPEARANCE = Object.freeze({
   'herbivore.grazer': Object.freeze({
     glyph: 'g',
-    glyphBySex: Object.freeze({ female: 'g', male: 'G' }),
     colorToken: 'yellow',
     priority: 50,
     label: 'grazer',
@@ -69,7 +88,6 @@ export const SPECIES_APPEARANCE = Object.freeze({
   // glyph rather than disappearing behind the animal it is standing on.
   'predator.stalker': Object.freeze({
     glyph: 's',
-    glyphBySex: Object.freeze({ female: 's', male: 'S' }),
     colorToken: 'red',
     priority: 60,
     label: 'stalker',
@@ -81,7 +99,6 @@ export const SPECIES_APPEARANCE = Object.freeze({
   // glyph, and the bird is only there because of it.
   'scavenger.corvid': Object.freeze({
     glyph: 'v',
-    glyphBySex: Object.freeze({ female: 'v', male: 'V' }),
     colorToken: 'purple',
     priority: 45,
     label: 'corvid',
@@ -263,17 +280,25 @@ const cache = new Map();
 
 /**
  * Deterministic appearance lookup for an entity. Cached per
- * (kind, speciesId, alive, decayStage, sex) — repeated lookups return the same
- * object. `decayStage` only varies for carcasses and `sex` takes three values,
- * so the cache stays small.
+ * (kind, speciesId, alive, decayStage, sex, mature) — repeated lookups return
+ * the same object. `decayStage` only varies for carcasses and both `sex` and
+ * maturity take a handful of values, so the cache stays small.
  *
- * Sex (protocol v21) is drawn by letter case — lowercase female, uppercase
- * male — so a herd's composition reads straight off the grid, which is what
- * makes mate choice something you can watch. Colour still says species, and a
- * species that maps no `glyphBySex` (or an animal with no sex) simply keeps its
- * base glyph.
+ * A living animal carries two independent display channels on top of its
+ * species glyph, so a herd's age and sex structure reads straight off the grid:
  *
- * @param {{kind?: string, speciesId?: string, alive?: boolean, decayStage?: number, sex?: string|null}} entity
+ * - **Letter case is age** — a mature animal (adult or senescent) is UPPERCASE,
+ *   an immature one (juvenile or subadult) lowercase.
+ * - **Italic is sex** — a female is drawn in italic; a male (or an animal with
+ *   no sex) upright. `italic` rides on the appearance for the canvas and legend
+ *   to honour; nothing else about the glyph changes.
+ *
+ * Colour still says species and priority still decides who wins a shared cell,
+ * so both channels are additions rather than substitutions. A plant, a carcass,
+ * or an unknown kind keeps its base glyph exactly — case and italic are
+ * animal-only.
+ *
+ * @param {{kind?: string, speciesId?: string, alive?: boolean, decayStage?: number, sex?: string|null, lifeStage?: string|null}} entity
  * @returns {Appearance}
  */
 export function resolveAppearance(entity) {
@@ -282,15 +307,20 @@ export function resolveAppearance(entity) {
   const alive = entity?.alive !== false;
   const decayStage = kind === 'carcass' ? (entity?.decayStage ?? 0) : 0;
   const sex = entity?.sex ?? '';
-  const key = `${kind}|${speciesId}|${alive}|${decayStage}|${sex}`;
+  const mature = isMatureStage(entity?.lifeStage);
+  const key = `${kind}|${speciesId}|${alive}|${decayStage}|${sex}|${mature}`;
   let appearance = cache.get(key);
   if (!appearance) {
     if (kind === 'carcass' || (!alive && kind === 'animal')) {
       appearance = CARCASS_DECAY_APPEARANCE[decayStage] ?? CARCASS_DECAY_APPEARANCE.at(-1);
-    } else {
+    } else if (kind === 'animal' && alive) {
       const base = SPECIES_APPEARANCE[speciesId] ?? KIND_APPEARANCE[kind] ?? UNKNOWN_APPEARANCE;
-      const sexed = base.glyphBySex?.[sex];
-      appearance = sexed && sexed !== base.glyph ? Object.freeze({ ...base, glyph: sexed }) : base;
+      const glyph = mature ? base.glyph.toUpperCase() : base.glyph.toLowerCase();
+      const italic = sex === 'female';
+      appearance =
+        glyph !== base.glyph || italic ? Object.freeze({ ...base, glyph, italic }) : base;
+    } else {
+      appearance = SPECIES_APPEARANCE[speciesId] ?? KIND_APPEARANCE[kind] ?? UNKNOWN_APPEARANCE;
     }
     cache.set(key, appearance);
   }

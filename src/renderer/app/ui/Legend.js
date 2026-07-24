@@ -3,8 +3,9 @@
  *
  * There are around two dozen distinct glyph meanings on screen — four terrain
  * types, a vegetation ramp, worn ground, disturbances, a carcass decay ramp,
- * three species in two sexes each, and one animal's remembered places — and
- * until now nothing anywhere said what any of them meant.
+ * three species (each with an age case and a sex style), and one animal's
+ * remembered places — and until now nothing anywhere said what any of them
+ * meant.
  *
  * **Generated from the appearance registries, never written out by hand.**
  * That is the whole design: `EntityAppearance.js` is the single source of
@@ -35,6 +36,7 @@ import {
  * @property {string} colorToken
  * @property {string} label
  * @property {string} [note] why it looks like that, when that is not obvious
+ * @property {boolean} [italic] render the glyph in italic (the female channel)
  */
 
 /**
@@ -44,17 +46,17 @@ import {
 export function describeLegend() {
   /** @type {LegendEntry[]} */
   const animals = [];
-  for (const [speciesId, appearance] of Object.entries(SPECIES_APPEARANCE)) {
-    // Sex is drawn by letter case, so a species with a per-sex map is two
-    // glyphs rather than one — which is what makes a herd's composition
-    // readable at a glance.
-    const female = appearance.glyphBySex?.female ?? appearance.glyph;
-    const male = appearance.glyphBySex?.male ?? appearance.glyph;
+  for (const [, appearance] of Object.entries(SPECIES_APPEARANCE)) {
+    // Age is drawn by letter case (lowercase young, UPPERCASE grown), so a
+    // species is shown as both — which is what makes a herd's age structure
+    // readable at a glance. The base glyph is the lowercase form.
+    const young = appearance.glyph;
+    const grown = appearance.glyph.toUpperCase();
     animals.push({
-      glyph: female === male ? female : `${female}/${male}`,
+      glyph: young === grown ? young : `${young}/${grown}`,
       colorToken: appearance.colorToken,
       label: appearance.label,
-      note: female === male ? '' : 'lowercase female, uppercase male',
+      note: young === grown ? '' : 'young / grown',
     });
   }
   animals.push({
@@ -106,6 +108,7 @@ export function describeLegend() {
 
   return [
     { title: 'Animals', entries: animals },
+    { title: 'Age & sex', entries: SEX_AGE_ENTRIES },
     { title: 'Condition', entries: CONDITION_ENTRIES },
     { title: 'Remains', entries: remains },
     { title: 'Ground', entries: ground },
@@ -126,6 +129,18 @@ export function describeLegend() {
 const CONDITION_ENTRIES = Object.freeze([
   { glyph: '▪', colorToken: HURT_COLOR_TOKEN, label: 'hurt', note: 'below 70% health' },
   { glyph: '▪', colorToken: SICK_COLOR_TOKEN, label: 'visibly ill', note: 'a carrier looks healthy' },
+]);
+
+/**
+ * The two per-animal display channels, written by hand because they describe how
+ * a species glyph is *cased and styled* rather than which glyph is drawn — there
+ * is no registry entry to read them from. Case is age, italic is sex; the grazer
+ * glyph stands in as the example. See EntityAppearance.resolveAppearance.
+ * @type {LegendEntry[]}
+ */
+const SEX_AGE_ENTRIES = Object.freeze([
+  { glyph: 'g/G', colorToken: 'yellow', label: 'young / grown', note: 'lowercase / UPPERCASE' },
+  { glyph: 'g', colorToken: 'yellow', label: 'female', note: 'italic', italic: true },
 ]);
 
 /** @type {LegendEntry[]} */
@@ -149,7 +164,7 @@ export class LegendPanel {
           ${group.entries
             .map(
               (entry) => `
-            <span class="legend-glyph" style="color: var(--dracula-${entry.colorToken})">${entry.glyph}</span>
+            <span class="legend-glyph" style="color: var(--dracula-${entry.colorToken})${entry.italic ? '; font-style: italic' : ''}">${entry.glyph}</span>
             <span class="legend-label">${entry.label}${entry.note ? ` <span class="dim">${entry.note}</span>` : ''}</span>`,
             )
             .join('')}

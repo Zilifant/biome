@@ -45,6 +45,24 @@ describe('entity appearance', () => {
     }
   });
 
+  test('letter case is age and italic is sex, independently', () => {
+    const base = { kind: 'animal', speciesId: 'herbivore.grazer', alive: true };
+    // Case is maturity: adult/senescent UPPERCASE, juvenile/subadult lowercase.
+    assert.equal(resolveAppearance({ ...base, lifeStage: 'adult' }).glyph, 'G');
+    assert.equal(resolveAppearance({ ...base, lifeStage: 'senescent' }).glyph, 'G');
+    assert.equal(resolveAppearance({ ...base, lifeStage: 'juvenile' }).glyph, 'g');
+    assert.equal(resolveAppearance({ ...base, lifeStage: 'subadult' }).glyph, 'g');
+    // An absent or unknown stage reads as not-yet-grown rather than throwing.
+    assert.equal(resolveAppearance(base).glyph, 'g');
+    // Italic is sex, orthogonal to case: only a female is italic.
+    assert.equal(resolveAppearance({ ...base, sex: 'female', lifeStage: 'adult' }).italic, true);
+    assert.equal(resolveAppearance({ ...base, sex: 'female', lifeStage: 'juvenile' }).glyph, 'g');
+    assert.equal(resolveAppearance({ ...base, sex: 'female', lifeStage: 'juvenile' }).italic, true);
+    assert.ok(!resolveAppearance({ ...base, sex: 'male', lifeStage: 'adult' }).italic);
+    // A carcass carries neither channel — case and italic are animal-only.
+    assert.ok(!resolveAppearance({ ...base, alive: false, lifeStage: 'adult' }).italic);
+  });
+
   test('dead animals become carcasses; unknown kinds and species fall back', () => {
     assert.equal(resolveAppearance({ kind: 'animal', speciesId: 'herbivore.grazer', alive: false }), CARCASS_APPEARANCE);
     assert.equal(resolveAppearance({ kind: 'levitating.rock', speciesId: 'whatever', alive: true }), UNKNOWN_APPEARANCE);
@@ -362,15 +380,17 @@ describe('legend', () => {
   // tests are that guarantee: every registry entry must reach the legend.
   const allEntries = () => describeLegend().flatMap((group) => group.entries);
 
-  test('every species reaches the legend, with both sexes when it has them', () => {
+  test('every species reaches the legend, showing its young/grown age case', () => {
     for (const [speciesId, appearance] of Object.entries(SPECIES_APPEARANCE)) {
       const entry = allEntries().find((e) => e.label === appearance.label);
       assert.ok(entry, `${speciesId} is missing from the legend`);
-      if (appearance.glyphBySex) {
-        assert.match(entry.glyph, /\//, `${speciesId} should show both sexes`);
-        assert.ok(entry.glyph.includes(appearance.glyphBySex.female));
-        assert.ok(entry.glyph.includes(appearance.glyphBySex.male));
-      }
+      // Case is age: the species is shown in both its lowercase (young) and
+      // UPPERCASE (grown) forms.
+      assert.ok(entry.glyph.includes(appearance.glyph), `${speciesId} should show its young glyph`);
+      assert.ok(
+        entry.glyph.includes(appearance.glyph.toUpperCase()),
+        `${speciesId} should show its grown glyph`,
+      );
     }
   });
 

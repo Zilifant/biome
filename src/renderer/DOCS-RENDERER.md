@@ -37,12 +37,12 @@ stands, not a reading. A dated figure is a record of what was true when it was
 taken — the demo world it was measured in keeps changing underneath these
 numbers, so re-measure rather than inherit.
 
-### Current state (as of 2026-07-20)
+### Current state (as of 2026-07-24)
 
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 84, runner 14 (of 662 repo-wide)                  |
+| Tests               | renderer 85, runner 16 (of 708 repo-wide)                  |
 | Protocol understood | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v28 is drawn or inspectable   |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
@@ -475,25 +475,32 @@ which is the check that no toggle is decorative.
 
 ### Restart with a seed (protocol v28)
 
-`simulation.restart { seed?, width?, height?, herbivores?, predators?, scavengers? }`,
+`simulation.restart { seed?, width?, height?, herbivores?, predators?, scavengers?, rocks?, thickets? }`,
 a runner-level command. A restart is the one change that cannot be a delta — no
 shared ids, tick, or `simulationId` — so the runner emits its own `restart` event
 and the WebSocket transport broadcasts a **full snapshot**, and the store
 _replaces_ its state.
 
-The optional world-composition fields (dimensions and per-role founder counts)
-were added additively — omitting them reproduces the original behaviour, so the
-protocol version did not move. The layering is deliberate: the **renderer**
-speaks in roles (herbivores/predators/scavengers) and validates against restated
-bounds; the **runner** stays ignorant of world composition and hands the options
-to the engine factory the host gave it; `createServer`'s factory routes them
-through `buildDemoConfig`, which is the single place that maps a role to its
-species id (`herbivore.grazer`, `predator.stalker`, `scavenger.corvid`) and
-turns a count into a `config.demo.founding` override. Bounds are the protocol's
-(`MAX_WORLD_DIMENSION`, `MAX_FOUNDING_*` in `commands.js`), chosen high enough to
-reach the sim's performance ceiling — a ~1M-cell world, tens of thousands of
-founders — without an out-of-memory or a non-terminating build. An explicit `0`
-count clears a role (`?? count`, not `|| count`). The renderer drops its
+The optional world-composition fields (dimensions, per-role founder counts, and
+terrain prevalence) were added additively — omitting them reproduces the original
+behaviour, so the protocol version did not move. The layering is deliberate: the
+**renderer** speaks in roles (herbivores/predators/scavengers) and abstract
+terrain prevalence (rocks/thickets) and validates against restated bounds; the
+**runner** stays ignorant of world composition and hands the options to the
+engine factory the host gave it; `createServer`'s factory routes them through
+`buildDemoConfig`, which is the single place that maps a role to its species id
+(`herbivore.grazer`, `predator.stalker`, `scavenger.corvid`) and turns a count
+into a `config.demo.founding` override. **Terrain prevalence is an abstract
+`0..MAX_TERRAIN_PREVALENCE` level, not a count** — 0 is none of that terrain,
+`DEFAULT_TERRAIN_PREVALENCE` (2) reproduces the demo's own terrain, and the top
+crowds out open grazing ground — and `buildDemoConfig` maps it linearly through
+the default to the generator's `terrain.ridges` (rock) and `terrain.thickets`
+formation counts, so the renderer never has to know a formation from a cell.
+Bounds are the protocol's (`MAX_WORLD_DIMENSION`, `MAX_FOUNDING_*`,
+`MAX_TERRAIN_PREVALENCE` in `commands.js`), chosen high enough to reach the sim's
+performance ceiling — a ~1M-cell world, tens of thousands of founders — without
+an out-of-memory or a non-terminating build. An explicit `0` clears a role
+(`?? count`, not `|| count`) or a terrain type. The renderer drops its
 selection, inspection detail, and follow target rather than leaving them pointing
 at animals that no longer exist; the run state (paused, speed) belongs to the host
 and survives.
@@ -544,10 +551,22 @@ ascending id); the selected entity draws as an overlay above everything. Glyphs
 are strict ASCII and differ across categories, so colour is never the only
 distinction.
 
-**Sex is drawn by letter case** (lowercase female, uppercase male — `g`/`G`,
-`s`/`S`, `v`/`V`) via an optional `glyphBySex` map. Colour still says species and
-priority still decides who wins a shared cell, so a hunt reads as the predator
-either way; case is a third, independent channel.
+**Age and sex are two independent glyph channels** on top of the species letter,
+so a herd's structure reads straight off the grid:
+
+- **Letter case is age** — a mature animal (`lifeStage` adult or senescent) is
+  UPPERCASE, an immature one (juvenile or subadult) lowercase: `g`/`G`, `s`/`S`,
+  `v`/`V`. An absent or unrecognized stage reads as not-yet-grown (lowercase),
+  so a newer engine's stage name never throws.
+- **Italic is sex** — a female is drawn in italic, a male (or an animal with no
+  sex) upright. `resolveAppearance` sets an `italic` flag; `AsciiGridRenderer`
+  keeps an upright and an italic font and switches per glyph, resetting to
+  upright before the terrain and overlay passes.
+
+Colour still says species and priority still decides who wins a shared cell, so
+both are additions rather than substitutions; a hunt reads as the predator
+whatever the ages and sexes involved. Case and italic are **animal-only** — a
+carcass, plant, or unknown kind keeps its base glyph exactly.
 
 **Draw order is deliberate and layered:** terrain → worn ground (features) →
 disturbances → memory marks / home-range ring → entities → brackets (herd,
@@ -569,10 +588,12 @@ moment-to-moment condition) stay independent.
 **The legend is generated, never written.** `describeLegend()` reads the
 appearance registries, so adding a species updates it for free and it cannot drift
 from what the grid draws. Four tests enforce that every registry entry (every
-species with both sex glyphs, every terrain, feature, disturbance, memory kind,
-and carcass stage) reaches it and that every colour token is a real Dracula value.
-Only the condition tints and bracket overlays are hand-written, because they
-describe how a glyph is _coloured_ rather than which glyph is drawn.
+species in both its young and grown case, every terrain, feature, disturbance,
+memory kind, and carcass stage) reaches it and that every colour token is a real
+Dracula value. The condition tints, the bracket overlays, and the **age/sex
+key** (`young / grown` and the italic `female` row) are the hand-written part,
+because they describe how a glyph is _cased, styled, or coloured_ rather than
+which glyph is drawn.
 
 **Dracula palette.** `styles/dracula.css` defines the exact Dracula Classic values
 as CSS custom properties; `EntityAppearance.DRACULA_COLORS` mirrors them for
@@ -614,6 +635,14 @@ the sections above; collected here as a checklist.
   before adding a store write to any high-frequency handler.
 - **Appearance stays in `EntityAppearance.js`.** Adding a species is one entry
   there and nothing else; the legend enforces the rule by being generated from it.
+- ⚠ **Theme form controls by _type_, not by id.** `renderer.css` styles
+  `input[type='number']`, `input[type='text']`, `select`, and `button` with
+  shared selectors, so a new control is themed the moment it is added. The
+  world-composition inputs were once styled through per-id rules
+  (`#ctl-seed`, `#ctl-step-n`) and every field added afterwards rendered as a
+  bare white browser widget in a dark panel until it was noticed. Reach for a
+  per-id rule only for something genuinely specific to that one control (a fixed
+  width), never for the base look.
 - ⚠ **Do not run BSD `sed -i` over `InspectorView.js`.** It holds multi-byte
   box-drawing characters (`▮ ▯ ▰ ─ █`) for the trait and severity bars, and a
   `sed` pass has already written a **NUL byte** into a template literal there.

@@ -125,7 +125,12 @@ export class AsciiGridRenderer {
     ctx.fillRect(0, 0, this.#cssWidth, this.#cssHeight);
 
     const fontSize = Math.max(cellSize - 2, 5);
-    ctx.font = `${fontSize}px ${MONO_STACK}`;
+    // Two fonts, one italic: a female animal is drawn in italic (see
+    // EntityAppearance.resolveAppearance). Everything else — terrain, features,
+    // overlays — uses the upright font, so passes reset to it before drawing.
+    const uprightFont = `${fontSize}px ${MONO_STACK}`;
+    const italicFont = `italic ${fontSize}px ${MONO_STACK}`;
+    ctx.font = uprightFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const half = cellSize / 2;
@@ -206,8 +211,10 @@ export class AsciiGridRenderer {
       // A hurt animal is tinted (Step 17) from the `healthFraction` the
       // protocol already sends — injuries themselves stay inspection-only.
       ctx.fillStyle = this.#color(resolveColorToken(entity, appearance));
+      ctx.font = appearance.italic ? italicFont : uprightFont;
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
+    ctx.font = uprightFont;
 
     // --- Overlay pass: remembered places first (they sit under everything —
     // they are the selected animal's private map, not world state), then family
@@ -294,7 +301,9 @@ export class AsciiGridRenderer {
       // itself — an empty selected cell must not read as a hole in the map.
       const appearance = selected ? resolveAppearance(selected) : groundAppearanceAt(store, selectedCell.cellX, selectedCell.cellY, world);
       ctx.fillStyle = this.#color('bright-yellow');
+      ctx.font = appearance.italic ? italicFont : uprightFont;
       ctx.fillText(appearance.glyph, px + half, py + half);
+      ctx.font = uprightFont;
     }
     const followed = store.followedEntityId != null ? store.getEntity(store.followedEntityId) : null;
     if (followed && followed.id !== activeId) {
