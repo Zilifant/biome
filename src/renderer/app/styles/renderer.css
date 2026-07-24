@@ -534,10 +534,29 @@ input:focus-visible {
   min-height: 0;
 }
 
-.log-filter {
-  color: var(--dracula-comment);
-  display: block;
+/* One checkbox per event type is a long list, so the filters live in a
+   `<details>` that starts closed and scrolls inside itself — the log below it
+   keeps its room whether the filters are open or shut. */
+#event-log-filters {
+  flex: 0 0 auto;
+  border-top: 0;
   margin-bottom: 4px;
+}
+
+#event-log-filters .section-body {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.filter-group {
+  margin: 6px 0 1px;
+  color: var(--dracula-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.filter-group:first-child {
+  margin-top: 0;
 }
 
 #event-log-list {

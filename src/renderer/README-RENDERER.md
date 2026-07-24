@@ -77,6 +77,7 @@ app/
   state/
     RendererStore.js          normalized authoritative-output store, validation
     DeltaApplier.js           pure delta application over the entity map
+    EventCatalog.js           every event type: label, group, and retention tier
   rendering/
     Camera.js                 center + cell size, pan/zoom math (pure)
     GridProjection.js         world → cell → screen-pixel projection (pure)
@@ -94,7 +95,7 @@ app/
     InspectorPanel.js         where the inspector is: floating popover anchored to the cell, or docked in the sidebar
     Legend.js                 the key to the grid, generated from the appearance registries
     MetricsPanel.js           population histograms, generations, selection differentials (polled)
-    EventLog.js               bounded domain-event list (moves filtered by default)
+    EventLog.js               domain-event feed with one filter per event type
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
     collapsible.js            click a panel's h2 header to minimize it (state in localStorage)
@@ -120,10 +121,18 @@ hydrate the store because v1 deltas are world-global — a partial store
 would immediately desync. Viewport-bounded subscription is isolated in
 `requestSnapshot(bounds)` for when region deltas exist.
 
-Events are deduplicated by `seq` and retained in a bounded buffer (default
-150). Delta application records each updated entity's `previousPosition` —
-renderer-owned annotation so optional interpolation can be added later
-without protocol or store changes.
+Events are deduplicated by `seq` and retained in a buffer bounded **per tier**:
+milestones (`lasting` — births, deaths, kills, outbreaks, storms) keep 20 000,
+the per-tick chatter (`passing` — movement, feeding, provisioning, alarm, worn
+ground) keeps 400. `state/EventCatalog.js` assigns the tier. The split is a
+frequency judgement: over 1000 demo ticks the five passing types were **99.2% of
+127 464 events**, so one shared bound meant a kill scrolled out of the log about
+a tick after it happened. A full snapshot clears the buffer only when the
+`simulationId` changes — a restart, whose events also number from 1 again, so the
+dedupe watermark resets with it; a recovery snapshot for the same simulation
+keeps the log. Delta application records each updated entity's
+`previousPosition` — renderer-owned annotation so optional interpolation can be
+added later without protocol or store changes.
 
 ## ASCII appearance configuration
 
@@ -189,6 +198,14 @@ the remembered open/closed state, so it must be stable.
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
+
+**The event feed.** One checkbox per event type, in a `<details>` that starts
+closed on every load (the list is as long as the protocol's event vocabulary —
+29 boxes, including a catch-all for types this build cannot name). Births and
+deaths are on by default; `all` / `none` / `births & deaths` set the whole list,
+and the choice is remembered in `localStorage`. Types that arrive many times a
+tick say "frequent · kept briefly" beside the box, since those are the ones the
+store drops within a few ticks.
 
 **Layout.** The event log has its own column on the left; the grid is in the
 middle; the controls, inspector, legend, and metrics sit in the sidebar on the
@@ -422,9 +439,9 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
   it — worn ground is the most permanent thing on the map and the least urgent
   to see. The projection carries only cells deep enough to _be_ something, so
   the pass walks a short list rather than the grid and costs nothing on a world
-  nobody has worn down. `environment.feature` is routine-filtered in the event
-  log, because ground genuinely turns over and the state already rides in every
-  snapshot.
+  nobody has worn down. `environment.feature` is off by default in the event
+  feed and kept only briefly, because ground genuinely turns over and the state
+  already rides in every snapshot.
 - Disturbances (protocol v26): fires, floods, and storms ride whole in both
   snapshots and deltas as a bounded list of circles, so the renderer walks the
   visible cells of each active region rather than the whole grid, and costs
@@ -530,8 +547,8 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   panel shows the label, how many groupmates are in range, this animal's
   _derived_ dominance (unitless — only comparisons mean anything), whether it is
   panicking and how many hops from the sighting, and who it is defending.
-  `entity.alarmed` is filtered as routine by default, since a herd in view of a
-  predator produces one per member.
+  `entity.alarmed` is off by default in the event feed and kept only briefly,
+  since a herd in view of a predator produces one per member.
 - Mate choice (protocol v21) is inspection-only apart from `sex`, which rides in
   every bulk snapshot. The inspector panel shows what the species reads in a
   mate, this individual's choosiness, the standard it is holding right now

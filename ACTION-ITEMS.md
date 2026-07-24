@@ -148,9 +148,10 @@ they are not re-opened by accident.
 
 - **C3 — Per-tick event volume.** One `entity.moved` per animal per tick, plus
   one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in
-  range. Bounded by the buffer and routine-filtered in the renderer, but it
-  competes for the retention window — and events are **42% of a 1.78 MiB demo
-  save**, more than the entire entity array.
+  range. Bounded by the buffer, and in the renderer both off by default and
+  expired within a few hundred events, but it competes for the retention
+  window — and events are **42% of a 1.78 MiB demo save**, more than the entire
+  entity array.
 
 - **B5 — `utilityBreakdown` persists on the entity.** It is recomputed every tick
   and read by nothing in the simulation. Measured at **3.3% of a save**;

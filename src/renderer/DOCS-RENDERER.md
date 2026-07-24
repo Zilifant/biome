@@ -42,7 +42,7 @@ numbers, so re-measure rather than inherit.
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 85, runner 16 (of 717 repo-wide)                  |
+| Tests               | renderer 94, runner 18 (of 725 repo-wide); 24 in `tests-ui` |
 | Protocol understood | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v28 is drawn or inspectable   |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
@@ -200,6 +200,7 @@ app/
   state/
     RendererStore.js          normalized authoritative-output store, validation
     DeltaApplier.js           pure delta application over the entity map
+    EventCatalog.js           every event type: label, group, retention tier (pure)
   rendering/
     Camera.js                 center + cell size, pan/zoom math (pure)
     GridProjection.js         world → cell → screen-pixel projection (pure)
@@ -217,7 +218,7 @@ app/
     InspectorPanel.js         where the inspector is (floating popover or docked sidebar)
     Legend.js                 the key to the grid, generated from the registries
     MetricsPanel.js           population histograms, generations, selection differentials
-    EventLog.js               bounded domain-event list (moves filtered by default)
+    EventLog.js               domain-event feed, one filter per event type
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
   styles/
@@ -282,7 +283,39 @@ not used to hydrate the store, because v1 deltas are world-global — a partial
 store would immediately desync. Viewport-bounded subscription is isolated in
 `requestSnapshot(bounds)` for when region deltas exist (P8).
 
-Events are deduplicated by `seq` and retained in a bounded buffer (default 150).
+Events are deduplicated by `seq` and retained in a buffer bounded **per tier**
+rather than overall: `lasting` events (every milestone — births, deaths, kills,
+outbreaks, storms) keep 20 000, `passing` ones (movement, feeding, provisioning,
+alarm, worn ground) keep 400. `state/EventCatalog.js` assigns the tier and
+`renderer-view.test.js` checks it against the protocol's own `EventTypes`, so an
+event type cannot exist without one.
+
+⚠ **The split is a frequency judgement, not an importance one**, and the numbers
+are the whole argument. Measured over 1000 demo ticks (seed 42, 2026-07-24):
+**127 464 events, of which the five passing types were 99.2%** — `entity.moved`
+alone was 121 078. The remaining 1043 milestones are ~1.04 per tick, so 20 000 of
+them is ~19 000 ticks of history for a few megabytes, while retaining even a
+hundred ticks of movement buys nothing anyone reads. A single shared bound is
+what made a kill scroll out of the log ~1 tick after it happened.
+
+Driven at demo rates (126 passing + 1 lasting per tick) the steady state at the
+ceiling measured **20 527 events buffered after 7.62 M ingested, 2.8 MB of heap,
+0.075 ms/tick** to buffer and trim, holding the last 20 000 ticks of milestones;
+a filter scan over that full buffer is 0.014 ms. Keeping *everything* is what is
+not on offer — at ~127 events/tick and ~163 bytes each, an hour at 8× is
+gigabytes. Trimming is
+amortized the same way `DomainEventBus` does it on the engine side — a tier
+overflows by a whole cap before the buffer is rebuilt — so the guarantee is a
+floor of the cap and a ceiling of twice it, not an exact length.
+
+⚠ **A full snapshot clears the log only when the `simulationId` changes.** A
+recovery snapshot for the same simulation keeps it (the log is exactly what
+survived the gap); a restart drops it, because nothing in it describes the new
+world and its `#123` links would name animals that never existed there. That
+clear also resets the dedupe watermark — **a restarted simulation numbers its
+events from 1 again**, so keeping the old high-water seq silently swallowed every
+event of the new world. Invisible until retention got long enough to notice.
+
 Delta application records each updated entity's `previousPosition` —
 renderer-owned annotation so optional interpolation (P7) can be added later
 without protocol or store changes.
@@ -295,7 +328,7 @@ simulation commands are disabled.
 
 ---
 
-## 5. Selection and the inspector
+## 5. Selection, the inspector, and the event feed
 
 ### The cell is the unit of selection
 
@@ -406,6 +439,37 @@ moment the selection changes, going empty, or closing, and a late reply for a
 since-deselected animal is discarded. Without it the utilities, perception,
 memories, and stamina of a selected animal froze at click time while the animal
 carried on acting.
+
+### The event feed asks which events, not how many
+
+The feed shows **one checkbox per event type**, off by default except births and
+deaths. It replaced a single "show routine" toggle that split the world in two —
+five noisy types on one side, twenty-three on the other — which answered the
+wrong question: someone watching an outbreak wants infections and nothing else,
+and no single switch could give them that. The list is as long as the protocol's
+event vocabulary (29 boxes: 28 types plus a catch-all), so it lives in a
+`<details>` that **starts closed on every load**, with `N of 29` in its summary
+and `all` / `none` / `births & deaths` to set the whole list at once.
+
+- **Every event type is in the list**, and a test imports the protocol's
+  `EventTypes` to prove it — the renderer may not import `src/protocol/`, so the
+  catalog is a hand-copy and that test is what keeps the copy honest. A type the
+  engine no longer emits fails the same test.
+- **An unrecognized type falls under a catch-all** (`*other`, which cannot
+  collide with a real type) rather than becoming invisible. A newer engine's new
+  event is reachable through one checkbox instead of needing a renderer release.
+- The selection is remembered in `localStorage` (`biome.eventLog.types`), and an
+  empty **stored** set means "show me nothing" and is honoured — only an absent
+  or unreadable one falls back to births and deaths.
+- Retention is a **separate** axis from the filter (§4). A `passing` type says so
+  beside its checkbox ("frequent · kept briefly"), because ticking `movement` and
+  finding only the last few ticks of it is otherwise a mystery.
+
+Verified live rather than only against fixtures: after 3043 ticks the default
+feed held births and deaths back to **t483**, where the previous 150-event bound
+kept roughly one tick's worth. ⚠ It keeps everything it *receives* — a long
+coalesced step still drops events in the host's outbox before they ever arrive
+(P12).
 
 ### Clickable ids
 
@@ -635,6 +699,11 @@ the sections above; collected here as a checklist.
   before adding a store write to any high-frequency handler.
 - **Appearance stays in `EntityAppearance.js`.** Adding a species is one entry
   there and nothing else; the legend enforces the rule by being generated from it.
+- **A new event type is one entry in `EventCatalog.js`** — label, group, and a
+  retention tier — and it appears in the filter list, in the store's retention
+  policy, and in the test that checks the list against the protocol. A type added
+  to the engine and not to the catalog fails that test rather than quietly
+  landing in the `*other` bucket.
 - ⚠ **Theme form controls by _type_, not by id.** `renderer.css` styles
   `input[type='number']`, `input[type='text']`, `select`, and `button` with
   shared selectors, so a new control is themed the moment it is added. The
@@ -696,6 +765,14 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
 - **Escape before you linkify.** Reversing the order lets an event's own `<` and
   `>` become markup. Tested.
 
+- **A tight bound was hiding a bug, and relaxing it exposed one.** The event
+  dedupe watermark was never reset on a restart, and a restarted simulation
+  numbers its events from 1 — so every event of the new world was dropped as
+  already-seen. Nobody saw it, because the old world's 150 events aged out within
+  a tick or two and an empty log after a restart looks like a quiet world. The
+  fix is two lines in `applyFullSnapshot`; the lesson is that a small buffer can
+  make a correctness bug read as ordinary churn.
+
 - **⚠ A `sed -i` NUL byte in a file with box-drawing characters.** See §10. The
   insidious part is that the code still ran and `node --check` still passed, so the
   corruption was invisible until `grep` refused to search the file.
@@ -750,6 +827,11 @@ panel surviving a tick.
 - **To add a whole section:** return `section(id, title, badge, body)` from a
   formatter — `null` when the protocol sent nothing — and add it to
   `describeSections`. The `id` keys the remembered open-set, so it must be stable.
+- **To add an event type the engine now emits:** one entry in `EVENT_CATALOG`
+  (`type`, `label`, `group`, and `retention` — `PASSING` only if it arrives many
+  times a tick), plus a `case` in `EventLog.formatEvent` for a line better than
+  the generic fallback. The checkbox, the retention tier, and the filter count
+  all follow from the entry.
 - **To replace the Canvas renderer:** implement a new `draw({ store, camera })`;
   the store, transports, protocol, and engine are untouched.
 - **Never invent a field**, and keep all appearance in `EntityAppearance.js` (§10).

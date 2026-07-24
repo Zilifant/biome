@@ -19,6 +19,18 @@ import {
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend } from '../src/renderer/app/ui/Legend.js';
 import { matchWatched, WATCHABLE } from '../src/renderer/app/ui/Watchlist.js';
+import {
+  EVENT_CATALOG,
+  DEFAULT_EVENT_FILTER,
+  LASTING,
+  PASSING,
+  OTHER_EVENTS,
+  filterIdFor,
+  isLastingEvent,
+} from '../src/renderer/app/state/EventCatalog.js';
+// The renderer may not import the protocol; a *test* may, and that is what
+// keeps the catalog's hand-copied list in step with the engine's.
+import { EventTypes } from '../src/protocol/events.js';
 
 describe('entity appearance', () => {
   test('appearance lookup is deterministic and species-aware', () => {
@@ -527,5 +539,71 @@ describe('auto-pause watchlist', () => {
         assert.ok(emitted.has(type), `"${type}" is not an event type this renderer expects`);
       }
     }
+  });
+});
+
+describe('event log filters', () => {
+  // One checkbox per event type, so the question "why am I not seeing X" always
+  // has an answer in the list rather than in the source.
+  test('every event type the engine emits has a filter option', () => {
+    // Imported rather than restated: the renderer cannot import the protocol
+    // (§3), so this test is the mechanism that keeps its copy honest.
+    const emitted = Object.values(EventTypes);
+    const filtered = new Set(EVENT_CATALOG.map((entry) => entry.type));
+    for (const type of emitted) {
+      assert.ok(filtered.has(type), `"${type}" is emitted by the engine but has no filter option`);
+    }
+    // And nothing in the catalog is a type the engine cannot emit — a checkbox
+    // that can never match is worse than a missing one, since it looks like it
+    // works.
+    for (const entry of EVENT_CATALOG) {
+      if (entry.type === OTHER_EVENTS) continue;
+      assert.ok(emitted.includes(entry.type), `"${entry.type}" is not an event type the engine emits`);
+    }
+  });
+
+  test('catalog entries are unique, labelled, and grouped', () => {
+    const types = EVENT_CATALOG.map((entry) => entry.type);
+    assert.equal(new Set(types).size, types.length, `duplicate types in ${types}`);
+    for (const entry of EVENT_CATALOG) {
+      assert.ok(entry.label.length > 0, `${entry.type} has no label`);
+      assert.ok(entry.group.length > 0, `${entry.type} has no group`);
+      assert.ok([LASTING, PASSING].includes(entry.retention), `${entry.type} has no retention tier`);
+    }
+  });
+
+  test('the default filter is births and deaths, and both are real types', () => {
+    assert.deepEqual([...DEFAULT_EVENT_FILTER], ['entity.born', 'entity.died']);
+    for (const type of DEFAULT_EVENT_FILTER) {
+      assert.ok(
+        EVENT_CATALOG.some((entry) => entry.type === type),
+        `${type} is not in the catalog`,
+      );
+    }
+  });
+
+  test('an unrecognized event type falls under the catch-all, not silence', () => {
+    // A newer engine's event must be reachable through some checkbox, or an
+    // older renderer hides it with no way to ask for it.
+    assert.equal(filterIdFor('entity.born'), 'entity.born');
+    assert.equal(filterIdFor('entity.somethingNewInV29'), OTHER_EVENTS);
+  });
+
+  test('only the per-tick chatter is passing; every milestone lasts', () => {
+    // Retention is a frequency judgement (measured: the five passing types were
+    // 99.2% of 127 464 events over 1000 demo ticks), so getting one wrong means
+    // either losing milestones or holding a hundred thousand move events.
+    const passing = EVENT_CATALOG.filter((entry) => entry.retention === PASSING).map((entry) => entry.type);
+    assert.deepEqual(passing.sort(), [
+      'entity.alarmed',
+      'entity.fed',
+      'entity.moved',
+      'entity.provisioned',
+      'environment.feature',
+    ]);
+    assert.equal(isLastingEvent('entity.born'), true);
+    assert.equal(isLastingEvent('entity.moved'), false);
+    // Unknown types are presumed rare and kept, since both tiers are capped.
+    assert.equal(isLastingEvent('entity.somethingNewInV29'), true);
   });
 });

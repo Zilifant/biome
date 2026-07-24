@@ -11,9 +11,10 @@ test.describe('entity id references are navigable', () => {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
 
-    // Show routine events too, so the log reliably contains entity-id refs
-    // (moves and feeding both name the entity).
-    await page.locator('#event-log-moves').check();
+    // Show every event type, so the log reliably contains entity-id refs — the
+    // default filter is births and deaths, which a short run may not produce.
+    await page.locator('#event-log-filters > summary').click();
+    await page.locator('#event-log-all').click();
     const refs = page.locator('#event-log-list [data-entity]');
     await expect(refs.first()).toBeVisible();
 

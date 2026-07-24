@@ -14,6 +14,7 @@
  * reconnect + snapshot replaced state mid-stream).
  */
 import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.js';
+import { isLastingEvent } from './EventCatalog.js';
 
 /** The protocol version this renderer understands. */
 export const SUPPORTED_PROTOCOL_VERSION = 28;
@@ -125,9 +126,17 @@ function checkVersionAndKind(message, expectedKind) {
 export class RendererStore {
   /** @type {Map<number, object>} */
   entities = new Map();
-  /** @type {object[]} bounded, seq-ascending domain event buffer */
+  /**
+   * Bounded, seq-ascending domain event buffer. Bounded per *tier* rather than
+   * overall (see `#trimEvents`): a milestone stays for tens of thousands of
+   * ticks, the movement stream for a handful.
+   * @type {object[]}
+   */
   events = [];
-  #maxEvents;
+  #maxLastingEvents;
+  #maxPassingEvents;
+  #lastingCount = 0;
+  #passingCount = 0;
   #listeners = new Set();
   /** highest event seq ever placed in the buffer (dedupe guard) */
   #lastBufferedEventSeq = 0;
@@ -192,11 +201,20 @@ export class RendererStore {
   followedEntityId = null;
 
   /**
+   * Retention defaults. `lasting` holds ~19 000 demo ticks of milestones at the
+   * measured ~1.04 lasting events per tick (§EventCatalog), which is hours of
+   * watching at ordinary speeds, for a few megabytes. `passing` is deliberately
+   * small: at ~126 per tick, even 400 is barely three ticks of movement — enough
+   * to fill the visible log when that filter is on, and nowhere near enough to
+   * cost anything.
+   *
    * @param {object} [options]
-   * @param {number} [options.maxEvents] bounded event retention
+   * @param {number} [options.maxLastingEvents] retained milestones
+   * @param {number} [options.maxPassingEvents] retained per-tick chatter
    */
-  constructor({ maxEvents = 150 } = {}) {
-    this.#maxEvents = maxEvents;
+  constructor({ maxLastingEvents = 20000, maxPassingEvents = 400 } = {}) {
+    this.#maxLastingEvents = maxLastingEvents;
+    this.#maxPassingEvents = maxPassingEvents;
   }
 
   /**
@@ -256,6 +274,17 @@ export class RendererStore {
     requireFinite(snapshot.world.height, 'snapshot.world.height');
     if (!Array.isArray(snapshot.entities)) {
       throw new RendererProtocolError('malformed-message', 'snapshot.entities must be an array');
+    }
+    // A snapshot from a *different* simulation is a new world (a restart):
+    // nothing in the log describes it, and its `#123` links would name animals
+    // that never existed here. A recovery snapshot for the same simulation is
+    // the opposite case — the log is exactly what survived the gap — so the
+    // buffer is cleared on the id changing, not on every snapshot.
+    if (this.simulationId !== null && snapshot.simulationId !== this.simulationId) {
+      this.events = [];
+      this.#lastingCount = 0;
+      this.#passingCount = 0;
+      this.#lastBufferedEventSeq = 0;
     }
     this.protocolVersion = snapshot.protocolVersion;
     this.simulationId = snapshot.simulationId;
@@ -411,17 +440,56 @@ export class RendererStore {
     for (const event of events) {
       if (typeof event?.seq === 'number' && event.seq <= this.#lastBufferedEventSeq) continue;
       this.events.push({ ...event });
+      if (isLastingEvent(event?.type)) this.#lastingCount += 1;
+      else this.#passingCount += 1;
       if (typeof event?.seq === 'number') this.#lastBufferedEventSeq = event.seq;
     }
-    if (this.events.length > this.#maxEvents) {
-      this.events.splice(0, this.events.length - this.#maxEvents);
+    this.#trimEvents();
+  }
+
+  /**
+   * Drop the oldest events of whichever tier has overflowed, keeping the buffer
+   * seq-ascending.
+   *
+   * Two caps rather than one because the two kinds of event have nothing in
+   * common but their shape: 99% of what arrives is one animal moving one cell,
+   * and letting that share a bound with births and deaths is what made the log
+   * forget a kill thirty ticks after it happened. Keeping *everything* is not on
+   * offer — at ~127 events/tick and ~163 bytes each, an hour at 8x is gigabytes.
+   *
+   * Trimming is amortized: a tier is allowed to overflow by a whole cap before
+   * the buffer is rebuilt, so the O(n) pass runs once per cap-worth of events
+   * rather than on every tick — the same bargain `DomainEventBus` makes on the
+   * engine side, and for the same reason (one move event per animal per tick).
+   */
+  #trimEvents() {
+    if (this.#lastingCount <= this.#maxLastingEvents * 2 && this.#passingCount <= this.#maxPassingEvents * 2) return;
+    let dropLasting = Math.max(0, this.#lastingCount - this.#maxLastingEvents);
+    let dropPassing = Math.max(0, this.#passingCount - this.#maxPassingEvents);
+    const kept = [];
+    for (const event of this.events) {
+      if (isLastingEvent(event.type)) {
+        if (dropLasting > 0) {
+          dropLasting -= 1;
+          this.#lastingCount -= 1;
+          continue;
+        }
+      } else if (dropPassing > 0) {
+        dropPassing -= 1;
+        this.#passingCount -= 1;
+        continue;
+      }
+      kept.push(event);
     }
+    this.events = kept;
   }
 
   /** Forget everything (new connection, new simulation). */
   reset() {
     this.entities = new Map();
     this.events = [];
+    this.#lastingCount = 0;
+    this.#passingCount = 0;
     this.#lastBufferedEventSeq = 0;
     this.simulationId = null;
     this.protocolVersion = null;

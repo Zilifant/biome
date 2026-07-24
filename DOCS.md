@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 717 passing / 0 failing, 187 suites                    |
+| Tests                 | 725 passing / 0 failing, 189 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
 | Benchmark (large-5k)  | 67.25 ms/tick, 5733→7777 entities                      |
@@ -207,14 +207,15 @@ worth it now; the number is recorded so nobody re-derives it.
 
 **C3 — Per-tick event volume** _(from Steps 1, 9, 13)_. One `entity.moved` per
 animal per tick, plus one `entity.fed` per eater and one `entity.provisioned`
-per nursing juvenile in range. Bounded by the event buffer and hidden behind the
-renderer's "show routine" toggle, but it competes for the retention window. Never
-addressed.
+per nursing juvenile in range. Bounded by the event buffer and off by default in the
+renderer's event feed (where it is also the short-retention tier), but it
+competes for the retention window. Never addressed.
 
 It surfaced somewhere new in 2026-07-21's save-size measurement: **events are
 42% of a demo save, more than the entire entity array.** The established answer
-when a transition genuinely happens often is the renderer's routine filter, not
-emitting less truth — but that answer has never been tested against save size.
+when a transition genuinely happens often is that the renderer filters and
+expires it, not that the engine emits less truth — but that answer has never been
+tested against save size.
 
 ### 1.5 Unmet targets
 
@@ -1682,9 +1683,12 @@ Nothing is emitted per tick while a disturbance runs — the region rides in eve
 snapshot instead — so a fire costs the event budget exactly two events for its
 whole life.
 
-When a transition genuinely happens often, the answer is the renderer's
-**routine filter**, not emitting less truth. `entity.moved`, `entity.fed`,
-`entity.provisioned`, and `environment.feature` are all routine-filtered.
+When a transition genuinely happens often, the answer is on the **renderer**
+side, not emitting less truth: its event feed has a filter per event type (off by
+default for these) and retains them for only a few hundred events, against 20 000
+for milestones. `entity.moved`, `entity.fed`, `entity.provisioned`,
+`entity.alarmed`, and `environment.feature` are the five, and they were **99.2%
+of 127 464 events over 1000 demo ticks** (2026-07-24).
 
 _A worked example of the budget biting:_ emitting one `entity.courted` per
 assessment produced ~1.7 events per tick (26k over 15k ticks), because a female

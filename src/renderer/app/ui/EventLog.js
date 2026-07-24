@@ -1,31 +1,42 @@
 /**
  * Bounded domain-event log. Known event types get compact one-line
  * formatting; unknown types fall back to a generic rendering instead of
- * failing. Some events recur every tick per animal (movement, feeding,
- * provisioning) and would drown out the milestones, so they are hidden behind
- * a renderer-local toggle by default.
+ * failing.
+ *
+ * **The viewer says which events they want**, one checkbox per event type,
+ * rather than the log dividing the world into "routine" and the rest on their
+ * behalf. That division was one toggle covering five types, and it answered the
+ * wrong question: a viewer watching an outbreak wants infections and nothing
+ * else, and no single switch could give them that. The list is long by
+ * construction — every event the engine emits appears in it — so it lives in a
+ * `<details>` that starts closed, with the count of what is on in its summary.
+ *
+ * Defaults to births and deaths: the population changing is what a viewer who
+ * has not opened the filters is owed, and it stays quiet enough to read.
  */
 
 import { linkifyIds } from './InspectorView.js';
+import {
+  EVENT_CATALOG,
+  DEFAULT_EVENT_FILTER,
+  PASSING,
+  filterIdFor,
+  loadEventFilter,
+  saveEventFilter,
+} from '../state/EventCatalog.js';
 
-const MAX_RENDERED_EVENTS = 60;
+/**
+ * How much of the buffer is drawn. The list is rebuilt on every store change —
+ * once per authoritative tick — so this is a per-tick DOM budget, not a
+ * retention setting: the store keeps 20 000 milestones (§4) and this decides how
+ * far back you can scroll without changing a filter. 200 lines is ~6000 ticks of
+ * births and deaths at demo rates, and a tenth of that with every filter on.
+ */
+const MAX_RENDERED_EVENTS = 200;
 
 function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-/** High-frequency events, hidden unless "show routine" is checked. */
-const ROUTINE_EVENT_TYPES = new Set([
-  'entity.moved',
-  'entity.fed',
-  'entity.provisioned',
-  'entity.alarmed',
-  // Ground wearing in and fading out (Step 28) is genuine turnover rather than
-  // noise — animals really do use a patch and then abandon it — but it happens
-  // most of a tick, and the *state* already rides in every snapshot. So the log
-  // hides it by default rather than the simulation emitting less of it.
-  'environment.feature',
-]);
 
 function formatEvent(event) {
   switch (event.type) {
@@ -156,14 +167,45 @@ function eventClass(event) {
   return 'event-other';
 }
 
+/**
+ * The filter list, grouped by subject with a heading per group. Built once —
+ * the catalog is fixed at build time, and only the checked state changes.
+ * @returns {string}
+ */
+function filterListHtml() {
+  let html = '';
+  let group = null;
+  for (const entry of EVENT_CATALOG) {
+    if (entry.group !== group) {
+      group = entry.group;
+      html += `<p class="filter-group">${group}</p>`;
+    }
+    // `passing` types are the ones that arrive by the hundred per tick and are
+    // kept only briefly; saying so beside the box is cheaper than letting
+    // someone tick "movement" and wonder where the last minute of it went.
+    const notes = [entry.hint, entry.retention === PASSING ? 'frequent · kept briefly' : '']
+      .filter(Boolean)
+      .join(' · ');
+    html += `
+      <label class="watch-row">
+        <input type="checkbox" data-event-type="${entry.type}" />
+        <span>${entry.label}${notes ? ` <span class="dim">${notes}</span>` : ''}</span>
+      </label>`;
+  }
+  return html;
+}
+
 export class EventLog {
   #list;
-  #showMoves = false;
+  #boxes;
+  #count;
+  /** Filter ids currently shown, remembered across reloads. @type {Set<string>} */
+  #showing = loadEventFilter();
   #onChanged;
 
   /**
    * @param {HTMLElement} container
-   * @param {{onFilterChanged: () => void}} [callbacks]
+   * @param {{onFilterChanged: () => void, onSelectEntity: (entityId: number) => void}} [callbacks]
    */
   constructor(container, { onFilterChanged = () => {}, onSelectEntity = () => {} } = {}) {
     this.#onChanged = onFilterChanged;
@@ -175,13 +217,61 @@ export class EventLog {
     });
     container.innerHTML = `
       <h2>Events</h2>
-      <label class="log-filter"><input type="checkbox" id="event-log-moves" /> show routine (moves, feeding)</label>
+      <details class="inspector-section" id="event-log-filters">
+        <summary><span class="section-title">Show</span> <span class="section-badge" id="event-log-filter-count">nothing</span></summary>
+        <div class="section-body">
+          <div class="control-row">
+            <button type="button" id="event-log-all">all</button>
+            <button type="button" id="event-log-none">none</button>
+            <button type="button" id="event-log-default">births &amp; deaths</button>
+          </div>
+          ${filterListHtml()}
+        </div>
+      </details>
       <ul id="event-log-list" aria-label="Recent domain events"></ul>`;
     this.#list = container.querySelector('#event-log-list');
-    container.querySelector('#event-log-moves').addEventListener('change', (event) => {
-      this.#showMoves = event.target.checked;
-      this.#onChanged();
+    this.#count = container.querySelector('#event-log-filter-count');
+    this.#boxes = [...container.querySelectorAll('[data-event-type]')];
+
+    for (const box of this.#boxes) {
+      box.addEventListener('change', () => {
+        if (box.checked) this.#showing.add(box.dataset.eventType);
+        else this.#showing.delete(box.dataset.eventType);
+        this.#filterChanged();
+      });
+    }
+    container.querySelector('#event-log-all').addEventListener('click', () => {
+      this.#setFilter(this.#boxes.map((box) => box.dataset.eventType));
     });
+    container.querySelector('#event-log-none').addEventListener('click', () => this.#setFilter([]));
+    container
+      .querySelector('#event-log-default')
+      .addEventListener('click', () => this.#setFilter(DEFAULT_EVENT_FILTER));
+    this.#syncBoxes();
+  }
+
+  /** @param {Iterable<string>} ids */
+  #setFilter(ids) {
+    this.#showing = new Set(ids);
+    this.#syncBoxes();
+    this.#filterChanged();
+  }
+
+  #filterChanged() {
+    saveEventFilter(this.#showing);
+    this.#renderCount();
+    this.#onChanged();
+  }
+
+  #syncBoxes() {
+    for (const box of this.#boxes) box.checked = this.#showing.has(box.dataset.eventType);
+    this.#renderCount();
+  }
+
+  #renderCount() {
+    const count = this.#showing.size;
+    this.#count.textContent = count === 0 ? 'nothing' : `${count} of ${this.#boxes.length}`;
+    this.#count.className = count === 0 ? 'section-badge' : 'section-badge ok';
   }
 
   /** @param {import('../state/RendererStore.js').RendererStore} store */
@@ -189,7 +279,7 @@ export class EventLog {
     const events = [];
     for (let i = store.events.length - 1; i >= 0 && events.length < MAX_RENDERED_EVENTS; i -= 1) {
       const event = store.events[i];
-      if (!this.#showMoves && ROUTINE_EVENT_TYPES.has(event.type)) continue;
+      if (!this.#showing.has(filterIdFor(event.type))) continue;
       events.push(event);
     }
     const fragment = document.createDocumentFragment();

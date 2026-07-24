@@ -295,16 +295,64 @@ describe('renderer store: protocol version and events', () => {
     );
   });
 
-  test('event retention is bounded and keeps the newest events', () => {
-    const store = new RendererStore({ maxEvents: 5 });
+  test('per-tick chatter is bounded and the newest of it is kept', () => {
+    // Trimming is amortized — a tier overflows by a whole cap before the buffer
+    // is rebuilt — so the guarantee is a floor and a ceiling, not an exact size.
+    const store = new RendererStore({ maxPassingEvents: 5 });
     store.applyFullSnapshot(snapshot());
-    const events = Array.from({ length: 12 }, (_, i) => ({ seq: i + 1, tick: 1, type: 'entity.moved', entityId: 1 }));
+    const events = Array.from({ length: 40 }, (_, i) => ({ seq: i + 1, tick: 1, type: 'entity.moved', entityId: 1 }));
     store.applyEventBatch(events);
-    assert.equal(store.events.length, 5);
+    assert.ok(store.events.length >= 5 && store.events.length <= 10, `kept ${store.events.length}`);
+    assert.equal(store.events.at(-1).seq, 40, 'the newest event is always kept');
     assert.deepEqual(
       store.events.map((event) => event.seq),
-      [8, 9, 10, 11, 12],
+      [...store.events].sort((a, b) => a.seq - b.seq).map((event) => event.seq),
+      'the buffer stays seq-ascending',
     );
+  });
+
+  test('a milestone outlives the chatter that buried it', () => {
+    // The whole point of two tiers: a birth is still in the log after enough
+    // movement to have flushed a single shared buffer many times over.
+    const store = new RendererStore({ maxPassingEvents: 5, maxLastingEvents: 100 });
+    store.applyFullSnapshot(snapshot());
+    store.applyEventBatch([{ seq: 1, tick: 1, type: 'entity.born', entityId: 7 }]);
+    store.applyEventBatch(
+      Array.from({ length: 500 }, (_, i) => ({ seq: i + 2, tick: 2, type: 'entity.moved', entityId: 1 })),
+    );
+    assert.ok(
+      store.events.some((event) => event.type === 'entity.born' && event.entityId === 7),
+      'the birth should survive 500 moves',
+    );
+  });
+
+  test('milestones are bounded too, so a long run cannot grow without limit', () => {
+    const store = new RendererStore({ maxLastingEvents: 10 });
+    store.applyFullSnapshot(snapshot());
+    store.applyEventBatch(
+      Array.from({ length: 200 }, (_, i) => ({ seq: i + 1, tick: 1, type: 'entity.died', entityId: i })),
+    );
+    assert.ok(store.events.length <= 20, `kept ${store.events.length}`);
+    assert.equal(store.events.at(-1).seq, 200);
+  });
+
+  test('a restart clears the log, but a recovery snapshot does not', () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot());
+    store.applyEventBatch([{ seq: 9, tick: 1, type: 'entity.born', entityId: 1 }]);
+
+    // Same simulation: this is a resync after a gap, and the log is exactly
+    // what survived it.
+    store.applyFullSnapshot(snapshot({ tick: 40 }));
+    assert.equal(store.events.length, 1);
+
+    // Different simulation: nothing in the log describes this world, and its
+    // event seqs start over — keeping the old watermark would swallow every
+    // event the new world emits until it passed the old one.
+    store.applyFullSnapshot(snapshot({ simulationId: 'sim-restarted' }));
+    assert.equal(store.events.length, 0);
+    store.applyEventBatch([{ seq: 1, tick: 1, type: 'entity.born', entityId: 1 }]);
+    assert.equal(store.events.length, 1);
   });
 
   test('events are deduplicated by seq across batches and deltas', () => {
