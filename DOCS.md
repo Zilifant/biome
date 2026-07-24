@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 667 passing / 0 failing, 171 suites                    |
+| Tests                 | 705 passing / 0 failing, 186 suites                    |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
 | Benchmark (large-5k)  | 68.75 ms/tick, 5733→7744 entities                      |
@@ -150,7 +150,7 @@ reminder.
 | A5  | **Renderer debug overlay of perceived cells**                                                                                                                                  | Open — a later renderer pass                                                                                                                                                                                                                                                                                                                     |
 | A7  | **Action glyph tint.** The current action is textual in the inspector only                                                                                                     | Open — `action` already rides in the bulk snapshot, so this is renderer-only work                                                                                                                                                                                                                                                                |
 | A12 | **Orphan mercy.** An orphaned unweaned juvenile is weaned early rather than facing a real dependency crisis                                                                    | Open **deliberately**. Removing it would change juvenile survival at the same time as any other change to juvenile survival, with no way to attribute the result                                                                                                                                                                                 |
-| A18 | **Prey have no spatial refuge from predators** — cover slows both equally                                                                                                      | Open. Part of why the founding counts are a knife edge. Territory was expected to address it and did not: grazers hold no ground (A35)                                                                                                                                                                                                           |
+| A18 | **Prey have no spatial refuge from predators** — cover slows both equally                                                                                                      | Open, but **advanced 2026-07-23**: line of sight now hides animals behind opaque terrain (§7 Perception), and the static **thicket** (A51, §7 Terrain) is a genuine refuge — it blocks sight and a non-fleeing pursuer will not follow prey into it (measured: 23–42% of fleeing grazers shelter inside, demo survival unchanged). Low cover still slows both equally; the remaining fix is a flee-_toward_-refuge pull. Territory was expected to address it and did not: grazers hold no ground (A35)                                                                                             |
 | A22 | **Tombstones are bounded at 256**, so ancestry cannot be walked further back than that                                                                                         | Open. Lineage _depth_ is carried on the entity as `generation` and needs no lookup, so this only bites a query that walks ancestry                                                                                                                                                                                                               |
 | A24 | **No per-cell microclimate.** Temperature is global; cover is the only spatial modifier                                                                                        | Open — needs terrain elevation, which does not exist. This is also why migration has no "warmer south" to steer toward                                                                                                                                                                                                                           |
 | A28 | **Bottleneck detection is left to the caller.** The bounded history carries population per species over time, but nothing computes a minimum or flags a crash                  | Open. Detecting one is a judgement about what counts as a crash; inventing that threshold would be guessing                                                                                                                                                                                                                                      |
@@ -169,6 +169,7 @@ reminder.
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
 | A49 | **"Activity pattern" and "habitat preference" are not schema blocks**                                                                                                          | Open. There is no diurnal cycle for a pattern to exist in, and habitat preference is expressed through `migration.tracksForage` plus the comfort band rather than as a field                                                                                                                                                                     |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
+| A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
 
@@ -562,7 +563,7 @@ Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, thicket 0.1, rock an
 deep water 0 (impassable).
 
 ⚠ **A thicket is a spatial refuge (A18), the static MVP of the shrub layer
-(A50).** A dense stand of tall brush / small trees, generated in clumps exactly
+(A51).** A dense stand of tall brush / small trees, generated in clumps exactly
 like rock formations but **more prevalent** (`thickets` count, on open ground
 only) and with three refuge properties: it **blocks line of sight** (opaque like
 rock), **shelters from the weather** (like cover), and is **passable but a
@@ -576,7 +577,7 @@ in. Measured (thickets 0 → 14): concealment on predator–prey pairs **~1% →
 (line of sight finally bites), **23–42% of fleeing grazers shelter inside**, and
 edge/corner occupancy and mean radius all eased slightly, with demo survival
 unchanged. It does not grow, is not eaten, and is not sought — the growing,
-grazable, maturing version is A50.
+grazable, maturing version is A51.
 
 ⚠ **A lake is a shallow ring around an impassable deep core.** Each lake stamps a
 shallow `WATER` disc, then a `DEEP_WATER` disc of `lakeDeepFraction` of the
@@ -806,11 +807,13 @@ cell-feature scan — concealment is about who sees whom, and the cell scan is t
 engine's hottest loop. And the **shared neighbour list stays raw** (see below):
 line of sight shapes perception, but herding and alarm read the unfiltered
 neighbours, because cohesion and a panic call are not strictly line-of-sight (an
-alarm is a sound that carries around a rock). ⚠ **Measured, its effect on the
-demo is currently near zero** — rock covers ~3% of the map, so a boulder rarely
-sits exactly on a sightline (concealment fires on ~1% of predator–prey pairs). It
-is the _enabling mechanism_ for terrain concealment; it needs sight-blocking
-terrain in quantity (denser rock, or opaque cover) to change the ecology. Cost:
+alarm is a sound that carries around a rock). ⚠ **With rock as the only opaque
+terrain its effect was near zero** — rock covers ~3% of the map, so a boulder
+rarely sat on a sightline (concealment fired on ~1% of predator–prey pairs). The
+**thicket** terrain (A51, §7 Terrain) is the sight-blocking terrain in quantity it
+was waiting for: denser and more prevalent, it lifts concealment to **~11% of
+predator–prey pairs** and turns a thicket into a real refuge (a fleeing prey
+vanishes into one, and a pursuer that will not follow loses the sightline). Cost:
 about +8% engine time for the raycasts.
 
 ⚠ **There is exactly one neighbour walk per tick, and it is perception's.**
@@ -1796,7 +1799,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-662 tests, 170 suites. Layers:
+705 tests, 186 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol

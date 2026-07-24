@@ -12,11 +12,13 @@ persistence, performance, and testing. Start there.
 open**, across the engine and the renderer; `DOCS.md` §1 is the same list with
 the evidence and reasoning attached.
 
-`PLAN.md` is the development roadmap that produced the engine: a linear,
-numbered sequence of 30 steps with dated completion notes. **All 30 are done**,
-so it is now a historical record — read it for provenance (why and when a
-decision was made), not for current state. `HANDOFF.md` is the superseded
-session-handoff summary.
+[`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
+produced the engine: a linear, numbered sequence of 30 steps with dated
+completion notes. **All 30 are done**, so it is now a historical record — read it
+for provenance (why and when a decision was made), not for current state.
+[`HANDOFF.md`](HANDOFF.md) is the current session handoff (open ideas and findings
+not yet built); [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md) is the
+superseded original.
 
 Measurements in this file describe the **current** build and were taken on
 **2026-07-20**, except the performance figures, which were re-measured on
@@ -371,12 +373,14 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 662 tests.
+ASCII renderer, committed fixtures, and 705 tests.
 
-**World:** seeded terrain (ground / water / impassable rock / cover, with
-per-type traversal costs), a cell-level vegetation biomass field that grows
-logistically toward a terrain-derived capacity, and a turning year — season,
-temperature, and weather spells that modulate both.
+**World:** seeded terrain (ground, shallow water and impassable **deep water**,
+impassable rock, low **cover**, and sight-blocking **thicket** — each with its own
+traversal cost and, for rock and thicket, opacity to line of sight), a cell-level
+vegetation biomass field that grows logistically toward a terrain-derived
+capacity, and a turning year — season, temperature, and weather spells that
+modulate both.
 
 **Three species, and a species is data.** The world holds a **grazer**, the
 **stalker** that hunts it, and a **corvid** that eats what the stalker leaves.

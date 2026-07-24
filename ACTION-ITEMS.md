@@ -50,10 +50,10 @@ they are not re-opened by accident.
 
 - **A18 — Prey have no spatial refuge from predators.** Cover slows both
   equally. Part of why the founding counts are a knife edge. The static `thicket`
-  terrain (A50) is a first refuge: it blocks line of sight and predators will not
+  terrain (A51) is a first refuge: it blocks line of sight and predators will not
   follow prey into it.
 
-- **A50 — Dynamic shrub layer (large bush / small tree).** A new *dynamic* plant
+- **A51 — Dynamic shrub layer (large bush / small tree).** A new *dynamic* plant
   layer — deliberately **not** a terrain code, because terrain is static and a
   shrub grows, is grazed, and matures. It mirrors the vegetation architecture: a
   static seeded *capacity* placed in clumps, plus dynamic *state* (biomass + a

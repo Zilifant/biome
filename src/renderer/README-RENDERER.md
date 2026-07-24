@@ -479,7 +479,7 @@ for several steps, which is how the section came to mix the two.
   also available at `GET /api/terrain`. The store decodes the RLE into a
   row-major cell lookup (`terrainNameAt`); the grid renderer maps each cell's
   legend name → glyph/color via `TERRAIN_APPEARANCE`
-  (ground `.`, water `~`, rock `#`, cover `,`). Codes and passability are
+  (ground `.`, water `~`, deep water `≈`, rock `#`, cover `,`, thicket `♣`). Codes and passability are
   authoritative; glyphs/colors remain renderer-owned. Deltas never carry
   terrain (it is static).
 - Vegetation is authoritative cell biomass (protocol v3): full snapshots
