@@ -153,42 +153,40 @@ export class Controls {
       <details class="inspector-section">
         <summary><span class="section-title">New World</span> <span class="section-badge"> from seed</span></summary>
         <div class="section-body">
-          <p class="hint">The seed decides the whole world — same seed, same run.</p>
           <div class="control-row">
-            <label for="ctl-seed" class="dim">seed</label>
+            <label for="ctl-seed" class="dim">Seed</label>
             <input type="number" id="ctl-seed" min="0" max="${MAX_SEED}" step="1" aria-label="Simulation seed" />
             <button type="button" id="ctl-restart">Restart</button>
           </div>
           <div class="control-row">
-            <button type="button" id="ctl-restart-random">Random seed</button>
-            <button type="button" id="ctl-restart-same">Replay this one</button>
+            <button type="button" id="ctl-restart-random">Random</button>
+            <button type="button" id="ctl-restart-same">Replay Current</button>
           </div>
-          <p class="hint">World size and starting numbers apply to whichever restart you run. Big values stress the sim.</p>
           <div class="control-row">
-            <label for="ctl-world-w" class="dim">world</label>
+            <label for="ctl-world-w" class="dim">World</label>
             <input type="number" id="ctl-world-w" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.width}" aria-label="World width" />
             <span class="dim">×</span>
             <input type="number" id="ctl-world-h" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.height}" aria-label="World height" />
           </div>
           <div class="control-row">
-            <label for="ctl-herbivores" class="dim">herbivores</label>
+            <label for="ctl-herbivores" class="dim">Herbivores</label>
             <input type="number" id="ctl-herbivores" min="0" max="${MAX_FOUNDING.herbivores}" step="1" value="${DEFAULTS.herbivores}" aria-label="Starting herbivores" />
           </div>
           <div class="control-row">
-            <label for="ctl-predators" class="dim">predators</label>
+            <label for="ctl-predators" class="dim">Predators</label>
             <input type="number" id="ctl-predators" min="0" max="${MAX_FOUNDING.predators}" step="1" value="${DEFAULTS.predators}" aria-label="Starting predators" />
           </div>
           <div class="control-row">
-            <label for="ctl-scavengers" class="dim">scavengers</label>
+            <label for="ctl-scavengers" class="dim">Scavengers</label>
             <input type="number" id="ctl-scavengers" min="0" max="${MAX_FOUNDING.scavengers}" step="1" value="${DEFAULTS.scavengers}" aria-label="Starting scavengers" />
           </div>
           <p class="hint">How much of the map is rock or thicket rather than open grazing ground — 0 is none, ${MAX_TERRAIN_PREVALENCE} crowds it out.</p>
           <div class="control-row">
-            <label for="ctl-rocks" class="dim">rocks</label>
+            <label for="ctl-rocks" class="dim">Rocks</label>
             ${prevalenceSelect("ctl-rocks", DEFAULTS.rocks, "Rock prevalence")}
           </div>
           <div class="control-row">
-            <label for="ctl-thickets" class="dim">thickets</label>
+            <label for="ctl-thickets" class="dim">Thickets</label>
             ${prevalenceSelect("ctl-thickets", DEFAULTS.thickets, "Thicket prevalence")}
           </div>
         </div>
