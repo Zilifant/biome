@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { PHASES } from '../src/simulation/engine/SystemScheduler.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { stripComments } from './helpers/sourceScan.js';
 
 const spySystem = (id, phase, priority, calls, updateInterval = 1) => ({
   id,
@@ -141,8 +142,10 @@ describe('engine independence', () => {
     // Strip comments before scanning. These patterns are about what the code
     // *does*, and prose that happens to contain "window." or "Math.random"
     // is not a boundary violation — a scan that fires on documentation trains
-    // people to word around it rather than to trust it.
-    const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    // people to word around it rather than to trust it. ⚠ The stripper is shared
+    // with the other two source scans and pinned by `source-scan.test.js`; the
+    // two-regex version this replaced could be blinded by a `/*` inside a line
+    // comment, and was.
     const roots = ['src/simulation', 'src/protocol'];
     const forbidden = [
       { pattern: /from\s+['"]express['"]/, label: 'express import' },

@@ -567,12 +567,19 @@ describe('territory: the residency sandbox', () => {
         terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
         vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
         environment: { ticksPerYear: 8000, temperatureAmplitude: 0, meanTemperature: 14 },
+        // ⚠ `patrolWeight`/`retreatWeight` are `behavior` (a species block) since
+        // 2026-07-28, so they must go through the config — a resolved species
+        // beats a constructor option (DOCS §8, D23). `patrolSpanFactor` stayed
+        // global in `decision`, and is tightened here so patrol actually fires:
+        // at the shipped 6 it never does during normal foraging (§1.2 A34).
+        behavior: { ...CONFIG.behavior, patrolWeight, retreatWeight },
+        decision: { ...CONFIG.decision, patrolSpanFactor: 1 },
       },
     });
     engine.registerSystem(new PerceptionSystem(CONFIG.perception));
     engine.registerSystem(new SocialSystem(CONFIG.social));
     engine.registerSystem(
-      new DecisionSystem({ ...CONFIG.decision, patrolWeight, retreatWeight, patrolSpanFactor: 1, foodMinLevel: CONFIG.perception.foodMinLevel }),
+      new DecisionSystem({ ...engine.config.decision, ...engine.config.behavior, foodMinLevel: CONFIG.perception.foodMinLevel }),
     );
     engine.registerSystem(new MovementSystem(CONFIG.locomotion));
     engine.registerSystem(new TerritorySystem({ ...CONFIG.territory }));
@@ -581,7 +588,7 @@ describe('territory: the residency sandbox', () => {
 
   test('a resident settles a stable range, and it is the range pull that settles it', () => {
     const wander = (patrolWeight) => {
-      const engine = residencyWorld({ patrolWeight, retreatWeight: CONFIG.decision.retreatWeight });
+      const engine = residencyWorld({ patrolWeight, retreatWeight: CONFIG.behavior.retreatWeight });
       const id = spawn(engine, { x: 40, y: 40, speciesId: STALKER.id });
       const animal = engine.world.entities.get(id);
       // Mean distance from home across the whole run, not the final-tick
@@ -597,7 +604,7 @@ describe('territory: the residency sandbox', () => {
       }
       return { drift: driftSum / 4000, range: animal.homeRange };
     };
-    const resident = wander(CONFIG.decision.patrolWeight);
+    const resident = wander(CONFIG.behavior.patrolWeight);
     const drifter = wander(0);
 
     assert.ok(resident.range, 'a range formed');
@@ -615,8 +622,8 @@ describe('territory: the residency sandbox', () => {
     // (§1.4 D1). What is actually claimed — a neighbour does not settle on
     // occupied ground — is checked directly, repeatedly, from where it matters.
     const engine = residencyWorld({
-      patrolWeight: CONFIG.decision.patrolWeight,
-      retreatWeight: CONFIG.decision.retreatWeight,
+      patrolWeight: CONFIG.behavior.patrolWeight,
+      retreatWeight: CONFIG.behavior.retreatWeight,
     });
     const resident = spawn(engine, { x: 25, y: 40, speciesId: STALKER.id });
     engine.step(1500);

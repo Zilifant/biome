@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripComments } from './helpers/sourceScan.js';
 
 /**
  * The renderer portrays authoritative simulation output; it must never
@@ -39,8 +40,10 @@ describe('renderer architectural boundary', () => {
     // engine.test.js does and for the same reason (§1.4 D6): these patterns are
     // about what the code *does*, and prose explaining why `Math.random` is
     // banned here is not itself a violation. A scan that fires on documentation
-    // trains people to word around it rather than to trust it.
-    const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    // trains people to word around it rather than to trust it. ⚠ All three scans
+    // now share one stripper (`helpers/sourceScan.js`, pinned by
+    // `source-scan.test.js`) rather than three copies of a line that could be —
+    // and was — blinded by a `/*` inside a line comment.
     for (const file of files) {
       const raw = readFileSync(file, 'utf8');
       const source = stripComments(raw);

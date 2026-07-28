@@ -23,10 +23,14 @@ const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.grazer');
 const STALKER = getSpecies('predator.stalker');
 
-function sandbox({ seed = 3, size = 44, systems = [] } = {}) {
+function sandbox({ seed = 3, size = 44, systems = [], hunting = null } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    config: {
+      world: { width: size, height: size },
+      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      ...(hunting ? { hunting } : {}),
+    },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -189,22 +193,33 @@ describe('injury: healing', () => {
 
 describe('injury: a failed hunt leaves marks', () => {
   /** Predator and prey adjacent, predator committed, capture impossible. */
-  function failedHunt(overrides = {}) {
-    const engine = sandbox({
-      systems: [
-        new HuntingSystem({
-          ...CONFIG.hunting,
-          baseCaptureChance: 0,
-          minCaptureChance: 0,
-          preyInjuryChance: CONFIG.injury.preyInjuryChance,
-          preyInjurySeverity: CONFIG.injury.preyInjurySeverity,
-          predatorInjuryChance: CONFIG.injury.predatorInjuryChance,
-          predatorInjurySeverity: CONFIG.injury.predatorInjurySeverity,
-          injuryHealthDamage: CONFIG.injury.healthDamage,
-          ...overrides,
-        }),
-      ],
-    });
+  /**
+   * ⚠ The two kinds of override go different ways round, and it matters.
+   *
+   * Capture odds (`baseCaptureChance`, `minCaptureChance`) live in
+   * `config.hunting`, which became a **species block** on 2026-07-28 — so a
+   * resolved species beats anything the system is constructed with (DOCS §8),
+   * and they have to go through the config. The injury odds come from
+   * `config.injury`, are not part of that block, and still configure the old way.
+   *
+   * Getting this wrong is D23, and it bit here first: with the odds passed as
+   * constructor options the species' 0.28 silently won over the fixture's 0 and
+   * 10, so "a successful capture" stopped capturing — and, worse, the *failed*
+   * hunts in this file were only failing by luck.
+   */
+  function failedHunt({ baseCaptureChance = 0, minCaptureChance = 0, ...injuryOverrides } = {}) {
+    const engine = sandbox({ hunting: { baseCaptureChance, minCaptureChance } });
+    engine.registerSystem(
+      new HuntingSystem({
+        ...engine.config.hunting,
+        preyInjuryChance: CONFIG.injury.preyInjuryChance,
+        preyInjurySeverity: CONFIG.injury.preyInjurySeverity,
+        predatorInjuryChance: CONFIG.injury.predatorInjuryChance,
+        predatorInjurySeverity: CONFIG.injury.predatorInjurySeverity,
+        injuryHealthDamage: CONFIG.injury.healthDamage,
+        ...injuryOverrides,
+      }),
+    );
     const predatorId = spawn(engine, STALKER, { x: 20, y: 20 });
     const preyId = spawn(engine, GRAZER, { x: 20.8, y: 20 });
     engine.world.entities.get(predatorId).action = 'chase';

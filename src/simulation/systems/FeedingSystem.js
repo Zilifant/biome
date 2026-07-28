@@ -50,6 +50,7 @@ export class FeedingSystem extends SimulationSystem {
     carcassRange = 1.5,
     referenceMass = 30,
     massScalingExponent = 0.75,
+    massScaleIntake = true,
     injuryFeedPenalty = 0.5,
     diseaseFeedPenalty = 0.3,
     maxMemories = MAX_MEMORIES,
@@ -65,6 +66,7 @@ export class FeedingSystem extends SimulationSystem {
     this.carcassRange = carcassRange;
     this.referenceMass = referenceMass;
     this.massScalingExponent = massScalingExponent;
+    this.massScaleIntake = massScaleIntake;
     this.injuryFeedPenalty = injuryFeedPenalty;
     this.diseaseFeedPenalty = diseaseFeedPenalty;
     this.maxMemories = maxMemories;
@@ -81,18 +83,46 @@ export class FeedingSystem extends SimulationSystem {
       // What "eat" means depends on the species' declared diet, never on its
       // name (Step 16). A carnivore eats flesh off a carcass; everyone else
       // grazes the cell it stands on.
-      if (world.species.get(entity.speciesId)?.diet === 'carnivore') {
-        this.#eatCarcass(world, context, entity);
+      const species = world.species.get(entity.speciesId);
+      if (species?.diet === 'carnivore') {
+        this.#eatCarcass(world, context, entity, species);
         continue;
       }
 
+      // `feeding` is a species block from 2026-07-28, so a browser and a grazer
+      // can differ in what they get out of the same cell. Falls back to `this`
+      // for an unknown species, like every other per-species read.
+      const params = species?.feeding ?? this;
       const { cellX, cellY } = world.cellOf(entity.x, entity.y);
       // Don't overeat past satiation: cap intake by the energy deficit as well.
       const deficit = entity.maxEnergy - entity.energy;
-      const maxUsefulBiomass = deficit / (this.energyPerBiomass * this.efficiency);
+      const maxUsefulBiomass = deficit / (params.energyPerBiomass * params.efficiency);
       // A wounded animal feeds badly (Step 17), which is how an injury turns
       // into a slow slide rather than a one-off cost.
-      const rate = this.intakeRate * (1 - entity.impairment * this.injuryFeedPenalty) * (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
+      //
+      // ⚠ Intake is **mass-scaled**, exactly as the carnivore branch below has
+      // been since Step 29. Until 2026-07-28 this branch was flat, so a 600 kg
+      // buffalo would have cropped a cell at precisely a 30 kg gazelle's rate —
+      // the same latent bug `fleshIntakeRate` had (D22), still open on the
+      // herbivore side because every herbivore was one size.
+      //
+      // ⚠ **This is not inert in the demo**, and the tempting assumption that it
+      // is cost an hour: the *species* sits at `referenceMass`, but an
+      // individual's `bodyMass` is its `adultMass` (species mass × the heritable
+      // `size` trait) walked up a growth curve. Measured on seed 42's founding
+      // cohort: bodyMass 5.1–33.7 kg, so mass factors of **0.265–1.092**. A
+      // half-grown grazer now eats ~40% less than it did.
+      //
+      // That is the correct model rather than a regression — metabolism already
+      // scales cost by the same mass on the same exponent, so before this a
+      // juvenile ate a full adult ration while paying a juvenile's upkeep, and
+      // was quietly subsidised. It is still a change to an energy source, so it
+      // ships behind `massScaleIntake` for a reproducible control (DOCS §14).
+      const rate =
+        params.intakeRate *
+        (this.massScaleIntake ? this.#massScale(entity, species) : 1) *
+        (1 - entity.impairment * this.injuryFeedPenalty) *
+        (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
       const desired = Math.min(rate, maxUsefulBiomass);
       if (desired <= 0) continue;
 
@@ -106,7 +136,7 @@ export class FeedingSystem extends SimulationSystem {
         continue;
       }
 
-      const gain = removed * this.energyPerBiomass * this.efficiency;
+      const gain = removed * params.energyPerBiomass * params.efficiency;
       entity.energy = Math.min(entity.maxEnergy, entity.energy + gain);
       // Ate well here — worth coming back to (Step 15).
       recordMemory(entity, MemoryKinds.FOOD, cellX, cellY, context.tick, this.maxMemories);
@@ -124,13 +154,14 @@ export class FeedingSystem extends SimulationSystem {
    * a global scan, and the search radius is the same short reach a grazer has
    * to its own cell. General scavenging and decay are Step 18.
    */
-  #eatCarcass(world, context, entity) {
+  #eatCarcass(world, context, entity, species) {
+    const params = species?.feeding ?? this;
     const deficit = entity.maxEnergy - entity.energy;
     if (deficit <= 0) return;
 
     let carcass = null;
     let bestDistance = Infinity;
-    for (const otherId of world.grid.queryRadius(entity.x, entity.y, this.carcassRange)) {
+    for (const otherId of world.grid.queryRadius(entity.x, entity.y, params.carcassRange)) {
       const other = world.entities.get(otherId);
       if (!other || other.kind !== 'carcass' || other.edibleMass <= 0) continue;
       const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
@@ -144,7 +175,7 @@ export class FeedingSystem extends SimulationSystem {
     // Freshness matters (Step 18): a fresh kill is a windfall, old remains are
     // barely worth the walk. One shared definition, in CarcassSystem.
     const freshness = CarcassSystem.yieldFor(carcass);
-    const energyPerUnit = this.energyPerMass * this.carnivoreEfficiency * freshness;
+    const energyPerUnit = params.energyPerMass * params.carnivoreEfficiency * freshness;
     const maxUseful = energyPerUnit > 0 ? deficit / energyPerUnit : 0;
     // ⚠ Intake is **mass-scaled** (Step 29). Until a third carnivore existed
     // this was a flat rate, so a 4 kg scavenger stripped a carcass exactly as
@@ -153,8 +184,8 @@ export class FeedingSystem extends SimulationSystem {
     // allometric exponent metabolism already uses, so a big animal eats faster
     // *and* burns more, and the reference-mass animal is unchanged.
     const rate =
-      this.fleshIntakeRate *
-      this.#massScale(entity) *
+      params.fleshIntakeRate *
+      this.#massScale(entity, species) *
       (1 - entity.impairment * this.injuryFeedPenalty) *
       (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
     const taken = Math.min(rate, carcass.edibleMass, maxUseful);
@@ -177,10 +208,20 @@ export class FeedingSystem extends SimulationSystem {
    * How fast an animal of this size eats, relative to a reference-mass animal.
    * Shares metabolism's exponent deliberately: an animal that burns more
    * because it is bigger should also be able to take more in.
-   * @param {object} entity
+   *
+   * ⚠ Read from the **`metabolism`** block, not `feeding`, and per species —
+   * because that is where `referenceMass` and `massScalingExponent` live and
+   * where `MetabolismSystem` reads them. Until 2026-07-28 this used the
+   * constructor's copy, so a species that overrode `metabolism.referenceMass`
+   * would have changed what it *burns* without changing what it can *take in* —
+   * a silent asymmetry between two halves of one allometry.
+   *
+   * @param {object} entity @param {object | null} species
    */
-  #massScale(entity) {
-    if (!(this.referenceMass > 0) || !(entity.bodyMass > 0)) return 1;
-    return (entity.bodyMass / this.referenceMass) ** this.massScalingExponent;
+  #massScale(entity, species) {
+    const referenceMass = species?.metabolism?.referenceMass ?? this.referenceMass;
+    const exponent = species?.metabolism?.massScalingExponent ?? this.massScalingExponent;
+    if (!(referenceMass > 0) || !(entity.bodyMass > 0)) return 1;
+    return (entity.bodyMass / referenceMass) ** exponent;
   }
 }

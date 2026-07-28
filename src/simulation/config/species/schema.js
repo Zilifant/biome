@@ -8,6 +8,13 @@
  * species aged, starved, and dried out on identical curves. §1.4 named the
  * pieces — B3, B4, A13, A17, A29, A30, A38, A41 — and this is where they land.
  *
+ * `feeding` and `hunting` joined the list on 2026-07-28 (PLAN-SPECIES.md §3.2),
+ * so a browser and a grazer can differ in what they get out of the same ground
+ * and two predators can differ in how they capture. ⚠ Neither *varies* by
+ * species yet — every species inherits the config — which is the same shape
+ * `disease` had when it landed (§1.4 A38): the schema arriving one step ahead of
+ * the roster that needs it.
+ *
  * **A species overrides; the config supplies defaults.** Each block below falls
  * back to the same-named global config section, so a species file states only
  * what is *different* about that animal and the shared numbers stay in one
@@ -46,6 +53,19 @@ export const SPECIES_BLOCKS = Object.freeze([
   'genetics', // A13 — mutation rate and step
   'disease', // A38 — susceptibility, incubation, virulence
   'reproduction', // energy bars, gestation, cooldowns, and which sex gestates
+  // Added 2026-07-28 for the species plan (PLAN-SPECIES.md §3.2). Both were
+  // global, which meant a 6 kg animal and a 600 kg one ate at the same rate and
+  // two predators could not differ in how they capture. Neither varies by
+  // species yet — every species inherits the config — so this is the schema
+  // landing ahead of the roster that needs it, exactly as `disease` did at Step
+  // 29 (A38: "a species block; it simply does not *vary* by species yet").
+  'feeding', // intake rates, energy density, assimilation efficiency
+  'hunting', // capture odds, stamina costs, cooperative-defense weights
+  // What this animal *wants*, and how it weighs competing needs — the half of
+  // the old `config.decision` that is biology rather than machinery. The other
+  // half stays global as `config.decision`; the split and its reasoning are
+  // written up beside the two sections in `defaultSimulationConfig.js`.
+  'behavior', // flee/herd/hunt/rest weights, thresholds an animal acts on
 ]);
 
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);

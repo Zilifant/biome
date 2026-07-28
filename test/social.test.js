@@ -408,11 +408,19 @@ describe('social: herding behaviour', () => {
       // No food anywhere, so nothing outranks the social pull; herding is
       // deliberately the weakest utility there is, and a fed animal in a
       // grassy field would rather graze — which is the point of it being weak.
-      config: { vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 } },
+      // ⚠ Behaviour overrides go through the **config**, not the constructor:
+      // `behavior` is a species block since 2026-07-28, and a resolved species
+      // beats anything a system was built with (DOCS §8, D23).
+      config: {
+        vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
+        behavior: { ...CONFIG.behavior, ...overrides },
+      },
     });
     engine.registerSystem(new PerceptionSystem(CONFIG.perception));
     engine.registerSystem(new SocialSystem(CONFIG.social));
-    engine.registerSystem(new DecisionSystem({ ...CONFIG.decision, foodMinLevel: CONFIG.perception.foodMinLevel, ...overrides }));
+    engine.registerSystem(
+      new DecisionSystem({ ...engine.config.decision, ...engine.config.behavior, foodMinLevel: CONFIG.perception.foodMinLevel }),
+    );
     engine.registerSystem(new MovementSystem(CONFIG.locomotion));
     return engine;
   }
@@ -437,7 +445,7 @@ describe('social: herding behaviour', () => {
       const me = engine.world.entities.get(straggler);
       return Math.hypot(me.x - cx, me.y - cy);
     };
-    const herded = run(CONFIG.decision.herdWeight);
+    const herded = run(CONFIG.behavior.herdWeight);
     const adrift = run(0);
     assert.ok(herded < adrift, `kept up (${herded.toFixed(1)} vs ${adrift.toFixed(1)} without herding)`);
     assert.ok(herded < CONFIG.social.groupRadius * 2, 'and stayed in the same postcode as the herd');
@@ -711,11 +719,17 @@ describe('social: the herd sandbox', () => {
   function herdWorld({ herdWeight, seed = 9 }) {
     const engine = sandbox({
       seed,
-      config: { vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 } },
+      // Behaviour override through the config — see `herdEngine` above.
+      config: {
+        vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
+        behavior: { ...CONFIG.behavior, herdWeight },
+      },
     });
     engine.registerSystem(new PerceptionSystem(CONFIG.perception));
     engine.registerSystem(new SocialSystem(CONFIG.social));
-    engine.registerSystem(new DecisionSystem({ ...CONFIG.decision, herdWeight, foodMinLevel: CONFIG.perception.foodMinLevel }));
+    engine.registerSystem(
+      new DecisionSystem({ ...engine.config.decision, ...engine.config.behavior, foodMinLevel: CONFIG.perception.foodMinLevel }),
+    );
     engine.registerSystem(new MovementSystem(CONFIG.locomotion));
     for (let i = 0; i < 10; i += 1) {
       spawn(engine, { x: 30 + (i % 4) * 0.8, y: 30 + Math.floor(i / 4) * 0.8, heading: (i * Math.PI) / 5 });
@@ -731,7 +745,7 @@ describe('social: the herd sandbox', () => {
   };
 
   test('a herd holds together, and it is herding that holds it', () => {
-    const herded = herdWorld({ herdWeight: CONFIG.decision.herdWeight });
+    const herded = herdWorld({ herdWeight: CONFIG.behavior.herdWeight });
     const control = herdWorld({ herdWeight: 0 });
     herded.step(400);
     control.step(400);

@@ -246,8 +246,13 @@ export class DecisionSystem extends SimulationSystem {
       const candidateHeading = random.next() * TWO_PI;
 
       // Resolved species (Step 29): one Map.get, reused for diet, mate
-      // preference, and the territory block below.
+      // preference, the territory block below — and, from 2026-07-28, the
+      // `behavior` block: what this animal *wants*, as opposed to the machinery
+      // of choosing, which stays global on `this`. The lookup was already being
+      // paid for, so per-species behaviour costs no extra Map.get; only the
+      // property loads go polymorphic across species records.
       const species = world.species.get(entity.speciesId);
+      const behavior = species?.behavior ?? this;
       const perceived = world.perception.get(entity.id) ?? null;
       const hunger = clamp01(1 - entity.energy / entity.maxEnergy);
       const thirst = clamp01(1 - entity.hydration / entity.maxHydration);
@@ -257,12 +262,28 @@ export class DecisionSystem extends SimulationSystem {
       // flow through the same `eat` / `seekFood` actions — eating is eating.
       const carnivore = species?.diet === 'carnivore';
       const carcass = perceived?.nearestCarcass ?? null;
+      // ⚠ Per-species since 2026-07-28, and it must be the *same* threshold
+      // perception used to pick `nearestFood` — otherwise an animal walks to a
+      // cell its senses called food and then declines to eat it, or stands on
+      // one it never perceived. One field, two readers, one source.
+      // ⚠ `carcassRange` reads from the **`feeding`** block, its one home since
+      // 2026-07-28. It used to be restated in `config.decision` with a comment
+      // reading "(matches feeding)" — the same D11 shape `drinkRange` had. Drift
+      // them and a carnivore decides it is on a carcass and then cannot reach it.
+      const carcassRange = species?.feeding?.carcassRange ?? this.carcassRange;
       const onFood = carnivore
-        ? carcass !== null && carcass.distance <= this.carcassRange
-        : world.vegetation.levelAt(cellX, cellY) >= this.foodMinLevel;
+        ? carcass !== null && carcass.distance <= carcassRange
+        : world.vegetation.levelAt(cellX, cellY) >= (species?.perception?.foodMinLevel ?? this.foodMinLevel);
       const nearestFood = carnivore ? carcass : (perceived?.nearestFood ?? null);
       const nearestWater = perceived?.nearestWater ?? null;
-      const atWater = nearestWater !== null && nearestWater.distance <= this.drinkRange;
+      // ⚠ Read from the **`hydration`** block, which is where `drinkRange`
+      // actually lives and what `HydrationSystem` reads. It used to be declared
+      // in `config.decision` as well, with a comment saying "matches hydration" —
+      // two copies of one number, guaranteed to drift the moment a species
+      // wanted its own. Drifted, they produce an animal that decides it is at
+      // water and is then refused the drink, or the reverse: it stands at the
+      // lake and never chooses to drink. One field, one owner.
+      const atWater = nearestWater !== null && nearestWater.distance <= (species?.hydration?.drinkRange ?? this.drinkRange);
       // Mate choice (Step 22). A ready animal heads for a perceived candidate of
       // the opposite sex — and *which* one is where preference becomes visible:
       // the choosing sex walks toward the best animal it can see rather than the
@@ -281,7 +302,7 @@ export class DecisionSystem extends SimulationSystem {
       // outranks aimless wandering but never outranks real hunger or thirst.
       // Only a guardian it can currently perceive counts (Step 13).
       const guardian = perceived?.guardian ?? null;
-      const followPull = guardian && guardian.distance > this.followDistance ? this.#followUtility(guardian, perceived) : 0;
+      const followPull = guardian && guardian.distance > this.followDistance ? this.#followUtility(guardian, perceived, behavior) : 0;
       // An unweaned juvenile lives on its guardian's provisioning and does not
       // graze at all — that is what makes the dependency real rather than
       // decorative. Its whole agenda is drinking, resting, and keeping up.
@@ -292,10 +313,10 @@ export class DecisionSystem extends SimulationSystem {
       // sight — a remembered patch may already be grazed out — so it only
       // competes once perception has come up empty.
       const recalledFood =
-        !nursing && !onFood && !nearestFood ? this.#recall(entity, MemoryKinds.FOOD) : null;
-      const recalledWater = !atWater && !nearestWater ? this.#recall(entity, MemoryKinds.WATER) : null;
+        !nursing && !onFood && !nearestFood ? this.#recall(entity, MemoryKinds.FOOD, behavior) : null;
+      const recalledWater = !atWater && !nearestWater ? this.#recall(entity, MemoryKinds.WATER, behavior) : null;
       // Somewhere it remembers as dangerous is no place to settle down.
-      const nearDanger = this.dangerRadius > 0 && isNearDanger(entity, entity.x, entity.y, this.dangerRadius);
+      const nearDanger = behavior.dangerRadius > 0 && isNearDanger(entity, entity.x, entity.y, behavior.dangerRadius);
 
       // Weather (Step 19). An animal paying to hold its body temperature has a
       // reason to walk to cover — and none at all once it is already there, so
@@ -315,7 +336,7 @@ export class DecisionSystem extends SimulationSystem {
       // animal keep grazing while a predator walked up to it.
       const threat = perceived?.nearestThreat ?? null;
       const fleeUrgency = threat
-        ? this.fleeWeight * (0.5 + 0.5 * (1 - clamp01(threat.distance / (perceived.radius || 1))))
+        ? behavior.fleeWeight * (0.5 + 0.5 * (1 - clamp01(threat.distance / (perceived.radius || 1))))
         : 0;
       // Sociality (Step 23). An animal that cannot see the predator itself but
       // has been alarmed by a neighbour runs anyway, away from where it was
@@ -323,13 +344,13 @@ export class DecisionSystem extends SimulationSystem {
       // herd's stampede — and why the alarm carries a position and not just a
       // flag, since panic with no direction is just milling about.
       const alarmed = entity.alarmedUntil !== null && context.tick < entity.alarmedUntil && entity.alarmSource !== null;
-      const alarmFlee = !threat && alarmed ? this.fleeWeight * 0.75 : 0;
+      const alarmFlee = !threat && alarmed ? behavior.fleeWeight * 0.75 : 0;
       // Defense (§1.4 A11). An adult stands its ground when the predator is
       // going for its own young or a groupmate's, rather than saving itself.
       // It never outranks its own direct danger by much, and juveniles never do
       // it — a half-grown animal facing a stalker is not brave, it is prey.
-      const ward = this.#wardToDefend(world, entity, perceived);
-      const defendUrgency = ward ? this.defendWeight : 0;
+      const ward = this.#wardToDefend(world, entity, perceived, behavior);
+      const defendUrgency = ward ? behavior.defendWeight : 0;
       // Herding: close up when the animal has drifted off the local centre of
       // its group. Scaled by (2 − boldness) exactly as `rest` is, so the same
       // trait that makes an animal roam also makes it a looser herd member —
@@ -339,8 +360,8 @@ export class DecisionSystem extends SimulationSystem {
         ? Math.hypot(social.centroid.x - entity.x, social.centroid.y - entity.y)
         : 0;
       const herdPull =
-        social?.centroid && drift > this.herdDistance
-          ? this.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - this.herdDistance) / Math.max(this.herdDistance, 1e-6))
+        social?.centroid && drift > behavior.herdDistance
+          ? behavior.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - behavior.herdDistance) / Math.max(behavior.herdDistance, 1e-6))
           : 0;
 
       // Territory (Step 24). Two pulls, both read from state the territory
@@ -384,7 +405,7 @@ export class DecisionSystem extends SimulationSystem {
       // stays descriptive (measured, inspectable) and pulls on nothing.
       const patrolPull =
         territory?.defends && homeRange && rangeDrift > rangeLimit && !acuteNeed
-          ? this.patrolWeight * clamp01((rangeDrift - rangeLimit) / patrolSpan)
+          ? behavior.patrolWeight * clamp01((rangeDrift - rangeLimit) / patrolSpan)
           : 0;
       const claimOwner = territory ? world.scent.ownerAt(entity.x, entity.y) : 0;
       const intruding =
@@ -397,24 +418,24 @@ export class DecisionSystem extends SimulationSystem {
       // a condition rather than a null check further down. (Without it a
       // newborn standing on a claim steered at a null target and crashed the
       // tick; rare enough that only a 16 000-tick run found it.)
-      const retreatPull = intruding && homeRange && !acuteNeed ? this.retreatWeight * (territory.defends ? 1 : 0.5) : 0;
+      const retreatPull = intruding && homeRange && !acuteNeed ? behavior.retreatWeight * (territory.defends ? 1 : 0.5) : 0;
       const prey = perceived?.nearestPrey ?? null;
       const recovering = entity.lastHuntTick !== null && context.tick - entity.lastHuntTick < this.huntCooldownTicks;
       const willHunt =
-        prey !== null && !recovering && hunger >= this.minHungerToHunt && entity.stamina > this.minHuntStamina;
+        prey !== null && !recovering && hunger >= behavior.minHungerToHunt && entity.stamina > behavior.minHuntStamina;
       // Two stages, both visible in `action`: close quietly, then commit. The
       // moment the prey bolts, stalking is pointless — a walking predator can
       // never catch a sprinting grazer — so a fleeing target forces the sprint
       // regardless of range.
-      const chasing = willHunt && (prey.distance <= this.chaseRange || prey.fleeing === true);
+      const chasing = willHunt && (prey.distance <= behavior.chaseRange || prey.fleeing === true);
 
       // Individual variation (Step 14): a cautious animal acts on hunger and
       // thirst sooner (it keeps a bigger reserve), while a bold one prefers
       // covering ground to sitting still — both real trade-offs, since roaming
       // finds food and water but costs energy.
       const { boldness, caution, exploration } = entity.traits;
-      const hungerDrive = this.hungerWeight * hunger * caution;
-      const thirstDrive = this.thirstWeight * thirst * caution;
+      const hungerDrive = behavior.hungerWeight * hunger * caution;
+      const thirstDrive = behavior.thirstWeight * thirst * caution;
 
       // Getting out of a thicket (A18). An animal standing in one heads for the
       // nearest open cell rather than crawling around at thicket speed — unless a
@@ -432,25 +453,25 @@ export class DecisionSystem extends SimulationSystem {
         herd: herdPull,
         retreat: retreatPull,
         patrol: patrolPull,
-        chase: chasing ? this.huntWeight * hunger : 0,
-        stalk: willHunt && !chasing ? this.huntWeight * hunger * this.stalkDiscount : 0,
+        chase: chasing ? behavior.huntWeight * hunger : 0,
+        stalk: willHunt && !chasing ? behavior.huntWeight * hunger * behavior.stalkDiscount : 0,
         drink: atWater ? this.drinkBias + thirstDrive : 0,
         seekWater: nearestWater && !atWater ? thirstDrive : 0,
         eat: onFood && !nursing ? this.eatBias + hungerDrive : 0,
         seekFood: nearestFood && !onFood && !nursing ? hungerDrive : 0,
-        recallWater: recalledWater ? thirstDrive * this.recallWeight : 0,
-        recallFood: recalledFood ? hungerDrive * this.recallWeight : 0,
-        shelter: wantsShelter ? this.shelterWeight * clamp01(stress / this.shelterStressSpan) : 0,
+        recallWater: recalledWater ? thirstDrive * behavior.recallWeight : 0,
+        recallFood: recalledFood ? hungerDrive * behavior.recallWeight : 0,
+        shelter: wantsShelter ? behavior.shelterWeight * clamp01(stress / this.shelterStressSpan) : 0,
         followParent: followPull,
-        seekMate: mateCandidate ? this.mateWeight : 0,
+        seekMate: mateCandidate ? behavior.mateWeight : 0,
         leaveThicket: thicketExit ? this.leaveThicketWeight : 0,
-        rest: nearDanger ? 0 : this.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
-        wander: this.wanderBias * boldness,
+        rest: nearDanger ? 0 : behavior.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
+        wander: behavior.wanderBias * boldness,
       };
 
       // Exploration overrides utilities occasionally; otherwise pick the best,
       // ties broken by a fixed action order (survival needs first).
-      const action = roll < this.explorationRate * exploration ? 'wander' : argmaxUtility(utilities);
+      const action = roll < behavior.explorationRate * exploration ? 'wander' : argmaxUtility(utilities);
 
       entity.action = action;
       entity.utilityBreakdown = utilities;
@@ -504,7 +525,7 @@ export class DecisionSystem extends SimulationSystem {
       // What to run away from: the predator if it can see one, otherwise the
       // place a neighbour's alarm said one was.
       const fleeFrom = threat ?? (alarmed ? entity.alarmSource : null);
-      entity.moveIntent = this.#intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom);
+      entity.moveIntent = this.#intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom, behavior);
       // The animal this one is standing over, so the hunting system can read the
       // defense and an observer can see it. Owned here, like `huntTargetId`.
       entity.defendingId = action === 'defend' ? ward.id : null;
@@ -528,7 +549,7 @@ export class DecisionSystem extends SimulationSystem {
    * @param {object} entity
    * @param {object|null} perceived
    */
-  #wardToDefend(world, entity, perceived) {
+  #wardToDefend(world, entity, perceived, behavior) {
     const threat = perceived?.nearestThreat ?? null;
     if (!threat) return null;
     if (entity.lifeStage !== 'adult' && entity.lifeStage !== 'senescent') return null;
@@ -542,7 +563,7 @@ export class DecisionSystem extends SimulationSystem {
       if (!child || !child.alive || child.kind !== 'animal') continue;
       if (child.lifeStage !== 'juvenile') continue;
       const exposure = Math.hypot(child.x - threat.x, child.y - threat.y);
-      if (exposure > this.defendRange || exposure >= ownDistance) continue;
+      if (exposure > behavior.defendRange || exposure >= ownDistance) continue;
       if (exposure < bestDistance) {
         bestDistance = exposure;
         best = child;
@@ -555,13 +576,13 @@ export class DecisionSystem extends SimulationSystem {
    * The remembered place of a kind most worth walking to right now, or null.
    * @param {object} entity @param {string} kind
    */
-  #recall(entity, kind) {
+  #recall(entity, kind, behavior) {
     return bestRemembered(entity, kind, {
       x: entity.x,
       y: entity.y,
       maxDistance: this.recallRange,
       distanceWeight: this.recallDistanceWeight,
-      dangerRadius: this.dangerRadius,
+      dangerRadius: behavior.dangerRadius,
     });
   }
 
@@ -572,13 +593,13 @@ export class DecisionSystem extends SimulationSystem {
    * @param {{distance: number}} guardian
    * @param {{radius: number}} perceived
    */
-  #followUtility(guardian, perceived) {
+  #followUtility(guardian, perceived, behavior) {
     const span = Math.max(perceived.radius - this.followDistance, 1e-6);
     const drift = clamp01((guardian.distance - this.followDistance) / span);
-    return this.followWeight * (0.5 + 0.5 * drift);
+    return behavior.followWeight * (0.5 + 0.5 * drift);
   }
 
-  #intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom) {
+  #intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom, behavior) {
     switch (action) {
       case 'eat':
       case 'drink':
@@ -627,7 +648,7 @@ export class DecisionSystem extends SimulationSystem {
         // mostly falls in line; one well outside mostly cuts back in.
         const toCentre = Math.atan2(target.y - entity.y, target.x - entity.x);
         const along = target.heading;
-        const cohesion = clamp01((target.drift - this.herdDistance) / Math.max(this.herdDistance, 1e-6));
+        const cohesion = clamp01((target.drift - behavior.herdDistance) / Math.max(behavior.herdDistance, 1e-6));
         const heading =
           along === null
             ? toCentre

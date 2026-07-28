@@ -176,6 +176,12 @@ export const defaultSimulationConfig = Object.freeze({
   // vacated ground all fall out of that pair of mechanisms rather than being
   // modelled separately. Which species *defends* ground is species data
   // (`config/species/*`): grazers have ranges, stalkers hold territories.
+  // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4): `rangeRadius` is **already
+  // per-species** (it lives on the species' `territory` field, 14–30 today), so
+  // a wide-ranging animal states its own and nothing here needs to scale. The
+  // numbers below are the *mechanics* of a claim — how fast a mark fades, how
+  // close an owner must be to answer — and none of them is a function of body
+  // size. Correctly flat.
   territory: Object.freeze({
     cellSize: 4, // world cells per claim cell — a territory is coarse-grained
     markInterval: 20, // ticks between an animal's marks
@@ -446,9 +452,33 @@ export const defaultSimulationConfig = Object.freeze({
   // one, and it leaves the world when it is either eaten clean or fully rotted.
   // Whatever mass is left when it goes returns to the cell as biomass, closing
   // the death→nutrient loop opened in Step 6.
+  // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4) — verdicts:
+  //   decayTicks           flat, and **open**. A 600 kg body rots on exactly the
+  //                        same clock as a 6 kg one, which is wrong in both
+  //                        directions: the big body should feed scavengers for
+  //                        longer, and the small one should vanish sooner. Left
+  //                        flat because it is inert at today's 4–45 kg spread and
+  //                        because changing it changes a food source, which by
+  //                        DOCS §15 needs its own multi-seed sweep. Revisit with
+  //                        the first heavy species (batch 2).
+  //   nutrientReturn       correctly flat — a fraction of mass, so it scales by
+  //                        construction. What was *not* correct was where it
+  //                        landed; see `nutrientSpreadRadius` below.
   carcass: Object.freeze({
     decayTicks: 3000, // death to fully rotted (~2 in-world days)
     nutrientReturn: 0.5, // biomass returned per unit of remaining edible mass
+    // ⚠ How far that return may spill into neighbouring cells. It used to go
+    // into the death cell alone, and `VegetationGrid.addAt` clamps to the cell's
+    // carrying capacity and **discards the rest** — so the death→nutrient loop
+    // leaked for every animal above the reference mass. Measured 2026-07-28
+    // against `capacity: 8`: a 30 kg grazer loses ~1 of ~9 (invisible, which is
+    // why it stood), a 45 kg stalker loses ~60%, and a 600 kg animal would lose
+    // nearly all of it. Spilling is also the truer model — one cell is a single
+    // stride, and a large body enriches a patch. Rings are walked outward in a
+    // fixed order with no randomness; anything that still will not fit is
+    // genuinely lost, which bounds the work. **0 restores the old single-cell
+    // behaviour**, and is the control this was measured against.
+    nutrientSpreadRadius: 4,
     updateInterval: 5, // decay stages are coarse; no need to check every tick
   }),
   // Lineage across removal (see world/lineage.js). Carcasses are the first
@@ -466,6 +496,21 @@ export const defaultSimulationConfig = Object.freeze({
   // reads prey condition, being injured also makes an animal easier to catch.
   // Healing is slow and paid for in energy, and an animal too hungry to spare
   // it does not heal at all.
+  // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4) — verdicts. ⚠ **This section is
+  // the largest one still open**, and it is not a species block:
+  //   healthDamage       flat health lost per unit of wound severity, charged
+  //   speedPenalty       against `maxHealth` (species data). So a tougher animal
+  //   feedPenalty        already survives more by declaring a bigger `maxHealth`,
+  //                      and severity is a 0–1 fraction rather than an absolute.
+  //                      The ratio is therefore already expressible — but nothing
+  //                      lets a rhino be *harder to wound in the first place*,
+  //                      only better at surviving the wound. That is the real gap
+  //                      and it wants `injury` to become a species block, not a
+  //                      scaling rule. Deferred to the batch that needs it
+  //                      (buffalo/rhino, PLAN-SPECIES.md batch 2/5).
+  //   preyInjuryChance   correctly flat; `predatorInjuryChance` is **already
+  //   predatorInjuryChance mass-aware** at the call site, scaled by
+  //                      defender/attacker mass ratio in `trampleChance`.
   injury: Object.freeze({
     healRatePerTick: 0.0015, // severity closed per tick (~230 ticks for a 0.35 wound)
     healEnergyCost: 20, // energy per unit of severity closed
@@ -486,6 +531,29 @@ export const defaultSimulationConfig = Object.freeze({
   // capture probability comes from the two animals' relative speed, remaining
   // sprint, and the prey's condition, never from a flat roll. The floor and
   // ceiling exist so nothing is ever untouchable or ever certain prey.
+  // ⚠ A **species block** since 2026-07-28, so two predators can differ in how
+  // they capture. Resolved off the **hunter**, except `edibleMassFraction`, which
+  // describes the body that died and so resolves off the prey.
+  //
+  // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4) — verdicts:
+  //   captureRange         correctly flat, and per-species if a long-limbed
+  //                        animal should lunge from further.
+  //   captureStaminaCost   flat, and **the one still open**. It is an absolute
+  //                        cost against a 0–`maxStamina` budget, so with
+  //                        `maxStamina` per-species the ratio is expressible —
+  //                        but no species varies `maxStamina` yet, so at batch 2
+  //                        (a 180 kg lion beside a 60 kg hyena) re-check whether
+  //                        this wants scaling or whether `maxStamina` should
+  //                        carry it. Recorded rather than guessed.
+  //   baseCaptureChance    correctly unscaled: the odds already read *relative*
+  //   staminaWeight        speed, stamina and condition, so mass enters through
+  //   vulnerabilityWeight  the animals' own traits rather than through a constant.
+  //   failedHuntEnergyCost flat, and correctly so per unit of body — but it is
+  //                        charged against `maxEnergy`, which is species data, so
+  //                        a big predator already pays proportionally less. Fine.
+  //   defenderWeight       correctly flat — a defender's value is that it is
+  //   maxDefenders         another pair of eyes, which does not scale with mass.
+  //                        (Mass *does* enter, via `trampleChance` below.)
   hunting: Object.freeze({
     captureRange: 1.2, // distance at which the predator lunges
     baseCaptureChance: 0.28, // chance between two evenly matched, fresh animals
@@ -517,7 +585,10 @@ export const defaultSimulationConfig = Object.freeze({
     thermalCostFactor: 0.06, // energy per °C outside the species' comfort band
     shelterRelief: 0.55, // fraction of that stress cover removes
     exposureStressThreshold: 0.35, // stress at which an energy death reads as `exposure`
-    shelterWeight: 0.9, // how strongly the weather pulls an animal toward cover
+    // ⚠ `shelterWeight` moved to `behavior` on 2026-07-28 — how hard the weather
+    // pulls an animal toward cover is biology, and nothing but the decision
+    // system read it. The two below stayed: they are °C thresholds describing
+    // *when the pull engages at all*, which is machinery shared by every animal.
     shelterStressThreshold: 2, // °C of stress before moving is worth it
     shelterStressSpan: 10, // °C at which that pull is at full strength
     // Soft per-cell crowding cap. A number N refuses a step INTO a world cell
@@ -537,6 +608,13 @@ export const defaultSimulationConfig = Object.freeze({
     // than two). It is a real ecological change, not a no-op: it perturbs
     // per-seed outcomes by the same magnitude as re-rolling the seed, with no
     // systematic direction.
+    // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4): **open, and body-blind.** One
+    // cell is one world unit — a short stride — so "two occupants" means two
+    // 6 kg vultures exactly as much as two 600 kg buffalo, and the second of
+    // those is already generous. The honest fix is an occupancy *cost* per
+    // animal rather than a headcount, which is a real change to a measured
+    // knife edge (the cap shifted demo populations ±15–55% when it landed) and
+    // so belongs with the first heavy species, not here.
     maxOccupantsPerCell: 2,
   }),
   // Bounded, decaying spatial memory (see memory/memories.js and
@@ -638,6 +716,23 @@ export const defaultSimulationConfig = Object.freeze({
     // water-seeking behaviour (2.9k → 8.6k action-ticks) for a modest cost in
     // population (58 → 46 survivors, 26 → 31 dehydration deaths). 0.04 and
     // above bought little extra behaviour for markedly worse survival.
+    // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4) — verdicts, so nobody re-derives
+    // them. This whole block is per-species already, so a heavy animal states its
+    // own numbers rather than needing a scaling rule:
+    //   dehydrationRate    per-species. Correctly *not* mass-scaled: a large body
+    //                      dries out more slowly per unit of reserve, but the
+    //                      reserve is `maxHydration`, which is species data too.
+    //   drinkRate          per-species, and the one to watch — it is a flat
+    //                      refill against a 0–`maxHydration` tank, so a 600 kg
+    //                      animal takes exactly as long to drink as a 6 kg one.
+    //                      Left flat deliberately: with `maxHydration` also
+    //                      per-species the ratio is already expressible, and
+    //                      scaling both would double-count.
+    //   drinkRange         correctly flat. It is a reach, not a rate; a bigger
+    //                      animal standing at a lake is not meaningfully further
+    //                      from it. ⚠ Sole owner of this value since 2026-07-28 —
+    //                      the decision system reads it from here.
+    //   dehydrationDamage  per-species; scales with nothing, by choice.
     dehydrationRate: 0.035, // hydration lost per tick
     drinkRate: 5, // hydration restored per tick while drinking
     drinkRange: 1.5, // within this distance of water → can drink
@@ -648,8 +743,35 @@ export const defaultSimulationConfig = Object.freeze({
   // removes up to `intakeRate` biomass from its cell each tick and assimilates
   // it to energy at `energyPerBiomass × efficiency`. Multiple eaters on a cell
   // contend deterministically in ascending entity-id order.
+  // ⚠ A **species block** since 2026-07-28, so a browser and a grazer can differ
+  // in what they get out of the same ground.
+  //
+  // MASS AUDIT 2026-07-28 (PLAN-SPECIES.md §4) — verdicts:
+  //   intakeRate           **scaled** (fixed 2026-07-28). Was flat, so a 600 kg
+  //                        animal would have cropped a cell at a 30 kg one's
+  //                        rate — the same latent bug `fleshIntakeRate` had at
+  //                        Step 29 (D22), left open on the herbivore side because
+  //                        every herbivore was one size.
+  //                        ⚠ **Not inert in the demo.** The *species* sits at
+  //                        `referenceMass`, but an individual's `bodyMass` is its
+  //                        `adultMass` (species mass × the heritable `size`
+  //                        trait) walked up a growth curve — measured on seed 42:
+  //                        5.1–33.7 kg, mass factors 0.265–1.092, so a half-grown
+  //                        grazer eats ~40% less than before. Correct rather than
+  //                        a regression (metabolism already scaled cost the same
+  //                        way, so juveniles were being subsidised), but it is a
+  //                        change to an energy source, so `massScaleIntake: false`
+  //                        restores the flat behaviour as a measured control.
+  //   fleshIntakeRate      **scaled** already (Step 29, the corvid).
+  //   energyPerBiomass     correctly flat — the energy density of grass is a
+  //   energyPerMass        property of the food, not of the animal eating it.
+  //   efficiency           per-species, correctly unscaled: assimilation is a
+  //   carnivoreEfficiency  digestive trait, and a ruminant's advantage is a
+  //                        species fact rather than a function of mass.
+  //   carcassRange         correctly flat. A reach, not a rate.
   feeding: Object.freeze({
-    intakeRate: 0.6, // biomass units eaten per tick per animal
+    intakeRate: 0.6, // biomass units eaten per tick per animal, ×(mass/reference)^0.75
+    massScaleIntake: true, // false = the pre-2026-07-28 flat rate (the control)
     energyPerBiomass: 10, // energy units per biomass unit
     efficiency: 0.6, // fraction of food energy assimilated (≤ 1)
     // Carnivore feeding (Step 16): flesh is far denser than grass and is
@@ -659,41 +781,38 @@ export const defaultSimulationConfig = Object.freeze({
     carnivoreEfficiency: 0.75,
     carcassRange: 1.5, // how far a carnivore reaches for a carcass
   }),
-  // Utility-based action selection (see systems/DecisionSystem.js). Weights
-  // score candidate actions from hunger and perception; `explorationRate` is
-  // the chance to wander regardless (explore). Wander commitment mirrors the
-  // former movement wander so paths stay coherent.
-  decision: Object.freeze({
+  // ⚠ **`behavior` and `decision` are one mechanism split in two** (2026-07-28,
+  // PLAN-SPECIES.md §3.1). Both are consumed by `systems/DecisionSystem.js`; the
+  // split is about *ownership*, not about which system reads them.
+  //
+  //   `behavior`  what this animal wants, and how it weighs competing needs.
+  //               A **species block** — a skittish gazelle and a bold buffalo are
+  //               different animals, and a lion and a leopard sit at opposite
+  //               ends of `herdWeight`, which is the single number separating a
+  //               pride from a solitary cat.
+  //   `decision`  the machinery of committing to and executing a choice —
+  //               commitment windows, geometry probes, thresholds on other
+  //               parameters. **Global**, and deliberately so.
+  //
+  // The line matters more than where exactly it falls. Handing a species file
+  // `minCommitTicks` or `fleeLookahead` would let it change how the *engine*
+  // works rather than what the animal is like, and once one species tunes those
+  // the demo stops being one world with N animals in it and becomes N
+  // separately-tuned simulations sharing a map. A field can be moved across the
+  // line later; erasing the line cannot be undone.
+  behavior: Object.freeze({
     hungerWeight: 1.0,
     thirstWeight: 1.0, // thirst competes with hunger; whichever need is greater wins
-    eatBias: 0.2, // bonus to eat when standing on food (so eat beats seek there)
-    drinkBias: 0.2, // bonus to drink when at water
     restBias: 0.3, // rest attractiveness, scaled by fullness
     wanderBias: 0.35, // baseline exploration utility
+    explorationRate: 0.05, // chance to wander regardless of utilities
     mateWeight: 0.55, // seeking a mate when reproductively ready
-    // Mate choice (Step 22): quality forfeited per unit of distance when the
-    // choosing sex picks which perceived candidate to walk toward. Small, so a
-    // slightly better mate a few cells further off is worth the walk and a
-    // marginally better one at the edge of perception is not.
-    mateDistanceWeight: 0.04,
     followWeight: 0.7, // a dependent juvenile keeping up with its guardian
-    followDistance: 1.5, // inside this distance there is nothing to close
     // Predation (Step 16). Fleeing outranks everything — a grazing animal that
     // spots a predator stops grazing — and grows more urgent the closer the
     // threat. Hunting is gated on real hunger and a usable sprint budget, so a
     // fed or exhausted predator leaves prey alone.
     fleeWeight: 2.0,
-    // Edge-aware fleeing. A prey driven toward a world edge runs ALONG it rather
-    // than smearing into the corner (`fleeWallMargin` is how close to an edge
-    // that kicks in); a prey walled into a true corner or terrain pocket judges
-    // open room out to `fleeLookahead` and breaks past the predator when no
-    // safer heading has room left. These fix the residual edge/corner
-    // congregation the movement system's wall-reflection (C8) could not: flee
-    // re-commits every tick, so the escape has to be boundary-honest at the
-    // decision layer, not patched one step later. `fleeWallMargin: 0` restores
-    // the pre-fix "straight away from the threat" behaviour.
-    fleeWallMargin: 6,
-    fleeLookahead: 8,
     // Sociality (Step 23). Herding is deliberately weak — it ranks below every
     // real need, so a hungry animal grazes its way out of the group and a fed
     // one drifts back in, which is what makes a herd loose and living rather
@@ -708,11 +827,53 @@ export const defaultSimulationConfig = Object.freeze({
     // else; retreating off a rival's ground beats settling down on it but never
     // beats eating, drinking, or running.
     patrolWeight: 0.55, // must clear `wanderBias` (0.35) — patrol replaces wander
-    // How many range radii the pull ramps over before reaching full strength,
-    // and the most consequential number in this step. **Patrolling competes
-    // with wandering**, and wandering is how an animal finds the next patch of
-    // food once it has eaten this one — so an animal that keeps going home
-    // keeps not finding food. Measured over 15k ticks on five seeds:
+    retreatWeight: 0.7,
+    huntWeight: 1.4,
+    stalkDiscount: 0.8, // stalking is worth slightly less than committing
+    chaseRange: 4.0, // inside this, stalking becomes a sprint
+    minHungerToHunt: 0.25,
+    minHuntStamina: 15,
+    // Memory (Step 15) is a fallback for what the animal cannot see, so it is
+    // weighted below the senses: a remembered patch may already be grazed out.
+    recallWeight: 0.8, // remembered need vs. the same need in plain sight
+    dangerRadius: 6, // how wide a berth to give somewhere remembered as dangerous
+    // Moved out of `locomotion` 2026-07-28: how hard the weather pulls an animal
+    // toward cover is biology (a thick coat cares less), and nothing but the
+    // decision system read it. ⚠ `shelterRelief` did **not** move — it is shared
+    // with metabolism through the `thermalStress` chokepoint precisely so the
+    // system that charges for stress and the one that decides to walk out of it
+    // cannot drift, and splitting it per-species would break that.
+    shelterWeight: 0.9, // how strongly the weather pulls an animal toward cover
+  }),
+  // Utility-based action selection (see systems/DecisionSystem.js). What remains
+  // here is machinery: how long a commitment holds, how far a geometry probe
+  // looks, and thresholds defined against *other* parameters. See the note above
+  // `behavior` for why these are global.
+  decision: Object.freeze({
+    eatBias: 0.2, // bonus to eat when standing on food (so eat beats seek there)
+    drinkBias: 0.2, // bonus to drink when at water
+    // Mate choice (Step 22): quality forfeited per unit of distance when the
+    // choosing sex picks which perceived candidate to walk toward. Small, so a
+    // slightly better mate a few cells further off is worth the walk and a
+    // marginally better one at the edge of perception is not.
+    mateDistanceWeight: 0.04,
+    followDistance: 1.5, // inside this distance there is nothing to close
+    // Edge-aware fleeing. A prey driven toward a world edge runs ALONG it rather
+    // than smearing into the corner (`fleeWallMargin` is how close to an edge
+    // that kicks in); a prey walled into a true corner or terrain pocket judges
+    // open room out to `fleeLookahead` and breaks past the predator when no
+    // safer heading has room left. These fix the residual edge/corner
+    // congregation the movement system's wall-reflection (C8) could not: flee
+    // re-commits every tick, so the escape has to be boundary-honest at the
+    // decision layer, not patched one step later. `fleeWallMargin: 0` restores
+    // the pre-fix "straight away from the threat" behaviour.
+    fleeWallMargin: 6,
+    fleeLookahead: 8,
+    // How many range radii the patrol pull ramps over before reaching full
+    // strength, and the most consequential number in this step. **Patrolling
+    // competes with wandering**, and wandering is how an animal finds the next
+    // patch of food once it has eaten this one — so an animal that keeps going
+    // home keeps not finding food. Measured over 15k ticks on five seeds:
     //
     //   patrol effectively off (or ramped over 6 radii)  4/5 seeds alive,
     //                                                    grazers 52–165
@@ -725,28 +886,32 @@ export const defaultSimulationConfig = Object.freeze({
     // radii from home does turn round — but it never fires in normal foraging,
     // which is the only setting this two-species demo can afford. The mechanism
     // is exercised at a tighter ramp in test/territory.test.js.
+    //
+    // ⚠ Global rather than per-species deliberately: it is a *shape* on
+    // `territory.rangeRadius` (which is already per-species), so a wide-ranging
+    // animal already patrols over more ground without restating this.
     patrolSpanFactor: 6,
-    retreatWeight: 0.7,
     // Must sit **below** `territory.markStrength` (0.35): a cell holding a
     // single fresh mark is exactly at that value and starts decaying
     // immediately, so a threshold equal to it meant newly marked ground did not
-    // read as occupied at all.
+    // read as occupied at all. A threshold on another parameter, so it belongs
+    // beside the thing it is a threshold on — see D11.
     intrusionThreshold: 0.2,
-    huntWeight: 1.4,
-    stalkDiscount: 0.8, // stalking is worth slightly less than committing
-    chaseRange: 4.0, // inside this, stalking becomes a sprint
-    minHungerToHunt: 0.25,
-    minHuntStamina: 15,
     huntCooldownTicks: 60, // recovery pause after a capture attempt
-    carcassRange: 1.5, // how close a carnivore must be to eat (matches feeding)
-    // Memory (Step 15) is a fallback for what the animal cannot see, so it is
-    // weighted below the senses: a remembered patch may already be grazed out.
-    recallWeight: 0.8, // remembered need vs. the same need in plain sight
     recallRange: 60, // furthest a remembered place is worth walking to
     recallDistanceWeight: 0.15, // how sharply distance discounts a memory
-    dangerRadius: 6, // how wide a berth to give somewhere remembered as dangerous
-    explorationRate: 0.05, // chance to wander regardless of utilities
-    drinkRange: 1.5, // within this distance of water → can drink (matches hydration)
+    // ⚠ **Two values used to be restated here** with comments saying they
+    // matched their real home, which is exactly the shape D11 warns about: when
+    // one parameter must equal another, two copies is the failure case, not the
+    // neutral one. Both now live in one place, and the decision system reads
+    // them from there, so a species that changes one changes both halves at
+    // once:
+    //   `drinkRange`   → `hydration` (a species block). Drifted, the two produce
+    //                    an animal that decides it is at water and is then
+    //                    refused the drink — or stands at the lake and never
+    //                    chooses to drink.
+    //   `carcassRange` → `feeding` (a species block). Drifted, a carnivore
+    //                    decides it is on a carcass and then cannot reach it.
     minCommitTicks: 8,
     commitTickSpan: 16,
     wanderJitter: 0.5,

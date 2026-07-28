@@ -7,6 +7,7 @@ import { SpeciesRegistry, SPECIES_BLOCKS, resolveSpecies } from '../src/simulati
 import { SPECIES_DEFINITIONS, getSpecies, listSpecies } from '../src/simulation/config/species/index.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { stripComments, removeDemoFoundingRoster } from './helpers/sourceScan.js';
 
 const CONFIG = new SimulationEngine().config;
 const registry = () => new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
@@ -102,8 +103,23 @@ describe('species schema: no species-name conditionals', () => {
 
   // Comments are stripped before scanning, per §1.4 D6: a guard that fires on
   // prose teaches people to word around it rather than trust it. Every one of
-  // these files *discusses* grazers and stalkers at length.
-  const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  // these files *discusses* grazers and stalkers at length. The stripper is
+  // shared with the other two source scans and pinned by `source-scan.test.js` —
+  // ⚠ it used to be a two-regex line that read `config/species/*` inside a `//`
+  // comment as opening a block comment and went blind across 600 lines of
+  // config, which is most of where a leaked id would ever hide.
+  const DEMO_CONFIG = join('config', 'defaultSimulationConfig.js');
+
+  /**
+   * Read a source file as the scan should see it: comments gone, and — for the
+   * demo config alone — the `demo.founding` roster excised, because a scenario
+   * definition naming its species is the one legitimate use of an id outside
+   * `config/species/`. Everything else in that file stays scanned.
+   */
+  const scannableSource = (file) => {
+    const source = stripComments(readFileSync(file, 'utf8'));
+    return file.endsWith(DEMO_CONFIG) ? removeDemoFoundingRoster(source) : source;
+  };
 
   test('no species id literal appears anywhere in the engine', () => {
     // The invariant since Step 4, finally enforced rather than merely asserted
@@ -117,7 +133,7 @@ describe('species schema: no species-name conditionals', () => {
     for (const file of sourceFiles('src/simulation')) {
       // The species *definitions* are exactly where ids belong.
       if (file.includes(join('config', 'species'))) continue;
-      const source = stripComments(readFileSync(file, 'utf8'));
+      const source = scannableSource(file);
       for (const id of ids) {
         if (source.includes(id)) offenders.push(`${file} mentions "${id}"`);
       }
@@ -133,7 +149,7 @@ describe('species schema: no species-name conditionals', () => {
     const offenders = [];
     for (const file of sourceFiles('src/simulation')) {
       if (file.includes(join('config', 'species'))) continue;
-      const source = stripComments(readFileSync(file, 'utf8'));
+      const source = scannableSource(file);
       // Any `'herbivore'`/`'carnivore'` comparison must be on a `.diet`.
       for (const match of source.matchAll(/['"](herbivore|carnivore)['"]/g)) {
         const before = source.slice(Math.max(0, match.index - 60), match.index);
@@ -229,17 +245,33 @@ describe('species schema: a species is config, not code', () => {
 
 describe('species schema: per-species biology actually bites', () => {
   test('species age on their own curves, not one shared one', () => {
+    // §1.4 A17: before Step 29 every animal was born at 5 kg and died at 12 000
+    // ticks, because `aging` lived in global config.
+    //
+    // ⚠ This asserted `new Set(...).size === 3` — that *no two* species agree on
+    // a birth mass or a lifespan. That is true at three species by accident, and
+    // it is not the claim: the claim is that the axis varies at all. Two of ten
+    // species may honestly share a lifespan, and D1's rule applies — assert the
+    // invariant that survives biology changes, not the incidental outcome. Read
+    // off the whole roster so it keeps covering species added later.
     const engine = createDemoSimulation({ seed: 42 });
-    const grazer = engine.species.require('herbivore.grazer');
-    const stalker = engine.species.require('predator.stalker');
-    const corvid = engine.species.require('scavenger.corvid');
+    const roster = engine.species.all();
+    assert.ok(roster.length >= 3, 'enough species for this to mean anything');
 
-    // §1.4 A17 in one assertion: three species, three birth masses, three
-    // lifespans. Every one of these was 5 kg and 12 000 ticks before Step 29.
-    const birthMasses = [grazer.aging.birthMass, stalker.aging.birthMass, corvid.aging.birthMass];
-    assert.equal(new Set(birthMasses).size, 3, `distinct birth masses: ${birthMasses}`);
-    const lifespans = [grazer.aging.maxAge, stalker.aging.maxAge, corvid.aging.maxAge];
-    assert.equal(new Set(lifespans).size, 3, `distinct lifespans: ${lifespans}`);
+    const varies = (pick, label) => {
+      const values = roster.map(pick);
+      assert.ok(values.every((v) => typeof v === 'number' && v > 0), `every species states a ${label}: ${values}`);
+      assert.ok(new Set(values).size > 1, `${label} varies across the roster, rather than one shared curve: ${values}`);
+    };
+    varies((s) => s.aging.birthMass, 'birth mass');
+    varies((s) => s.aging.maxAge, 'lifespan');
+
+    // And the mechanism behind it, not just its footprint: a species that states
+    // an `aging` block gets its own numbers, and one that states none inherits.
+    const stalker = engine.species.require('predator.stalker');
+    const grazer = engine.species.require('herbivore.grazer');
+    assert.notEqual(stalker.aging.maxAge, CONFIG.aging.maxAge, 'an override wins over the config default');
+    assert.equal(grazer.aging.maxAge, CONFIG.aging.maxAge, 'and a species that states nothing inherits it');
   });
 
   test('a newborn is born at its own species mass', () => {
@@ -264,16 +296,47 @@ describe('species schema: per-species biology actually bites', () => {
     }
   });
 
+  test('`behavior` is a species block: a declared weight beats the global config', () => {
+    // The point of splitting `config.decision` (2026-07-28): a species can now
+    // say what it *wants*, not just what its body is like. Asserted on the
+    // resolution rather than on an emergent population outcome, per D1 — a
+    // skittish species is a fact about the record, and what it does with that
+    // is the decision system's job, already covered elsewhere.
+    const skittish = {
+      id: 'herbivore.skittish',
+      kind: 'animal',
+      diet: 'herbivore',
+      bodyMass: 20,
+      behavior: Object.freeze({ fleeWeight: 9, herdWeight: 0.05 }),
+    };
+    const resolved = new SpeciesRegistry([skittish], CONFIG).get('herbivore.skittish');
+    assert.equal(resolved.behavior.fleeWeight, 9, 'the override wins');
+    assert.notEqual(CONFIG.behavior.fleeWeight, 9, 'and it genuinely differs from the default');
+    // ⚠ The merge is recursive, so stating one weight must not drop the other
+    // twenty-one — the bug `traits.spread` was shaped like.
+    assert.equal(resolved.behavior.wanderBias, CONFIG.behavior.wanderBias, 'siblings are inherited, not dropped');
+    assert.equal(Object.keys(resolved.behavior).length, Object.keys(CONFIG.behavior).length, 'the block is whole');
+    // And the machinery half stayed global: a species cannot reach it at all.
+    assert.equal(resolved.decision, undefined, 'a species does not get to retune the engine');
+  });
+
   test('perception radius is a species block, not a bare scalar (§1.4 B4)', () => {
     const engine = createDemoSimulation({ seed: 42 });
     for (const species of engine.species.all()) {
       assert.equal(typeof species.perception.radius, 'number', `${species.id} has a perception block`);
       assert.equal(species.perceptionRadius, undefined, `${species.id} no longer uses the old scalar`);
     }
-    // And they genuinely differ — a stalker hunts by detection, a scavenger
-    // finds bodies from further still, and a grazer sees least of all.
+    // And the axis is genuinely in use — a stalker hunts by detection, a
+    // scavenger finds bodies from further still, and a grazer sees least of all.
+    //
+    // ⚠ This asserted every radius was *distinct* (`new Set(radii).size ===
+    // radii.length`). That holds at three species only because three animals
+    // happened to need three radii; it is an over-constraint with no biological
+    // content, and it fails the first time two species honestly agree — a 60 kg
+    // leopard and a 60 kg hyena have every reason to see equally far. What the
+    // block has to earn is that radius *varies*, not that no two agree.
     const radii = engine.species.all().map((s) => s.perception.radius);
-    assert.equal(new Set(radii).size, radii.length, `distinct perception radii: ${radii}`);
+    assert.ok(new Set(radii).size > 1, `perception radius varies across the roster: ${radii}`);
   });
 
   test('the demo stays deterministic with three species', () => {

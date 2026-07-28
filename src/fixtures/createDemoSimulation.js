@@ -76,9 +76,23 @@ export function registerDemoSystems(engine) {
   }
   engine.registerSystem(
     new DecisionSystem({
+      // ⚠ **Two config sections, one system.** `behavior` is what an animal
+      // wants (a species block, resolved per-animal inside the system);
+      // `decision` is the machinery of choosing (global). Both are spread here
+      // because the system's own fields are the fallback for an animal whose
+      // species is unknown — see the note above `behavior` in the config.
       ...engine.config.decision,
+      ...engine.config.behavior,
+      // Values that live in *another* species block and are read per-species at
+      // decision time. Wired from their real home so there is no second copy to
+      // drift (D11) — the system's copy is only the unknown-species fallback.
       foodMinLevel: engine.config.perception.foodMinLevel,
-      shelterWeight: engine.config.locomotion.shelterWeight,
+      drinkRange: engine.config.hydration.drinkRange,
+      carcassRange: engine.config.feeding.carcassRange,
+      // Weather machinery: the °C thresholds stay global, and `shelterRelief` is
+      // shared with metabolism through the `thermalStress` chokepoint so the
+      // system that charges for stress and the one that walks out of it cannot
+      // drift. (`shelterWeight` itself moved into `behavior`.)
       shelterStressThreshold: engine.config.locomotion.shelterStressThreshold,
       shelterStressSpan: engine.config.locomotion.shelterStressSpan,
       shelterRelief: engine.config.locomotion.shelterRelief,
@@ -88,14 +102,6 @@ export function registerDemoSystems(engine) {
         suitorMinEnergyFraction: engine.config.reproduction.suitorMinEnergyFraction,
         suitorCooldownTicks: engine.config.reproduction.suitorCooldownTicks,
       },
-      herdWeight: engine.config.decision.herdWeight,
-      herdDistance: engine.config.decision.herdDistance,
-      defendWeight: engine.config.decision.defendWeight,
-      defendRange: engine.config.decision.defendRange,
-      patrolWeight: engine.config.decision.patrolWeight,
-      patrolSpanFactor: engine.config.decision.patrolSpanFactor,
-      retreatWeight: engine.config.decision.retreatWeight,
-      intrusionThreshold: engine.config.decision.intrusionThreshold,
     }),
   );
   engine.registerSystem(

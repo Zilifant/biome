@@ -191,6 +191,45 @@ export function captureSimulationState(engine) {
 }
 
 /**
+ * Refuse a save containing a species this build has never heard of.
+ *
+ * ⚠ **Save compatibility is asymmetric, and the failing half used to fail
+ * silently.** Adding a species is compatible — a save stores `speciesId` and the
+ * registry resolves it at load. Renaming or removing one is not: every system
+ * reads biology through `world.species.get(id)`, which returns `null` for an
+ * unknown id, and the `?? this` fallbacks that make an unknown species harmless
+ * in a unit test make it *catastrophic* here. The animal keeps its saved mass and
+ * age but silently reverts to global-config metabolism, hydration, aging,
+ * perception and diet — a restored run that continues with different physics and
+ * no error anywhere.
+ *
+ * A rename is coming (the species roster becomes an African savanna guild), so
+ * this converts that from a silent wrong-physics bug into a message naming the
+ * ids at fault. Checked once at restore, over the saved entity array — not in any
+ * hot path.
+ */
+function assertKnownSpecies(engine, saved) {
+  const unknown = new Set();
+  const check = (id) => {
+    // Carcasses keep the speciesId of what they were, so they are checked too:
+    // a body still resolves its species for edible mass and lineage.
+    if (id != null && !engine.species.get(id)) unknown.add(id);
+  };
+  // ⚠ `saved.entities` is the EntityManager's record — `{ nextId, entities,
+  // pendingSpawns, pendingRemovals }` — not the array its name suggests. The
+  // deferred queues are part of the save (an animal born on the tick it was
+  // captured lives there), so they are checked too.
+  for (const entity of saved.entities?.entities ?? []) check(entity?.speciesId);
+  for (const spawn of saved.entities?.pendingSpawns ?? []) check(spawn?.definition?.speciesId);
+  if (unknown.size > 0) {
+    throw new Error(
+      `save references unknown species: ${[...unknown].sort().join(', ')} ` +
+        `(known: ${engine.species.ids().join(', ')}). Restoring would silently fall back to global config defaults.`,
+    );
+  }
+}
+
+/**
  * Restore a save into an engine that was constructed with the saved seed and
  * config and already has the same systems registered.
  * @param {SimulationEngine} engine
@@ -209,6 +248,7 @@ export function restoreSimulationState(engine, saved) {
   if (currentSystems !== savedSystems) {
     throw new Error('registered systems do not match the save; deterministic continuation is not possible');
   }
+  assertKnownSpecies(engine, saved);
   engine.clock.setTick(saved.tick);
   engine.restoreRandomStreams(saved.randomStreams);
   engine.world.entities.restore(saved.entities);

@@ -43,12 +43,14 @@ export class CarcassSystem extends SimulationSystem {
    * @param {object} [options]
    * @param {number} [options.decayTicks] ticks from death to fully rotted
    * @param {number} [options.nutrientReturn] biomass returned per kg of remaining mass
+   * @param {number} [options.nutrientSpreadRadius] how far the return may spill; 0 = one cell
    * @param {number} [options.updateInterval] decay is staggered; stages are coarse
    */
-  constructor({ decayTicks = 3000, nutrientReturn = 0.5, updateInterval = 5 } = {}) {
+  constructor({ decayTicks = 3000, nutrientReturn = 0.5, nutrientSpreadRadius = 4, updateInterval = 5 } = {}) {
     super({ id: 'carcass', phase: 'physiology', priority: 20, updateInterval });
     this.decayTicks = decayTicks;
     this.nutrientReturn = nutrientReturn;
+    this.nutrientSpreadRadius = nutrientSpreadRadius;
   }
 
   update(world, context) {
@@ -74,12 +76,55 @@ export class CarcassSystem extends SimulationSystem {
       // What is left goes back into the ground. A carcass eaten to nothing
       // returns nothing — the scavengers already took it.
       if (entity.edibleMass > 0 && this.nutrientReturn > 0) {
-        const { cellX, cellY } = world.cellOf(entity.x, entity.y);
-        world.vegetation.addAt(cellX, cellY, entity.edibleMass * this.nutrientReturn);
+        this.#returnNutrients(world, entity);
       }
       entity.edibleMass = 0;
       context.queueRemove(entity.id);
     }
+  }
+
+  /**
+   * Put a rotted carcass's remaining mass back into the ground, spilling into
+   * neighbouring cells when the death cell cannot hold it all.
+   *
+   * ⚠ **This used to be a single `addAt`, and `addAt` clamps to the cell's
+   * carrying capacity and discards the rest** — so the closing half of the
+   * death→nutrient loop (Step 6) silently leaked for anything bigger than the
+   * reference animal. Measured 2026-07-28 against `vegetation.capacity: 8`: a
+   * 30 kg grazer returns ~9 biomass into one cell and loses ~1, which is why
+   * nobody noticed; a 45 kg stalker loses about **60%**, and that has been true
+   * since Step 16. A 600 kg animal would lose nearly all of it.
+   *
+   * Spilling outward is also the better model, not just the bigger number: a
+   * cell is one world unit — a short stride — and a large body plainly enriches
+   * a patch rather than a single square. Cells are visited in Chebyshev rings,
+   * row-major within each ring, so the order is fixed and no randomness is
+   * involved. Whatever will not fit inside `nutrientSpreadRadius` is genuinely
+   * lost, which is an honest bound rather than an unbounded search.
+   *
+   * `nutrientSpreadRadius: 0` restores the exact pre-2026-07-28 single-cell
+   * behaviour, so the change has a reproducible control (DOCS §14).
+   *
+   * @returns {number} biomass actually returned
+   */
+  #returnNutrients(world, entity) {
+    let remaining = entity.edibleMass * this.nutrientReturn;
+    const { cellX, cellY } = world.cellOf(entity.x, entity.y);
+    let returned = world.vegetation.addAt(cellX, cellY, remaining);
+    remaining -= returned;
+
+    for (let r = 1; remaining > 1e-6 && r <= this.nutrientSpreadRadius; r += 1) {
+      for (let dy = -r; dy <= r && remaining > 1e-6; dy += 1) {
+        for (let dx = -r; dx <= r && remaining > 1e-6; dx += 1) {
+          // The ring at Chebyshev distance r — the cells the inner rings missed.
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const added = world.vegetation.addAt(cellX + dx, cellY + dy, remaining);
+          remaining -= added;
+          returned += added;
+        }
+      }
+    }
+    return returned;
   }
 
   /**

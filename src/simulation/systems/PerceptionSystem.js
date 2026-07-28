@@ -45,8 +45,25 @@ export class PerceptionSystem extends SimulationSystem {
     world.neighbourhood.clear();
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
-      const radius = world.species.get(entity.speciesId)?.perception?.radius ?? this.defaultRadius;
-      perception.set(entity.id, this.#perceive(world, entity, radius));
+      // The whole resolved `perception` block is handed down, rather than the
+      // radius alone: until 2026-07-28 `foodMinLevel` was declared in
+      // `config.perception` — already a species block — but read from the
+      // constructor, so a species could never actually differ in what counts as
+      // food. Harmless while every species used 1; load-bearing the moment a
+      // grazer wants short regrowth and a browser wants standing growth.
+      //
+      // ⚠⚠ **Pass the block, not the fields — `#perceive` is arity-sensitive.**
+      // The obvious version of this change resolved `radius` and `foodMinLevel`
+      // here and passed both, making `#perceive` a four-argument function. That
+      // cost **12% of total engine time** at large-5k (66.1 → 70.7 ms/tick,
+      // 2026-07-28), and an A/B pinned it on the arity alone: keeping the extra
+      // parameter but passing `this.foodMinLevel` into it was just as slow
+      // (70.4), while dropping back to three arguments was 62.8. This is the
+      // hottest function in the engine — ~53% of a tick, and it holds the
+      // (2r+1)² cell scan — so one more parameter is enough to change what the
+      // optimiser will do with it. Handing over one object keeps the arity at
+      // three and buys the per-species read for ~1 ms/tick.
+      perception.set(entity.id, this.#perceive(world, entity, world.species.get(entity.speciesId)?.perception));
     }
     // Stamped last, so a consumer that reads a half-built map on some future
     // reordering sees a stale tick rather than a partial neighbourhood.
@@ -56,9 +73,12 @@ export class PerceptionSystem extends SimulationSystem {
   /**
    * @param {import('../world/World.js').World} world
    * @param {object} entity
-   * @param {number} radius
+   * @param {{radius?: number, foodMinLevel?: number} | null | undefined} sensing the
+   *        species' resolved `perception` block
    */
-  #perceive(world, entity, radius) {
+  #perceive(world, entity, sensing) {
+    const radius = sensing?.radius ?? this.defaultRadius;
+    const foodMinLevel = sensing?.foodMinLevel ?? this.foodMinLevel;
     const radiusSquared = radius * radius;
     const los = this.lineOfSight;
 
@@ -185,7 +205,6 @@ export class PerceptionSystem extends SimulationSystem {
     const r = Math.ceil(radius);
     const terrain = world.terrain;
     const vegetation = world.vegetation;
-    const foodMinLevel = this.foodMinLevel;
     const entityX = entity.x;
     const entityY = entity.y;
     let foodDist = Infinity;

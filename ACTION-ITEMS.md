@@ -112,6 +112,22 @@ they are not re-opened by accident.
   There is no diurnal cycle for a pattern to exist in, and habitat preference is
   expressed through `migration.tracksForage` plus the comfort band.
 
+- **B7 — Three mass-blind constants, found by the 2026-07-28 mass audit** and
+  deliberately left until the species that exposes each one exists.
+  `carcass.decayTicks` (a 600 kg body rots on a 6 kg body's clock — and changing
+  it changes a food source, so it needs its own multi-seed sweep);
+  `hunting.captureStaminaCost` (flat against a per-species `maxStamina`, so the
+  ratio is expressible but untested until two predators differ); and
+  `locomotion.maxOccupantsPerCell` (a headcount rather than a volume — the fix is
+  an occupancy *cost*, on a knife edge). Every other candidate audited as scaled
+  or correctly flat, with the verdict written into its config comment. Full
+  reasoning in [`DOCS.md`](DOCS.md) §1.4 and `PLAN-SPECIES.md` §4.
+
+- **`feeding` and `hunting` are species blocks that do not yet vary by species**
+  _(2026-07-28)_. The schema landed ahead of the roster that needs it, exactly as
+  `disease` did at Step 29 (A38). Not a defect; recorded so the blocks are not
+  mistaken for dead weight.
+
 - **B1 — `createDemoSimulation.js` was never renamed to `createEcosystem.js`.**
   Cosmetic; the rename is churn across server, scripts, and tests.
 

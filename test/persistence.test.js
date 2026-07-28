@@ -74,6 +74,19 @@ describe('persistence', () => {
     assert.throws(() => restoreSimulationState(bare, saved), /systems do not match/);
   });
 
+  test('⚠ a save naming a species this build does not know is refused, not silently degraded', () => {
+    // Save compatibility is asymmetric: adding a species is fine, renaming or
+    // removing one is not. Without this guard `world.species.get()` returns
+    // null, every system falls back to global config defaults, and the run
+    // continues with different physics and no error anywhere — the worst
+    // possible failure mode, and one a species rename walks straight into.
+    const engine = createDemoSimulation({ seed: 1 });
+    const saved = captureSimulationState(engine);
+    const victim = saved.entities.entities.find((e) => e.speciesId);
+    victim.speciesId = 'herbivore.wildebeest'; // a plausible future rename
+    assert.throws(() => restoreDemoSimulation(saved), /unknown species: herbivore\.wildebeest/);
+  });
+
   test('a save is a deep copy — mutating it never touches the live engine', () => {
     const engine = createDemoSimulation({ seed: 1 });
     const saved = captureSimulationState(engine);

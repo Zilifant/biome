@@ -344,9 +344,9 @@ to make, and a test will fail if you make one.
 1. Add a definition to `src/simulation/config/species/` — biology only, never
    glyphs or colors. State only what differs from the defaults: every block
    (`metabolism`, `hydration`, `aging`, `perception`, `traits`, `genetics`,
-   `disease`, `reproduction`) falls back to the same-named section of the
-   simulation config, so a species file reads as a list of what makes that animal
-   unusual.
+   `disease`, `reproduction`, `feeding`, `hunting`, `behavior`) falls back to the same-named
+   section of the simulation config, so a species file reads as a list of what
+   makes that animal unusual.
 2. Add it to the roster in `config/species/index.js` and to `config.demo.founding`
    if it should exist in the demo world.
 3. Give it an appearance entry in the renderer's `SPECIES_APPEARANCE` — the only

@@ -140,8 +140,15 @@ export class HuntingSystem extends SimulationSystem {
       const prey = world.entities.get(entity.huntTargetId);
       if (!prey || !prey.alive || prey.kind !== 'animal') continue;
 
+      // `hunting` is a species block from 2026-07-28: how an animal captures is
+      // the **predator's** biology, so this resolves off the hunter. Falls back
+      // to the system's own options for an unknown species, like every other
+      // per-species read. The injury fields stay on `this` — they come from
+      // `config.injury`, not `config.hunting`, and are not part of the block.
+      const params = world.species.get(entity.speciesId)?.hunting ?? this;
+
       const distance = Math.hypot(prey.x - entity.x, prey.y - entity.y);
-      if (distance > this.captureRange) continue; // still closing; no attempt yet
+      if (distance > params.captureRange) continue; // still closing; no attempt yet
 
       // Cooperative defense (Step 23). Two separate things, and they are worth
       // keeping separate: adult groupmates standing around the prey make the
@@ -149,12 +156,12 @@ export class HuntingSystem extends SimulationSystem {
       // watch six directions), while an adult that has actively chosen to
       // `defend` this particular animal is worth more than any of them.
       const defenders = this.defendersFor(world, prey);
-      const chance = this.captureChance(entity, prey, defenders);
+      const chance = this.captureChance(entity, prey, defenders, params);
       const captured = random.next() < chance;
       const preyRoll = random.next();
       const predatorRoll = random.next();
       entity.lastHuntTick = context.tick;
-      entity.stamina = Math.max(0, entity.stamina - this.captureStaminaCost);
+      entity.stamina = Math.max(0, entity.stamina - params.captureStaminaCost);
       const { cellX, cellY } = world.cellOf(prey.x, prey.y);
 
       context.emit(EventTypes.ENTITY_HUNTED, {
@@ -176,13 +183,19 @@ export class HuntingSystem extends SimulationSystem {
       }
 
       if (captured) {
-        killAnimal(prey, 'predation', prey.bodyMass * this.edibleMassFraction, context.emit, context.tick);
+        // ⚠ `edibleMassFraction` reads off the **prey**, not the hunter. It sits
+        // in the `hunting` block, but what it describes is how much of a body is
+        // meat — a fact about the animal that died, not about what killed it.
+        // Identical today (nothing overrides it); the distinction matters the
+        // first time two prey species differ in build.
+        const preyParams = world.species.get(prey.speciesId)?.hunting ?? this;
+        killAnimal(prey, 'predation', prey.bodyMass * preyParams.edibleMassFraction, context.emit, context.tick);
         context.emit(EventTypes.ENTITY_KILLED, { entityId: prey.id, predatorId: entity.id });
       } else {
         // A miss costs the predator real energy, and teaches the prey that this
         // is a bad place to be — the writer the `danger` memory kind (Step 15)
         // was waiting for.
-        entity.energy = Math.max(0, entity.energy - this.failedHuntEnergyCost);
+        entity.energy = Math.max(0, entity.energy - params.failedHuntEnergyCost);
         recordMemory(prey, MemoryKinds.DANGER, cellX, cellY, context.tick, this.maxMemories);
         context.emit(EventTypes.ENTITY_ESCAPED, { entityId: prey.id, predatorId: entity.id });
 
@@ -199,7 +212,7 @@ export class HuntingSystem extends SimulationSystem {
         const trampleChance =
           this.predatorInjuryChance *
           Math.min(2, defenderMass / Math.max(entity.bodyMass, 1e-6)) *
-          (guardian ? this.defenderInjuryBonus : 1);
+          (guardian ? params.defenderInjuryBonus : 1);
         this.#wound(entity, InjuryKinds.TRAMPLE, trampleChance, this.predatorInjurySeverity, guardian ?? prey, context, predatorRoll);
       }
     }
@@ -238,23 +251,33 @@ export class HuntingSystem extends SimulationSystem {
    * and who is standing with it. Public so tests and inspection can read the
    * odds rather than infer them.
    *
+   * `hunting` is a species block from 2026-07-28, so two predators can differ in
+   * how they capture. The resolved block arrives as `params` rather than being
+   * looked up here, for two reasons: this method has no `world` to look it up
+   * *from*, and defaulting to `this` keeps every direct caller — a dozen tests
+   * that construct the system with custom odds — meaning exactly what it says.
+   * ⚠ That is the D23 trap avoided rather than re-sprung: a species block beating
+   * a constructor option is how 23 tests once kept compiling and stopped
+   * meaning anything.
+   *
    * @param {object} predator @param {object} prey
    * @param {{count: number, guardian: object|null}} [defenders]
+   * @param {object} [params] resolved per-species `hunting` block; defaults to the system's own
    * @returns {number} probability in [minCaptureChance, maxCaptureChance]
    */
-  captureChance(predator, prey, defenders = { count: 0, guardian: null }) {
+  captureChance(predator, prey, defenders = { count: 0, guardian: null }, params = this) {
     // Raw speed, before either has spent anything.
     const speedRatio = prey.speed > 0 ? predator.speed / prey.speed : 2;
 
     // Whoever has more sprint left is winning the last few strides.
     const predatorFresh = predator.maxStamina > 0 ? predator.stamina / predator.maxStamina : 0;
     const preyFresh = prey.maxStamina > 0 ? prey.stamina / prey.maxStamina : 0;
-    const staminaEdge = 1 + this.staminaWeight * (predatorFresh - preyFresh);
+    const staminaEdge = 1 + params.staminaWeight * (predatorFresh - preyFresh);
 
     // A wounded animal, or one that has not finished growing, is easier caught.
     const healthFraction = prey.maxHealth > 0 ? prey.health / prey.maxHealth : 1;
     const grown = prey.adultMass > 0 ? Math.min(1, prey.bodyMass / prey.adultMass) : 1;
-    const vulnerability = 1 + this.vulnerabilityWeight * ((1 - healthFraction) + (1 - grown)) * 0.5;
+    const vulnerability = 1 + params.vulnerabilityWeight * ((1 - healthFraction) + (1 - grown)) * 0.5;
 
     // Company (Step 23). Each adult standing nearby shaves the odds, with
     // diminishing returns capped at `maxDefenders` — a herd of forty is not
@@ -263,11 +286,11 @@ export class HuntingSystem extends SimulationSystem {
     // the min/max clamps exist to prevent. A parent actively interposing counts
     // for more than a bystander, because it is between the predator and the
     // prey rather than merely present.
-    const bystanders = Math.min(this.maxDefenders, defenders.count ?? 0);
+    const bystanders = Math.min(params.maxDefenders, defenders.count ?? 0);
     const guarding = defenders.guardian ? 1 : 0;
-    const shielding = 1 / (1 + this.defenderWeight * (bystanders + 2 * guarding));
+    const shielding = 1 / (1 + params.defenderWeight * (bystanders + 2 * guarding));
 
-    const chance = this.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding;
-    return Math.min(this.maxCaptureChance, Math.max(this.minCaptureChance, chance));
+    const chance = params.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding;
+    return Math.min(params.maxCaptureChance, Math.max(params.minCaptureChance, chance));
   }
 }

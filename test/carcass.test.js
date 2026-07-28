@@ -208,6 +208,48 @@ describe('carcass: rotting away', () => {
     const capacity = engine.world.vegetation.capacityAt(20, 20);
     assert.ok(engine.world.vegetation.biomassAt(20, 20) <= capacity + 1e-6, 'never past carrying capacity');
   });
+
+  test('⚠ a body too big for one cell enriches a patch instead of leaking away', () => {
+    // The bug this pins: `addAt` clamps to the cell's carrying capacity and
+    // silently discards the remainder, so a single-cell deposit lost most of any
+    // body above the reference mass — ~60% of a 45 kg stalker, and nearly all of
+    // a large herbivore. Measured against the `nutrientSpreadRadius: 0` control,
+    // which is the exact pre-2026-07-28 behaviour.
+    const totalBiomass = (engine) => engine.world.vegetation.totalBiomass();
+    const run = (nutrientSpreadRadius) => {
+      const engine = sandbox({ systems: [new CarcassSystem({ ...CONFIG.carcass, nutrientSpreadRadius, updateInterval: 1 })] });
+      // Strip the neighbourhood bare so there is room to receive, and so the
+      // only biomass that can appear is what the carcass puts back.
+      for (let cellY = 14; cellY <= 26; cellY += 1) {
+        for (let cellX = 14; cellX <= 26; cellX += 1) engine.world.vegetation.consumeAt(cellX, cellY, Number.MAX_SAFE_INTEGER);
+      }
+      const before = totalBiomass(engine);
+      spawnCarcass(engine, { x: 20.5, y: 20.5, edibleMass: 200, diedTick: 0 });
+      engine.step(CONFIG.carcass.decayTicks + 1);
+      return totalBiomass(engine) - before;
+    };
+
+    const single = run(0);
+    const spread = run(4);
+    const capacity = 8; // config default; the ceiling one cell can hold
+    assert.ok(single <= capacity + 1e-6, 'the old behaviour could never return more than one cell holds');
+    assert.ok(spread > single * 5, `spreading returns far more of the body: ${spread.toFixed(1)} vs ${single.toFixed(1)}`);
+    assert.ok(spread <= 200 * CONFIG.carcass.nutrientReturn + 1e-6, 'and never more than the body was worth');
+  });
+
+  test('nutrient spreading is deterministic and needs no randomness', () => {
+    const deposit = () => {
+      const engine = sandbox({ systems: [new CarcassSystem({ ...CONFIG.carcass, updateInterval: 1 })] });
+      spawnCarcass(engine, { x: 20.5, y: 20.5, edibleMass: 200, diedTick: 0 });
+      engine.step(CONFIG.carcass.decayTicks + 1);
+      const cells = [];
+      for (let cellY = 15; cellY <= 25; cellY += 1) {
+        for (let cellX = 15; cellX <= 25; cellX += 1) cells.push(engine.world.vegetation.biomassAt(cellX, cellY));
+      }
+      return cells;
+    };
+    assert.deepEqual(deposit(), deposit(), 'the same body enriches the same cells every time');
+  });
 });
 
 describe('carcass: lineage across removal (§1.4 C2)', () => {

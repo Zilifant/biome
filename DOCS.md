@@ -46,11 +46,12 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 725 passing / 0 failing, 189 suites                    |
+| Tests                 | 742 passing / 0 failing, 191 suites _(2026-07-28)_     |
 | `PROTOCOL_VERSION`    | 28                                                     |
 | `SAVE_FORMAT_VERSION` | 27                                                     |
-| Benchmark (large-5k)  | 67.25 ms/tick, 5733→7777 entities                      |
+| Benchmark (large-5k)  | **69.50 ms/tick** _(2026-07-28, after the species groundwork)_; unmodified HEAD measured 69.2/70.6/72.1 the same afternoon, so this is flat. ⚠ The 67.25 figure from 2026-07-21 predates line of sight, thickets, the water field, and the crowding cap — do not compare against it |
 | Species               | 3 (grazer, stalker, corvid) — all pure config          |
+| Species blocks        | **11** — `feeding`, `hunting`, `behavior` joined 2026-07-28 |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
 
@@ -174,6 +175,21 @@ reminder.
 
 ### 1.4 Structural and configuration debt
 
+**B7 — Three mass-blind constants remain, recorded rather than fixed** _(from
+the 2026-07-28 mass audit, PLAN-SPECIES.md §4)_. Every constant that ought to
+scale with body mass was audited ahead of the species roster and given a written
+verdict in its config comment. Three came back **open**, all deliberately left
+until the species that exposes them exists:
+
+| Constant                         | Why it is open                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `carcass.decayTicks`             | A 600 kg body rots on the same clock as a 6 kg one — wrong in both directions. Changing it changes a food source, so it needs its own sweep  |
+| `hunting.captureStaminaCost`     | Flat against a per-species `maxStamina`, so the ratio is _expressible_ but no species varies it yet. Re-check when two predators differ      |
+| `locomotion.maxOccupantsPerCell` | A headcount, not a volume: two 6 kg animals and two 600 kg animals cost a cell the same. The fix is an occupancy _cost_, on a knife edge     |
+
+Everything else audited as `scaled` or *correctly flat*. Two were fixed on the
+spot and are recorded as A52 and A53 below.
+
 **B1 — `createDemoSimulation.js` was never renamed to `createEcosystem.js`**
 _(from Step 4)_. Pure churn across server, scripts, and tests for no behavioural
 gain. Cosmetic cleanup if ever wanted.
@@ -269,6 +285,8 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | C5  | Reproduction exploded exponentially (8 → 1037 by tick 20 000)                                                                | Step 16 — predation is the limiter                                                                                                                                                                                                                        |
 | C6  | Two separate neighbour walks per animal per tick                                                                             | Step 30 — perception publishes its walk; sociality reads it (15.30 → 5.03 ms/tick)                                                                                                                                                                        |
 | C7  | Movement uses the **current** cell's terrain modifier, and feeding is **in-cell**                                            | _Settled_ — two deliberate modelling choices                                                                                                                                                                                                              |
+| A52 | ⚠ **Herbivore intake was flat while carnivore intake was mass-scaled.** `FeedingSystem` scaled `fleshIntakeRate` from Step 29 (the corvid, D22) but the herbivore branch above it still took a flat `0.6` biomass/tick at any body mass — the same latent bug, left standing on the other side of the same function because every herbivore was 30 kg | **Closed 2026-07-28** — scaled on the same allometric exponent. Inert in the demo by construction: the grazer sits exactly at `referenceMass`, so its factor is 1 and the world is bit-identical. Found by auditing for it rather than by a failure, which is the point of doing the audit in advance |
+| A53 | ⚠ **A carcass returned its nutrients to one cell, and `addAt` clamps to that cell's carrying capacity and discards the remainder.** So the closing half of the death→nutrient loop (Step 6) leaked for everything above the reference mass. Measured against `vegetation.capacity: 8`: a 30 kg grazer loses ~1 of ~9 — invisible, which is why it stood for fourteen steps — while **a 45 kg stalker loses ~60%**, true since Step 16 | **Closed 2026-07-28** — the return spills outward through Chebyshev rings to `carcass.nutrientSpreadRadius` (default 4), fixed order, no randomness. `0` restores the old single-cell behaviour and is the measured control. Also the truer model: one cell is a stride, and a body enriches a patch |
 | C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge. **Follow-up 2026-07-22:** reflection closed only the _wander_ half; the residual crowding was predator-driven `flee` re-aiming into the wall every tick, closed at the decision layer by edge-aware fleeing (`escapeHeading`, §7 Decision). 2-cell edge occupancy ~19% → ~9%, acute corner pinning ~×4–9 → ~×1.5, survival unchanged. Remaining outer-ring occupancy is a herd-distribution effect for the forage-taper change, not flee-pinning |
 
 ---
@@ -343,12 +361,38 @@ a higher one.
 - `test/species-schema.test.js` — **no species-name literal anywhere in
   `src/simulation`**, plus a companion scan requiring every `'herbivore'` /
   `'carnivore'` literal to sit within sixty characters of a `.diet` read.
+- `test/source-scan.test.js` — the comment stripper the three scans above share.
 
 ⚠ **Source scans strip comments before matching.** A scan once rejected a file
 for the word "window." inside a doc comment. The tempting fix is to reword the
 prose; the right fix is that a scan about what code _does_ should not read prose.
 A guard that fires on documentation teaches people to word around it rather than
 to trust it.
+
+⚠ **And a scan that strips comments with regexes goes blind, silently.** All
+three scans shared this line until 2026-07-28:
+
+```js
+source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
+```
+
+Block comments first, line comments second — so a `/` followed by a `*` inside a
+**line** comment reads as opening a block comment. `defaultSimulationConfig.js`
+contains exactly that: the literal `config/species/*` in a `//` comment. The
+regex took it as an opener and swallowed **six hundred lines**, including the
+whole `demo.founding` roster — the one place in that file where species ids
+appear. The invariant the species work leans on was unenforced across the file
+where ids are most likely to spread, and every test passed throughout.
+
+Reversing the order only moves the blind spot (a `*/` inside a line comment
+inside a block comment). Comments are not a regular language, so the shared
+stripper in `test/helpers/sourceScan.js` is a one-pass scanner tracking line
+comments, block comments, strings, and template literals — and the demo roster is
+now exempted **by name** rather than by accident. ⚠ Correcting it immediately
+caught a live violation the blind version had been hiding, and the first draft of
+the scanner had a bug of its own (it left template-literal mode at `${` and never
+returned, so a file of HTML templates desynced) — which is why the stripper has
+its own suite.
 
 ---
 
@@ -720,11 +764,27 @@ quietly stopped meaning anything, which is worse than a break.
 
 ### The schema
 
-Eight blocks fall back to the same-named global config section:
+Eleven blocks fall back to the same-named global config section:
 `metabolism`, `hydration`, `aging`, `perception`, `traits`, `genetics`,
-`disease`, `reproduction`. Alongside them sit fields that were always
-per-species: `matePreference`, `territory`, `migration`, `diet`,
-`preySpeciesIds`.
+`disease`, `reproduction`, and — added 2026-07-28 — `feeding`, `hunting`, and
+`behavior`.
+Alongside them sit fields that were always per-species: `matePreference`,
+`territory`, `migration`, `diet`, `preySpeciesIds`.
+
+⚠ **`feeding`, `hunting`, and `behavior` do not yet _vary_ by species**, exactly as `disease`
+did not when it landed (A38). They are the schema arriving ahead of the roster
+that needs it: a 6 kg animal and a 600 kg one currently eat at the same declared
+rate, and two predators cannot differ in how they capture. Two notes on how they
+resolve, both of which are modelling choices rather than plumbing:
+
+- **`hunting` resolves off the _hunter_** — how you capture is your biology —
+  **except `edibleMassFraction`, which resolves off the prey**, because what it
+  describes is how much of a body is meat.
+- **Feeding's mass scaling reads the `metabolism` block, not `feeding`**, since
+  that is where `referenceMass` and `massScalingExponent` live and where
+  `MetabolismSystem` reads them. Before this, a species overriding
+  `metabolism.referenceMass` would have changed what it burns without changing
+  what it can take in.
 
 A species file therefore reads as a list of what makes that animal _unusual_.
 The alternative — every species restating every parameter — makes the
@@ -867,6 +927,28 @@ The scored candidate set is:
 Inputs are hunger, thirst, readiness, dependency, perception, memory,
 temperament, threat, thermal stress, and the social summary. A small
 `explorationRate` chance wanders regardless; ties break by fixed order.
+
+⚠ **The weights live in two config sections, and the split is about ownership,
+not about which system reads them** (2026-07-28). Both are consumed here:
+
+- **`config.behavior`** — what an animal *wants*, and how it weighs competing
+  needs: the flee/herd/hunt/rest/patrol weights and the thresholds it acts on,
+  22 fields. A **species block**, because a skittish gazelle and a bold buffalo
+  are different animals — and because a lion and a leopard sit at opposite ends
+  of `herdWeight`, which is the one number separating a pride from a solitary cat.
+- **`config.decision`** — the machinery of committing to and executing a choice:
+  commitment windows, geometry probes, and thresholds defined against *other*
+  parameters. Global, 14 fields.
+
+The line matters more than exactly where it falls, and a field can be moved
+across it later. What cannot be undone is erasing it: handing a species file
+`minCommitTicks` or `fleeLookahead` lets it change how the *engine* works rather
+than what the animal is like, and once one species tunes those, the demo stops
+being one world with N animals in it and becomes N separately-tuned simulations
+sharing a map.
+
+The per-animal cost is nil — `update` already resolved the species for `diet`,
+mate preference, and territory, so `behavior` rides that same `Map.get`.
 
 **`leaveThicket`** heads an animal caught in a thicket toward the nearest open
 cell rather than leaving it crawling around in cover at speed 0.1 (§7 Terrain).
@@ -1083,6 +1165,47 @@ An animal whose action is `eat` removes up to `intakeRate` biomass from its cell
 and assimilates it at `energyPerBiomass × efficiency`, capped by its own energy
 deficit so it never overeats. Carnivores eat carrion instead, at a rate scaled
 by body mass and by the carcass's decay stage.
+
+⚠ **Herbivore intake is mass-scaled too, since 2026-07-28** — it was flat until
+then, which is the corvid's `fleshIntakeRate` bug (D22) left standing on the
+herbivore side because every herbivore was 30 kg.
+
+⚠ **It is _not_ inert in the demo, though it looks like it should be.** The
+grazer *species* sits exactly at `referenceMass`, so the obvious conclusion is
+that its factor is 1 and nothing changes — and that conclusion is wrong, because
+what the system reads is the **individual's** `bodyMass`: `adultMass` (species
+mass × the heritable `size` trait) walked up a growth curve. Measured on seed
+42's founding cohort: **5.1–33.7 kg, mass factors 0.265–1.092**, so a half-grown
+grazer eats about 40% less than it did.
+
+That is the more correct model rather than a regression — metabolism already
+scaled cost by the same mass on the same exponent, so before this a juvenile ate
+a full adult ration while paying a juvenile's upkeep and was quietly subsidised.
+But it changes an energy source, so it ships behind `feeding.massScaleIntake`
+(false restores the flat rate) and was swept against that control.
+
+_Measured 2026-07-28, **ten seeds × 15 000 ticks, four arms**_ — because this
+change and the carcass-nutrient one (§9 Carcasses) both touch an energy source,
+and A12's reasoning is that two changes to the same quantity at once leave no way
+to attribute the result. Populations are grazer / stalker / corvid:
+
+| Arm       | intake | carcass return | survival (seeds alive of 10) | mean population    |
+| --------- | ------ | -------------- | ---------------------------- | ------------------ |
+| `control` | flat   | one cell       | 10 / **10** / 10             | 143.6 / 5.4 / 242.5 |
+| `intake`  | scaled | one cell       | 10 / **9** / 10              | 173.5 / 6.3 / 215.9 |
+| `carcass` | flat   | spread         | 10 / **10** / 10             | 153.9 / 7.1 / 222.0 |
+| `both`    | scaled | spread         | 10 / **9** / 10              | 170.0 / 8.4 / 227.7 |
+
+Scaled intake **raises grazer carrying capacity ~21%** (143.6 → 173.5), which is
+the expected direction: juveniles no longer eat an adult ration, so less
+vegetation is stripped by animals that were being subsidised.
+
+⚠ **The one apparent cost is a single seed of stalker survival (10/10 → 9/10),
+and it should not be read as a result.** The seed in question (2) held exactly
+**one** stalker in the control arm — a population of one is a coin flip, not a
+surviving predator — and D14's rule is that a one-seed difference is the
+signature of noise rather than signal. Stalker _means_ move the other way in
+every arm (5.4 → 6.3 → 7.1 → 8.4). Recorded rather than tuned around.
 
 Multiple eaters on a cell contend **deterministically**: entities iterate in
 ascending id order, so the lower id eats first and later ones get the remainder.
@@ -1510,8 +1633,29 @@ nothing anywhere is quietly writing traits post-birth.
 A body is a resource on a clock. It passes through decay stages whose
 `STAGE_YIELD` cuts flesh value at each one (1 → 0.8 → 0.5 → 0.25), and leaves
 the world when either eaten clean or fully rotted — returning whatever mass is
-left to the cell as biomass, clamped to carrying capacity. **A carcass eaten
-clean returns nothing**; the scavengers already took it.
+left to the ground as biomass. **A carcass eaten clean returns nothing**; the
+scavengers already took it.
+
+⚠ **That return used to go into the death cell alone, and `addAt` clamps to the
+cell's carrying capacity and discards the rest** — so the closing half of the
+death→nutrient loop leaked for every animal above the reference mass. Measured
+2026-07-28 against `vegetation.capacity: 8`: a 30 kg grazer returns ~9 and loses
+about 1 (which is why it went unnoticed for fourteen steps), **a 45 kg stalker
+loses ~60%**, and a 600 kg animal would lose nearly all of it. The return now
+spills outward through Chebyshev rings up to `carcass.nutrientSpreadRadius`
+(default 4), in a fixed order with no randomness; whatever still will not fit is
+genuinely lost, which keeps the work bounded. Setting the radius to **0 restores
+the exact single-cell behaviour** and is the control it was measured against.
+This is also the truer model — one cell is a single stride, and a large body
+plainly enriches a patch rather than a square metre.
+
+_Measured 2026-07-28, ten seeds × 15 000 ticks against the `radius: 0` control:_
+**survival unchanged** — grazers 10/10 both ways, stalkers 9/10 both ways,
+corvids 10/10 both ways. Mean populations moved 173.5 → 170.0 (grazer),
+6.3 → 8.4 (stalker), 215.9 → 227.7 (corvid). ⚠ Read those means as noise, not
+result: per-seed grazer counts span 13–413 and move in both directions
+(seed 1 120 → 67, seed 2 334 → 413), the same magnitude as re-rolling the seed —
+the signature D14 and the crowding cap both describe.
 
 Old remains being barely worth crossing the map for is what keeps scavenging from
 replacing hunting.
@@ -2037,6 +2181,10 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | ⚠ D22 | A three-species sweep read 3/10 against a 6/10 control, and the cause was **not** the new species: `fleshIntakeRate` was flat, so a 4 kg scavenger stripped a carcass as fast as a 45 kg predator                                                                 | A shared constant that is _correct for one size_ is a latent bug that only a second size can expose                                                                                                                          |
 | D23   | A refactor broke **23 tests**, almost all the same way: they constructed a system with custom parameters and expected those to apply, but a species' resolved block now beats anything a system was constructed with                                              | When a parameter's **source** moves, every caller that supplied it the old way keeps working syntactically and stops working semantically. That is worse than a break                                                        |
 | ⚠ D24 | `hunts` was "optimized" with a precomputed `Set`; two whole-sim runs read ~1% faster, two read slower. A microbenchmark showed the `Set` is **35% slower** — the rosters are one entry long                                                                       | Whole-system timings here cannot resolve ~1% (spread is ±10%). Benchmark the _thing you changed_, at a volume where it dominates. "Obviously faster data structure" is a hypothesis                                          |
+| ⚠ D25 | Three source scans shared one comment-stripping line that read `/*` **inside a `//` comment** as opening a block comment. `defaultSimulationConfig.js` has exactly that (`config/species/*` in a line comment), so the regex swallowed 600 lines including the whole `demo.founding` roster — the one place ids appear. The species invariant was unenforced for months and every test passed | A guard can go blind **silently**, and a passing test is not evidence it is looking. Comments are not a regular language: strip them with a scanner, not two regexes. ⚠ Correcting it immediately exposed a real violation the blind version had been hiding — so the pass rate had been measuring the scan's blindness, not the code |
+| D26   | The replacement scanner had a bug of its own: it left template-literal mode at `${` and never returned, so everything after a substitution was read as code. In a file of HTML templates the next `"` opened a bogus string and the scanner desynced — surfacing as `Controls.js` failing for a `Math.random` that appears only inside a comment saying it is banned | A hand-written scanner needs its own tests before it is trusted to police anything else. This one failed loudly by luck; it could as easily have gone blind in the other direction |
+| ⚠ D27 | Mass-scaling herbivore intake was written up as "inert — the grazer sits exactly at `referenceMass`, so its factor is 1". It is not: the system reads the **individual's** `bodyMass`, which is `adultMass × size trait` walked up a growth curve. Seed 42's cohort measured 5.1–33.7 kg, factors 0.265–1.092 — a half-grown animal's intake fell ~40% | **A species-level constant is not an entity-level one.** To decide whether a change is inert, check the value the code actually reads, on real entities — not the config it resolves from. The claim was written before it was measured, which is the entire error |
+| ⚠ D28 | Making `foodMinLevel` per-species meant resolving it beside `radius` and passing both into `PerceptionSystem#perceive` — a four-argument call instead of three. That cost **12% of total engine time** at large-5k (66.1 → 70.7 ms/tick). An A/B pinned it on the **arity alone**: keeping the fourth parameter but passing the old global value was just as slow (70.4), while returning to three arguments was 62.8. Passing the resolved block as one object restored it | **The hottest function in the engine is arity-sensitive, and nothing about the diff looks expensive.** `#perceive` is ~53% of a tick and holds the (2r+1)² cell scan; one more parameter is enough to change what the optimiser does with it. Prefer handing a hot helper one object over widening its signature — and ⚠ note the whole-system profiler *hid* this: wrapping prototypes to time each system showed only +0.8%, because the wrapper overhead perturbed exactly the inlining under test |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
 ---
@@ -2152,12 +2300,35 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
 `engineering`, `disturbance`, `migration`, `disease`, `social`, `environment`,
 `carcass`, `lineage`, `injury`, `hunting`, `locomotion`, `memory`, `metrics`,
-`genetics`, `traits`, `parenting`, `aging`, `hydration`, `feeding`, `decision`,
+`genetics`, `traits`, `parenting`, `aging`, `hydration`, `feeding`, `behavior`,
+`decision`,
 `demo`.
 
-Eight of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
-`genetics`, `disease`, `reproduction`) double as **species-block defaults** — see
-§8.
+**Eleven** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
+`genetics`, `disease`, `reproduction`, and — from 2026-07-28 — `feeding`,
+`hunting`, and `behavior`) double as **species-block defaults** — see §8.
+
+⚠ **`behavior` and `decision` are one mechanism split in two**, both read by
+`DecisionSystem`: `behavior` is what an animal wants (per-species), `decision`
+is the machinery of choosing (global). See §9 Decision.
+
+⚠ **A value must have exactly one home.** Three constants were restated in a second
+section with a comment saying they matched the first, which is the D11 shape
+("when one parameter is a threshold on another, write the relationship down
+beside them; equal values are the failure case, not the neutral one"):
+
+- `drinkRange` lived in both `hydration` and `decision`. It now lives only in
+  `hydration`, and the decision system reads it from there — so a species that
+  changes its reach to water changes both halves at once, instead of deciding it
+  is at water and then being refused the drink.
+- `carcassRange` lived in both `feeding` and `decision`, with the same
+  "(matches feeding)" comment. It now lives only in `feeding`. Drifted, a
+  carnivore decides it is on a carcass and then cannot reach it.
+- `foodMinLevel` lives in `perception` and was **declared per-species but read
+  from two constructors**, so no species could actually differ in what counted as
+  food. Both perception and decision now read the species' own value, which
+  matters because they must agree: otherwise an animal walks to a cell its senses
+  called food and then declines to eat it.
 
 ---
 

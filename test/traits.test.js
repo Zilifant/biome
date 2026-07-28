@@ -235,9 +235,13 @@ describe('traits: behavioural consequences', () => {
   test('trait multipliers of 1.0 reproduce the pre-trait behaviour exactly', () => {
     const config = new SimulationEngine().config;
     const neutral = decisionOnly({}, GRAZER.maxEnergy * 0.5);
-    assert.equal(neutral.utilityBreakdown.wander, config.decision.wanderBias);
+    // ⚠ `wanderBias` and `hungerWeight` moved to `config.behavior` on
+    // 2026-07-28 (the species-block half of the old `config.decision`); `eatBias`
+    // stayed global as machinery. Two sections, one system — see the note above
+    // `behavior` in defaultSimulationConfig.js.
+    assert.equal(neutral.utilityBreakdown.wander, config.behavior.wanderBias);
     // Standing on open ground vegetation at half energy: eatBias + hunger×1.
-    const expectedEat = config.decision.eatBias + config.decision.hungerWeight * 0.5;
+    const expectedEat = config.decision.eatBias + config.behavior.hungerWeight * 0.5;
     assert.ok(Math.abs(neutral.utilityBreakdown.eat - expectedEat) < 1e-9, `eat ${neutral.utilityBreakdown.eat} vs ${expectedEat}`);
   });
 });

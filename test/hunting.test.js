@@ -21,12 +21,29 @@ const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, {});
 const hunts = (a, b) => REGISTRY.hunts(a, b);
 const STALKER = getSpecies('predator.stalker');
 
-/** Bare open ground, so nothing but the two animals is in play. */
-function sandbox({ seed = 3, size = 44, systems = [] } = {}) {
+/**
+ * Bare open ground, so nothing but the two animals is in play.
+ *
+ * ⚠ `hunting` overrides go through the **config**, never through a
+ * `new HuntingSystem({...})` option. Since 2026-07-28 `hunting` is a species
+ * block, and a species' resolved block beats anything a system was constructed
+ * with (DOCS §8) — so `new HuntingSystem({ baseCaptureChance: 10 })` around a
+ * known species is silently ignored. That is D23, which once inverted 23 tests
+ * at a stroke: they kept compiling and stopped meaning anything. Passing the
+ * override into the config is what the registry actually resolves against, so
+ * the system and the species agree.
+ */
+function sandbox({ seed = 3, size = 44, systems = [], hunting = null } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    config: {
+      world: { width: size, height: size },
+      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      ...(hunting ? { hunting } : {}),
+    },
   });
+  // Built from the *resolved* config, so it matches what the species resolves to.
+  if (hunting) engine.registerSystem(new HuntingSystem(engine.config.hunting));
   for (const system of systems) engine.registerSystem(system);
   return engine;
 }
@@ -136,7 +153,7 @@ describe('predation: capture odds come from relative state', () => {
 describe('predation: capture and escape', () => {
   test('a successful capture kills the prey and leaves a carcass to eat', () => {
     // Odds forced to certainty so the outcome is about consequences, not luck.
-    const engine = sandbox({ systems: [new HuntingSystem({ ...CONFIG.hunting, baseCaptureChance: 10 })] });
+    const engine = sandbox({ hunting: { baseCaptureChance: 10 } });
     const { predatorId, preyId } = lunge(engine);
     const before = engine.events.lastSeq;
     engine.step(1);
@@ -157,7 +174,7 @@ describe('predation: capture and escape', () => {
   });
 
   test('a failed hunt costs the predator energy and teaches the prey the place is dangerous', () => {
-    const engine = sandbox({ systems: [new HuntingSystem({ ...CONFIG.hunting, baseCaptureChance: 0, minCaptureChance: 0 })] });
+    const engine = sandbox({ hunting: { baseCaptureChance: 0, minCaptureChance: 0 } });
     const { predatorId, preyId } = lunge(engine);
     const energyBefore = engine.world.entities.get(predatorId).energy;
     const before = engine.events.lastSeq;
@@ -175,7 +192,7 @@ describe('predation: capture and escape', () => {
   });
 
   test('the lunge costs stamina and starts the recovery pause either way', () => {
-    const engine = sandbox({ systems: [new HuntingSystem({ ...CONFIG.hunting, baseCaptureChance: 0, minCaptureChance: 0 })] });
+    const engine = sandbox({ hunting: { baseCaptureChance: 0, minCaptureChance: 0 } });
     const { predatorId } = lunge(engine);
     engine.step(1);
     const predator = engine.world.entities.get(predatorId);
@@ -184,7 +201,7 @@ describe('predation: capture and escape', () => {
   });
 
   test('no attempt is made from out of range', () => {
-    const engine = sandbox({ systems: [new HuntingSystem({ ...CONFIG.hunting, baseCaptureChance: 10 })] });
+    const engine = sandbox({ hunting: { baseCaptureChance: 10 } });
     const { preyId } = lunge(engine, { prey: { x: 26, y: 20 } }); // well beyond captureRange
     engine.step(1);
     assert.equal(engine.world.entities.get(preyId).alive, true, 'still closing, no lunge yet');
@@ -350,11 +367,11 @@ describe('predation: demonstration scenario and the demo', () => {
     // step asks for. Everything else, including the seed, is identical.
     const outcome = (baseCaptureChance) => {
       const engine = sandbox({
+        hunting: { baseCaptureChance },
         systems: [
           new PerceptionSystem(CONFIG.perception),
           new DecisionSystem({ ...CONFIG.decision, foodMinLevel: 1 }),
           new MovementSystem(CONFIG.locomotion),
-          new HuntingSystem({ ...CONFIG.hunting, baseCaptureChance }),
           new FeedingSystem(CONFIG.feeding),
         ],
       });
