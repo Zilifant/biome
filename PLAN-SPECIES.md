@@ -133,6 +133,11 @@ toward **forage sources**, not toward an omnivore (§3.2).
   config file, zero engine code.
 - **Metrics bucket by species dynamically** and sort by id; the renderer's
   legend is generated from the appearance registry.
+- **Persistent groups exist as of 2026-07-28** (§3.8, phase 3). `world.groups` is
+  a bounded record store and `groupRecordId` is the membership; a species opts in
+  with `groups: { forms: true }`. ⚠ **No shipped species does**, so it is inert
+  and the demo is byte-identical without it — the schema ahead of the roster
+  again. The herd label is untouched and is what the grazer still uses.
 - **Sexes, lineage, dominance, and injury all already exist**, which matters more
   for this roster than for the old one: sex-structured behaviour (§3.10),
   kin-based defense, and contest resolution are extensions of shipped
@@ -176,17 +181,19 @@ is only which of them the engine can express.
 | **Which grass it eats**        | ❌                      | one biomass field, no maturity                       | gazelle / wildebeest / zebra    |
 | **Where it lives**             | ❌                      | nothing; A49 is open                                 | leopard, buffalo, rhino         |
 | **Which individuals it eats**  | ❌                      | no mass ratio, no life-stage gate                    | lion, leopard, hyena            |
-| **Persistent social identity** | ❌                      | herd labels are positional, not remembered           | lion, hyena, zebra, elephant    |
+| ~~**Persistent social identity**~~ | ✅ **since 2026-07-28** | `world.groups` + `groupRecordId`, gated by `groups.forms` (§3.8, phase 3) | lion, hyena, zebra, elephant    |
 | **Cooperative action**         | ❌                      | defense is passive; no group hunt, no mobbing        | lion, hyena, buffalo            |
 | **Contested carcasses**        | ❌                      | a carcass has no possessor                           | lion vs hyena vs vulture        |
 | **Escape by agility**          | ❌                      | `captureChance` reads top speed, not manoeuvre       | gazelle                         |
 | **Concealed newborns**         | ❌                      | a juvenile follows its guardian from birth           | gazelle                         |
 | **Heterospecific association** | ❌                      | herding is conspecific-only                          | gazelle with wildebeest / zebra |
 
-Everything from **"What food it eats"** down is the remaining plan. ✅ The first
-two ❌ rows closed on 2026-07-28: `behavior` became a species block (phase 2,
-§3.1), which is what makes "a skittish gazelle" and "a pride versus a solitary
-cat" expressible at all.
+Everything from **"What food it eats"** down is the remaining plan, minus the
+persistent-identity row. ✅ Three ❌ rows closed on 2026-07-28: `behavior` became
+a species block (phase 2, §3.1), which is what makes "a skittish gazelle" and "a
+pride versus a solitary cat" expressible at all; and the group registry landed
+(phase 3, §3.8), which is what makes a pride a thing that exists between
+sightings.
 
 ⚠ **Prior art from this repo:** adding the corvid read as a balance problem
 (3/10 seeds vs a 6/10 control) until the real cause turned up — `fleshIntakeRate`
@@ -502,7 +509,11 @@ Follow that, because the hooks are genuinely already there:
 from `african-species.md` is correct and matches this repo's own rules: one
 generalized mechanism, driven by species data.
 
-### 3.8 Persistent social groups — full registry (settled)
+### 3.8 ✅ Persistent social groups — full registry (shipped 2026-07-28, phase 3)
+
+✅ **Built.** The section below is the plan as written, kept because its reasoning
+is what should govern the *next* decision about group state; the "As built" block
+at the end records the five places the design sketch was wrong and why.
 
 **Settled (§11.2): build the full bounded group registry, and build it early**,
 because lions land in the first batch and a lion without a pride is, in
@@ -561,6 +572,56 @@ cut: a record is founded when an animal of a `social.formsGroups` species has no
 group and meets a conspecific with none; membership is inherited by offspring
 (matrilineal for lion and hyena, which is also what makes female philopatry and
 male dispersal expressible); males leave at dispersal age (§3.10).
+
+#### ✅ As built (2026-07-28) — where the sketch above was wrong
+
+Every cost the section predicted was real and was paid: the save bump, the
+dissolution policy, the ascending-id iteration, the structural discipline, and
+the rewrite of DOCS §9 Sociality. Five things came out differently, and the
+reasons are reusable:
+
+- ⚠ **`leaderId` was dropped, not deferred.** The field list named one. Storing
+  it would be storing a **rank**, and DOCS §9 is explicit that "standing is
+  derived, never stored" — `dominanceOf` reads mass, condition, soundness,
+  boldness, and maturity on demand precisely so a mauled animal loses standing.
+  §10.2 also puts rank-structured access out of scope for both prides and clans,
+  so the record would have carried a field nothing was allowed to use. A consumer
+  wanting the dominant member walks the bounded `memberIds`. `founderId` took its
+  place: a fact about history rather than about hierarchy.
+- ⚠ **`centre` was dropped too**, for the same family of reason: it is a pure
+  function of where the members are right now, and caching it into *saved* state
+  is the one place a derived value can go stale across a load. Derived on read.
+- **The gate is not `social.formsGroups`.** `config.social` is the herd-label
+  section, and hanging the registry's switch inside it would have merged the two
+  mechanisms in the one place the whole design says to keep them apart. It is a
+  separate `groups` section, and — following `migration` and `territory` rather
+  than the `SPECIES_BLOCKS` pattern — an **always-per-species field, not a
+  block**: the section also holds world-level machinery (`enabled`,
+  `updateInterval`, and the store bound `maxGroups`), and a species block would
+  have handed every species a knob on a store it does not own.
+- **The store bound refuses rather than evicts.** The section asked for "a
+  defined answer" when a bounded store fills and left the answer open. It is: a
+  full registry declines to found a new group until one dissolves. Evicting would
+  delete a clan whose members are all still alive, which is the failure
+  `forgotten` exists to avoid in the tombstone registry — there, eviction is fine
+  because the oldest tombstone genuinely is the least useful and `forgotten` is a
+  reportable answer. `FeatureGrid` declining to track new ground is the closer
+  precedent and is the one this copies.
+- ⚠ **The protocol projection did not land, on purpose.** §6 already says to take
+  it in the v29 bump; doing it here would have meant two protocol versions and
+  two fixture regenerations in consecutive phases. It is now tracked as **DOCS
+  A54**, with the note that it stops being a scheduling choice and becomes a
+  defect the moment a species actually forms groups — which is the same phase the
+  bump lands in.
+
+Two things worth carrying forward. **The mechanism is inert and that was
+measured, not assumed** (D27's lesson applied in advance): no shipped species
+declares `groups.forms`, and the demo's entity state is byte-identical across
+three seeds at 1500 ticks, with large-5k flat against interleaved HEAD readings.
+And **the hot-path fear from phase 2 did not repeat**, because the system's first
+branch is "does any species in this world form groups?" — one `Set` built per
+world and a size check per tick. The neighbour walk it would otherwise need is
+never reached.
 
 ### 3.9 Carcass possession and kleptoparasitism
 
@@ -1145,7 +1206,7 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 | ~~**0**~~ | ✅ **Done 2026-07-28.** Guard rails: comment-stripping fixed in all three scans (§5.5); the two "every species differs" assertions rewritten (§5.6); benchmark re-baselined                                                                                                                                                                                                                                                                                                                        | none | test only                         |
 | ~~**1**~~ | ✅ **Done 2026-07-28.** §5.1 mass-scaled `intakeRate`; §5.2 carcass nutrient return; §5.3 per-species `foodMinLevel`; §5.4 `drinkRange` dedupe; §5.8 load-time speciesId check; the §4 audit with a written verdict per constant. `feeding` + `hunting` added to `SPECIES_BLOCKS`. ⚠ §5.7 (the ethologist's `diet === 'carnivore'`) is **deliberately not** fixed here — it only breaks when `diet` stops being a string, and it must move in that same commit (phase 15) or the fix is untestable | low  | schema + real fixes               |
 | ~~**2**~~ | ✅ **Done 2026-07-28.** `config.decision` split into `config.behavior` (22 fields, a species block) + `config.decision` (14, global); `behavior` added to `SPECIES_BLOCKS`; `carcassRange` deduped — a **third** D11 duplicate, found during the split. ⚠ Cost one real hot-path regression (12%) and its fix; see D28                                                                                                                                                                             | med  | schema + 3 test fixes             |
-| **3**     | **Persistent group registry** (§3.8): bounded record store, founding/join/leave, serialization, dissolution policy                                                                                                                                                                                                                                                                                                                                                                                 | high | new subsystem + save bump         |
+| ~~**3**~~ | ✅ **Done 2026-07-28.** Persistent group registry (§3.8): `GroupRegistry` (bounded at 64, refuses rather than evicts), `GroupSystem` (founding, joining, guardian inheritance, sex-biased departure, dissolution), `groupRecordId` on the entity, `SAVE_FORMAT_VERSION` 27 → 28, DOCS §9 Sociality rewritten to record the decision it overrides. ⚠ Inert by construction — no shipped species forms groups, and the demo is byte-identical across three seeds. ⚠ The protocol projection is **deliberately deferred** to phase 5's v29 (now DOCS A54) | high | new subsystem + save bump         |
 | **4**     | Predation structure: `predation` mass/age eligibility (§3.6), the `agility` capture term (§3.15), **carcass possession and theft (§3.9)**                                                                                                                                                                                                                                                                                                                                                          | med  | Perception / Hunting / Feeding    |
 | **5**     | Protocol **v29** (§6): founding roster by species, host-published species list, group projection, renderer fields, ethologist flags                                                                                                                                                                                                                                                                                                                                                                | med  | protocol bump, fixtures           |
 | **6**     | Renderer scale (§7): glyph/colour/priority scheme, collapsible per-species metrics                                                                                                                                                                                                                                                                                                                                                                                                                 | low  | renderer only                     |
@@ -1409,13 +1470,17 @@ Recorded 2026-07-28. Re-opening one needs a new reason, not a reminder.
    hyena is the ecologically correct partner for a 30 kg gazelle (ratio 0.5
    against the lion's 0.17), and its group behaviour — kill theft — is provable in
    batch 1, which the lion's cooperative hunting is not. See §0.
-2. **Persistent social groups — build the full registry, and build it early.**
+2. ✅ **Persistent social groups — build the full registry, and build it early.**
    Not the cheap sticky-label cut. A clan-forming carnivore in batch 1 makes it a
    prerequisite rather than optional depth, so it lands in phase 3 — and batch 1
    proves it, via clan-held carcasses. ⚠ It overrides a documented design
    decision in DOCS §9 Sociality and that section must be rewritten to say so, not
    quietly changed. The existing herd-label mechanism is kept alongside it and is
    what the gazelle keeps using (§3.8).
+   ✅ **Shipped 2026-07-28.** DOCS §9 Sociality now opens with the override.
+   Still unproven in a world: nothing forms groups until phase 7, which is why
+   §9's gate asks batch 1 to assert clan formation and dissolution *directly*
+   rather than inferring them from survival.
 3. **Rename the species.** Old saves are not a concern, so no alias map. But
    "not a concern" must mean _fails loudly_: add a load-time check that rejects a
    save containing an unknown `speciesId` rather than silently degrading to config
@@ -1442,7 +1507,9 @@ Recorded 2026-07-28. Re-opening one needs a new reason, not a reminder.
 Per E4 discipline, and all lists must stay in step:
 
 - `DOCS.md` — §8 "The three species" table, the schema block list, the invariants;
-  ⚠ **§9 Sociality must be rewritten** at phase 3 (§11.2); §9 Hunting at phases 4
+  ✅ **§9 Sociality was rewritten** at phase 3 (§11.2) — it now opens by recording
+  the decision it overrode, with the label mechanism kept whole underneath and a
+  new "Persistent groups" subsection beside it; §9 Hunting at phases 4
   and 10; §9 Carcasses at phase 4 (possession); §9 Feeding at phases 4 and 9; §9
   Parenting at phase 8; §7 Vegetation at phase 9; §5
   lifespan compression at phase 13 (§11.6); §19 configuration map at phase 2

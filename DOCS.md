@@ -46,10 +46,10 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 742 passing / 0 failing, 191 suites _(2026-07-28)_     |
+| Tests                 | 772 passing / 0 failing, 196 suites _(2026-07-28)_     |
 | `PROTOCOL_VERSION`    | 28                                                     |
-| `SAVE_FORMAT_VERSION` | 27                                                     |
-| Benchmark (large-5k)  | **69.50 ms/tick** _(2026-07-28, after the species groundwork)_; unmodified HEAD measured 69.2/70.6/72.1 the same afternoon, so this is flat. ⚠ The 67.25 figure from 2026-07-21 predates line of sight, thickets, the water field, and the crowding cap — do not compare against it |
+| `SAVE_FORMAT_VERSION` | **28** — the persistent-group registry (§9 Sociality)  |
+| Benchmark (large-5k)  | **78.30 ms/tick** _(2026-07-28 evening, after the group registry)_; unmodified HEAD measured 76.21 and 78.94 interleaved with it, so this is flat. ⚠ The whole machine reads ~10% slower this session than the 69.2–72.1 band the same HEAD gave that afternoon — which is exactly why only same-session, interleaved readings are comparable. Do not compare against the 67.25 figure from 2026-07-21 at all; it predates line of sight, thickets, the water field, and the crowding cap |
 | Species               | 3 (grazer, stalker, corvid) — all pure config          |
 | Species blocks        | **11** — `feeding`, `hunting`, `behavior` joined 2026-07-28 |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
@@ -139,6 +139,18 @@ afford site fidelity at all (A34), so families are no more co-located than
 before. The named lever is relaxing "nearer the predator than I am" to "near
 enough to interpose".
 
+**A55 — The persistent-group registry never fires in the demo** _(from
+2026-07-28, PLAN-SPECIES.md §3.8)_
+
+Not near-inert but **wholly** inert, and deliberately: no shipped species
+declares `groups.forms: true`, so `GroupSystem` returns on its first branch every
+tick. This is the schema-ahead-of-the-roster pattern A38 records for `disease`,
+and it is measured rather than assumed — the demo's entity state is
+byte-identical across three seeds to the tree without it. It stops being inert at
+the first clan-forming carnivore (PLAN-SPECIES.md phase 7), which is also the
+first time anything gets to be wrong about it. Until then the mechanism is
+carried entirely by tests that invent a group-forming species.
+
 ### 1.3 Deferred scope
 
 Features named in the roadmap that were deliberately not built, each with the
@@ -171,6 +183,7 @@ reminder.
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
 | A49 | **"Activity pattern" and "habitat preference" are not schema blocks**                                                                                                          | Open. There is no diurnal cycle for a pattern to exist in, and habitat preference is expressed through `migration.tracksForage` plus the comfort band rather than as a field                                                                                                                                                                     |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
+| A54 | ⚠ **Persistent group membership is not inspectable through the protocol.** `world.groups` and the per-entity `groupRecordId` exist in the engine, but neither the entity inspection payload nor `/api/metrics` mentions them, and there are no group formation/dissolution events | Open, **scheduled**. Invariant 19 wants "which pride is this lion in" on the wire and it will be. Held back deliberately so the projection rides the v29 bump the founding-roster rework needs anyway (PLAN-SPECIES.md §6) — bumping the protocol twice in consecutive phases means regenerating renderer fixtures twice for nothing. ⚠ It stops being a scheduling choice and starts being a defect the moment a species actually forms groups, which is the same phase the bump lands in |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
@@ -559,7 +572,7 @@ ships with its projection, persistence, inspection, and tests.
 | Memory           | bounded `memories[]` (max 8)                                                              |
 | Reproduction     | `gestationUntil, lastMatedTick, sex, mateSearchSince, lastCourtship`                      |
 | Genetics         | `genome{}`, `traits{}` (expressed phenotype), `generation`                                |
-| Relationships    | sparse `parents[], offspring[], guardianId, weaned, groupId, groupHops`                   |
+| Relationships    | sparse `parents[], offspring[], guardianId, weaned, groupId, groupHops, groupRecordId`    |
 | Injury           | `injuries[]` (max 4), cached `impairment`                                                 |
 | Disease          | `diseaseState`                                                                            |
 | Social / spatial | `alarmedUntil, alarmSource, homeRange, lastMarkTick, migrationHeading, migrationStrength` |
@@ -588,6 +601,7 @@ because a layer's storage should match how densely it is actually populated.
 | `ScentGrid` (territorial claims) | coarse cells, 4×4 world cells each                | **Yes**                                           | Two numbers per cell: who claims it, how fresh |
 | `FeatureGrid` (trails/burrows)   | **sparse `Map`**, bounded at 8192 tracked cells   | **Yes**                                           | Most of the map carries nothing                |
 | Disturbances                     | a bounded list (≤3) of circles                    | **Yes**                                           | Not a cell layer at all                        |
+| `GroupRegistry` (persistent groups) | a bounded `Map` of ≤64 records                 | **Yes**                                           | Not spatial at all — an identity store (§9)    |
 | `Environment` (season/weather)   | a handful of scalars                              | **Yes**                                           | The one genuinely global state                 |
 
 ⚠ **Terrain is derived and unsaved, so nothing may mutate it.** Both the
@@ -831,7 +845,7 @@ variant's own parameters.**
 
 ## 9. Systems reference
 
-Twenty-two registered systems. Each declares `{ id, phase, priority,
+Twenty-three registered systems. Each declares `{ id, phase, priority,
 updateInterval }` and an `update(world, context)`.
 
 | System               | Phase       | Priority |  Interval | What it does                                                                                           |
@@ -842,6 +856,7 @@ updateInterval }` and an `update(world, context)`.
 | `PerceptionSystem`   | perception  |        0 |         1 | Bounded local sense of nearest food/water/obstacle/cover, nearby animals, parent, prey, threats, mates |
 | `MemorySystem`       | perception  |       10 |         5 | Fades each remembered place on its own schedule and forgets it once too faint                          |
 | `SocialSystem`       | decision    |      −10 |         1 | Herd labels, the local group summary, and alarm propagation                                            |
+| `GroupSystem`        | decision    |       −8 |         1 | Persistent group records: founding, joining, inheritance, departure, dissolution                       |
 | `MigrationSystem`    | decision    |       −5 | staggered | Reads the forage gradient and keeps a drift heading current; sends juveniles walking                   |
 | `DecisionSystem`     | decision    |        0 |         1 | Scores every candidate action and sets the movement intent                                             |
 | `MovementSystem`     | movement    |        — |         1 | Executes the intent: terrain-aware stepping, sprinting, passability                                    |
@@ -1281,11 +1296,50 @@ to take him.** Neither silently overrides the other.
 
 ### Sociality
 
-**A herd is a label, not a roster.** Nothing anywhere holds a membership list.
-Animals in sight of each other converge on a shared `groupId` by local
-propagation — take the smallest label you can see — so herds form, merge on
-contact, and split apart, all from one grid-local neighbour query per animal and
-without a single structural operation.
+⚠ **This section used to open "a herd is a label, not a roster — nothing
+anywhere holds a membership list", and since 2026-07-28 that is no longer true
+of the world as a whole.** It is recorded here rather than quietly edited,
+because it was a deliberate design decision held for seven steps and the reasons
+it was right are the reasons the replacement is shaped the way it is.
+
+There are now **two** sociality mechanisms, and they model different things:
+
+| Mechanism                     | Models                                    | State                                                  | Owner          |
+| ----------------------------- | ----------------------------------------- | ------------------------------------------------------ | -------------- |
+| **Herd label** (`groupId`)    | fission–fusion aggregation: who I happen to be standing with | a label, recomputed every tick by local propagation | `SocialSystem` |
+| **Group record** (`world.groups`) | identity that survives separation: who I belong to | a bounded, saved record with a membership list | `GroupSystem`  |
+
+The label is not deprecated, weakened, or wrapped. It is what every loosely
+aggregating species keeps using, and the grazer keeps using it exclusively —
+which is also the control that proves it was not disturbed. What it structurally
+cannot express is a lion pride, a hyena clan, a zebra band, or an elephant
+family: those are memberships that persist while the animals are out of sight of
+each other, and a positional label loses them the moment they walk apart. The
+registry exists for exactly that, and for nothing else.
+
+⚠ **Two systems must never write the same field**, and here that rule is what
+keeps the mechanisms honest: `GroupSystem` never touches `groupId` or
+`groupHops`, and `SocialSystem` never touches `groupRecordId`. A registry that
+quietly rewrote herd labels would be a roster pretending to be a label, which
+is the worst of both. A test asserts each direction directly.
+
+The rest of this section is the label mechanism, unchanged. The registry is
+written up under **Persistent groups** below.
+
+#### Herd labels
+
+**A herd is a label, not a roster.** Nothing in *this* mechanism holds a
+membership list. Animals in sight of each other converge on a shared `groupId`
+by local propagation — take the smallest label you can see — so herds form,
+merge on contact, and split apart, all from one grid-local neighbour query per
+animal and without a single structural operation.
+
+⚠ **`minGroupSize` counts groupmates, not members.** At the default of 2 an
+animal needs two *others* in range before it carries a label at all, so the
+smallest herd that exists is **three** animals and a pair is nothing. That is
+the intended behaviour and it is not going to change; the name reads the other
+way, which is worth knowing before wondering why two animals standing together
+have no label.
 
 ⚠ **A local mechanism needs an explicit bound to stay local. Population density
 is not a bound.** Two things had to be bounded, and both were found by _running_
@@ -1310,6 +1364,94 @@ Alarm is staged into a map and committed after the pass, so panic spreads exactl
 one hop per tick regardless of entity iteration order. Writing straight to the
 entity would let an alarm race down the id ordering and cross the whole herd in a
 single tick.
+
+### Persistent groups
+
+_Added 2026-07-28 (PLAN-SPECIES.md §3.8, phase 3). See the note at the head of
+§9 Sociality for what it overrides._
+
+**A group record is an identity, not a position.** `world.groups` is a bounded
+store of records — `{ id, speciesId, memberIds, founderId, foundedTick }` — and
+each member carries a `groupRecordId` pointing back at one. Membership changes
+only when an animal explicitly joins or leaves, so two members forty units apart
+are still in the same clan while their herd labels have long since diverged.
+That sentence is the whole feature; everything below is what it costs.
+
+⚠ **It is inert in the demo, by construction.** No shipped species declares
+`groups.forms: true` — the grazer and corvid are label animals, the stalker is
+solitary, and each says so in its own file. `GroupSystem` builds its set of
+group-forming species once and returns on its first branch every tick
+thereafter, so this cannot move a demo number: measured across three seeds at
+1500 ticks, entity state is **byte-identical** to the tree without it, and
+large-5k is flat. The mechanism is the schema arriving ahead of the roster that
+needs it, exactly as `disease` did at Step 29 (A38) and `feeding`/`hunting`/
+`behavior` did earlier the same day. Its first consumer is the clan-forming
+carnivore of batch 1.
+
+**The rules, all of them the cheapest honest first cut:**
+
+- **Founding** — two unattached conspecifics of a group-forming species within
+  `joinRadius`.
+- **Joining** — an unattached animal takes an existing group with room in
+  preference to founding a new one, **smallest record id first**, the same min-id
+  rule herd labels merge by and for the same reason: it makes the outcome
+  symmetric. ⚠ There is **no admission test**; a pride does not really accept
+  every passing lioness, but rank-structured admission is out of scope.
+- **Inheritance** — a dependent juvenile takes its guardian's group and never
+  joins by proximity. The guardian is the parent that gestated, so **matrilineal
+  descent falls out with no sex conditional anywhere**.
+- **Leaving** — the sex named by `leavingSex` leaves its natal group when it
+  disperses. Natal dispersal already exists as a bounded outward walk, so
+  sex-biased dispersal costs no new state and no new clock: it is that event,
+  filtered by sex, and it is what makes a female-cored group expressible.
+  ⚠ **Nothing else removes a living member.** Membership surviving separation is
+  the point, not a side effect.
+- **Dissolution** — a record with fewer than `minMembers` living members is
+  destroyed and its survivors released. That is what reclaims a clan whose
+  members have died, and `minMembers: 2` says "a lone animal is not a group of
+  one" exactly as the herd label does.
+- **No merging.** Two clans that meet stay two clans. Labels merge on contact
+  because a label *is* proximity; an identity that dissolved into whichever group
+  it walked past would not be an identity.
+
+**The registry follows the world by filtering, not by being told.** Each update
+first prunes every roster against the live entities — gone, dead, or no longer
+claiming membership — rather than hooking every death path. One place to be
+right instead of six places to remember, and it means a removal route this
+mechanism has never heard of still cannot leave a phantom clan. A carcass is
+dropped from the roster but **keeps its own `groupRecordId`**, which is a fact
+about who it was, exactly as `deathCause` is.
+
+**Three things it deliberately does not store**, each because storing them would
+contradict a rule this codebase already keeps:
+
+- **No leader, and no rank.** The plan's field sketch named a `leaderId`; it is
+  absent. Standing is derived, never stored (see Reproduction above) — a rank you
+  cannot lose by being hurt is a title. A consumer wanting "the dominant member"
+  walks the bounded `memberIds` through `dominanceOf`.
+- **No centre.** Where a group is changes every tick and is a pure function of
+  where its members are, so it is derived on read rather than cached into saved
+  state where it could go stale.
+- **No size counter.** `memberIds.length`.
+
+**Bounded, and it says so.** At most `maxGroups` (64) records exist. A full store
+**refuses to found** until one dissolves; it never evicts. Evicting would
+silently delete a group whose members are all still walking around, which is the
+failure `forgotten` exists to avoid in the tombstone registry. Ids climb
+monotonically and are never reused, so a stale reference can resolve to nothing
+but never to the wrong group — the same discipline as entity ids.
+
+Randomness: **none at all**, like migration and engineering. Measured directly:
+a world whose species forms clans and one whose species does not are identical
+animal for animal *and* stream for stream after 50 ticks.
+
+⚠ **Not yet inspectable through the protocol, and that is a scheduling choice
+rather than an oversight.** Invariant 19 wants "which pride is this lion in" on
+the wire, and both the entity projection and a metrics count are held back to
+ride the v29 bump that the founding-roster rework needs anyway (PLAN-SPECIES.md
+§6) — two protocol versions in consecutive phases would mean two fixture
+regenerations for nothing. Until then the registry is engine-visible only, and
+the tests assert it directly rather than through a projection.
 
 ### Territory and home range
 
@@ -1850,18 +1992,26 @@ bounds parsing.
 
 Memories **8** · life events **12** · injuries **4** · tombstones **256** ·
 metrics history **120** · mate candidates **6** · active disturbances **3** ·
-tracked worn cells **8192**. Propagation is bounded by **hop counts**.
+tracked worn cells **8192** · persistent groups **64** (and members per group
+**8**). Propagation is bounded by **hop counts**.
+
+⚠ **Two of these bounds refuse rather than evict**, and the difference is
+deliberate: tracked worn cells and persistent groups both decline to record
+something new when full, because the alternative deletes live state. Tombstones
+evict, because there the oldest entry is genuinely the least useful and
+`forgotten` is a reportable answer.
 
 ---
 
 ## 12. Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently **27**) with the tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently **28**) with the tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
-worn-ground feature layer, the tombstone registry, the bounded metrics history,
-the event outbox, pending commands, and system descriptors.
+worn-ground feature layer, the tombstone registry, the persistent-group
+registry, the bounded metrics history, the event outbox, pending commands, and
+system descriptors.
 
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
 simulation continues **identically** to an uninterrupted one (tested).
@@ -1878,6 +2028,15 @@ Two things are saved that look derived, each for a stated reason:
 - **The migration drift.** Habitat evaluation is staggered, so a restore would
   otherwise run on a stale value until the next evaluation and diverge from an
   uninterrupted run.
+
+⚠ **The two sociality mechanisms persist differently, and comparing them is the
+clearest illustration of what "derived" means here.** A herd label is saved as a
+bare number on the entity and would in fact rebuild itself from the animals'
+positions within a few ticks of a load. A group *record* would not: nothing about
+who belongs to which clan is recoverable from where anybody is standing, so the
+registry is saved whole — including its `nextId`, since a counter that restarted
+would reissue an id something still refers to (the same reason
+`nextDisturbanceId` is saved).
 
 Restoring verifies the save format version **and that the same systems are
 registered**, so a changed system lineup cannot silently load an old save. The
@@ -1944,6 +2103,15 @@ measurement.
 `86.59 ms/tick` was a fresh reading of _unchanged_ code taken the same day the
 optimization work started; the figure the handoff had been carrying was `~81`.
 **Measurements do not keep.**
+
+⚠ **They do not even keep within a day.** The same unmodified HEAD measured
+68.70 / 69.18 / 70.64 / 72.09 ms/tick across one afternoon on 2026-07-28, and
+**76.21 / 78.94 that evening** — a ~10% shift with no code change at all. So a
+single "before" number is not a baseline; the working rule is to **interleave**
+readings of HEAD and the change in the same session and compare the two
+*distributions*. `git stash push -u` → benchmark → `git stash pop` is the cheap
+way to do it. Two single readings a few percent apart are not a result; HEAD at
+69.2–72.1 against a tree at 78.2–79.4 is one, because they do not overlap.
 
 ### ⚠ A ~1% whole-simulation timing difference is noise, not a result
 
@@ -2049,7 +2217,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-705 tests, 186 suites. Layers:
+772 tests, 196 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol
@@ -2098,6 +2266,7 @@ populations for stochastic runs.
 | —   | Gradient sandbox             | forage due east bends wander headings                     | mean cos(heading) > control                                              |
 | —   | Worn-path sandbox            | a trail due east bends wander headings                    | mean cos(heading) > trail-free control                                   |
 | —   | Shared-walk equivalence      | the two neighbour paths agree                             | 400 demo ticks byte-identical                                            |
+| —   | Clan sandbox                 | an invented group-forming species founds, joins, separates, and dissolves | membership outlives a separation the herd label does not; a clan-forming world and a control are identical animal for animal |
 
 **Scenario 11 is the pattern to copy** whenever a step adds a _second_ force
 acting on something already being measured: run the same seeded world with the
@@ -2185,6 +2354,7 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | D26   | The replacement scanner had a bug of its own: it left template-literal mode at `${` and never returned, so everything after a substitution was read as code. In a file of HTML templates the next `"` opened a bogus string and the scanner desynced — surfacing as `Controls.js` failing for a `Math.random` that appears only inside a comment saying it is banned | A hand-written scanner needs its own tests before it is trusted to police anything else. This one failed loudly by luck; it could as easily have gone blind in the other direction |
 | ⚠ D27 | Mass-scaling herbivore intake was written up as "inert — the grazer sits exactly at `referenceMass`, so its factor is 1". It is not: the system reads the **individual's** `bodyMass`, which is `adultMass × size trait` walked up a growth curve. Seed 42's cohort measured 5.1–33.7 kg, factors 0.265–1.092 — a half-grown animal's intake fell ~40% | **A species-level constant is not an entity-level one.** To decide whether a change is inert, check the value the code actually reads, on real entities — not the config it resolves from. The claim was written before it was measured, which is the entire error |
 | ⚠ D28 | Making `foodMinLevel` per-species meant resolving it beside `radius` and passing both into `PerceptionSystem#perceive` — a four-argument call instead of three. That cost **12% of total engine time** at large-5k (66.1 → 70.7 ms/tick). An A/B pinned it on the **arity alone**: keeping the fourth parameter but passing the old global value was just as slow (70.4), while returning to three arguments was 62.8. Passing the resolved block as one object restored it | **The hottest function in the engine is arity-sensitive, and nothing about the diff looks expensive.** `#perceive` is ~53% of a tick and holds the (2r+1)² cell scan; one more parameter is enough to change what the optimiser does with it. Prefer handing a hot helper one object over widening its signature — and ⚠ note the whole-system profiler *hid* this: wrapping prototypes to time each system showed only +0.8%, because the wrapper overhead perturbed exactly the inlining under test |
+| D29   | A test spawned two animals, asserted they formed a herd, and got `null`. `social.minGroupSize: 2` is compared against **groupmates** — how many *others* are in range — so it means "three animals", and the comment beside it ("a lone animal is not a herd of one") reads as though it means "two". Two test iterations to notice                                                                     | **A threshold named for an aggregate is often counted on a part.** When a parameter's name describes one quantity (group *size*) and the code compares it against another (neighbour *count*), the off-by-one is invisible in both the name and the comment. State which quantity beside the number, not just what it is for — the same discipline D11 asks for a threshold defined on another parameter |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
 ---
@@ -2298,10 +2468,10 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 
 `config` sections in `defaultSimulationConfig.js`: `world`, `time`, `terrain`,
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
-`engineering`, `disturbance`, `migration`, `disease`, `social`, `environment`,
-`carcass`, `lineage`, `injury`, `hunting`, `locomotion`, `memory`, `metrics`,
-`genetics`, `traits`, `parenting`, `aging`, `hydration`, `feeding`, `behavior`,
-`decision`,
+`engineering`, `disturbance`, `migration`, `disease`, `social`, `groups`,
+`environment`, `carcass`, `lineage`, `injury`, `hunting`, `locomotion`,
+`memory`, `metrics`, `genetics`, `traits`, `parenting`, `aging`, `hydration`,
+`feeding`, `behavior`, `decision`,
 `demo`.
 
 **Eleven** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
@@ -2311,6 +2481,22 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 ⚠ **`behavior` and `decision` are one mechanism split in two**, both read by
 `DecisionSystem`: `behavior` is what an animal wants (per-species), `decision`
 is the machinery of choosing (global). See §9 Decision.
+
+⚠ **`social` and `groups` are two mechanisms that sound like one**, and reading
+either as the other will waste an afternoon. `social` is the herd *label* —
+positional, recomputed every tick, owned by `SocialSystem`. `groups` is the
+persistent group *record* — an identity that survives separation, owned by
+`GroupSystem`. See §9 Sociality, which opens with the design decision this
+overrode.
+
+⚠ **`groups`, `migration`, and `territory` are the three sections that are
+half-global and half-per-species**, and none of them is a species block. Each
+has a same-named field on the species record holding that animal's biology
+(`groups.forms`, `migration.tracksForage`, `territory.defends`), while the config
+section holds world-level machinery — for `groups` that is `enabled`,
+`updateInterval`, and the store bound `maxGroups`. They are not blocks precisely
+*because* of that mixture: a species inheriting `maxGroups` would be inheriting a
+knob on a store it does not own.
 
 ⚠ **A value must have exactly one home.** Three constants were restated in a second
 section with a comment saying they matched the first, which is the D11 shape

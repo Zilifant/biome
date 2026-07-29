@@ -64,6 +64,13 @@ export const predatorStalker = Object.freeze({
   // settles slowly because a territory is a claim built over time, not a
   // decision taken once.
   territory: Object.freeze({ defends: true, rangeRadius: 26, settleTicks: 1400 }),
+  // Persistent social groups (PLAN-SPECIES.md §3.8). No — and unlike the grazer
+  // above, for this animal it is the whole design: a solitary ambush predator
+  // that holds ground against its own kind is the opposite of a pride. This is
+  // also the check that keeps it from being converted into a social carnivore
+  // later (§11.1): a species that defends ground from conspecifics cannot also
+  // live with them.
+  groups: Object.freeze({ forms: false }),
   // Migration (Step 26). A stalker does **not** track forage: its food is the
   // grazer, and it already follows that through perception and the hunt
   // pipeline — a vegetation gradient would point it at grass it cannot eat.

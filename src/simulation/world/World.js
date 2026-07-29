@@ -7,6 +7,7 @@ import { ScentGrid } from './ScentGrid.js';
 import { speedScaleAt } from '../disturbance/disturbances.js';
 import { FeatureGrid } from './FeatureGrid.js';
 import { SpeciesRegistry } from '../config/species/schema.js';
+import { GroupRegistry } from './GroupRegistry.js';
 import { speedScaleAt as featureSpeedScaleAt, sheltersAt } from '../engineering/features.js';
 
 /**
@@ -93,6 +94,13 @@ export class World {
     // itself. Null until the first perception tick.
     /** @type {number|null} */
     this.neighbourhoodTick = null;
+    // Persistent social groups (PLAN-SPECIES.md §3.8). ⚠ A *different* mechanism
+    // from the herd label on the entity: `groupId` is positional and recomputed
+    // every tick, while a record here is an identity that survives separation —
+    // a pride, a clan, a band. Bounded, written only by `GroupSystem`, and
+    // persisted, since who belongs to whom is evolved state no seed reproduces.
+    // Empty in every world today: no shipped species forms persistent groups.
+    this.groups = new GroupRegistry({ maxGroups: config.groups?.maxGroups });
     // Bounded memory of entities that have left the world (Step 18). Written at
     // the engine's removal chokepoint; see world/lineage.js for why this exists
     // and what "forgotten" means. Insertion-ordered, so eviction is FIFO.

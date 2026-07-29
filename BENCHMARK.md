@@ -32,6 +32,44 @@ determinism check.
 | Ticks per scenario | 2000 (50 warmup + 1950 measured) |
 | Determinism (2000 ticks) | OK (byte-identical) |
 
+## ⚠ Re-baseline in the same session, and interleave
+
+The single most useful thing learned about this file on 2026-07-28: **a
+"before" number taken at a different hour is not a baseline.** The same
+unmodified HEAD measured
+
+| when | large-5k |
+| --- | ---: |
+| 2026-07-28 afternoon | 68.70 / 69.18 / 70.64 / 72.09 ms/tick |
+| 2026-07-28 evening | 76.21 / 78.94 ms/tick |
+
+— a ~10% drift with no code change at all. Compare **distributions**, taken
+back-to-back in one session, with the runs interleaved:
+
+```bash
+npm run benchmark                       # the tree
+git stash push -u && npm run benchmark  # HEAD
+git stash pop && npm run benchmark      # the tree again
+```
+
+Two single readings a few percent apart are not a result. HEAD at 69.2–72.1
+against a tree at 78.2–79.4 is one, because the ranges do not overlap — that is
+how phase 2's real 12% regression (DOCS §16 D28) was separated from drift.
+
+### Persistent group registry (2026-07-28 evening, PLAN-SPECIES.md phase 3)
+
+| arm | large-5k |
+| --- | ---: |
+| tree (registry) | 77.70, 78.30 ms/tick |
+| HEAD | 76.21, 78.94 ms/tick |
+
+Interleaved, and the ranges overlap completely: **flat**. Expected, and worth
+saying why rather than just recording it — `GroupSystem`'s first branch asks
+whether any species in the world forms persistent groups, and none does, so the
+per-animal loop and its neighbour reads are never reached. Entity counts are
+identical to the animal (5733→7780), and the demo serializes byte-identically
+across three seeds.
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

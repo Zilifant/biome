@@ -73,6 +73,10 @@ export const scavengerCorvid = Object.freeze({
   // Holds no ground at all — it goes where the bodies are, and a carcass is
   // somewhere else every time. A home range it never defends, and a wide one.
   territory: Object.freeze({ defends: false, rangeRadius: 30, settleTicks: 600 }),
+  // Persistent social groups (PLAN-SPECIES.md §3.8). No: it gathers wherever a
+  // body is and scatters when the body is gone, which is an aggregation rather
+  // than a membership — the herd label already says everything true about it.
+  groups: Object.freeze({ forms: false }),
   // Does not track forage (grass is not food) but disperses like everything
   // else. What it follows is carrion, through perception — the same pipeline
   // the stalker uses to follow prey. It **does** track water, for the same

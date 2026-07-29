@@ -26,6 +26,7 @@ import { CarcassSystem } from '../simulation/systems/CarcassSystem.js';
 import { WeatherSystem } from '../simulation/systems/WeatherSystem.js';
 import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
+import { GroupSystem } from '../simulation/systems/GroupSystem.js';
 import { MigrationSystem } from '../simulation/systems/MigrationSystem.js';
 import { DisturbanceSystem } from '../simulation/systems/DisturbanceSystem.js';
 import { EngineeringSystem } from '../simulation/systems/EngineeringSystem.js';
@@ -67,6 +68,16 @@ export function registerDemoSystems(engine) {
   // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision
   // system, which consumes the group summary it builds.
   engine.registerSystem(new SocialSystem(engine.config.social));
+  // Priority -8: after the herd labels are settled, before anything that would
+  // score an action on membership. ⚠ Different mechanism from the line above —
+  // `SocialSystem` owns the positional label, this owns the persistent record
+  // (PLAN-SPECIES.md §3.8). Skipped entirely when disabled, which is the
+  // reproducible control the first clan-forming species will be measured
+  // against. Inert either way today: no shipped species forms persistent groups,
+  // so the system returns on its first branch every tick.
+  if (engine.config.groups.enabled) {
+    engine.registerSystem(new GroupSystem(engine.config.groups));
+  }
   // Priority -5: after sociality, still ahead of the decision system. It writes
   // no action — only the drift the decision system folds into a wander. Skipped
   // entirely when migration is disabled, which (with `disperses` below) is the

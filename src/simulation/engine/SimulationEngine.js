@@ -108,6 +108,7 @@ export class SimulationEngine {
       vegetation: this.config.vegetation,
       territory: this.config.territory,
       engineering: this.config.engineering,
+      groups: this.config.groups,
     });
     this.scheduler = new SystemScheduler();
     this.events = new DomainEventBus({ maxBufferedEvents: this.config.events.maxBufferedEvents });

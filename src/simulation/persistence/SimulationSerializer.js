@@ -147,10 +147,23 @@
  *       nothing and resolve species against blocks that are no longer where the
  *       loader looks. Config is saved verbatim and is part of the contract, so
  *       a change to its shape invalidates saves exactly as a field change does.
+ *  28 — persistent social groups (PLAN-SPECIES.md §3.8): a new top-level
+ *       `groups` block holding the bounded group registry, a per-entity
+ *       `groupRecordId`, the new `GroupSystem` descriptor, and a new
+ *       `config.groups` section. ⚠ This is genuinely new **authoritative**
+ *       state, not a second view of something already saved: a herd label is
+ *       recomputed from positions every tick and so needs no saving beyond the
+ *       label itself, but a group record is an identity that survives
+ *       separation — who founded a clan, when, and who is still in it cannot be
+ *       recovered from where the animals happen to be standing at load. The
+ *       registry's `nextId` rides with it, since a counter that restarted would
+ *       reissue the id of a group something still refers to (the same reason
+ *       `nextDisturbanceId` is saved). v27 saves lack the block and register a
+ *       different system lineup, so they are invalidated.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 27;
+export const SAVE_FORMAT_VERSION = 28;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -179,6 +192,11 @@ export function captureSimulationState(engine) {
     // the seed, and a restore that forgot it would erase every trail in the
     // world at the moment of loading.
     features: engine.world.features.serialize(),
+    // Persistent social groups (PLAN-SPECIES.md §3.8). Unlike the herd label,
+    // which propagates back out of the entities' positions on the first tick
+    // after a load, a group record is state in its own right: nothing about who
+    // belongs to which clan is derivable from where anyone is standing.
+    groups: engine.world.groups.serialize(),
     // The report itself is derived and recomputed on the next metrics tick;
     // only the bounded history is stored, so a chart survives a restore.
     metricsHistory: engine.world.metricsHistory,
@@ -257,6 +275,7 @@ export function restoreSimulationState(engine, saved) {
   engine.world.disturbances = (saved.disturbances ?? []).map((d) => ({ ...d }));
   engine.world.nextDisturbanceId = saved.nextDisturbanceId ?? 1;
   engine.world.features.restore(saved.features);
+  engine.world.groups.restore(saved.groups);
   engine.world.metricsHistory = saved.metricsHistory ? structuredClone(saved.metricsHistory) : [];
   engine.world.metrics = null; // derived; the next metrics tick rebuilds it
   engine.world.rebuildSpatialIndex();

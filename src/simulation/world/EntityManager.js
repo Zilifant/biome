@@ -51,6 +51,8 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {boolean} weaned whether parental provisioning has ended
  * @property {number | null} groupId herd label (Step 23); null when not in one
  * @property {number | null} groupHops distance in hops to the herd's root
+ * @property {number | null} groupRecordId persistent-group membership — a
+ *   reference into `world.groups`, not a herd label (see world/GroupRegistry.js)
  * @property {number | null} alarmedUntil tick this animal stops being alarmed
  * @property {{x: number, y: number} | null} alarmSource where the threat was
  * @property {number | null} lastContestTick tick of the last dominance contest
@@ -179,6 +181,18 @@ function createEntity(id, definition) {
     // Hops from this animal to the herd's root — the animal whose id the label
     // is. Bounded, and what lets a split herd shed a stale label.
     groupHops: definition.groupHops ?? null,
+    // ⚠ **Not the same thing as `groupId`, and the difference is the point.**
+    // The label above is positional and is recomputed every tick by propagation;
+    // this is a reference into `world.groups`, the persistent-group registry, and
+    // it changes only when the animal explicitly joins or leaves (see
+    // world/GroupRegistry.js). An animal can be far from every groupmate and
+    // still be in the group — that is what "identity that survives separation"
+    // means, and it is why a lion pride cannot be a herd label. Written only by
+    // `GroupSystem`, which never touches `groupId`; null for every species that
+    // does not form persistent groups, which today is all of them. A carcass
+    // keeps its last membership, as it keeps its `deathCause`: both are facts
+    // about who it was.
+    groupRecordId: definition.groupRecordId ?? null,
     alarmedUntil: definition.alarmedUntil ?? null,
     alarmSource: definition.alarmSource ?? null,
     lastContestTick: definition.lastContestTick ?? null,

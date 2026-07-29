@@ -46,6 +46,14 @@ they are not re-opened by accident.
   named lever is relaxing "nearer the predator than I am" to "near enough to
   interpose".
 
+- **A55 — The persistent-group registry never fires in the demo.** Wholly inert,
+  not merely near-inert, and deliberately: no shipped species declares
+  `groups.forms: true`, so `GroupSystem` returns on its first branch every tick.
+  Measured rather than assumed — the demo's entity state is byte-identical across
+  three seeds. It stops being inert at the first clan-forming carnivore
+  (PLAN-SPECIES.md phase 7); until then the mechanism is carried entirely by
+  tests that invent a group-forming species.
+
 ## Engine — behaviour and modelling
 
 - **A18 — Prey have no spatial refuge from predators.** Cover slows both
@@ -144,6 +152,17 @@ they are not re-opened by accident.
 - **A22 — Tombstones are bounded at 256**, so ancestry cannot be walked further
   back than that. Only bites a query that walks ancestry; lineage _depth_ is
   carried on the entity as `generation`.
+
+- **⚠ A54 — Persistent group membership is not inspectable through the
+  protocol.** `world.groups` and the per-entity `groupRecordId` exist in the
+  engine, but neither the entity inspection payload nor `/api/metrics` mentions
+  them and there are no group formation/dissolution events. **Scheduled, not
+  forgotten:** invariant 19 wants "which pride is this lion in" on the wire, and
+  the projection is held back so it rides the v29 bump the founding-roster rework
+  needs anyway (PLAN-SPECIES.md §6) — two protocol versions in consecutive phases
+  means regenerating renderer fixtures twice for nothing. ⚠ It becomes a real
+  defect the moment a species actually forms groups, which is the same phase the
+  bump lands in.
 
 - **A36 — The territorial claim layer is not projected to the renderer.** The
   home-range ring is drawn from inspection, for the selected animal only. Blocks

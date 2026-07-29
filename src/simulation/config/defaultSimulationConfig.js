@@ -420,6 +420,11 @@ export const defaultSimulationConfig = Object.freeze({
     // herd *split*: plain min-id propagation only moves labels downward, so the
     // half of a torn herd without the root would keep the old label forever.
     maxGroupHops: 3,
+    // ⚠ Counted against **groupmates**, not against members: an animal needs
+    // this many *others* in range before it carries a label at all, so at 2 the
+    // smallest herd that exists is **three** animals and a pair is nothing. That
+    // is the intended behaviour; the name reads the other way, which is worth
+    // knowing before wondering why two animals standing together have no label.
     minGroupSize: 2, // a lone animal is not a herd of one
     alarmRadius: 6, // how far panic carries per hop
     alarmTicks: 25, // how long an animal keeps running after being told
@@ -429,6 +434,54 @@ export const defaultSimulationConfig = Object.freeze({
     // first cut left 106 of 119 grazers permanently fleeing. At 2 hops the wave
     // reaches ~3 herd-radii from the sighting and then dies.
     maxAlarmHops: 2,
+  }),
+  // Persistent social groups (see world/GroupRegistry.js and
+  // systems/GroupSystem.js). PLAN-SPECIES.md §3.8.
+  //
+  // ⚠ **This is a second sociality mechanism, deliberately separate from the
+  // `social` block above, and the two must never be confused.** A herd label is
+  // positional — who I happen to be standing with — and is recomputed every tick
+  // by propagation. A group *record* is an identity that survives separation:
+  // a lion pride, a hyena clan, a zebra band. Two animals fifty units apart are
+  // in the same clan and in different herds, and both statements are true.
+  // `SocialSystem` owns `groupId`; `GroupSystem` owns `groupRecordId`. Nothing
+  // writes both.
+  //
+  // ⚠ **No shipped species sets `forms: true`**, so this is inert in the demo by
+  // construction — the schema and the mechanism arriving ahead of the roster
+  // that needs them, exactly as `disease` did at Step 29 and `feeding` /
+  // `hunting` / `behavior` did earlier the same day. The first consumer is the
+  // clan-forming carnivore of batch 1 (PLAN-SPECIES.md §10.1).
+  //
+  // The fields split into two kinds and it is worth knowing which is which:
+  // `enabled`, `updateInterval`, and `maxGroups` are **world-level** (one store,
+  // one schedule); the rest are per-species defaults a species file overrides in
+  // its own `groups` block, the same way `territory` and `migration` work.
+  groups: Object.freeze({
+    // The reproducible control, in the pattern every mechanism since migration
+    // ships: off means the system is never registered, so a sweep can measure
+    // the mechanism against a world that genuinely lacks it rather than against
+    // a hand-assembled one.
+    enabled: true,
+    updateInterval: 1, // membership changes slowly, but the no-forming-species
+    // early-out already makes this free; stagger it if a long roster changes that
+    maxGroups: 64, // structural bound on the store. Full means a new group is
+    // **refused**, never that a living one is evicted — a stated limit in the
+    // spirit of `forgotten` in the tombstone registry
+    joinRadius: 6, // how close two animals must be to found or join
+    maxMembers: 8, // hard cap on one group
+    minMembers: 2, // below this the record dissolves; a lone animal is not a
+    // group of one, exactly as `social.minGroupSize` says of a herd
+    // Which sex leaves its natal group when it disperses. Natal dispersal is
+    // already a bounded outward walk (`beginDispersal`), so sex-biased dispersal
+    // costs no new state and no new clock — it is that event, filtered by sex,
+    // and it is what makes a female-cored pride expressible. `'none'` keeps
+    // everyone; `'both'` empties the natal group of every disperser.
+    leavingSex: 'male',
+    // A dependent juvenile takes its guardian's group. The guardian is the
+    // parent that gestated, so matrilineal descent falls out with no sex
+    // conditional anywhere.
+    inheritFromGuardian: true,
   }),
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
   // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,

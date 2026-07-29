@@ -44,6 +44,16 @@ export const herbivoreGrazer = Object.freeze({
   // wandering off forever) without exclusivity. That is the honest split:
   // every animal lives somewhere, not every animal owns it.
   territory: Object.freeze({ defends: false, rangeRadius: 14, settleTicks: 900 }),
+  // Persistent social groups (PLAN-SPECIES.md §3.8). ⚠ **No**, and stating it is
+  // the point: a grazer is the species that shows the *other* sociality
+  // mechanism working. Its herds are fission–fusion — they form on contact,
+  // merge, and tear in half, and every one of those is a `groupId` label
+  // propagating between neighbours with nothing anywhere holding a roster. A
+  // group *record* models the opposite thing, an identity that survives
+  // separation (a pride, a clan, a family), which a loosely-aggregating grazer
+  // simply does not have. The two mechanisms run side by side in one world, and
+  // this species is the control that proves the label half still works untouched.
+  groups: Object.freeze({ forms: false }),
   // Migration (Step 26). A grazer follows the grass, so it tracks the forage
   // gradient. `cueRadius` is 18 against a perception radius of 6 — deliberately
   // beyond what the animal can see, standing in for the coarse long-range cues
