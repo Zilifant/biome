@@ -19,6 +19,7 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode } from '../world/TerrainGrid.js';
+import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
 
 export class PerceptionSystem extends SimulationSystem {
   /**
@@ -52,7 +53,7 @@ export class PerceptionSystem extends SimulationSystem {
       // food. Harmless while every species used 1; load-bearing the moment a
       // grazer wants short regrowth and a browser wants standing growth.
       //
-      // ⚠⚠ **Pass the block, not the fields — `#perceive` is arity-sensitive.**
+      // ⚠⚠ **Pass one object, not the fields — `#perceive` is arity-sensitive.**
       // The obvious version of this change resolved `radius` and `foodMinLevel`
       // here and passed both, making `#perceive` a four-argument function. That
       // cost **12% of total engine time** at large-5k (66.1 → 70.7 ms/tick,
@@ -61,9 +62,14 @@ export class PerceptionSystem extends SimulationSystem {
       // (70.4), while dropping back to three arguments was 62.8. This is the
       // hottest function in the engine — ~53% of a tick, and it holds the
       // (2r+1)² cell scan — so one more parameter is enough to change what the
-      // optimiser will do with it. Handing over one object keeps the arity at
-      // three and buys the per-species read for ~1 ms/tick.
-      perception.set(entity.id, this.#perceive(world, entity, world.species.get(entity.speciesId)?.perception));
+      // optimiser will do with it.
+      //
+      // ⚠ It is the whole **species record** rather than its `perception` block,
+      // and the difference is deliberate: prey eligibility (phase 4) needs the
+      // `predation` block in the same call, and handing over a second block
+      // would have re-sprung exactly the arity trap above. One object in, both
+      // blocks read inside, arity still three.
+      perception.set(entity.id, this.#perceive(world, entity, world.species.get(entity.speciesId)));
     }
     // Stamped last, so a consumer that reads a half-built map on some future
     // reordering sees a stale tick rather than a partial neighbourhood.
@@ -73,14 +79,25 @@ export class PerceptionSystem extends SimulationSystem {
   /**
    * @param {import('../world/World.js').World} world
    * @param {object} entity
-   * @param {{radius?: number, foodMinLevel?: number} | null | undefined} sensing the
-   *        species' resolved `perception` block
+   * @param {object | null | undefined} species the resolved species record; the
+   *        `perception` and `predation` blocks are read off it here rather than
+   *        passed separately, to keep the arity at three (see `update`)
    */
-  #perceive(world, entity, sensing) {
+  #perceive(world, entity, species) {
+    const sensing = species?.perception;
     const radius = sensing?.radius ?? this.defaultRadius;
     const foodMinLevel = sensing?.foodMinLevel ?? this.foodMinLevel;
     const radiusSquared = radius * radius;
     const los = this.lineOfSight;
+    // Prey eligibility (phase 4, PLAN-SPECIES.md §3.6). Resolved **once per
+    // animal**, into two plain numbers, so the in-loop test below is a pair of
+    // register compares rather than a call and two property loads. An absent
+    // bound resolves to Infinity / 0, which every real mass passes — the
+    // comparison still happens but can never change an answer, so a roster that
+    // states no ratios behaves exactly as it did.
+    const predation = species?.predation;
+    const maxPreyMass = maxPreyMassFor(entity, predation);
+    const minPreyMass = minPreyMassFor(entity, predation);
 
     // --- Animals: sub-quadratic via the spatial grid (already radius-filtered).
     let animalCount = 0;
@@ -145,12 +162,33 @@ export class PerceptionSystem extends SimulationSystem {
       }
       // Predation (Step 16), read from the species relation in both
       // directions in this one pass: what I hunt, and what hunts me.
-      if (world.species.hunts(entity.speciesId, other.speciesId) && (nearestPrey === null || distance < nearestPrey.distance)) {
+      //
+      // ⚠ The mass gate sits **after** `hunts()`, never inside it. That
+      // predicate is the busiest in the engine — twice per neighbour per animal
+      // per tick — and its linear `includes` was measured rather than assumed
+      // (D24), so the species relation stays exactly as cheap as it was and the
+      // extra comparisons only run on its rare true case.
+      if (
+        world.species.hunts(entity.speciesId, other.speciesId) &&
+        (nearestPrey === null || distance < nearestPrey.distance) &&
+        other.bodyMass <= maxPreyMass &&
+        other.bodyMass >= minPreyMass
+      ) {
         // `fleeing` is visible to the hunter: prey that has bolted is running,
         // and a predator that keeps walking will never close the gap again.
         nearestPrey = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y, fleeing: other.action === 'flee' };
       }
-      if (world.species.hunts(other.speciesId, entity.speciesId) && (nearestThreat === null || distance < nearestThreat.distance)) {
+      // The mirror of it, and the reason the gate belongs in perception rather
+      // than in the hunt: an animal too big to be taken should not spend its
+      // life fleeing from something that was never going to try. ⚠ The bounds
+      // here belong to *whichever species is looking at me*, so unlike the prey
+      // side they cannot be hoisted — hence a resolve per threatening neighbour,
+      // paid only on the rare true case of the reverse relation.
+      if (
+        world.species.hunts(other.speciesId, entity.speciesId) &&
+        (nearestThreat === null || distance < nearestThreat.distance) &&
+        isEligiblePrey(other, entity, world.species.get(other.speciesId)?.predation)
+      ) {
         nearestThreat = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
       }
       // Mate choice (Step 22): sensing a possible mate is sensing, so the

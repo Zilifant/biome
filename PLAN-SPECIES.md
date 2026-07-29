@@ -180,20 +180,22 @@ is only which of them the engine can express.
 | **What food it eats**          | ❌ binary carnivore/not | `diet` is a string with two meanings                 | rhino, elephant (browse)        |
 | **Which grass it eats**        | ❌                      | one biomass field, no maturity                       | gazelle / wildebeest / zebra    |
 | **Where it lives**             | ❌                      | nothing; A49 is open                                 | leopard, buffalo, rhino         |
-| **Which individuals it eats**  | ❌                      | no mass ratio, no life-stage gate                    | lion, leopard, hyena            |
+| ~~**Which individuals it eats**~~ | ✅ **since 2026-07-28** | `predation.maxPreyMassRatio` / `minPreyMassRatio`, gated in perception on `bodyMass` (§3.6, phase 4) | lion, leopard, hyena            |
 | ~~**Persistent social identity**~~ | ✅ **since 2026-07-28** | `world.groups` + `groupRecordId`, gated by `groups.forms` (§3.8, phase 3) | lion, hyena, zebra, elephant    |
 | **Cooperative action**         | ❌                      | defense is passive; no group hunt, no mobbing        | lion, hyena, buffalo            |
-| **Contested carcasses**        | ❌                      | a carcass has no possessor                           | lion vs hyena vs vulture        |
-| **Escape by agility**          | ❌                      | `captureChance` reads top speed, not manoeuvre       | gazelle                         |
+| ~~**Contested carcasses**~~    | ✅ **since 2026-07-28** | `carcass.possessorId`, contested through `resolveContest` (§3.9, phase 4) | lion vs hyena vs vulture        |
+| ~~**Escape by agility**~~      | ✅ **since 2026-07-28** | `hunting.agility`, prey-resolved, one divide in `captureChance` (§3.15) | gazelle                         |
 | **Concealed newborns**         | ❌                      | a juvenile follows its guardian from birth           | gazelle                         |
 | **Heterospecific association** | ❌                      | herding is conspecific-only                          | gazelle with wildebeest / zebra |
 
-Everything from **"What food it eats"** down is the remaining plan, minus the
-persistent-identity row. ✅ Three ❌ rows closed on 2026-07-28: `behavior` became
-a species block (phase 2, §3.1), which is what makes "a skittish gazelle" and "a
-pride versus a solitary cat" expressible at all; and the group registry landed
-(phase 3, §3.8), which is what makes a pride a thing that exists between
-sightings.
+**Six ❌ rows closed on 2026-07-28**, across phases 2–4: `behavior` became a
+species block (§3.1), which is what makes "a skittish gazelle" and "a pride
+versus a solitary cat" expressible at all; the group registry landed (§3.8),
+which is what makes a pride a thing that exists between sightings; and phase 4
+closed prey eligibility (§3.6), carcass possession (§3.9), and the agility term
+(§3.15). What remains is **forage** — what food it eats, which grass, where it
+lives — plus cooperative action, concealed newborns, and heterospecific
+association.
 
 ⚠ **Prior art from this repo:** adding the corvid read as a balance problem
 (3/10 seeds vs a 6/10 control) until the real cause turned up — `fleshIntakeRate`
@@ -423,7 +425,33 @@ the waterhole" should fall out of a high `thirstWeight` plus a low
 **already** a gathering point — measured, occupancy within 20 cells rose 17% → 30%
 when `tracksWater` landed — so this is tuning an existing effect, not building one.
 
-### 3.6 Prey eligibility is a species list, with no size or age gate
+### 3.6 ✅ Prey eligibility — mass gating (shipped 2026-07-28, phase 4)
+
+✅ **Built as proposed, with two additions the section did not call for and one
+number it did not name.** The reasoning below stands; the deltas are:
+
+- **The gate runs in both directions.** The section only asked that a predator
+  not commit to prey it cannot take. The mirror — that an animal too big to be
+  taken should stop treating the hunter as a threat — is the same comparison with
+  the roles swapped and is what stops an adult rhino fleeing a leopard for life.
+  ⚠ The two are not symmetric in cost: the hunter's own bounds hoist out of the
+  neighbour loop into two numbers, but "does *that* animal hunt me" needs
+  whichever species is looking, so the threat side resolves per neighbour. Paid
+  only on the rare true case of the reverse relation.
+- **`riskyMassRatio` turned out to already exist as a literal.** The section said
+  the hook was `trampleChance` and needed "a species-tunable weight, not a new
+  mechanism" — it was more exact than that. The term was
+  `Math.min(2, defenderMass / attackerMass)`, and the ratio simply *is* that
+  hardcoded `2`. Default 2 makes the change a magic number becoming species data.
+- ⚠ **Both ratios ship as `null`.** The section did not say what to default them
+  to, and the honest answer is "nothing". Any ratio tight enough to be
+  interesting would stop a *subadult* stalker (bodyMass ~25 kg while it grows
+  toward 45) from taking an adult grazer (up to ~34 kg) — a large ecological
+  change on a knife-edge demo, bought for a roster that has nothing to spend it
+  on. `null` skips the comparison, which is exactly the identity (D16), and the
+  species that need ratios declare them when they arrive.
+
+### 3.6 The section as written
 
 `preySpeciesIds` is a flat list of who is edible. `captureChance` already reads
 prey condition — health, and `bodyMass / adultMass` as a "grown" fraction — but
@@ -623,7 +651,52 @@ branch is "does any species in this world form groups?" — one `Set` built per
 world and a size check per tick. The neighbour walk it would otherwise need is
 never reached.
 
-### 3.9 Carcass possession and kleptoparasitism
+### 3.9 ✅ Carcass possession and kleptoparasitism (shipped 2026-07-28, phase 4)
+
+✅ **Built, and cheaper than proposed.** The section below stands; four deltas:
+
+- **No freshness stamp.** The proposal was "`possessorId` and a freshness
+  stamp". Possession is held by **presence** instead — a holder still standing
+  over the body holds it, one that walked away does not — which answers the same
+  question with nothing stored and cannot get stuck in a state nobody clears.
+  The mechanism is one field.
+- **No stored group possessor either.** "Possession can be held by a group" is
+  read off `holder.groupRecordId` on the live holder, so a clan shares a kill
+  with no second copy of the membership on the carcass to outlive the group.
+- **"Challenges, waits, or leaves" resolved into one rule**: challenge only when
+  strictly stronger. Dominance decides a contest, so an outmatched challenger
+  would be choosing to lose; and because the winner then eats, the arrangement
+  is self-stabilising — a takeover happens once rather than once per tick, with
+  no cooldown field and no flapping.
+- ⚠ **The decision system had to learn the same rule**, which the section did not
+  anticipate. Enforcing possession in feeding alone produces an animal that
+  chooses `eat` every tick and starves standing on a body it cannot touch,
+  because nothing outscores a meal at your feet. One predicate, two readers.
+
+⚠ **And it is the one part of phase 4 that a shipped world can feel**, so it
+carries a config switch and a ten-seed sweep against it. **The sweep changed the
+design**, which is the most useful thing in this section:
+
+The first cut excluded outright — a bystander at an occupied body got nothing —
+and that read as the obvious meaning of "arrive first, leave when the big animals
+come". Ten seeds said no: **stalker survival 9/10 → 6/10**, with their deaths
+moving from `age` (53 → 37) to `starvation` (3 → 10) and `dehydration` (2 → 13).
+
+⚠ **And the cause was not the one this section predicted.** §10.1 says "the
+vulture is the species at risk, not the stalker". It was the stalker, and not
+because it was robbed of carrion — per-capita carrion barely moved (226 → 211).
+A diagnostic pass counting turn-aways found **young** stalkers being locked out:
+`dominanceOf` halves for immaturity, so a subadult scores below a well-fed adult
+corvid, and the demo runs ~80 corvids to ~7 stalkers. Recruitment failed and the
+population aged out.
+
+The fix is a `possessionShare` — a bystander picks at the edge for a quarter of
+its normal intake — which is both what the numbers wanted and the truer model: a
+vulture at an occupied kill gets scraps, not nothing, and the holder still takes
+four times what a bystander does. **`share: 0` restores strict exclusion** and is
+kept as the measured variant. Full three-arm table in DOCS §9 Carcasses.
+
+### 3.9 The section as written
 
 A carcass has no owner. Multiple carnivores on one body contend only through the
 deterministic id ordering in `FeedingSystem`. That is fine for one predator and a
@@ -763,7 +836,18 @@ is far easier geometry for an interposing parent) and with **A12** itself, since
 hidden calf whose mother dies is exactly the dependency crisis orphan mercy
 currently papers over.
 
-### 3.15 Escape is only about top speed (new, gazelle)
+### 3.15 ✅ Escape is only about top speed (closed 2026-07-28, phase 4)
+
+✅ **Built exactly as scoped**, which is worth recording because the scoping was
+the work: of the five things `african-species.md` asked for, one already existed
+(sprint exhaustion), one was a single multiply (agility), two were declined as
+un-representable (acceleration, turn radius), and one was deferred (stotting).
+The shipped term is `hunting.agility`, resolved off the **prey** — joining
+`edibleMassFraction` as the second prey-resolved field in a hunter's block, which
+is the easiest thing here to wire backwards and so has its own test. Default 1,
+exactly the identity.
+
+### 3.15 The section as written
 
 `captureChance` is `speed ratio × stamina edge × vulnerability × shielding`.
 There is no agility term, so a gazelle can only escape by being _faster_, never
@@ -1207,7 +1291,7 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 | ~~**1**~~ | ✅ **Done 2026-07-28.** §5.1 mass-scaled `intakeRate`; §5.2 carcass nutrient return; §5.3 per-species `foodMinLevel`; §5.4 `drinkRange` dedupe; §5.8 load-time speciesId check; the §4 audit with a written verdict per constant. `feeding` + `hunting` added to `SPECIES_BLOCKS`. ⚠ §5.7 (the ethologist's `diet === 'carnivore'`) is **deliberately not** fixed here — it only breaks when `diet` stops being a string, and it must move in that same commit (phase 15) or the fix is untestable | low  | schema + real fixes               |
 | ~~**2**~~ | ✅ **Done 2026-07-28.** `config.decision` split into `config.behavior` (22 fields, a species block) + `config.decision` (14, global); `behavior` added to `SPECIES_BLOCKS`; `carcassRange` deduped — a **third** D11 duplicate, found during the split. ⚠ Cost one real hot-path regression (12%) and its fix; see D28                                                                                                                                                                             | med  | schema + 3 test fixes             |
 | ~~**3**~~ | ✅ **Done 2026-07-28.** Persistent group registry (§3.8): `GroupRegistry` (bounded at 64, refuses rather than evicts), `GroupSystem` (founding, joining, guardian inheritance, sex-biased departure, dissolution), `groupRecordId` on the entity, `SAVE_FORMAT_VERSION` 27 → 28, DOCS §9 Sociality rewritten to record the decision it overrides. ⚠ Inert by construction — no shipped species forms groups, and the demo is byte-identical across three seeds. ⚠ The protocol projection is **deliberately deferred** to phase 5's v29 (now DOCS A54) | high | new subsystem + save bump         |
-| **4**     | Predation structure: `predation` mass/age eligibility (§3.6), the `agility` capture term (§3.15), **carcass possession and theft (§3.9)**                                                                                                                                                                                                                                                                                                                                                          | med  | Perception / Hunting / Feeding    |
+| ~~**4**~~ | ✅ **Done 2026-07-28.** `predation` added to `SPECIES_BLOCKS` and gated in perception **both ways** — what I commit to and what I fear (§3.6); the `agility` divide in `captureChance`, prey-resolved (§3.15); `riskyMassRatio` replacing a hardcoded `2`; **carcass possession and theft** via one `possessorId` field and `resolveContest` on its own stream (§3.9). ⚠ The first three are **exactly inert** — the control arm is state-identical to phase 3 on every entity field — so possession is the single attributable change and is the only one swept. ⚠ Protocol projection again **deferred** to phase 5 (DOCS A54) | med  | Perception / Hunting / Feeding    |
 | **5**     | Protocol **v29** (§6): founding roster by species, host-published species list, group projection, renderer fields, ethologist flags                                                                                                                                                                                                                                                                                                                                                                | med  | protocol bump, fixtures           |
 | **6**     | Renderer scale (§7): glyph/colour/priority scheme, collapsible per-species metrics                                                                                                                                                                                                                                                                                                                                                                                                                 | low  | renderer only                     |
 | **7**     | **Batch 1 — gazelle + hyena.** Convert `herbivore.grazer` → `herbivore.gazelle` (rename, biology ≈ unchanged); rename `scavenger.corvid` → `scavenger.vulture`; add `scavenger.hyena`; `predator.stalker` stays generic                                                                                                                                                                                                                                                                            | med  | config only                       |

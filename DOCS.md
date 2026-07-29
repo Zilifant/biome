@@ -46,10 +46,10 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 772 passing / 0 failing, 196 suites _(2026-07-28)_     |
+| Tests                 | 796 passing / 0 failing, 202 suites _(2026-07-28)_     |
 | `PROTOCOL_VERSION`    | 28                                                     |
-| `SAVE_FORMAT_VERSION` | **28** — the persistent-group registry (§9 Sociality)  |
-| Benchmark (large-5k)  | **78.30 ms/tick** _(2026-07-28 evening, after the group registry)_; unmodified HEAD measured 76.21 and 78.94 interleaved with it, so this is flat. ⚠ The whole machine reads ~10% slower this session than the 69.2–72.1 band the same HEAD gave that afternoon — which is exactly why only same-session, interleaved readings are comparable. Do not compare against the 67.25 figure from 2026-07-21 at all; it predates line of sight, thickets, the water field, and the crowding cap |
+| `SAVE_FORMAT_VERSION` | **29** — carcass possession (§9 Carcasses)              |
+| Benchmark (large-5k)  | see BENCHMARK.md — measured per phase, interleaved against the same-session HEAD, because ⚠ the machine drifted ~10% across 2026-07-28 on identical code. Never compare against the 67.25 figure from 2026-07-21: it predates line of sight, thickets, the water field, and the crowding cap |
 | Species               | 3 (grazer, stalker, corvid) — all pure config          |
 | Species blocks        | **11** — `feeding`, `hunting`, `behavior` joined 2026-07-28 |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
@@ -183,7 +183,7 @@ reminder.
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
 | A49 | **"Activity pattern" and "habitat preference" are not schema blocks**                                                                                                          | Open. There is no diurnal cycle for a pattern to exist in, and habitat preference is expressed through `migration.tracksForage` plus the comfort band rather than as a field                                                                                                                                                                     |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
-| A54 | ⚠ **Persistent group membership is not inspectable through the protocol.** `world.groups` and the per-entity `groupRecordId` exist in the engine, but neither the entity inspection payload nor `/api/metrics` mentions them, and there are no group formation/dissolution events | Open, **scheduled**. Invariant 19 wants "which pride is this lion in" on the wire and it will be. Held back deliberately so the projection rides the v29 bump the founding-roster rework needs anyway (PLAN-SPECIES.md §6) — bumping the protocol twice in consecutive phases means regenerating renderer fixtures twice for nothing. ⚠ It stops being a scheduling choice and starts being a defect the moment a species actually forms groups, which is the same phase the bump lands in |
+| A54 | ⚠ **Two mechanisms are invisible through the protocol.** (a) Persistent group membership — `world.groups` and the per-entity `groupRecordId` exist in the engine, but neither entity inspection nor `/api/metrics` mentions them and there are no formation/dissolution events. (b) **Carcass possession** — `possessorId` is not projected and a kill theft emits nothing, so an observer watching the demo sees a scavenger stop eating for no stated reason | Open, **scheduled**, and (b) is the sharper half because it is *live in the demo* rather than dormant. Both are held back deliberately so the projection rides the v29 bump the founding-roster rework needs anyway (PLAN-SPECIES.md §6) — bumping twice in consecutive phases means regenerating renderer fixtures twice for nothing. ⚠ Reusing `entity.contested` for a carcass fight was considered and **rejected**: the renderer's `EventCatalog` labels it "contests over a mate", so it would have made the UI lie, which is exactly what protocol v29 exists to stop. v29 owes: the group projection, `possessorId` on carcass inspection, and one new event type with its catalog entry |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
@@ -465,6 +465,7 @@ gives up is domain **events**: the outbox is bounded, so a 500-tick step emits
 | `decision`                                | action selection (exploration and tie-breaking) |
 | `aging`                                   | late-life mortality roll                        |
 | `hunting`                                 | capture roll **and** both wound rolls           |
+| `possession`                              | contests over a carcass                         |
 | `sex`                                     | sex of everything born in-world                 |
 | `social`                                  | contest escalation                              |
 | `weather`                                 | weather spell re-rolls                          |
@@ -481,7 +482,11 @@ all** — a dispersal heading is geometry, and habitat sampling is deterministic
 A system must spend the **same number of draws regardless of outcome**, or its
 results shift every other system's sequence. Established budgets:
 
-- `resolveContest` — three, always.
+- `resolveContest` — three, always. ⚠ It has three callers now (mate contests,
+  territory disputes, and carcass possession) and the first two share the
+  `social` stream while the third has its own. That is the point of named
+  streams: a fight over a body cannot shift the sequence a fight over a mate
+  draws from.
 - Mate assessment — **zero**. A run where a female rejects a male leaves every
   stream exactly where a run where she accepts one does.
 - Disease spillover — two per tick flat, whatever the population.
@@ -577,7 +582,7 @@ ships with its projection, persistence, inspection, and tests.
 | Disease          | `diseaseState`                                                                            |
 | Social / spatial | `alarmedUntil, alarmSource, homeRange, lastMarkTick, migrationHeading, migrationStrength` |
 | Life history     | bounded `lifeEvents[]` (max 12)                                                           |
-| Carcass          | `edibleMass, decayStage, diedTick, deathCause`                                            |
+| Carcass          | `edibleMass, decayStage, diedTick, deathCause, possessorId`                               |
 
 **Entity kinds:** `animal`, `carcass`, and the reserved-but-unused `plant`.
 
@@ -778,22 +783,28 @@ quietly stopped meaning anything, which is worse than a break.
 
 ### The schema
 
-Eleven blocks fall back to the same-named global config section:
+Twelve blocks fall back to the same-named global config section:
 `metabolism`, `hydration`, `aging`, `perception`, `traits`, `genetics`,
-`disease`, `reproduction`, and — added 2026-07-28 — `feeding`, `hunting`, and
-`behavior`.
+`disease`, `reproduction`, and — added 2026-07-28 — `feeding`, `hunting`,
+`behavior`, and `predation`.
 Alongside them sit fields that were always per-species: `matePreference`,
-`territory`, `migration`, `diet`, `preySpeciesIds`.
+`territory`, `migration`, `diet`, `preySpeciesIds` — and `groups`, which joined
+them the same day rather than becoming a block, because its config section also
+carries world-level machinery (see §19).
 
-⚠ **`feeding`, `hunting`, and `behavior` do not yet _vary_ by species**, exactly as `disease`
-did not when it landed (A38). They are the schema arriving ahead of the roster
-that needs it: a 6 kg animal and a 600 kg one currently eat at the same declared
-rate, and two predators cannot differ in how they capture. Two notes on how they
-resolve, both of which are modelling choices rather than plumbing:
+⚠ **`feeding`, `hunting`, `behavior`, and `predation` do not yet _vary_ by
+species**, exactly as `disease` did not when it landed (A38). They are the schema
+arriving ahead of the roster that needs it: a 6 kg animal and a 600 kg one
+currently eat at the same declared rate, two predators cannot differ in how they
+capture, and nothing states a prey mass ratio. Three notes on how they resolve,
+all modelling choices rather than plumbing:
 
 - **`hunting` resolves off the _hunter_** — how you capture is your biology —
-  **except `edibleMassFraction`, which resolves off the prey**, because what it
-  describes is how much of a body is meat.
+  **except `edibleMassFraction` and `agility`, which resolve off the prey**,
+  because what they describe is how much of a body is meat and how well the
+  animal being chased turns.
+- **`predation` resolves off the _hunter_**: what this predator will take on is
+  a fact about the predator, including how much risk its build lets it accept.
 - **Feeding's mass scaling reads the `metabolism` block, not `feeding`**, since
   that is where `referenceMass` and `massScalingExponent` live and where
   `MetabolismSystem` reads them. Before this, a species overriding
@@ -1152,9 +1163,44 @@ system's carnivore branch) → _recover_ (stamina regenerates at rest;
 
 `captureChance` comes from the predator's speed against the prey's, weighted by
 how much sprint each has left and by how vulnerable the prey is (wounded, or not
-yet grown), clamped so nothing is ever untouchable or certain. Live sampling
-showed 31%–49% across consecutive attempts. **The odds are published on
-`entity.hunted` rather than hidden.**
+yet grown), divided by how well the prey **turns**, and clamped so nothing is
+ever untouchable or certain. Live sampling showed 31%–49% across consecutive
+attempts. **The odds are published on `entity.hunted` rather than hidden.**
+
+⚠ **`hunting.agility` is the one term in that product that resolves off the
+prey** _(added 2026-07-28)_, joining `edibleMassFraction` as the second
+prey-resolved field in a block that otherwise describes the hunter. Everything
+else in the formula is about *speed*, and a gazelle's living is not made on
+speed — it is made on turning better than the thing behind it. One divide, in a
+function that already existed. Acceleration and turn radius are **not**
+representable and were declined: movement stores a heading and a step length by
+design, with no trajectory anywhere, and adding a physics model for one term
+would be the wrong trade. Default 1, which is exactly the identity.
+
+**Which individuals a predator will take** is the `predation` block (a species
+block since 2026-07-28): `maxPreyMassRatio`, `minPreyMassRatio`, and
+`riskyMassRatio`. The first two gate eligibility in perception's classification
+loop, in both directions — what I will commit to, and what I need fear.
+
+⚠ **The gate reads `bodyMass`, not `adultMass`, and that is the whole trick.**
+`bodyMass` is what the animal weighs *now*, walked up the growth curve, so
+age-structured prey selection falls out of a mass ratio for free: the calf is
+under the ceiling its mother is over, with no life-stage conditional anywhere
+and nothing new stored. ⚠ The test sits **after** `SpeciesRegistry.hunts()`,
+never inside it — that predicate is the busiest in the engine and its linear
+`includes` was measured rather than assumed (D24), so the species relation stays
+exactly as cheap as it was and the mass comparison only runs on its rare true
+case. `riskyMassRatio` is the cap on the existing `defenderMass / attackerMass`
+term in the hunter's injury odds, which was a bare `2` in the code until it
+became species data.
+
+⚠ **No shipped species states a ratio, so all of this is inert today** —
+verified, not assumed: with possession switched off the demo is state-identical
+to the tree without any of it, on every entity field across three seeds. That is
+deliberate. A ratio tight enough to be interesting would stop a *subadult*
+stalker (bodyMass ~25 kg while it grows toward 45) taking an adult grazer (up to
+~34 kg), which is a large ecological change bought for a roster with nothing to
+spend it on. The species that need ratios declare them when they arrive.
 
 Two bugs found by measuring rather than by tests:
 
@@ -1222,8 +1268,10 @@ surviving predator — and D14's rule is that a one-seed difference is the
 signature of noise rather than signal. Stalker _means_ move the other way in
 every arm (5.4 → 6.3 → 7.1 → 8.4). Recorded rather than tuned around.
 
-Multiple eaters on a cell contend **deterministically**: entities iterate in
+Multiple eaters on a **cell** contend **deterministically**: entities iterate in
 ascending id order, so the lower id eats first and later ones get the remainder.
+⚠ Multiple eaters on a **carcass** no longer do — since 2026-07-28 a body has a
+holder, and id order decides only who claims it first. See §9 Carcasses.
 
 Feeding is **in-cell** — no separate eating range — because the decision system
 only chooses `eat` when standing on food, so a range check would be redundant.
@@ -1802,6 +1850,94 @@ the signature D14 and the crowding cap both describe.
 Old remains being barely worth crossing the map for is what keeps scavenging from
 replacing hunting.
 
+#### Possession and kill theft
+
+_Added 2026-07-28 (PLAN-SPECIES.md §3.9)._ A carcass used to have no owner, and
+several carnivores on one body contended only through the ascending-id ordering
+above — the lower id ate first and the rest took the remainder. That is not
+competition, it is a queue, and it is wrong for the predator / thief / vulture
+triangle the roster is built around.
+
+**The whole mechanism is one field and three predicates.** A carcass carries
+`possessorId`; an animal that feeds on it claims it; another carnivore either
+feeds beside the holder, waits, or takes it by contest.
+
+⚠ **Possession is held by presence, not by a clock.** The plan asked for a
+freshness stamp; there is none. A holder still standing over the body holds it,
+one that walked away does not, and no timer has to expire to say so — the same
+judgement that keeps dominance and every disturbance effect derived on read. It
+also means possession cannot get stuck in a state nobody can clear.
+
+⚠ **A challenger only challenges when it is strictly stronger.** Dominance
+decides a contest — there is no roll to lose — so an outmatched animal would be
+choosing to lose, spending three draws and risking a wound for a meal it was
+never going to get. And because the winner then eats (raising its energy, and so
+its dominance) the arrangement is self-stabilising: a takeover happens once, not
+once per tick, with no cooldown field to store and no flapping. Two exactly-equal
+animals never contest, so the tie case cannot oscillate either.
+
+⚠ **A bystander gets scraps, not nothing, and that was a measurement rather than
+a preference.** The first version excluded outright, which is the obvious reading
+of "arrive first, leave when the big animals come" — and it cost the demo three
+seeds of predator survival. See the sweep below. `carcass.possessionShare: 0`
+restores strict exclusion and is kept as the measured variant.
+
+**Group-held possession falls out for free** — the first real payoff of the
+group registry (§9 Persistent groups). A clanmate of the holder feeds *beside* it
+rather than against it, tested as `eater.groupRecordId === holder.groupRecordId`
+and read off the live holder, so there is no second copy of the membership on
+the carcass to go stale. One clan member takes the body by contest and the rest
+simply eat, which is what a clan displacing a lone predator looks like.
+
+⚠ **One predicate, two readers.** `DecisionSystem` asks whether a body is worth
+walking to and `FeedingSystem` asks whether it may be eaten. If those disagree
+the animal walks to a carcass, is refused it, and then **keeps choosing `eat`
+while starving on the spot** — nothing outscores a meal at your feet. So both
+call the same functions in `predation/possession.js`, the same fix `drinkRange`
+and `carcassRange` each got (D11). Known limit, stated rather than discovered
+later: perception reports only the *nearest* carcass, so an animal turned away
+from a held body does not fall back to a further free one that tick.
+
+⚠ **Unlike the rest of phase 4 this is not inert** — the demo already had two
+carnivores contending for the same bodies — so it ships behind
+`carcass.possessionEnabled` and was swept against that control.
+
+_Measured 2026-07-28, **ten seeds × 15 000 ticks, three arms**. Populations are
+grazer / stalker / corvid:_
+
+| Arm      | bystander gets | survival (seeds alive of 10) | mean population       |
+| -------- | -------------- | ---------------------------- | --------------------- |
+| `control` | possession off | 10 / **9** / 10             | 161.4 / 9.1 / 76.5    |
+| `strict`  | nothing (share 0) | 10 / **6** / 9           | 176.2 / 7.6 / 80.3    |
+| `shared`  | a quarter rate | 10 / **9** / 10             | 158.8 / 8.6 / 86.4    |
+
+⚠ **The middle row is why the design changed, and the reason it failed was not
+the predicted one.** Three seeds is well past the one-seed threshold D14 calls
+noise, so strict exclusion is a real regression — but it did not work by starving
+predators of carrion. **Per-capita carrion barely moved in any arm** (stalker
+230.8 / 227.4 / 227.1). What moved was *how stalkers died*:
+
+| Arm      | age | exposure | starvation | dehydration |
+| -------- | --: | -------: | ---------: | ----------: |
+| `control` | 119 |       43 |          9 |           2 |
+| `strict`  | 102 |       36 |     **17** |      **13** |
+| `shared`  | 124 |       32 |          9 |           3 |
+
+A diagnostic pass counting turn-aways found the cause: **young** stalkers being
+locked out. `dominanceOf` halves for immaturity, so a subadult scores below a
+well-fed adult corvid, and the demo runs ~80 corvids to ~7 stalkers. Recruitment
+failed and the population aged out — which is why the fix had to be a share
+rather than a tuned threshold. With scraps, the death profile returns to the
+control's almost exactly.
+
+⚠ **Read the mean populations as noise, not result.** Per-seed stalker counts
+move as much between arms as between seeds (control 10/0/4/10/11/…, shared
+3/5/2/13/11/…), the same signature D14 and the crowding cap both describe. The
+survival counts and the death-cause profile are the load-bearing numbers here.
+The one directional change worth noting is **corvid mean 76.5 → 86.4**: a body
+now has one full-rate eater instead of a crowd, so it lasts longer and more
+scavengers get a turn at it.
+
 Decay is a **pure function of elapsed time**, so the `updateInterval: 5` stagger
 cannot drift it — asserted by a test comparing interval 1 against 5.
 
@@ -2006,7 +2142,7 @@ evict, because there the oldest entry is genuinely the least useful and
 ## 12. Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently **28**) with the tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently **29**) with the tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, the tombstone registry, the persistent-group
@@ -2056,7 +2192,10 @@ version history — and which step invalidated which format — is documented in
   projection to raw records.
 
 Across 30 steps: **28 protocol bumps and 27 save-format bumps**, each with
-fixtures regenerated and invalidation notes. No incompatibility incident.
+fixtures regenerated and invalidation notes. No incompatibility incident. The
+species work has since taken the save format to **29** (the group registry, then
+carcass possession) with the protocol deliberately held at 28 — see A54 for what
+that owes and when it is paid.
 
 ---
 
@@ -2111,7 +2250,16 @@ single "before" number is not a baseline; the working rule is to **interleave**
 readings of HEAD and the change in the same session and compare the two
 *distributions*. `git stash push -u` → benchmark → `git stash pop` is the cheap
 way to do it. Two single readings a few percent apart are not a result; HEAD at
-69.2–72.1 against a tree at 78.2–79.4 is one, because they do not overlap.
+69.2–72.1 against a tree at 78.2–79.4 is one, because they do not overlap. (The
+drift continued: the same HEAD read **83.9–84.6** later that same evening.)
+
+⚠ **And a third arm is often worth more than a fourth pair.** Phase 4 touched
+`#perceive` — the function D28 charged 12% for — *and* added real per-tick work
+elsewhere, so a bare before/after could not have said which was which.
+Benchmarking the tree with the new mechanism **switched off** settled it: 84.73
+against HEAD's 83.94–84.55 with identical entity counts, so the hot-loop edit was
+free and the ~1% belonged to the mechanism. When a change has two candidate
+costs, measure the arm that isolates them.
 
 ### ⚠ A ~1% whole-simulation timing difference is noise, not a result
 
@@ -2217,7 +2365,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-772 tests, 196 suites. Layers:
+796 tests, 202 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol
@@ -2267,6 +2415,7 @@ populations for stochastic runs.
 | —   | Worn-path sandbox            | a trail due east bends wander headings                    | mean cos(heading) > trail-free control                                   |
 | —   | Shared-walk equivalence      | the two neighbour paths agree                             | 400 demo ticks byte-identical                                            |
 | —   | Clan sandbox                 | an invented group-forming species founds, joins, separates, and dissolves | membership outlives a separation the herd label does not; a clan-forming world and a control are identical animal for animal |
+| —   | Carcass-possession sandbox   | two carnivores, one body: the holder eats, the weaker waits, the stronger takes it | the weaker gains no energy while the claim stands; a clanmate does; the disabled control is the exact id-ordered queue |
 
 **Scenario 11 is the pattern to copy** whenever a step adds a _second_ force
 acting on something already being measured: run the same seeded world with the
@@ -2354,6 +2503,7 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | D26   | The replacement scanner had a bug of its own: it left template-literal mode at `${` and never returned, so everything after a substitution was read as code. In a file of HTML templates the next `"` opened a bogus string and the scanner desynced — surfacing as `Controls.js` failing for a `Math.random` that appears only inside a comment saying it is banned | A hand-written scanner needs its own tests before it is trusted to police anything else. This one failed loudly by luck; it could as easily have gone blind in the other direction |
 | ⚠ D27 | Mass-scaling herbivore intake was written up as "inert — the grazer sits exactly at `referenceMass`, so its factor is 1". It is not: the system reads the **individual's** `bodyMass`, which is `adultMass × size trait` walked up a growth curve. Seed 42's cohort measured 5.1–33.7 kg, factors 0.265–1.092 — a half-grown animal's intake fell ~40% | **A species-level constant is not an entity-level one.** To decide whether a change is inert, check the value the code actually reads, on real entities — not the config it resolves from. The claim was written before it was measured, which is the entire error |
 | ⚠ D28 | Making `foodMinLevel` per-species meant resolving it beside `radius` and passing both into `PerceptionSystem#perceive` — a four-argument call instead of three. That cost **12% of total engine time** at large-5k (66.1 → 70.7 ms/tick). An A/B pinned it on the **arity alone**: keeping the fourth parameter but passing the old global value was just as slow (70.4), while returning to three arguments was 62.8. Passing the resolved block as one object restored it | **The hottest function in the engine is arity-sensitive, and nothing about the diff looks expensive.** `#perceive` is ~53% of a tick and holds the (2r+1)² cell scan; one more parameter is enough to change what the optimiser does with it. Prefer handing a hot helper one object over widening its signature — and ⚠ note the whole-system profiler *hid* this: wrapping prototypes to time each system showed only +0.8%, because the wrapper overhead perturbed exactly the inlining under test |
+| D30   | Carcass possession shipped behind `possessionEnabled` so it had a reproducible control — but with the switch **off** the feeding system still stamped `possessorId` on every body it fed from. Behaviour was identical, so nothing failed; the control world simply was not the old world, it was the old world plus a field, and every "identical to before" comparison taken against it would have been quietly false. Caught only because a test asserted the control claims *nothing*, not merely that it behaves the same | **An off switch must leave no trace, not merely no effect.** D16 says an identity path has to be *exactly* the identity; this is the same rule applied to state rather than to arithmetic. When adding a control arm, assert what it *writes*, not only what it does — and put the guard on the write, not on the read, because a field nothing reads today is still a field in the save |
 | D29   | A test spawned two animals, asserted they formed a herd, and got `null`. `social.minGroupSize: 2` is compared against **groupmates** — how many *others* are in range — so it means "three animals", and the comment beside it ("a lone animal is not a herd of one") reads as though it means "two". Two test iterations to notice                                                                     | **A threshold named for an aggregate is often counted on a part.** When a parameter's name describes one quantity (group *size*) and the code compares it against another (neighbour *count*), the off-by-one is invisible in both the name and the comment. State which quantity beside the number, not just what it is for — the same discipline D11 asks for a threshold defined on another parameter |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
@@ -2471,12 +2621,13 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `engineering`, `disturbance`, `migration`, `disease`, `social`, `groups`,
 `environment`, `carcass`, `lineage`, `injury`, `hunting`, `locomotion`,
 `memory`, `metrics`, `genetics`, `traits`, `parenting`, `aging`, `hydration`,
-`feeding`, `behavior`, `decision`,
+`feeding`, `behavior`, `decision`, `predation`,
 `demo`.
 
-**Eleven** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
+**Twelve** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
 `genetics`, `disease`, `reproduction`, and — from 2026-07-28 — `feeding`,
-`hunting`, and `behavior`) double as **species-block defaults** — see §8.
+`hunting`, `behavior`, and `predation`) double as **species-block defaults** —
+see §8.
 
 ⚠ **`behavior` and `decision` are one mechanism split in two**, both read by
 `DecisionSystem`: `behavior` is what an animal wants (per-species), `decision`

@@ -533,6 +533,42 @@ export const defaultSimulationConfig = Object.freeze({
     // behaviour**, and is the control this was measured against.
     nutrientSpreadRadius: 4,
     updateInterval: 5, // decay stages are coarse; no need to check every tick
+    // Carcass possession and kill theft (see predation/possession.js).
+    // PLAN-SPECIES.md §3.9.
+    //
+    // ⚠ **Unlike the rest of phase 4, this is not inert.** The demo already has
+    // two carnivores contending for the same bodies, and until now they
+    // contended only through entity id order — the lower id ate first. That is
+    // a real energy-source change, so it ships behind a switch and was swept
+    // against it on ten seeds; the numbers are in DOCS §9 Carcasses.
+    //
+    // The rules are short. An animal that feeds on a body claims it. Another
+    // carnivore either feeds beside the holder (same group record — a clan
+    // shares a kill), takes it by contest if it is stronger, or picks at the
+    // edge for `possessionShare` of its normal intake. Possession is held by
+    // **presence**, so a holder that walks away simply stops holding it and no
+    // timer has to expire to say so.
+    possessionEnabled: true,
+    possessionRange: 2, // how close the holder must still be for its claim to stand
+    // ⚠ What a bystander still gets. The first version of this was **0** —
+    // strict exclusion — and ten seeds said no: stalker survival 9/10 → 6/10,
+    // with their deaths moving from `age` to `starvation` and `dehydration`.
+    // The cause was not carrion lost to theft (per-capita carrion barely moved)
+    // but *young* stalkers being locked out by weight of numbers: `dominanceOf`
+    // halves for immaturity, so a subadult scores below a well-fed adult corvid,
+    // and the demo runs ~80 corvids to ~7 stalkers. Recruitment failed and the
+    // population aged out. A share is also the truer model — a vulture at an
+    // occupied kill gets scraps, not nothing — and the holder still takes four
+    // times what a bystander does, which is what possession is *for*. **0
+    // restores strict exclusion**, and is the measured variant above.
+    possessionShare: 0.25,
+    // Fights over a body are the mildest of the three: a beaten challenger has
+    // lost nothing but a meal, and the resident keeps eating. Contests draw
+    // from their own `possession` stream so a carcass fight cannot shift the
+    // `social` sequence that mate contests and territory disputes share.
+    possessionEscalationChance: 0.25,
+    possessionFightSeverity: 0.18,
+    possessionWinnerInjuryFraction: 0.4,
   }),
   // Lineage across removal (see world/lineage.js). Carcasses are the first
   // things ever removed from the world, so parent/offspring references can now
@@ -624,6 +660,49 @@ export const defaultSimulationConfig = Object.freeze({
     defenderWeight: 0.12,
     maxDefenders: 4,
     defenderInjuryBonus: 2.5, // how much likelier a guarded kill is to hurt the hunter
+    // ⚠ Resolves off the **prey**, joining `edibleMassFraction` as the second
+    // field in this block that does. Escape used to be about top speed and
+    // nothing else — `captureChance` reads the speed ratio, the stamina edge,
+    // vulnerability, and shielding — so a prey animal could only get away by
+    // being *faster*, never by turning better. This is that missing term, and
+    // it is the whole realistic ask (PLAN-SPECIES.md §3.15): acceleration and
+    // turn radius are not representable without a trajectory model this engine
+    // deliberately does not have, and stotting needs a predator that reads a
+    // per-prey signal. One divide, in a function that already exists.
+    //
+    // 1 is **exactly** the identity — `x / 1 === x` — so this is inert until a
+    // species declares otherwise, which is the point: a gazelle's agility is a
+    // fact about the gazelle and arrives with it (phase 7).
+    agility: 1,
+  }),
+  // Prey eligibility (see predation/predation.js). Which *individuals* a
+  // predator will commit to, as opposed to which species it hunts —
+  // `preySpeciesIds` has never had a size or age gate on it, so a predator
+  // would take any listed species at any size.
+  //
+  // ⚠ The ratios read `bodyMass`, not `adultMass`, which is what makes
+  // age-structured prey selection free: a calf is under a ceiling its mother is
+  // over, with no life-stage conditional anywhere and nothing new stored.
+  //
+  // ⚠ **Both bounds ship as `null`, meaning no bound at all**, and the
+  // comparison is then never made — exactly the identity rather than
+  // approximately it (D16). That is deliberate. The demo is a knife edge, and
+  // any ratio tight enough to be interesting would stop a subadult stalker
+  // (bodyMass ~25 kg while it grows toward 45) taking an adult grazer (up to
+  // ~34 kg) — a large ecological change bought for a roster with nothing to
+  // spend it on. The species that need ratios declare them when they arrive:
+  // a leopard taking calves, a lion taking buffalo at real risk, an adult rhino
+  // taking nothing at all.
+  predation: Object.freeze({
+    maxPreyMassRatio: null, // heaviest prey, as a multiple of the hunter's own mass
+    minPreyMassRatio: null, // lightest prey worth the sprint
+    // ⚠ How dangerous heavy prey is allowed to get. `HuntingSystem` already
+    // scales the hunter's injury chance by `defenderMass / attackerMass`; this
+    // is the cap on that term, which was a bare `2` in the code until
+    // 2026-07-28. Default 2 is **exactly** what it replaced, so this is a magic
+    // number becoming species data rather than a behaviour change. A buffalo's
+    // hunter raises it; nothing today touches it.
+    riskyMassRatio: 2,
   }),
   // Sprinting (see systems/MovementSystem.js and MetabolismSystem.js). Chases
   // and escapes trade stamina for speed; stamina recovers whenever an animal is

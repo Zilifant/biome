@@ -54,6 +54,8 @@ export class HuntingSystem extends SimulationSystem {
    * @param {number} [options.failedHuntEnergyCost] energy a missed attempt burns
    * @param {number} [options.captureStaminaCost] stamina the lunge itself costs
    * @param {number} [options.edibleMassFraction] carcass edible mass fraction
+   * @param {number} [options.agility] how much better than its speed the prey turns (prey-resolved)
+   * @param {number} [options.riskyMassRatio] cap on how dangerous heavy prey gets (from `config.predation`)
    * @param {number} [options.preyInjuryChance] chance an escaping prey is wounded
    * @param {number} [options.preyInjurySeverity] how bad such a wound is
    * @param {number} [options.predatorInjuryChance] chance the prey hurts its attacker
@@ -73,6 +75,8 @@ export class HuntingSystem extends SimulationSystem {
     failedHuntEnergyCost = 4,
     captureStaminaCost = 12,
     edibleMassFraction = 0.6,
+    agility = 1,
+    riskyMassRatio = 2,
     preyInjuryChance = 0.55,
     preyInjurySeverity = 0.35,
     predatorInjuryChance = 0.08,
@@ -95,6 +99,11 @@ export class HuntingSystem extends SimulationSystem {
     this.failedHuntEnergyCost = failedHuntEnergyCost;
     this.captureStaminaCost = captureStaminaCost;
     this.edibleMassFraction = edibleMassFraction;
+    this.agility = agility;
+    // From `config.predation`, not `config.hunting` — wired in by the composition
+    // root so there is one home for it (D11) and this is only the fallback for a
+    // species the registry does not know.
+    this.riskyMassRatio = riskyMassRatio;
     this.preyInjuryChance = preyInjuryChance;
     this.preyInjurySeverity = preyInjurySeverity;
     this.predatorInjuryChance = predatorInjuryChance;
@@ -156,7 +165,14 @@ export class HuntingSystem extends SimulationSystem {
       // watch six directions), while an adult that has actively chosen to
       // `defend` this particular animal is worth more than any of them.
       const defenders = this.defendersFor(world, prey);
-      const chance = this.captureChance(entity, prey, defenders, params);
+      // ⚠ Two blocks, two owners. `params` is the **hunter's** — how you capture
+      // is your biology. `preyParams` is the **prey's**, and carries the two
+      // fields in this block that describe the animal being eaten rather than
+      // the one eating: `edibleMassFraction` (how much of a body is meat) and,
+      // from 2026-07-28, `agility` (how well it turns). Resolved once here
+      // rather than twice below, since an attempt needs both.
+      const preyParams = world.species.get(prey.speciesId)?.hunting ?? this;
+      const chance = this.captureChance(entity, prey, defenders, params, preyParams);
       const captured = random.next() < chance;
       const preyRoll = random.next();
       const predatorRoll = random.next();
@@ -188,7 +204,6 @@ export class HuntingSystem extends SimulationSystem {
         // meat — a fact about the animal that died, not about what killed it.
         // Identical today (nothing overrides it); the distinction matters the
         // first time two prey species differ in build.
-        const preyParams = world.species.get(prey.speciesId)?.hunting ?? this;
         killAnimal(prey, 'predation', prey.bodyMass * preyParams.edibleMassFraction, context.emit, context.tick);
         context.emit(EventTypes.ENTITY_KILLED, { entityId: prey.id, predatorId: entity.id });
       } else {
@@ -209,9 +224,16 @@ export class HuntingSystem extends SimulationSystem {
         // Same roll, so the draw budget stays at three.
         const guardian = defenders.guardian;
         const defenderMass = guardian ? Math.max(prey.bodyMass, guardian.bodyMass) : prey.bodyMass;
+        // ⚠ The cap on that ratio was a bare `2` until 2026-07-28 and is now
+        // `predation.riskyMassRatio`, resolved off the **hunter** — how much
+        // risk this predator's build lets it take on. Default 2, so this is a
+        // magic number becoming species data rather than a change: it is what
+        // a lion taking buffalo raises, and the hook PLAN-SPECIES.md §3.6 named
+        // rather than a new mechanism.
+        const riskCap = world.species.get(entity.speciesId)?.predation?.riskyMassRatio ?? this.riskyMassRatio;
         const trampleChance =
           this.predatorInjuryChance *
-          Math.min(2, defenderMass / Math.max(entity.bodyMass, 1e-6)) *
+          Math.min(riskCap, defenderMass / Math.max(entity.bodyMass, 1e-6)) *
           (guardian ? params.defenderInjuryBonus : 1);
         this.#wound(entity, InjuryKinds.TRAMPLE, trampleChance, this.predatorInjurySeverity, guardian ?? prey, context, predatorRoll);
       }
@@ -262,10 +284,13 @@ export class HuntingSystem extends SimulationSystem {
    *
    * @param {object} predator @param {object} prey
    * @param {{count: number, guardian: object|null}} [defenders]
-   * @param {object} [params] resolved per-species `hunting` block; defaults to the system's own
+   * @param {object} [params] resolved per-species `hunting` block for the **hunter**; defaults to the system's own
+   * @param {object} [preyParams] the same block resolved for the **prey**, which
+   *        is where `agility` lives; defaults to the hunter's, so a direct
+   *        caller that supplies neither still gets the system's own numbers
    * @returns {number} probability in [minCaptureChance, maxCaptureChance]
    */
-  captureChance(predator, prey, defenders = { count: 0, guardian: null }, params = this) {
+  captureChance(predator, prey, defenders = { count: 0, guardian: null }, params = this, preyParams = params) {
     // Raw speed, before either has spent anything.
     const speedRatio = prey.speed > 0 ? predator.speed / prey.speed : 2;
 
@@ -290,7 +315,16 @@ export class HuntingSystem extends SimulationSystem {
     const guarding = defenders.guardian ? 1 : 0;
     const shielding = 1 / (1 + params.defenderWeight * (bystanders + 2 * guarding));
 
-    const chance = params.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding;
+    // Agility (PLAN-SPECIES.md §3.15). Everything above this line is about
+    // *speed*: the raw ratio, who has sprint left, whether the prey is sound.
+    // A gazelle's living is not made on speed but on turning better than the
+    // thing behind it, and until now there was no term for that at all. This is
+    // it — one divide, resolved off the **prey**, since manoeuvre is the animal
+    // being chased. ⚠ At the default of 1 this is exactly the identity
+    // (`x / 1 === x`), which is the guarantee D16 asks of any "at zero it does
+    // nothing" claim.
+    const agility = preyParams.agility ?? 1;
+    const chance = (params.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding) / agility;
     return Math.min(params.maxCaptureChance, Math.max(params.minCaptureChance, chance));
   }
 }

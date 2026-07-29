@@ -100,6 +100,13 @@ export function registerDemoSystems(engine) {
       foodMinLevel: engine.config.perception.foodMinLevel,
       drinkRange: engine.config.hydration.drinkRange,
       carcassRange: engine.config.feeding.carcassRange,
+      // Carcass possession lives in `config.carcass` and is read by two systems
+      // — this one asks whether a body is worth walking to, the feeding system
+      // whether it may be eaten. One config home, two wired readers, exactly as
+      // `foodMinLevel` is wired into both perception and decision.
+      possessionEnabled: engine.config.carcass.possessionEnabled,
+      possessionRange: engine.config.carcass.possessionRange,
+      possessionShare: engine.config.carcass.possessionShare,
       // Weather machinery: the °C thresholds stay global, and `shelterRelief` is
       // shared with metabolism through the `thermalStress` chokepoint so the
       // system that charges for stress and the one that walks out of it cannot
@@ -130,6 +137,13 @@ export function registerDemoSystems(engine) {
       injuryFeedPenalty: engine.config.injury.feedPenalty,
       diseaseFeedPenalty: engine.config.disease.feedPenalty,
       maxMemories: engine.config.memory.maxMemories,
+      possessionEnabled: engine.config.carcass.possessionEnabled,
+      possessionRange: engine.config.carcass.possessionRange,
+      possessionShare: engine.config.carcass.possessionShare,
+      possessionEscalationChance: engine.config.carcass.possessionEscalationChance,
+      possessionFightSeverity: engine.config.carcass.possessionFightSeverity,
+      possessionWinnerInjuryFraction: engine.config.carcass.possessionWinnerInjuryFraction,
+      injuryHealthDamage: engine.config.injury.healthDamage,
     }),
   );
   engine.registerSystem(
@@ -149,6 +163,9 @@ export function registerDemoSystems(engine) {
       predatorInjurySeverity: engine.config.injury.predatorInjurySeverity,
       injuryHealthDamage: engine.config.injury.healthDamage,
       maxMemories: engine.config.memory.maxMemories,
+      // From `config.predation`, its one home. The hunting system only needs the
+      // risk cap; the mass ratios are read per-species by perception.
+      riskyMassRatio: engine.config.predation.riskyMassRatio,
     }),
   );
   engine.registerSystem(

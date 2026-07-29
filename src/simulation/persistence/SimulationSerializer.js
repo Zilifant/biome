@@ -160,10 +160,18 @@
  *       reissue the id of a group something still refers to (the same reason
  *       `nextDisturbanceId` is saved). v27 saves lack the block and register a
  *       different system lineup, so they are invalidated.
+ *  29 — predation structure (PLAN-SPECIES.md phase 4): a per-carcass
+ *       `possessorId` (who is standing over this body), plus new `predation`
+ *       and possession config sections. The possessor is the one piece of new
+ *       persisted state and it is small, but it is not derivable: a restored
+ *       world that forgot it would hand every contested carcass back to
+ *       whichever scavenger has the lower id, which is exactly the behaviour
+ *       possession replaced. Config is saved verbatim, so the new sections
+ *       invalidate v28 saves on their own account too.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 28;
+export const SAVE_FORMAT_VERSION = 29;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

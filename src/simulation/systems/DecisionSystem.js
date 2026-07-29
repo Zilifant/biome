@@ -42,6 +42,7 @@ import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateC
 import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
+import { DEFAULT_POSSESSION, isAvailableTo } from '../predation/possession.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -156,6 +157,13 @@ export class DecisionSystem extends SimulationSystem {
     minHuntStamina = 15,
     huntCooldownTicks = 60,
     carcassRange = 1.5,
+    // Carcass possession (see predation/possession.js). Only the two fields the
+    // *predicate* needs — this system never resolves a contest, it only declines
+    // to steer an animal at a body it would be refused. Wired from the same
+    // `config.carcass` home the feeding system reads.
+    possessionEnabled = DEFAULT_POSSESSION.enabled,
+    possessionRange = DEFAULT_POSSESSION.range,
+    possessionShare = DEFAULT_POSSESSION.share,
     shelterWeight = 0.9,
     shelterStressThreshold = 2,
     shelterStressSpan = 10,
@@ -219,6 +227,12 @@ export class DecisionSystem extends SimulationSystem {
     this.minHuntStamina = minHuntStamina;
     this.huntCooldownTicks = huntCooldownTicks;
     this.carcassRange = carcassRange;
+    this.possession = Object.freeze({
+      ...DEFAULT_POSSESSION,
+      enabled: possessionEnabled,
+      range: possessionRange,
+      share: possessionShare,
+    });
     this.shelterWeight = shelterWeight;
     this.shelterStressThreshold = shelterStressThreshold;
     this.shelterStressSpan = shelterStressSpan;
@@ -261,7 +275,21 @@ export class DecisionSystem extends SimulationSystem {
       // your feet if you graze, a carcass within reach if you do not. Both then
       // flow through the same `eat` / `seekFood` actions — eating is eating.
       const carnivore = species?.diet === 'carnivore';
-      const carcass = perceived?.nearestCarcass ?? null;
+      // ⚠ A body somebody stronger is standing over is not food (2026-07-28,
+      // PLAN-SPECIES.md §3.9). This *must* be the same predicate the feeding
+      // system applies, or the animal walks to a carcass and is then refused it
+      // — and, worse, keeps choosing `eat` while starving on the spot, because
+      // nothing else would ever outscore a carcass at its feet. One predicate in
+      // `predation/possession.js`, two readers, exactly as `carcassRange` and
+      // `drinkRange` were each fixed to have one home (D11).
+      //
+      // Known limit, stated rather than discovered later: perception reports
+      // only the *nearest* carcass, so an animal turned away from a held body
+      // does not fall back to a further free one this tick. It wanders and finds
+      // it later, which is the same shallow-perception bargain the rest of the
+      // system makes; widening it would mean ranking carcasses inside the
+      // hottest loop in the engine.
+      const carcass = this.#availableCarcass(world, entity, perceived, carnivore);
       // ⚠ Per-species since 2026-07-28, and it must be the *same* threshold
       // perception used to pick `nearestFood` — otherwise an animal walks to a
       // cell its senses called food and then declines to eat it, or stands on
@@ -570,6 +598,26 @@ export class DecisionSystem extends SimulationSystem {
       }
     }
     return best;
+  }
+
+  /**
+   * The perceived carcass this animal could actually eat, or null.
+   *
+   * Costs a herbivore nothing (it never gets here) and a carnivore one O(1)
+   * entity lookup on the ticks it can see a body at all — the perception record
+   * carries the id but not the possessor, deliberately, since resolving one
+   * inside the neighbour walk would put a lookup in the hottest loop in the
+   * engine for a fact only carnivores read.
+   *
+   * @param {import('../world/World.js').World} world
+   * @param {object} entity @param {object|null} perceived @param {boolean} carnivore
+   */
+  #availableCarcass(world, entity, perceived, carnivore) {
+    const seen = carnivore ? (perceived?.nearestCarcass ?? null) : null;
+    if (seen === null || !this.possession.enabled) return seen;
+    const carcass = world.entities.get(seen.id);
+    if (!carcass) return null;
+    return isAvailableTo(world, carcass, entity, this.possession) ? seen : null;
   }
 
   /**

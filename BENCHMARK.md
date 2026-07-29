@@ -70,6 +70,33 @@ per-animal loop and its neighbour reads are never reached. Entity counts are
 identical to the animal (5733→7780), and the demo serializes byte-identically
 across three seeds.
 
+### Predation structure (2026-07-28 late, PLAN-SPECIES.md phase 4)
+
+⚠ The machine drifted again between the phase-3 and phase-4 measurements — the
+same HEAD that read 76–79 earlier in the evening reads **84** here — so only the
+rows below are comparable to each other.
+
+| arm | large-5k |
+| --- | ---: |
+| HEAD (phase 3) | 84.55, 83.94 ms/tick |
+| tree, **possession off** | 84.73 ms/tick |
+| tree, possession on | 85.33, 85.11 ms/tick |
+
+Two conclusions, and the middle row is what separates them:
+
+- **The perception change is free.** Phase 4 put a prey-mass gate inside the
+  neighbour loop and changed `#perceive` to take the whole species record instead
+  of its `perception` block — the exact shape of code D28 charged 12% for. With
+  possession switched off the tree lands at 84.73 against HEAD's 83.94–84.55,
+  with **identical entity counts** (5733→7780), so the gate and the extra
+  property loads cost nothing measurable.
+- **Possession costs ~0.5–1.5%**, and that is real work rather than a
+  regression: holder lookups, dominance comparisons, and contests that HEAD does
+  not perform. ⚠ It is also at the edge of what whole-simulation timings can
+  resolve at all (D24: run-to-run spread is ±10%, and ~1% is not a result), which
+  is precisely why the isolating middle row exists rather than a bare before/after
+  pair.
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

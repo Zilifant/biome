@@ -83,6 +83,7 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {number | null} diedTick tick this animal died (drives decay)
  * @property {string | null} deathCause what killed it (carried into the tombstone)
  * @property {number} decayStage index into DECAY_STAGES (carcasses only)
+ * @property {number | null} possessorId the animal holding this carcass, if any
  * @property {string} action current chosen action (decision system)
  * @property {{cellX: number, cellY: number} | null} actionTarget target cell of the action
  * @property {Record<string, number> | null} utilityBreakdown scored action utilities
@@ -268,6 +269,14 @@ function createEntity(id, definition) {
     diedTick: definition.diedTick ?? null,
     deathCause: definition.deathCause ?? null,
     decayStage: definition.decayStage ?? 0,
+    // Carcass possession (2026-07-28; see predation/possession.js). Which animal
+    // is currently standing over this body — 0 for the living, and the whole of
+    // the mechanism, since possession is held by **presence** rather than by a
+    // stored clock and group-held possession is read off the holder's own
+    // `groupRecordId`. Written only by `FeedingSystem`, and only by the act of
+    // eating: a claim that no longer holds simply reads as absent, so nothing
+    // has to go around clearing it when an animal dies or walks away.
+    possessorId: definition.possessorId ?? null,
   };
 }
 

@@ -10,10 +10,11 @@
  *
  * `feeding` and `hunting` joined the list on 2026-07-28 (PLAN-SPECIES.md §3.2),
  * so a browser and a grazer can differ in what they get out of the same ground
- * and two predators can differ in how they capture. ⚠ Neither *varies* by
- * species yet — every species inherits the config — which is the same shape
- * `disease` had when it landed (§1.4 A38): the schema arriving one step ahead of
- * the roster that needs it.
+ * and two predators can differ in how they capture; `behavior` and `predation`
+ * followed the same day. ⚠ None of the four *varies* by species yet — every
+ * species inherits the config — which is the same shape `disease` had when it
+ * landed (§1.4 A38): the schema arriving one step ahead of the roster that needs
+ * it.
  *
  * **A species overrides; the config supplies defaults.** Each block below falls
  * back to the same-named global config section, so a species file states only
@@ -66,6 +67,12 @@ export const SPECIES_BLOCKS = Object.freeze([
   // half stays global as `config.decision`; the split and its reasoning are
   // written up beside the two sections in `defaultSimulationConfig.js`.
   'behavior', // flee/herd/hunt/rest weights, thresholds an animal acts on
+  // Which *individuals* this predator will commit to, as opposed to which
+  // species it hunts (PLAN-SPECIES.md §3.6). Added 2026-07-28 with phase 4.
+  // ⚠ Its ratios ship as `null` — no bound — so it is inert until a species
+  // states one; see `predation/predation.js` for why that is deliberate rather
+  // than timid.
+  'predation', // prey mass ceiling and floor, and how dangerous heavy prey gets
 ]);
 
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);

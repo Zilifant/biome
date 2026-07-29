@@ -13,16 +13,26 @@
  * (creation order), so earlier ids eat first and later ones get whatever
  * biomass remains.
  *
- * Ownership: writes `energy` (gain, clamped to `maxEnergy`) and vegetation
- * biomass (decrement via `VegetationGrid.consumeAt`), and records where the
- * animal ate — or failed to (Step 15); emits `entity.fed`. No randomness, no
- * global scans.
+ * ⚠ **Carcass contention stopped being a queue on 2026-07-28.** A body now has a
+ * holder (`possessorId`), and a second carnivore either feeds beside it — same
+ * group record, so a clan shares a kill — waits, or takes it by contest. See
+ * `predation/possession.js` for the rules and why possession is held by presence
+ * rather than by a timer.
+ *
+ * Ownership: writes `energy` (gain, clamped to `maxEnergy`), vegetation biomass
+ * (decrement via `VegetationGrid.consumeAt`), and `carcass.possessorId`; records
+ * where the animal ate — or failed to (Step 15); emits `entity.fed`. Randomness:
+ * **three draws per possession contest** on the dedicated `possession` stream,
+ * whatever the outcome, and none at all otherwise. No global scans.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 import { CarcassSystem } from './CarcassSystem.js';
 import { diseaseSeverity } from '../disease/disease.js';
+import { DEFAULT_POSSESSION, holderOf, mayFeedFreely, outranks } from '../predation/possession.js';
+import { resolveContest } from '../social/dominance.js';
+import { MAX_INJURIES } from '../injury/injuries.js';
 
 export class FeedingSystem extends SimulationSystem {
   /**
@@ -53,6 +63,18 @@ export class FeedingSystem extends SimulationSystem {
     massScaleIntake = true,
     injuryFeedPenalty = 0.5,
     diseaseFeedPenalty = 0.3,
+    // Carcass possession (see predation/possession.js). Held as one object
+    // rather than five scalars because the predicates take it whole, and
+    // `DecisionSystem` holds the identical object — the two must ask the same
+    // question or an animal walks to a body it is then refused (D11).
+    possessionEnabled = DEFAULT_POSSESSION.enabled,
+    possessionRange = DEFAULT_POSSESSION.range,
+    possessionShare = DEFAULT_POSSESSION.share,
+    possessionEscalationChance = DEFAULT_POSSESSION.escalationChance,
+    possessionFightSeverity = DEFAULT_POSSESSION.fightInjurySeverity,
+    possessionWinnerInjuryFraction = DEFAULT_POSSESSION.fightWinnerInjuryFraction,
+    injuryHealthDamage = 60,
+    maxInjuries = MAX_INJURIES,
     maxMemories = MAX_MEMORIES,
     updateInterval = 1,
   } = {}) {
@@ -69,6 +91,16 @@ export class FeedingSystem extends SimulationSystem {
     this.massScaleIntake = massScaleIntake;
     this.injuryFeedPenalty = injuryFeedPenalty;
     this.diseaseFeedPenalty = diseaseFeedPenalty;
+    this.possession = Object.freeze({
+      enabled: possessionEnabled,
+      range: possessionRange,
+      share: possessionShare,
+      escalationChance: possessionEscalationChance,
+      fightInjurySeverity: possessionFightSeverity,
+      fightWinnerInjuryFraction: possessionWinnerInjuryFraction,
+    });
+    this.injuryHealthDamage = injuryHealthDamage;
+    this.maxInjuries = maxInjuries;
     this.maxMemories = maxMemories;
   }
 
@@ -172,6 +204,43 @@ export class FeedingSystem extends SimulationSystem {
     }
     if (!carcass) return;
 
+    // Possession (2026-07-28, PLAN-SPECIES.md §3.9). Until now several
+    // carnivores on one body contended only through entity id order — the lower
+    // id ate first and the rest took the remainder, which is not competition,
+    // it is a queue. Now the body has a holder, and this animal either feeds
+    // beside it, waits, or takes it.
+    const holder = holderOf(world, carcass, this.possession);
+    let share = 1;
+    if (!mayFeedFreely(holder, entity)) {
+      if (outranks(entity, holder)) {
+        // A challenge. Exactly three draws whatever happens, on the possession
+        // stream's own sequence, so a fight over a body cannot shift the `social`
+        // stream that mate contests and territory disputes share.
+        const result = resolveContest(entity, holder, context.random('possession'), {
+          escalationChance: this.possession.escalationChance,
+          fightInjurySeverity: this.possession.fightInjurySeverity,
+          winnerInjuryFraction: this.possession.fightWinnerInjuryFraction,
+          injuryHealthDamage: this.injuryHealthDamage,
+          tick: context.tick,
+          maxInjuries: this.maxInjuries,
+        });
+        // Dominance decided it before the draws were spent, so the challenger
+        // wins by construction — but read the result rather than assuming it, so
+        // the two can never drift apart.
+        if (result.winner.id !== entity.id) share = this.possession.share;
+      } else {
+        // ⚠ **Scraps, not exclusion, and the difference was measured.** An
+        // outmatched animal does not challenge — dominance decides a contest, so
+        // it would be choosing to lose and risking a wound for it — but neither
+        // is it sent away with nothing. Strict exclusion cost the demo three
+        // seeds of predator survival by locking *young* stalkers out of bodies
+        // held by adult corvids (`dominanceOf` halves for immaturity, and the
+        // demo runs ~80 corvids to ~7 stalkers); see `predation/possession.js`.
+        share = this.possession.share;
+      }
+      if (!(share > 0)) return;
+    }
+
     // Freshness matters (Step 18): a fresh kill is a windfall, old remains are
     // barely worth the walk. One shared definition, in CarcassSystem.
     const freshness = CarcassSystem.yieldFor(carcass);
@@ -183,8 +252,14 @@ export class FeedingSystem extends SimulationSystem {
     // size, and immediately decisive once one was not. Scaled on the same
     // allometric exponent metabolism already uses, so a big animal eats faster
     // *and* burns more, and the reference-mass animal is unchanged.
+    //
+    // ⚠ `share` is the possession term: 1 for the holder, its groupmates, and
+    // whoever just took the body off them, and `possession.share` for a
+    // bystander picking at the edge. At 1 it is exactly the identity, so a body
+    // nobody is standing over is eaten at precisely the old rate.
     const rate =
       params.fleshIntakeRate *
+      share *
       this.#massScale(entity, species) *
       (1 - entity.impairment * this.injuryFeedPenalty) *
       (1 - diseaseSeverity(entity, this.diseaseFeedPenalty));
@@ -192,6 +267,23 @@ export class FeedingSystem extends SimulationSystem {
     if (taken <= 0) return;
 
     carcass.edibleMass -= taken;
+    // ⚠ Claimed by **eating**, and only once a bite actually landed. The act is
+    // the claim, so there is no separate "take possession" step for a future
+    // caller to forget — and an animal that reached a body but took nothing off
+    // it (satiated, or the last scrap went to a lower id this tick) has not
+    // taken it from anybody.
+    //
+    // ⚠ Guarded on `enabled` even though nothing *reads* the field when
+    // possession is off. The switch is the control this change was measured
+    // against, and a control that leaves a different value in the save is not
+    // the old world — it is the old world plus a field. Writing it anyway cost
+    // nothing behaviourally and would have made every "identical to before"
+    // claim in this phase quietly false (D30).
+    //
+    // ⚠ And only a full share claims: an animal picking scraps at the edge of
+    // somebody else's kill has not taken it, so the claim cannot pass back and
+    // forth between the holder and the bystanders it is holding off.
+    if (this.possession.enabled && share === 1) carcass.possessorId = entity.id;
     entity.energy = Math.min(entity.maxEnergy, entity.energy + taken * energyPerUnit);
     const { cellX, cellY } = world.cellOf(carcass.x, carcass.y);
     // A kill site is worth remembering, like any other place it fed well.
