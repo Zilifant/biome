@@ -46,13 +46,20 @@ they are not re-opened by accident.
   named lever is relaxing "nearer the predator than I am" to "near enough to
   interpose".
 
-- **A55 — The persistent-group registry never fires in the demo.** Wholly inert,
-  not merely near-inert, and deliberately: no shipped species declares
-  `groups.forms: true`, so `GroupSystem` returns on its first branch every tick.
-  Measured rather than assumed — the demo's entity state is byte-identical across
-  three seeds. It stops being inert at the first clan-forming carnivore
-  (PLAN-SPECIES.md phase 7); until then the mechanism is carried entirely by
-  tests that invent a group-forming species.
+- **⚠ A56 — A two-member clan flaps between founding and dissolution.**
+  `groups.minMembers: 2` makes a pair a clan and a lone animal not one, so a pair
+  that drifts apart dissolves and re-founds on meeting again — measured
+  2026-07-29 at **157 foundings against 150 dissolutions in 3000 ticks on seed 2**,
+  against 7 and 0 on seed 1. Nothing is corrupted; the identity that "survives
+  separation" just survives it only while a second member stays close. The named
+  fix is hysteresis (hold a record N ticks below its minimum before dissolving),
+  one field on the record, the same shape as `alarmedUntil`. ⚠ Not before batch
+  2 — tuning a dissolution delay against the only clan-forming species in the
+  world would fit it to a case the mechanism is about to outgrow.
+
+  _(A55, the registry never firing in the demo, **closed 2026-07-29** — the hyena
+  declares `groups.forms` and the demo founds real clans, asserted directly in
+  `test/groups.test.js` rather than inferred from a survival number.)_
 
 ## Engine — behaviour and modelling
 

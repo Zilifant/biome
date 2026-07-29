@@ -96,35 +96,19 @@ export const KIND_APPEARANCE = Object.freeze({
  */
 export const SPECIES_APPEARANCE = Object.freeze({
   // ---- shipped today ----
-  // ⚠ Each of these three is renamed into a roster species below, and the entry
-  // here is deleted in the phase that renames it: grazer → gazelle and corvid →
-  // vulture at phase 7, stalker → leopard at phase 14. `supersededBy` names the
-  // successor so the pairing is mechanical rather than folklore — it is what
-  // lets two species share a glyph without that being a collision, and
-  // `renderer-view.test.js` checks both halves.
-  'herbivore.grazer': Object.freeze({
-    glyph: 'g',
-    colorToken: 'yellow',
-    priority: 50,
-    label: 'grazer',
-    supersededBy: 'herbivore.gazelle',
-  }),
+  // ⚠ `supersededBy` names the roster entry a shipped species is renamed into,
+  // so the pairing is mechanical rather than folklore — it is what lets two
+  // species share a glyph without that being a collision, and
+  // `renderer-view.test.js` checks both halves. **The entry is deleted in the
+  // phase that does the rename**: the grazer's and corvid's went at phase 7
+  // (2026-07-29) when they became the gazelle and the vulture, and the
+  // stalker's goes at phase 14 when it becomes the leopard.
   'predator.stalker': Object.freeze({
     glyph: 's',
     colorToken: 'red',
     priority: 60,
     label: 'stalker',
     supersededBy: 'predator.leopard',
-  }),
-  // Step 29 added this species to the engine with no engine code at all, and
-  // adding it here is the renderer's whole share of that: one entry, no change
-  // to the drawing algorithm.
-  'scavenger.corvid': Object.freeze({
-    glyph: 'v',
-    colorToken: 'purple',
-    priority: 45,
-    label: 'corvid',
-    supersededBy: 'scavenger.vulture',
   }),
 
   // ---- the roster (PLAN-SPECIES §7) ----

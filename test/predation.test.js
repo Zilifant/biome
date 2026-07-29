@@ -27,7 +27,7 @@ import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 
 const CONFIG = new SimulationEngine().config;
 const STALKER = getSpecies('predator.stalker');
-const CORVID = getSpecies('scavenger.corvid');
+const CORVID = getSpecies('scavenger.vulture');
 
 /** Teach one engine about invented species (the roster is a static import list, A50). */
 function withSpecies(engine, ...definitions) {
@@ -77,7 +77,7 @@ function spawnOf(engine, speciesId, overrides = {}) {
 function spawnCarcass(engine, { x = 20, y = 20, edibleMass = 40, ...rest } = {}) {
   const id = engine.world.entities.queueSpawn({
     kind: 'carcass',
-    speciesId: 'herbivore.grazer',
+    speciesId: 'herbivore.gazelle',
     x,
     y,
     alive: false,
@@ -101,11 +101,26 @@ describe('predation: prey eligibility by mass', () => {
     assert.equal(isEligiblePrey(hunter, { bodyMass: 4000 }, null), true, 'no ratio ⇒ nothing is excluded');
   });
 
-  test('the shipped roster states no ratios, so nothing is gated today', () => {
+  test('a species states its ratios or inherits no bound at all', () => {
+    // ⚠ Until 2026-07-29 this asserted that *nothing* in the roster stated a
+    // ratio — the schema arriving ahead of the species that needed it. The hyena
+    // (phase 7) is that species and is the first to declare one, so the claim
+    // moves from "nobody bounds anything" to the one that stays true as the
+    // roster grows: an undeclared bound is `null`, which skips the comparison
+    // entirely rather than approximating it.
     const engine = createDemoSimulation({ seed: 42 });
+    const hyena = engine.species.require('scavenger.hyena');
+    assert.equal(hyena.predation.maxPreyMassRatio, 1.0, 'a solo hyena takes prey up to its own mass');
+    assert.equal(hyena.predation.minPreyMassRatio, 0.08, 'and does not bother below a floor');
+
     for (const species of engine.species.all()) {
+      if (species.id === 'scavenger.hyena') continue;
       assert.equal(species.predation.maxPreyMassRatio, null, `${species.id} states no ceiling`);
       assert.equal(species.predation.minPreyMassRatio, null, `${species.id} states no floor`);
+    }
+    // Nothing in the roster has a reason to raise this yet — the buffalo does,
+    // in batch 2.
+    for (const species of engine.species.all()) {
       assert.equal(species.predation.riskyMassRatio, 2, `${species.id} inherits the old hardcoded cap`);
     }
   });
@@ -121,7 +136,7 @@ describe('predation: prey eligibility by mass', () => {
       preySpeciesIds: Object.freeze(['test.ox']),
       predation: Object.freeze({ maxPreyMassRatio: 0.6 }),
     });
-    const ox = Object.freeze({ ...getSpecies('herbivore.grazer'), id: 'test.ox', bodyMass: 200 });
+    const ox = Object.freeze({ ...getSpecies('herbivore.gazelle'), id: 'test.ox', bodyMass: 200 });
 
     const engine = sandbox();
     withSpecies(engine, cat, ox);
@@ -152,7 +167,7 @@ describe('predation: prey eligibility by mass', () => {
       preySpeciesIds: Object.freeze(['test.ox2']),
       predation: Object.freeze({ maxPreyMassRatio: 0.6 }),
     });
-    const ox = Object.freeze({ ...getSpecies('herbivore.grazer'), id: 'test.ox2', bodyMass: 200 });
+    const ox = Object.freeze({ ...getSpecies('herbivore.gazelle'), id: 'test.ox2', bodyMass: 200 });
 
     const engine = sandbox();
     withSpecies(engine, cat, ox);
@@ -171,15 +186,15 @@ describe('predation: prey eligibility by mass', () => {
       ...STALKER,
       id: 'test.cat3',
       bodyMass: 180,
-      preySpeciesIds: Object.freeze(['herbivore.grazer']),
+      preySpeciesIds: Object.freeze(['herbivore.gazelle']),
       predation: Object.freeze({ minPreyMassRatio: 0.3 }),
     });
     const engine = sandbox();
     withSpecies(engine, cat);
     engine.registerSystem(new PerceptionSystem(engine.config.perception));
     const hunter = spawnOf(engine, cat.id, { x: 20, y: 20, bodyMass: 180, adultMass: 180 });
-    spawnOf(engine, 'herbivore.grazer', { x: 21, y: 20, bodyMass: 30, adultMass: 30 });
-    const big = spawnOf(engine, 'herbivore.grazer', { x: 23, y: 20, bodyMass: 60, adultMass: 60 });
+    spawnOf(engine, 'herbivore.gazelle', { x: 21, y: 20, bodyMass: 30, adultMass: 30 });
+    const big = spawnOf(engine, 'herbivore.gazelle', { x: 23, y: 20, bodyMass: 60, adultMass: 60 });
     engine.step(1);
     // 0.3 × 180 = 54 kg, so the 30 kg animal is beneath notice.
     assert.equal(engine.world.perception.get(hunter).nearestPrey?.id, big);
@@ -222,7 +237,7 @@ describe('predation: how dangerous heavy prey is', () => {
     // exposing the internal term: at 0 the trample chance is 0, so a predator
     // that always gets hurt never does.
     const heavy = Object.freeze({
-      ...getSpecies('herbivore.grazer'),
+      ...getSpecies('herbivore.gazelle'),
       id: 'test.heavy',
       bodyMass: 300,
       hunting: Object.freeze({ agility: 1 }),

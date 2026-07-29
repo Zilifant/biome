@@ -1343,7 +1343,7 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 | ~~**4**~~ | ✅ **Done 2026-07-28.** `predation` added to `SPECIES_BLOCKS` and gated in perception **both ways** — what I commit to and what I fear (§3.6); the `agility` divide in `captureChance`, prey-resolved (§3.15); `riskyMassRatio` replacing a hardcoded `2`; **carcass possession and theft** via one `possessorId` field and `resolveContest` on its own stream (§3.9). ⚠ The first three are **exactly inert** — the control arm is state-identical to phase 3 on every entity field — so possession is the single attributable change and is the only one swept. ⚠ Protocol projection again **deferred** to phase 5 (DOCS A54) | med  | Perception / Hunting / Feeding    |
 | ~~**5**~~ | ✅ **Done 2026-07-28.** Protocol **v29** (§6): `founding: [{speciesId, count}]` replacing the three role counts (kept as deprecated aliases), the host publishing its roster on `/api/status`, renderer fields generated from it, ethologist `--founding=`. Plus the **whole A54 debt** from phases 3–4 in the same bump: the `group` block and `possessorId` on inspection, a `groups` aggregate in metrics, and `entity.robbed` / `entity.grouped` / `entity.ungrouped`. ⚠ The bump left the renderer and all three fixtures on 28 with the suite green — now guarded mechanically | med  | protocol bump, fixtures           |
 | ~~**6**~~ | ✅ **Done 2026-07-28.** Renderer scale (§7): all ten roster species have a glyph/colour/priority entry, with `supersededBy` naming each rename so a shared letter is a stated transition rather than a collision; per-species collapsible metrics sections with a remembered open-set; the quadratic sparkline lookup indexed once per render; the v29 `groups` aggregate finally rendered. ⚠ Driven in a browser (`tests-ui/metrics.spec.js`), per D32 | low  | renderer only                     |
-| **7**     | **Batch 1 — gazelle + hyena.** Convert `herbivore.grazer` → `herbivore.gazelle` (rename, biology ≈ unchanged); rename `scavenger.corvid` → `scavenger.vulture`; add `scavenger.hyena`; `predator.stalker` stays generic                                                                                                                                                                                                                                                                            | med  | config only                       |
+| ~~**7**~~ | ✅ **Done 2026-07-29. Batch 1 — gazelle + hyena.** `herbivore.grazer` → `herbivore.gazelle` and `scavenger.corvid` → `scavenger.vulture`, **proved byte-identical**; vulture 4 → 6 kg as a separate measured change; `scavenger.hyena` added behind the ten-seed gate; `predator.stalker` stays generic. Closed **A55** (the group registry fires in the demo) and opened **A56**. ⚠ The gate **failed first** and the reason is the finding of the phase — see §10.1 | med  | config + a new sweep harness      |
 | **8**     | **Hidden-fawn phase** (§3.14) — its own measured change, per A12 discipline; carries the A34 "give patrol a reason" experiment                                                                                                                                                                                                                                                                                                                                                                     | med  | Decision / Parenting / Perception |
 | **9**     | Forage guilds (§3.3): grass-maturity preference from `biomass / capacity`; `habitat` block, closing A49 (§3.4)                                                                                                                                                                                                                                                                                                                                                                                     | med  | Feeding / Decision / Migration    |
 | **10**    | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix                                                                                                                                                                                                                                                                                                                                                                                             | med  | Decision / Hunting                |
@@ -1393,9 +1393,15 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 No species ships without this, because the demo is a knife edge and the last
 species added cost 3/10 seeds until the real bug surfaced.
 
-- **Harness:** extend `npm run ethologist` (it already sweeps seeds and reports
-  per-animal anomalies) or add `npm run sweep` reporting, per seed: population by
-  species at t=5k/10k/15k, deaths by cause by species, and extinction ticks.
+- ✅ **Harness: `npm run sweep`, built 2026-07-29** (`src/scripts/sweep.js`).
+  Reports, per seed and in aggregate: population by species at each checkpoint,
+  deaths by cause **by species**, extinction ticks, carrion feeds and mass by
+  species, and persistent-group founding/dissolution. ⚠ Its `--control=` runs a
+  second founding roster **over the same seeds in the same process**, which is
+  the A/B the gate is actually stated in — and, unlike the benchmark, a sweep is
+  deterministic, so the two arms are exactly comparable and need no interleaving
+  against machine drift. A config change (a mass, a weight) still needs two runs;
+  only a roster change can be done in one.
 - **Procedure per species:** add the definition with `count: 0` → confirm zero
   diff → raise the count → sweep **10 seeds × 15 000 ticks** against the
   pre-species control.
@@ -1435,6 +1441,61 @@ species added cost 3/10 seeds until the real bug surfaced.
 ## 10. The roster
 
 ### 10.1 Batch 1 (phase 7) — gazelle, hyena
+
+#### ✅ As built (2026-07-29) — and the one thing nobody predicted
+
+The rename half went exactly as §9 demanded: **byte-identical**, 6.28 MB of
+serialized state across three seeds at 1500 ticks matching modulo the two id
+strings. The vulture's 4 → 6 kg then went as its own arm (all four species 10/10
+seeds; the stalker actually improved 9/10 → 10/10, and the gazelle fell ~30 —
+fewer, larger vultures leave more carrion, which feeds more stalkers, which kill
+more gazelle: a three-step chain the sweep makes visible and nobody would have
+guessed).
+
+⚠ **The hyena failed its first gate outright, and the reason is the most
+transferable thing in this phase.** At `minHungerToHunt: 0.35` — a stalker-ish
+value — **the gazelle went extinct in 7 of 10 seeds** against a control where it
+never went extinct at all, and the vulture halved beside it.
+
+The cause was not that the hyena hunts too well. It is that **a facultative
+scavenger is not limited by the prey it hunts.** Carrion supplied 37% of
+everything the world's scavengers took, the hyena population more than doubled on
+that subsidy, and the subsidised population then hunted. A predator whose numbers
+do not depend on its prey can eat that prey to extinction without ever going
+hungry — apparent competition, and a genuinely correct thing for this model to
+have produced.
+
+⚠ **Lowering the founding count does not fix it, and was tried.** The population
+recovers to whatever carrion supports regardless of how many are founded; the
+count changes the ramp, not the ceiling. What fixed it was coupling the hunting
+back to the hunger: `minHungerToHunt: 0.75`, i.e. *it hunts only when scavenging
+has failed to feed it*. Also corrected: the first draft bred **faster** than the
+45 kg stalker, which is backwards for a 60 kg carnivore and was the other half of
+the collapse.
+
+**Carry this into batch 2.** The lion is the same shape of animal — a large
+carnivore that also scavenges — and the buffalo it is meant to eat breeds far
+more slowly than a gazelle. Expect the same failure mode and check
+`minHungerToHunt` *first*.
+
+**The passing world (10 seeds × 15 000 ticks, 2026-07-29), stated with its
+costs** — because the gate's second half is a judgement and the honest answer is
+that this species is not free:
+
+| Species  | With hyena | Hyena-free control | Read as                                            |
+| -------- | ---------- | ------------------ | -------------------------------------------------- |
+| gazelle  | **10/10**, mean 95.6 | 10/10, mean 152.1 | suppressed to ~⅔, never extinct — the intended effect of a second predator guild |
+| stalker  | **7/10**, mean 5.1   | 10/10, mean 7.9   | ⚠ **the real cost: three seeds in ten lose the stalker** |
+| vulture  | **10/10**, mean 116.3 | 10/10, mean 201.3 | ⚠ −42%; §9 warned that a surviving-but-halved vulture is a result, not a pass |
+| hyena    | **9/10**, mean 3.9   | —                 | establishes, but thinly — a marginal population    |
+
+Every species clears the ≥6/10 bar, so the batch ships; but two of the three
+incumbents are materially reduced and that is recorded rather than rounded off.
+⚠ **The stalker is the species to watch in batch 2**, not the vulture the plan
+expected: possession works and the vulture keeps a living (50.6% of all carrion
+taken, up from 73.7% only because there is now a third claimant), while the
+stalker is squeezed by a competitor for the same prey that does not depend on it.
+
 
 **`herbivore.grazer` → `herbivore.gazelle`.** A rename, a rewritten docstring,
 and an appearance label. **Keep `bodyMass: 30`** — that sits between a Thomson's

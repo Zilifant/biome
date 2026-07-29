@@ -17,9 +17,9 @@ describe('source scan: comment stripping', () => {
   test('⚠ a `/*` inside a LINE comment does not open a block comment', () => {
     // The exact shape that blinded the species scan across 600 lines of config:
     // the literal `config/species/*` inside a `//` comment.
-    const source = ['// biology lives in config/species/*', "const id = 'herbivore.grazer';", '// trailing'].join('\n');
+    const source = ['// biology lives in config/species/*', "const id = 'herbivore.gazelle';", '// trailing'].join('\n');
     const stripped = stripComments(source);
-    assert.ok(stripped.includes("'herbivore.grazer'"), 'code after the line comment must survive');
+    assert.ok(stripped.includes("'herbivore.gazelle'"), 'code after the line comment must survive');
     assert.ok(!stripped.includes('config/species'), 'the line comment itself is gone');
   });
 
@@ -99,10 +99,10 @@ describe('source scan: the demo founding roster exemption', () => {
   test('the roster is excised and the rest of the config is not', () => {
     const source = [
       'export const config = {',
-      "  terrain: { note: 'herbivore.grazer' },",
+      "  terrain: { note: 'herbivore.gazelle' },",
       '  demo: {',
       '    founding: [',
-      "      { speciesId: 'herbivore.grazer', count: 120 },",
+      "      { speciesId: 'herbivore.gazelle', count: 120 },",
       "      { speciesId: 'predator.stalker', count: 8 },",
       '    ],',
       '  },',
@@ -110,7 +110,7 @@ describe('source scan: the demo founding roster exemption', () => {
     ].join('\n');
     const trimmed = removeDemoFoundingRoster(source);
     assert.ok(!trimmed.includes('count: 120'), 'the roster is gone');
-    assert.ok(trimmed.includes("terrain: { note: 'herbivore.grazer' }"), 'an id anywhere else is still exposed');
+    assert.ok(trimmed.includes("terrain: { note: 'herbivore.gazelle' }"), 'an id anywhere else is still exposed');
   });
 
   test('against the real config, the roster is the only place ids appear', () => {
@@ -119,10 +119,10 @@ describe('source scan: the demo founding roster exemption', () => {
     // excised, no species id remains anywhere in the config.
     const raw = readFileSync('src/simulation/config/defaultSimulationConfig.js', 'utf8');
     const scanned = removeDemoFoundingRoster(stripComments(raw));
-    for (const id of ['herbivore.grazer', 'predator.stalker', 'scavenger.corvid']) {
+    for (const id of ['herbivore.gazelle', 'predator.stalker', 'scavenger.vulture']) {
       assert.ok(!scanned.includes(id), `${id} appears outside demo.founding`);
     }
     // And the exemption is narrow: the roster really was in there to begin with.
-    assert.ok(stripComments(raw).includes('herbivore.grazer'), 'the roster is visible before excision');
+    assert.ok(stripComments(raw).includes('herbivore.gazelle'), 'the roster is visible before excision');
   });
 });

@@ -29,7 +29,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 const CONFIG = new SimulationEngine().config;
 // Resolved species (Step 29): the accessors take a resolved record, not an id.
 const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 const STALKER = getSpecies('predator.stalker');
 const TWO_PI = Math.PI * 2;
 

@@ -29,7 +29,7 @@ function metabolismOnlyEngine(params = {}) {
 function spawnAnimal(engine, overrides = {}) {
   const id = engine.world.entities.queueSpawn({
     kind: 'animal',
-    speciesId: 'herbivore.grazer',
+    speciesId: 'herbivore.gazelle',
     x: 8,
     y: 8,
     bodyMass: 30,

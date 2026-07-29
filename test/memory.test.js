@@ -44,7 +44,7 @@ function isolateFoodPatch(engine, patchX, patchY) {
 function spawnAnimal(engine, overrides = {}) {
   const id = engine.world.entities.queueSpawn({
     kind: 'animal',
-    speciesId: 'herbivore.grazer',
+    speciesId: 'herbivore.gazelle',
     heading: 0,
     lifeStage: 'adult',
     bodyMass: 30,

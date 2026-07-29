@@ -1063,12 +1063,22 @@ export const defaultSimulationConfig = Object.freeze({
     // scavenger's 10. §1.4 D14: five seeds cannot resolve a one-seed
     // difference here, so re-measure on ten before changing any of them.
     founding: Object.freeze([
-      Object.freeze({ speciesId: 'herbivore.grazer', count: 120 }),
+      Object.freeze({ speciesId: 'herbivore.gazelle', count: 120 }),
       Object.freeze({ speciesId: 'predator.stalker', count: 8 }),
-      // A scavenger, added in Step 29 with no engine changes whatsoever — it is
-      // a carnivore that declares no prey, so it can only eat what is already
-      // dead. Small, because carrion is a thin and unreliable living.
-      Object.freeze({ speciesId: 'scavenger.corvid', count: 10 }),
+      // An obligate scavenger, added in Step 29 with no engine changes
+      // whatsoever — a carnivore that declares no prey, so it can only eat what
+      // is already dead. Small, because carrion is a thin and unreliable living.
+      Object.freeze({ speciesId: 'scavenger.vulture', count: 10 }),
+      // Batch 1's real change (PLAN-SPECIES.md phase 7): a facultative
+      // scavenger that hunts gazelle and steals kills, and the first species in
+      // the world to form persistent groups. ⚠ Swept on ten seeds × 15 000
+      // ticks against a hyena-free control before it went above zero, and the
+      // first sweep **failed** — see the species file for why, and D14 for why
+      // fewer seeds cannot settle a count. The passing world is a real
+      // ecological change, not a free addition: it costs the stalker three
+      // seeds in ten and holds the gazelle at about two thirds of its
+      // hyena-free abundance.
+      Object.freeze({ speciesId: 'scavenger.hyena', count: 6 }),
     ]),
   }),
 });

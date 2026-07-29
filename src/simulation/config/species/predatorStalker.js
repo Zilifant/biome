@@ -4,7 +4,7 @@
  * A stalking pursuit predator: faster than its prey in a sprint but with a
  * limited stamina budget, so a hunt is a gamble rather than a certainty. It
  * closes quietly at walking pace (`stalk`), commits to a sprint only inside
- * `chaseRange` (`chase`), and either catches the grazer or burns its stamina
+ * `chaseRange` (`chase`), and either catches the gazelle or burns its stamina
  * and has to recover.
  *
  * `preySpeciesIds` is the data that makes predation work without a single
@@ -12,8 +12,8 @@
  * both directions — this species hunts those, therefore those fear this one.
  *
  * From Step 29 this species finally has a **body of its own**. For thirteen
- * steps a stalker cub was born at the grazer's 5 kg, grew on the grazer's
- * curve, and died of old age on the grazer's schedule, because all of it lived
+ * steps a stalker cub was born at the gazelle's 5 kg, grew on the gazelle's
+ * curve, and died of old age on the gazelle's schedule, because all of it lived
  * in global config (§1.4 A17, B3). The blocks below are where that is fixed,
  * and each one states only what differs from the config defaults.
  */
@@ -21,8 +21,8 @@ export const predatorStalker = Object.freeze({
   id: 'predator.stalker',
   kind: 'animal',
   diet: 'carnivore',
-  preySpeciesIds: Object.freeze(['herbivore.grazer']),
-  bodyMass: 45, // kg (adult) — heavier than the grazer, so costlier to run
+  preySpeciesIds: Object.freeze(['herbivore.gazelle']),
+  bodyMass: 45, // kg (adult) — heavier than its prey, so costlier to run
   baseSpeed: 1.35, // world units per tick; only modestly faster at a walk
   maxEnergy: 120, // a bigger tank: predators eat rarely and in bulk
   maxHealth: 100,
@@ -36,13 +36,13 @@ export const predatorStalker = Object.freeze({
   comfortMax: 24,
   // §1.4 A17, closed. A predator is born larger, takes longer to reach a bigger
   // adult size, and lives longer than its prey — all of which used to be the
-  // grazer's numbers applied to a different animal.
+  // gazelle's numbers applied to a different animal.
   aging: Object.freeze({
     birthMass: 8, // kg — a cub, not a calf
     maturityAge: 1400, // slower to grow into a bigger body
     juvenileUntil: 500,
     subadultUntil: 1400,
-    adultUntil: 7000, // a longer prime than the grazer's 6000
+    adultUntil: 7000, // a longer prime than the gazelle's 6000
     maxAge: 14000,
   }),
   // A predator at rest is expensive (more muscle) but travels cheaply for its
@@ -52,7 +52,7 @@ export const predatorStalker = Object.freeze({
   hydration: Object.freeze({ dehydrationRate: 0.028 }),
   // Mate choice (Step 22). A different species, a different display: stalkers
   // read **speed**, the trait their whole living depends on, and weigh it more
-  // sharply (a smaller `span`) than grazers weigh size. Nothing in the code
+  // sharply (a smaller `span`) than gazelle weigh size. Nothing in the code
   // knows which species is which — the preference is read generically from
   // here (see mating/mateChoice.js).
   matePreference: Object.freeze({ trait: 'speed', span: 0.22, conditionWeight: 0.4 }),
@@ -64,7 +64,7 @@ export const predatorStalker = Object.freeze({
   // settles slowly because a territory is a claim built over time, not a
   // decision taken once.
   territory: Object.freeze({ defends: true, rangeRadius: 26, settleTicks: 1400 }),
-  // Persistent social groups (PLAN-SPECIES.md §3.8). No — and unlike the grazer
+  // Persistent social groups (PLAN-SPECIES.md §3.8). No — and unlike the gazelle
   // above, for this animal it is the whole design: a solitary ambush predator
   // that holds ground against its own kind is the opposite of a pride. This is
   // also the check that keeps it from being converted into a social carnivore
@@ -72,11 +72,11 @@ export const predatorStalker = Object.freeze({
   // live with them.
   groups: Object.freeze({ forms: false }),
   // Migration (Step 26). A stalker does **not** track forage: its food is the
-  // grazer, and it already follows that through perception and the hunt
+  // gazelle, and it already follows that through perception and the hunt
   // pipeline — a vegetation gradient would point it at grass it cannot eat.
   // It **does** track water: a predator gets most of its water from what it
   // eats and so rarely needs the lake, but when it does dry out it needs the
-  // same long-range steer toward it a grazer has — without it a stalker that
+  // same long-range steer toward it a gazelle has — without it a stalker that
   // spends its life in a corner of the map far from the one lake can dehydrate
   // having never encountered water, with no cue to tell it which way to go
   // (measured on a corner-lake seed: the last stalkers died of thirst having
@@ -85,7 +85,7 @@ export const predatorStalker = Object.freeze({
   // What it also shares is **natal dispersal**, and for a territorial species
   // that is the important half: a young stalker cannot inherit its parent's
   // ground, so it must leave and found its own. It walks out for longer than a
-  // grazer does, because it has further to go before the ground is unclaimed.
+  // gazelle does, because it has further to go before the ground is unclaimed.
   migration: Object.freeze({ tracksForage: false, tracksWater: true, cueRadius: 0, dispersalTicks: 700 }),
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

@@ -32,7 +32,8 @@
  * Usage:
  *   npm run ethologist                                  # a small default sweep
  *   npm run ethologist -- --seed=2344255022 --width=180 --height=120 \
- *       --herbivores=120 --predators=8 --scavengers=10 --rocks=5 --thickets=5 --ticks=9200
+ *       --founding=herbivore.gazelle:120,predator.stalker:8,scavenger.vulture:10,scavenger.hyena:6 \
+ *       --rocks=5 --thickets=5 --ticks=9200
  *   npm run ethologist -- --seeds=1,2,3,4,5 --ticks=6000 --top=15
  *
  * Flags: --seed=N | --seeds=a,b,c | --seedCount=N (from --seedBase, default 1);
@@ -97,7 +98,7 @@ function parseArgs(argv) {
 }
 
 /**
- * `herbivore.grazer:120,predator.stalker:8` → `[{ speciesId, count }]`.
+ * `herbivore.gazelle:120,predator.stalker:8` → `[{ speciesId, count }]`.
  * A malformed entry fails loudly rather than being skipped: a sweep quietly run
  * on a different world than the one asked for is worse than no sweep.
  */
@@ -219,7 +220,7 @@ function autopsy(world, entity, tracker, ctx) {
     return { suspicion: 0, reason: '' };
   }
   if (cause === 'starvation') {
-    // Diet-aware, or the counterfactual lies: grass is food to a grazer and
+    // Diet-aware, or the counterfactual lies: grass is food to a herbivore and
     // irrelevant to a stalker, which starves *with grass all around it* and is
     // not being failed by anything. A predator's food is a carcass within reach.
     const carnivore = world.species.get(entity.speciesId)?.diet === 'carnivore';
@@ -345,7 +346,7 @@ function analyzeRun({ seed, composition, ticks }) {
             for (let i = 1; i < tr.ring.length; i += 1) path += Math.hypot(tr.ring[i][0] - tr.ring[i - 1][0], tr.ring[i][1] - tr.ring[i - 1][1]);
             const net = Math.hypot(tr.ring.at(-1)[0] - tr.ring[0][0], tr.ring.at(-1)[1] - tr.ring[0][1]);
             const { need } = needOf(e);
-            // At most one circling episode per animal, ever — otherwise a grazer
+            // At most one circling episode per animal, ever — otherwise a herbivore
             // trapped by a walled lake re-flags every window and drowns the report.
             // The report is "which animals circled uselessly", not "how many ticks".
             if (!tr.circleFlagged && path >= D.circleMinPath && net / path < D.circleRatio && need >= D.circleNeed) {

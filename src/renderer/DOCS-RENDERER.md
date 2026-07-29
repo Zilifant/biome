@@ -45,7 +45,7 @@ numbers, so re-measure rather than inherit.
 | Tests               | renderer 104, runner 18 (of 819 repo-wide); 28 in `tests-ui` |
 | Protocol understood | **29** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v29 is drawn or inspectable   |
-| Species scheme      | **all ten roster species have a glyph** (§9), three of them shipped |
+| Species scheme      | **all ten roster species have a glyph** (§9), four of them shipped |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
 | Git                 | uncommitted (the user handles git)                         |
 
@@ -730,14 +730,20 @@ is the load-bearing one:
 species batch is visually identical to today's demo apart from the carnivore that
 arrives with it — which is what would make a visual regression obvious.
 
-⚠ **Three entries are transitional.** `herbivore.grazer`, `scavenger.corvid`, and
-`predator.stalker` are renamed into `herbivore.gazelle`, `scavenger.vulture`, and
-`predator.leopard`, and each carries a **`supersededBy`** naming its successor.
-That field is why two entries may share a letter without it being a collision —
-they never coexist in a world — and `renderer-view.test.js` enforces both halves:
-a shared glyph must be a supersession, and a `supersededBy` must name an entry
-that exists. The old entry is deleted in the phase that does the rename, and the
-test is the checklist.
+⚠ **A transitional entry carries `supersededBy`**, naming the roster entry it is
+renamed into. That field is why two entries may share a letter without it being a
+collision — they never coexist in a world — and `renderer-view.test.js` enforces
+both halves: a shared glyph must be a supersession, and a `supersededBy` must name
+an entry that exists. The old entry is **deleted** in the phase that does the
+rename, and the test is the checklist.
+
+⚠ **The scheme paid for itself one phase later, and the evidence is a
+non-event.** Phase 7 (2026-07-29) renamed the grazer to the gazelle and the
+corvid to the vulture, and added the hyena. The renderer's entire share of that
+was deleting the two superseded entries: the hyena arrived with a glyph, a
+colour, a legend row, a metrics section, and a restart field, and **not one line
+of renderer code was written for it**. That is what "a species batch is a config
+change" has to mean in practice.
 
 **The legend is generated, never written.** `describeLegend()` reads the
 appearance registries, so adding a species updates it for free and it cannot drift

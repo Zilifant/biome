@@ -74,7 +74,7 @@ describe('thicket: avoided unless it is the last choice', () => {
   function place(engine, ground, thicket, action, breakThicket = false) {
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: ground.x + 0.5,
       y: ground.y + 0.5,
       bodyMass: 30,
@@ -128,7 +128,7 @@ describe('thicket: avoided unless it is the last choice', () => {
     // Start inside the thicket, heading back west toward the ground approach.
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: thicket.x + 0.5,
       y: thicket.y + 0.5,
       bodyMass: 30,
@@ -159,7 +159,7 @@ describe('thicket: an animal caught in one prioritizes leaving', () => {
     const thicket = firstCell(engine.world.terrain, TerrainType.THICKET);
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: thicket[0] + 0.5,
       y: thicket[1] + 0.5,
       bodyMass: 30,

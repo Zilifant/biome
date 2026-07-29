@@ -6,7 +6,7 @@
  * animal slower and a less effective feeder — which in turn makes it easier to
  * catch, because the hunting system already reads prey condition. That loop is
  * the point: predation stops being instant-death-or-nothing and grows a middle
- * ground where a mauled grazer limps, eats badly, and is likelier to be caught
+ * ground where a mauled animal limps, eats badly, and is likelier to be caught
  * next time — or heals and gets away with it.
  *
  * `impairment` is the derived total (0 = unhurt, 1 = crippled), kept on the

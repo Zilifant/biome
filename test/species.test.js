@@ -7,7 +7,7 @@ import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapsho
 
 describe('species registry', () => {
   test('the herbivore grazer is registered and is biology-only (no presentation)', () => {
-    const species = getSpecies('herbivore.grazer');
+    const species = getSpecies('herbivore.gazelle');
     assert.equal(species.kind, 'animal');
     assert.equal(species.diet, 'herbivore');
     assert.ok(species.bodyMass > 0 && species.baseSpeed > 0 && species.maxHealth > 0);
@@ -25,7 +25,7 @@ describe('species registry', () => {
 describe('herbivore spawning', () => {
   test('demo animals are configured from the species definition', () => {
     const engine = createDemoSimulation({ seed: 42 });
-    const species = getSpecies('herbivore.grazer');
+    const species = getSpecies('herbivore.gazelle');
     // The founding roster is a list from Step 29, so every cohort in it is
     // asserted rather than a hardcoded prey/predator pair.
     const roster = engine.config.demo.founding;
@@ -35,8 +35,8 @@ describe('herbivore spawning', () => {
       const members = [...engine.world.entities.all()].filter((e) => e.speciesId === cohort.speciesId);
       assert.equal(members.length, cohort.count, `${cohort.speciesId} cohort`);
     }
-    const animalCount = roster.find((c) => c.speciesId === 'herbivore.grazer').count;
-    const grazers = [...engine.world.entities.all()].filter((e) => e.speciesId === 'herbivore.grazer');
+    const animalCount = roster.find((c) => c.speciesId === 'herbivore.gazelle').count;
+    const grazers = [...engine.world.entities.all()].filter((e) => e.speciesId === 'herbivore.gazelle');
     for (const entity of grazers) {
       assert.equal(entity.kind, 'animal');
       // Body mass follows the growth curve for the animal's (spread) initial
@@ -72,7 +72,7 @@ describe('herbivore spawning', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const id = [...engine.world.entities.all()][0].id;
     const details = engine.getEntityDetails(id);
-    assert.equal(details.speciesId, 'herbivore.grazer');
+    assert.equal(details.speciesId, 'herbivore.gazelle');
     for (const field of ['bodyMass', 'healthFraction', 'energyFraction', 'health', 'maxHealth', 'speed']) {
       assert.ok(field in details, `inspection missing ${field}`);
     }

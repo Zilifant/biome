@@ -146,9 +146,9 @@ describe('runner: restart', () => {
     for (const entity of runner.engine.world.entities.all()) {
       if (entity.kind === 'animal') counts[entity.speciesId] = (counts[entity.speciesId] ?? 0) + 1;
     }
-    assert.equal(counts['herbivore.grazer'], 40);
+    assert.equal(counts['herbivore.gazelle'], 40);
     assert.equal(counts['predator.stalker'], 5);
-    assert.equal(counts['scavenger.corvid'] ?? 0, 0, 'a zero count clears the role');
+    assert.equal(counts['scavenger.vulture'] ?? 0, 0, 'a zero count clears the role');
   });
 
   test('terrain prevalence maps to formation counts, the default level being the demo', () => {

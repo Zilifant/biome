@@ -36,7 +36,7 @@ function parentingEngine({ config = {}, ...params } = {}) {
 function spawn(engine, definition) {
   const id = engine.world.entities.queueSpawn({
     kind: 'animal',
-    speciesId: 'herbivore.grazer',
+    speciesId: 'herbivore.gazelle',
     heading: 0,
     maxEnergy: 100,
     maxHealth: 100,

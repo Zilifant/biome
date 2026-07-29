@@ -27,7 +27,7 @@ import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../sr
 
 const CONFIG = new SimulationEngine().config;
 const ENV = CONFIG.environment;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 
 function sandbox({ seed = 3, size = 44, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({

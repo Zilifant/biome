@@ -39,7 +39,7 @@ function agingEngine(params = {}) {
 function spawnAt(engine, age) {
   const id = engine.world.entities.queueSpawn({
     kind: 'animal',
-    speciesId: 'herbivore.grazer',
+    speciesId: 'herbivore.gazelle',
     x: 8,
     y: 8,
     age,
@@ -111,7 +111,7 @@ describe('aging: senescence and age mortality', () => {
     const ids = [];
     for (let i = 0; i < 200; i += 1) {
       ids.push(
-        engine.world.entities.queueSpawn({ kind: 'animal', speciesId: 'herbivore.grazer', x: (i % 15) + 0.5, y: Math.floor(i / 15) + 0.5, age: 8000, bodyMass: 30, lifeStage: 'senescent', maxHealth: 100 }),
+        engine.world.entities.queueSpawn({ kind: 'animal', speciesId: 'herbivore.gazelle', x: (i % 15) + 0.5, y: Math.floor(i / 15) + 0.5, age: 8000, bodyMass: 30, lifeStage: 'senescent', maxHealth: 100 }),
       );
     }
     engine.applyDeferredEntityChanges(0);

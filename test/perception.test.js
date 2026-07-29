@@ -137,10 +137,10 @@ describe('perception: locality and determinism', () => {
   test('per-species radius from the registry overrides the default', () => {
     const engine = new SimulationEngine({ seed: 1, config: { world: { width: 64, height: 64 } } });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 3 }));
-    const id = engine.world.entities.queueSpawn({ kind: 'animal', speciesId: 'herbivore.grazer', x: 30, y: 30, bodyMass: 30 });
+    const id = engine.world.entities.queueSpawn({ kind: 'animal', speciesId: 'herbivore.gazelle', x: 30, y: 30, bodyMass: 30 });
     engine.applyDeferredEntityChanges(0);
     engine.step(1);
-    assert.equal(engine.world.perception.get(id).radius, 6); // herbivore.grazer perceptionRadius
+    assert.equal(engine.world.perception.get(id).radius, 6); // herbivore.gazelle perceptionRadius
   });
 
   test('perception summaries are transient and not serialized', () => {

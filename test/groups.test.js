@@ -1,11 +1,17 @@
 /**
  * Persistent social groups (PLAN-SPECIES.md §3.8, phase 3).
  *
- * ⚠ **No shipped species forms persistent groups**, so — exactly as the species
- * schema proves itself by inventing a browser — this suite invents a
- * clan-forming species and runs it through a real engine. That is the honest
- * test of the claim: the mechanism has to work for a species declared entirely
- * in data, or it is not a species mechanism.
+ * Most of this suite **invents** a clan-forming species and runs it through a
+ * real engine — exactly as the species schema proves itself by inventing a
+ * browser. That is the honest test of the claim: the mechanism has to work for a
+ * species declared entirely in data, or it is not a species mechanism. It was
+ * also, from phase 3 to phase 6, the *only* way to test it, because nothing
+ * shipped declared `groups.forms`.
+ *
+ * ⚠ **That changed on 2026-07-29**: the hyena (phase 7) is the first shipped
+ * species to form clans, so the last group of tests below asserts the mechanism
+ * in the **demo world** rather than in a sandbox — clans founded, membership
+ * outliving the herd label, and carcasses taken off their holders.
  *
  * The assertions are on the **mechanism**, never on a population outcome (D1):
  * a record founded, a member joined, a membership that outlived a separation,
@@ -24,7 +30,7 @@ import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/species/index.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
-import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import {
   captureSimulationState,
   restoreSimulationState,
@@ -68,7 +74,7 @@ const SHORT_SIGHTED = Object.freeze({ ...CLAN, id: 'test.myopic', perception: Ob
 /** The same animal with clan formation switched off — the control. */
 const LONER = Object.freeze({ ...CLAN, id: 'test.loner', groups: Object.freeze({ forms: false }) });
 
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 
 function neutralGenome() {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [1, 1]]));
@@ -224,7 +230,7 @@ describe('group registry: the bounded store', () => {
   });
 
   test('a species that declares no group block forms none', () => {
-    assert.equal(groupsOf(getSpecies('herbivore.grazer'))?.forms, false);
+    assert.equal(groupsOf(getSpecies('herbivore.gazelle'))?.forms, false);
     assert.equal(groupsOf({ id: 'x' }), null, 'silence means no persistent groups');
     assert.equal(groupsOf(null), null);
   });
@@ -497,18 +503,71 @@ describe('persistent groups: the two mechanisms stay apart', () => {
     for (const id of ids) assert.equal(entity(engine, id).groupRecordId, null);
   });
 
-  test('the demo founds no group at all, and no animal carries a record', () => {
-    // ⚠ This step is inert by construction. Nothing shipped declares
-    // `groups.forms`, so the system returns on its first branch every tick — the
-    // schema arriving ahead of the roster, as `disease` did at Step 29.
+  test('⚠ the demo founds real clans, and only the clan-forming species is in one', () => {
+    // ⚠ **This test asserted the exact opposite until 2026-07-29**: from phase 3
+    // to phase 6 nothing shipped declared `groups.forms`, so the registry was
+    // wholly inert and the test said so (DOCS A55). The hyena is the species it
+    // was built for, and this is where the mechanism stops being carried by an
+    // invented species and starts being exercised by the demo world.
+    //
+    // PLAN-SPECIES §9 asks for exactly this to be asserted **directly** rather
+    // than inferred from a survival number — a registry that quietly never
+    // founded a second clan would sail through any population gate.
     const engine = createDemoSimulation({ seed: 42 });
-    engine.step(1200);
-    assert.equal(engine.world.groups.size, 0);
-    for (const e of engine.world.entities.all()) assert.equal(e.groupRecordId, null, `${e.speciesId} #${e.id}`);
+    engine.step(1500);
+
+    assert.ok(engine.world.groups.size > 0, 'the demo world holds live clans');
+    const clans = engine.world.groups.all();
+    for (const record of clans) {
+      assert.equal(record.speciesId, 'scavenger.hyena', 'only the hyena forms them');
+      assert.ok(record.memberIds.length >= 2, 'a clan of one is not a clan');
+    }
+    // Membership is the hyena's alone: no gazelle, stalker, or vulture carries a
+    // record, which is the half of §3.8 that keeps the two mechanisms apart.
+    for (const e of engine.world.entities.all()) {
+      if (e.groupRecordId !== null) {
+        assert.equal(e.speciesId, 'scavenger.hyena', `${e.speciesId} #${e.id} must not carry a record`);
+      }
+    }
     // And the herd labels are alive and well beside it — the control that proves
-    // the old mechanism was not disturbed.
+    // the positional mechanism was not disturbed by the record one.
     const labelled = [...engine.world.entities.all()].filter((e) => e.alive && e.groupId !== null);
-    assert.ok(labelled.length > 0, 'grazers are still herding');
+    assert.ok(labelled.length > 0, 'gazelle are still herding');
+  });
+
+  test('⚠ a clan outlives the herd label, in the demo rather than in a sandbox', () => {
+    // The claim that justifies the whole registry: a clan is an identity that
+    // survives separation, which a positional label cannot represent. The
+    // sandbox above proves the mechanism; this proves the *demo* produces it —
+    // a live clan whose members no longer share a herd label, i.e. animals the
+    // label mechanism has already given up on and the record has not.
+    const engine = createDemoSimulation({ seed: 42 });
+    let spanning = null;
+    for (let t = 0; t < 1500 && !spanning; t += 1) {
+      engine.step(1);
+      for (const record of engine.world.groups.all()) {
+        const labels = new Set(record.memberIds.map((id) => engine.world.entities.get(id)?.groupId));
+        if (labels.size > 1) spanning = { tick: engine.tick, id: record.id, labels: [...labels] };
+      }
+    }
+    assert.ok(spanning, 'a clan should at some point span more than one herd label');
+  });
+
+  test('kill theft happens in the demo, not only in a two-animal sandbox', () => {
+    // The hyena's defining behaviour and the reason it, rather than the lion, is
+    // in batch 1: cooperative *hunting* cannot be shown against 30 kg prey, but
+    // contested *possession* can, because the contested resource is the carcass.
+    const engine = createDemoSimulation({ seed: 42 });
+    let robbed = 0;
+    let seq = 0;
+    for (let t = 0; t < 1500; t += 1) {
+      engine.step(1);
+      for (const event of engine.events.since(seq)) {
+        seq = Math.max(seq, event.seq);
+        if (event.type === 'entity.robbed') robbed += 1;
+      }
+    }
+    assert.ok(robbed > 0, `a carcass should be taken off its holder at least once (saw ${robbed})`);
   });
 });
 
@@ -600,14 +659,27 @@ describe('persistent groups: determinism and persistence', () => {
     assert.throws(() => restoreSimulationState(naive, saved), /unknown species/);
   });
 
-  test('the demo save carries an empty registry and still round-trips', () => {
-    const engine = createDemoSimulation({ seed: 8 });
-    engine.step(200);
+  test('the demo save carries real clan records and round-trips them', () => {
+    // ⚠ Until 2026-07-29 this asserted `records: []` — the registry was inert in
+    // the demo, so the save could only ever prove it *serialized nothing*. With
+    // the hyena founding clans, the demo exercises the real path: records with
+    // members, written and read back.
+    const engine = createDemoSimulation({ seed: 42 });
+    engine.step(1500);
     const saved = captureSimulationState(engine);
-    assert.deepEqual(saved.groups, { nextId: 1, records: [] });
+    assert.ok(saved.groups.records.length > 0, 'the demo save carries clans');
+    assert.ok(saved.groups.nextId > 1, 'and the id counter has moved');
     assert.equal(saved.config.groups.enabled, true);
     assert.equal(saved.config.groups.maxGroups, CONFIG.groups.maxGroups);
-    // The grazer is the control: it declares `forms: false` explicitly, so the
+
+    const restored = restoreDemoSimulation(saved);
+    assert.equal(restored.world.groups.size, engine.world.groups.size);
+    assert.deepEqual(
+      restored.world.groups.all().map((r) => ({ id: r.id, members: [...r.memberIds] })),
+      engine.world.groups.all().map((r) => ({ id: r.id, members: [...r.memberIds] })),
+      'membership survives a save/load exactly',
+    );
+    // The gazelle is the control: it declares `forms: false` explicitly, so the
     // absence is a statement in its file rather than an omission.
     assert.equal(engine.species.require(GRAZER.id).groups.forms, false);
   });

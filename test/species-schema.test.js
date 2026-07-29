@@ -14,7 +14,7 @@ const registry = () => new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
 
 describe('species schema: resolution', () => {
   test('a species inherits every block it does not override', () => {
-    const grazer = registry().get('herbivore.grazer');
+    const grazer = registry().get('herbivore.gazelle');
     // The grazer states no metabolism block at all, so it is the config's.
     assert.equal(grazer.metabolism.basalRate, CONFIG.metabolism.basalRate);
     assert.equal(grazer.metabolism.referenceMass, CONFIG.metabolism.referenceMass);
@@ -56,7 +56,7 @@ describe('species schema: resolution', () => {
 
   test('a resolved species is frozen all the way down', () => {
     // Systems read these in hot loops and must be able to trust them.
-    const grazer = registry().get('herbivore.grazer');
+    const grazer = registry().get('herbivore.gazelle');
     assert.throws(() => {
       grazer.aging.maxAge = 1;
     }, TypeError);
@@ -71,8 +71,8 @@ describe('species schema: resolution', () => {
     // process, and a shared resolved registry would silently be one of them.
     const fast = new SimulationEngine({ config: { metabolism: { basalRate: 999 } } });
     const normal = new SimulationEngine();
-    assert.equal(fast.species.get('herbivore.grazer').metabolism.basalRate, 999);
-    assert.equal(normal.species.get('herbivore.grazer').metabolism.basalRate, CONFIG.metabolism.basalRate);
+    assert.equal(fast.species.get('herbivore.gazelle').metabolism.basalRate, 999);
+    assert.equal(normal.species.get('herbivore.gazelle').metabolism.basalRate, CONFIG.metabolism.basalRate);
   });
 
   test('an unknown species is null from get and throws from require', () => {
@@ -83,10 +83,10 @@ describe('species schema: resolution', () => {
 
   test('the predator/prey relation is data, read in both directions', () => {
     const r = registry();
-    assert.equal(r.hunts('predator.stalker', 'herbivore.grazer'), true);
-    assert.equal(r.hunts('herbivore.grazer', 'predator.stalker'), false, 'grazers hunt nothing');
-    assert.equal(r.hunts('herbivore.grazer', 'herbivore.grazer'), false, 'nor each other');
-    assert.equal(r.hunts('nope.unknown', 'herbivore.grazer'), false);
+    assert.equal(r.hunts('predator.stalker', 'herbivore.gazelle'), true);
+    assert.equal(r.hunts('herbivore.gazelle', 'predator.stalker'), false, 'grazers hunt nothing');
+    assert.equal(r.hunts('herbivore.gazelle', 'herbivore.gazelle'), false, 'nor each other');
+    assert.equal(r.hunts('nope.unknown', 'herbivore.gazelle'), false);
   });
 });
 
@@ -209,6 +209,14 @@ describe('species schema: a species is config, not code', () => {
       living[entity.speciesId] = (living[entity.speciesId] ?? 0) + 1;
     }
     for (const cohort of engine.config.demo.founding) {
+      // ⚠ A cohort at 0 is declared but not founded — the measurement-gate
+      // position a new species sits in while it is being swept (§9), and the
+      // state that must leave no trace. "Founded and then died" is the failure
+      // this test is for; "never founded" is not.
+      if (cohort.count === 0) {
+        assert.ok(!living[cohort.speciesId], `${cohort.speciesId} is founded at 0 and must not exist`);
+        continue;
+      }
       assert.ok(living[cohort.speciesId] > 0, `${cohort.speciesId} is still alive at 3000 ticks`);
     }
     assert.ok(Object.keys(living).length >= 3, 'three species coexist');
@@ -218,7 +226,7 @@ describe('species schema: a species is config, not code', () => {
     // The scavenger's entire implementation is an empty `preySpeciesIds`. This
     // asserts both directions of that, because the relation is read both ways.
     const engine = createDemoSimulation({ seed: 42 });
-    const corvid = engine.species.require('scavenger.corvid');
+    const corvid = engine.species.require('scavenger.vulture');
     assert.equal(corvid.diet, 'carnivore', 'it eats meat');
     assert.deepEqual([...corvid.preySpeciesIds], [], 'and hunts nothing at all');
     for (const other of engine.species.ids()) {
@@ -236,7 +244,7 @@ describe('species schema: a species is config, not code', () => {
       for (const e of engine.eventsSince(before)) {
         if (e.type !== 'entity.hunted') continue;
         const hunter = engine.world.entities.get(e.entityId);
-        if (hunter?.speciesId === 'scavenger.corvid') hunts.push(e);
+        if (hunter?.speciesId === 'scavenger.vulture') hunts.push(e);
       }
     }
     assert.deepEqual(hunts, [], 'the hunting pipeline never fires for a species with no prey');
@@ -269,7 +277,7 @@ describe('species schema: per-species biology actually bites', () => {
     // And the mechanism behind it, not just its footprint: a species that states
     // an `aging` block gets its own numbers, and one that states none inherits.
     const stalker = engine.species.require('predator.stalker');
-    const grazer = engine.species.require('herbivore.grazer');
+    const grazer = engine.species.require('herbivore.gazelle');
     assert.notEqual(stalker.aging.maxAge, CONFIG.aging.maxAge, 'an override wins over the config default');
     assert.equal(grazer.aging.maxAge, CONFIG.aging.maxAge, 'and a species that states nothing inherits it');
   });

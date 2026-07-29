@@ -104,7 +104,7 @@ function prevalenceSelect(id, selected, ariaLabel) {
 }
 
 /**
- * A species id (`herbivore.grazer`) as a DOM id fragment. Dots are legal in an
+ * A species id (`herbivore.gazelle`) as a DOM id fragment. Dots are legal in an
  * `id` attribute but not in a plain CSS selector, and these fields are looked up
  * by selector in the UI suite.
  * @param {string} speciesId

@@ -134,7 +134,7 @@ const CONDITION_ENTRIES = Object.freeze([
 /**
  * The two per-animal display channels, written by hand because they describe how
  * a species glyph is *cased and styled* rather than which glyph is drawn — there
- * is no registry entry to read them from. Case is age, italic is sex; the grazer
+ * is no registry entry to read them from. Case is age, italic is sex; the gazelle
  * glyph stands in as the example. See EntityAppearance.resolveAppearance.
  * @type {LegendEntry[]}
  */

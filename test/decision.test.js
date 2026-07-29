@@ -30,7 +30,7 @@ describe('decision: utility scoring', () => {
     const engine = foragingEngine();
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: 10,
       y: 10,
       bodyMass: 30,
@@ -54,7 +54,7 @@ describe('decision: utility scoring', () => {
     const engine = foragingEngine();
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: 20,
       y: 20,
       bodyMass: 30,
@@ -74,7 +74,7 @@ describe('decision: utility scoring', () => {
     const engine = foragingEngine();
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: 20,
       y: 20,
       bodyMass: 30,
@@ -96,7 +96,7 @@ describe('decision: purposeful foraging', () => {
     const engine = foragingEngine();
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: 6,
       y: 20,
       bodyMass: 30,
@@ -130,7 +130,7 @@ describe('decision: purposeful foraging', () => {
     const engine = foragingEngine();
     const id = engine.world.entities.queueSpawn({
       kind: 'animal',
-      speciesId: 'herbivore.grazer',
+      speciesId: 'herbivore.gazelle',
       x: 6,
       y: 20,
       bodyMass: 30,

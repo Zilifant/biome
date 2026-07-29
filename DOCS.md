@@ -39,6 +39,8 @@ Verify current state with:
 npm test                                    # the node:test suite
 npm run benchmark                           # performance + a determinism check
 npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as possible
+npm run sweep                               # the species gate: 10 seeds x 15k ticks
+npm run sweep -- --founding=a:1,b:2 --control=a:1   # ...and the same seeds without b
 ```
 
 ### Current state (measured 2026-07-24)
@@ -46,12 +48,12 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 819 passing / 0 failing, 208 suites _(2026-07-28)_     |
+| Tests                 | 821 passing / 0 failing, 208 suites _(2026-07-29)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | see BENCHMARK.md — measured per phase, interleaved against the same-session HEAD, because ⚠ the machine drifted ~10% across 2026-07-28 on identical code. Never compare against the 67.25 figure from 2026-07-21: it predates line of sight, thickets, the water field, and the crowding cap |
-| Species               | 3 (grazer, stalker, corvid) — all pure config          |
-| Species blocks        | **11** — `feeding`, `hunting`, `behavior` joined 2026-07-28 |
+| Benchmark (large-5k)  | **75.7 ms/tick** _(2026-07-29)_ — ⚠ on a roster that gained the hyena, so **not** comparable to any earlier figure here. Interleaved A/B put the species at ~+1.6% per animal. See BENCHMARK.md; ⚠ the machine drifted ~10% across 2026-07-28 on identical code, which is why every arm is measured against a same-session control |
+| Species               | **4** (gazelle, stalker, vulture, hyena) — all pure config |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28; the hyena is the first species to *use* `predation` and `groups` |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
 
@@ -139,17 +141,46 @@ afford site fidelity at all (A34), so families are no more co-located than
 before. The named lever is relaxing "nearer the predator than I am" to "near
 enough to interpose".
 
-**A55 — The persistent-group registry never fires in the demo** _(from
-2026-07-28, PLAN-SPECIES.md §3.8)_
+**⚠ A55 — CLOSED 2026-07-29. The persistent-group registry now fires in the
+demo** _(opened 2026-07-28, PLAN-SPECIES.md §3.8; closed by phase 7)_
 
-Not near-inert but **wholly** inert, and deliberately: no shipped species
-declares `groups.forms: true`, so `GroupSystem` returns on its first branch every
-tick. This is the schema-ahead-of-the-roster pattern A38 records for `disease`,
-and it is measured rather than assumed — the demo's entity state is
-byte-identical across three seeds to the tree without it. It stops being inert at
-the first clan-forming carnivore (PLAN-SPECIES.md phase 7), which is also the
-first time anything gets to be wrong about it. Until then the mechanism is
-carried entirely by tests that invent a group-forming species.
+It was wholly inert for four phases, and deliberately: no shipped species
+declared `groups.forms: true`, so `GroupSystem` returned on its first branch
+every tick — the schema-ahead-of-the-roster pattern A38 records for `disease`.
+The **hyena** is the species it was built for. In the demo at seed 42 it founds
+clans within the first hundred ticks, holds two to three concurrently with up to
+six members, and the mechanism is now asserted **in the demo world** rather than
+only against an invented species (`test/groups.test.js`).
+
+⚠ **One new observation, and it is a limitation rather than a bug** (recorded as
+**A56** below): clan membership **churns hard on some seeds**. Measured
+2026-07-29 over 3000 ticks — seed 1 and seed 42 saw 7–9 foundings and *zero*
+dissolutions, while seed 2 saw **157 foundings against 150 dissolutions**. That
+is the boundary behaviour of `groups.minMembers: 2`: a pair founds, one wanders
+off, the record dissolves, they meet again and re-found. Nothing is corrupted and
+no state leaks, but "persistent identity" is doing less work than the name
+promises for a two-member clan, and it produces `entity.grouped` /
+`entity.ungrouped` event spam. The fix is hysteresis — dissolve only after N
+ticks below the minimum — which is a design change to a mechanism whose first
+real measurement this is, so it is recorded rather than guessed at.
+
+**⚠ A56 — A two-member clan flaps between founding and dissolution** _(from
+2026-07-29, PLAN-SPECIES.md phase 7)_
+
+The measurement above, stated as its own item because it outlives the phase that
+found it. `groups.minMembers: 2` means a pair *is* a clan and a single animal is
+not, so a two-member clan whose members drift apart dissolves and re-founds when
+they meet again — 157 foundings and 150 dissolutions in 3000 ticks on seed 2,
+against 7 and 0 on seed 1. The record store is never corrupted and no membership
+leaks, so this is a fidelity limitation rather than a defect: the identity that
+"survives separation" survives it only while a second member stays close.
+
+The named fix is **hysteresis** — hold a record for N ticks below its minimum
+before dissolving — which costs one field on the record and is the same shape as
+`alarmedUntil`. ⚠ Do not take it before batch 2: a lion pride has a different
+size distribution from a hyena clan, and tuning a dissolution delay against the
+only clan-forming species in the world would fit it to a case the mechanism is
+about to outgrow.
 
 ### 1.3 Deferred scope
 
@@ -833,15 +864,36 @@ held by a `SpeciesRegistry` on the world. A lookup in a hot loop is one
 singleton on purpose: resolution depends on the _config_, and every sweep and
 half the test suite runs engines with different configs in one process.
 
-### The three species
+### The four species
 
-| Species            | Role                 | Perception radius | Notes                                                                                                      |
-| ------------------ | -------------------- | ----------------: | ---------------------------------------------------------------------------------------------------------- |
-| `herbivore.grazer` | prey, herbivore      |                 6 | Displays **size** in mate choice; tracks forage; home range but no territory                               |
-| `predator.stalker` | predator, carnivore  |                12 | Displays **speed**; holds, marks, and disputes ground; born at 8 kg, matures slower, lives to 14 000 ticks |
-| `scavenger.corvid` | scavenger, carnivore |                14 | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty                    |
+| Species             | Role                  | Mass | Perception radius | Notes                                                                                                      |
+| ------------------- | --------------------- | ---: | ----------------: | ---------------------------------------------------------------------------------------------------------- |
+| `herbivore.gazelle` | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; tracks forage; home range but no territory                               |
+| `predator.stalker`  | predator, carnivore   |   45 |                12 | Displays **speed**; holds, marks, and disputes ground; born at 8 kg, matures slower, lives to 14 000 ticks |
+| `scavenger.vulture` | obligate scavenger    |    6 |                14 | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty                    |
+| `scavenger.hyena`   | facultative scavenger |   60 |                13 | Hunts gazelle **and** eats carrion; the only species that declares `groups.forms` or a `predation` ratio   |
 
-**The corvid is the proof that "species is data" is real rather than
+⚠ **The first two of those were renamed on 2026-07-29** (PLAN-SPECIES.md phase
+7): `herbivore.grazer` → `herbivore.gazelle` and `scavenger.corvid` →
+`scavenger.vulture`. The rename carried **no biology at all** and was proved
+byte-identical — 6.28 MB of serialized state across three seeds at 1500 ticks,
+matching exactly modulo the two id strings — which is why every dated measurement
+elsewhere in this document that says "grazer" or "corvid" still describes these
+animals and has **not** been rewritten. A reading is a record of what was true on
+a date; renaming the animal does not change what was measured. The vulture's mass
+then went 4 → 6 kg as a separate, separately-measured change, and the hyena
+arrived after that.
+
+⚠ **The hyena is the first species that is not inert in any of its mechanisms.**
+`groups.forms: true` makes it the animal the persistent-group registry was built
+for (closing A55, inert since phase 3), and its `predation` ratios are the first
+in the roster. Its defining behaviour is **kill theft** rather than cooperative
+hunting: a 60 kg animal takes a 30 kg gazelle solo, so what its clan buys it is
+possession of a carcass, not help catching prey — which is exactly why it, and
+not the lion, is in the first batch (cooperative hunting has nothing to prove
+against gazelle, and `attackersFor` waits for the buffalo in batch 2).
+
+**The vulture is the proof that "species is data" is real rather than
 decorative.** Its entire implementation is one config file. It is a carnivore, so
 feeding already lets it eat carrion; it declares no prey at all, so perception
 finds it nothing to hunt, the hunting system never fires for it, and — read in
@@ -1432,16 +1484,23 @@ only when an animal explicitly joins or leaves, so two members forty units apart
 are still in the same clan while their herd labels have long since diverged.
 That sentence is the whole feature; everything below is what it costs.
 
-⚠ **It is inert in the demo, by construction.** No shipped species declares
-`groups.forms: true` — the grazer and corvid are label animals, the stalker is
-solitary, and each says so in its own file. `GroupSystem` builds its set of
-group-forming species once and returns on its first branch every tick
-thereafter, so this cannot move a demo number: measured across three seeds at
-1500 ticks, entity state is **byte-identical** to the tree without it, and
-large-5k is flat. The mechanism is the schema arriving ahead of the roster that
-needs it, exactly as `disease` did at Step 29 (A38) and `feeding`/`hunting`/
-`behavior` did earlier the same day. Its first consumer is the clan-forming
-carnivore of batch 1.
+⚠ **It was inert in the demo for four phases, and stopped being so on
+2026-07-29.** From phase 3 to phase 6 no shipped species declared
+`groups.forms: true` — the gazelle and vulture are label animals, the stalker is
+solitary, and each says so in its own file — so `GroupSystem` built its set of
+group-forming species once and returned on its first branch every tick
+thereafter. That was measured, not assumed: entity state was **byte-identical**
+across three seeds at 1500 ticks to the tree without it, and large-5k was flat.
+It was the schema arriving ahead of the roster, exactly as `disease` did at Step
+29 (A38).
+
+**The hyena (phase 7) is that roster.** It is the only species in the world that
+declares `groups.forms`, so the early-out still fires for every other animal, and
+the demo now founds real clans — asserted directly in `test/groups.test.js`
+rather than inferred from a population number, because a registry that quietly
+never founded a second clan would pass any survival gate. ⚠ See **A56** for the
+one thing the first real measurement found: at `minMembers: 2` a clan can flap
+between founding and dissolution on some seeds.
 
 **The rules, all of them the cheapest honest first cut:**
 

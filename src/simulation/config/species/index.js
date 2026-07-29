@@ -19,9 +19,10 @@
  * engines with different configs share a process, which every sweep and half the
  * test suite does.
  */
-import { herbivoreGrazer } from './herbivoreGrazer.js';
+import { herbivoreGazelle } from './herbivoreGazelle.js';
 import { predatorStalker } from './predatorStalker.js';
-import { scavengerCorvid } from './scavengerCorvid.js';
+import { scavengerVulture } from './scavengerVulture.js';
+import { scavengerHyena } from './scavengerHyena.js';
 
 /**
  * The declared roster, in a fixed order. Iteration order is deterministic
@@ -29,7 +30,7 @@ import { scavengerCorvid } from './scavengerCorvid.js';
  * metrics bucketing walk.
  * @type {ReadonlyArray<object>}
  */
-export const SPECIES_DEFINITIONS = Object.freeze([herbivoreGrazer, predatorStalker, scavengerCorvid]);
+export const SPECIES_DEFINITIONS = Object.freeze([herbivoreGazelle, predatorStalker, scavengerVulture, scavengerHyena]);
 
 /** @type {Readonly<Record<string, object>>} raw definitions by id */
 export const SPECIES = Object.freeze(Object.fromEntries(SPECIES_DEFINITIONS.map((s) => [s.id, s])));

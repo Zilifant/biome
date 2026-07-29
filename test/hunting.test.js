@@ -15,7 +15,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 
 const CONFIG = new SimulationEngine().config;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 // The predator/prey relation now lives on the resolved registry (Step 29).
 const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, {});
 const hunts = (a, b) => REGISTRY.hunts(a, b);
@@ -434,7 +434,7 @@ describe('predation: demonstration scenario and the demo', () => {
     }
     const alive = [...engine.world.entities.all()].filter((e) => e.alive);
     assert.ok(alive.some((e) => e.speciesId === 'predator.stalker'), 'predators persisted');
-    assert.ok(alive.some((e) => e.speciesId === 'herbivore.grazer'), 'and so did their prey');
+    assert.ok(alive.some((e) => e.speciesId === 'herbivore.gazelle'), 'and so did their prey');
   });
 
   test('predation state is inspection-only and stays out of bulk snapshots', () => {

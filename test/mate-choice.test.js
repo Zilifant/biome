@@ -30,7 +30,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 const CONFIG = new SimulationEngine().config;
 // Resolved species (Step 29): the accessors take a resolved record, not an id.
 const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 const PREFERENCE = GRAZER.matePreference;
 
 /** A genome with every locus fixed at one value, then one locus overridden. */
@@ -196,7 +196,7 @@ describe('mate choice: what makes a good mate', () => {
   });
 
   test('each species declares its own display, read generically', () => {
-    assert.equal(matePreferenceFor(REGISTRY.get('herbivore.grazer')).trait, 'size');
+    assert.equal(matePreferenceFor(REGISTRY.get('herbivore.gazelle')).trait, 'size');
     assert.equal(matePreferenceFor(REGISTRY.get('predator.stalker')).trait, 'speed');
     assert.equal(matePreferenceFor(REGISTRY.get('nope.unknown')), null, 'an unknown species degrades to no preference');
   });
@@ -706,7 +706,7 @@ describe('mate choice: the sexual-selection sandbox', () => {
       seed,
       config: {
         world: { width: 48, height: 48 },
-        demo: { founding: [{ speciesId: 'herbivore.grazer', count: 60 }] },
+        demo: { founding: [{ speciesId: 'herbivore.gazelle', count: 60 }] },
         // Abundant, fast-growing food and no weather: the point is to leave
         // mate choice as the loudest thing in the world, not to model a meadow.
         vegetation: { capacity: 14, growthRate: 0.3, minFertility: 0.9, initialFraction: 1 },

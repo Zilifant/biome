@@ -148,7 +148,7 @@ ASCII and differ across categories, so color is never the only distinction.
 **To add a species glyph**: add one entry to `SPECIES_APPEARANCE` keyed by the
 protocol `speciesId`, e.g.
 `'predator.fox': { glyph: 'f', colorToken: 'orange', priority: 55, label: 'fox' }`.
-The first herbivore, `herbivore.grazer`, maps to `g`/yellow. Nothing in the
+The first herbivore, `herbivore.gazelle`, maps to `g`/yellow. Nothing in the
 grid-rendering algorithm changes. `colorToken` must be a key of
 `DRACULA_COLORS` (rendered from the `--dracula-<token>` CSS variable).
 
@@ -158,14 +158,19 @@ leopard, lion, hyena, and vulture (PLAN-SPECIES §7). Glyph by common name,
 colour by trophic family, priority in bands: carnivores 60+, herbivores 50–55,
 obligate scavenger 45. Assigning the scheme in one pass is what keeps it
 coherent, and it is what lets a species batch be a config change rather than a
-config change and a renderer change. ⚠ Three shipped species are renamed into
-roster entries later (grazer → gazelle, corvid → vulture, stalker → leopard);
-each carries a `supersededBy` naming its successor, which is why two entries may
-share a letter, and the old entry is deleted in the phase that renames it.
+config change and a renderer change. ⚠ A shipped species that is renamed into a
+roster entry later carries a `supersededBy` naming its successor — which is why
+two entries may share a letter — and the old entry is **deleted** in the phase
+that does the rename. Grazer → gazelle and corvid → vulture went that way on
+2026-07-29; `predator.stalker` → `predator.leopard` is the one still pending.
+
+**The hyena needed no renderer change at all**, which is what the scheme was
+for: it was founded, named, glyphed, and legended the moment its config file
+existed.
 
 **Age and sex are two independent glyph channels** on top of the species letter.
 **Letter case is age**: a mature animal (`lifeStage` adult or senescent) is
-UPPERCASE, an immature one (juvenile or subadult) lowercase — `g`/`G` grazer,
+UPPERCASE, an immature one (juvenile or subadult) lowercase — `g`/`G` gazelle,
 `s`/`S` stalker. **Italic is sex**: a female is drawn in italic, a male (or an
 animal the protocol sends with `sex: null`) upright. Colour still says species
 and priority still decides who wins a shared cell, so both are additions rather

@@ -20,7 +20,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 
 const CONFIG = new SimulationEngine().config;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 const STALKER = getSpecies('predator.stalker');
 
 function sandbox({ seed = 3, size = 44, systems = [] } = {}) {

@@ -97,6 +97,43 @@ Two conclusions, and the middle row is what separates them:
   is precisely why the isolating middle row exists rather than a bare before/after
   pair.
 
+### Batch 1: the hyena joins every scenario (2026-07-29, PLAN-SPECIES.md phase 7)
+
+⚠ **The scenario roster changed, so every figure above this line describes a
+different world.** Phase 7 added `scavenger.hyena` to all four scenarios at the
+demo's own 120:8:10:6 ratio, which is ~4% more animals — and it is the first
+species that makes `GroupSystem` do real work, because until now nothing formed
+persistent groups and the system early-returned every tick.
+
+Full run, all four scenarios, on the new roster:
+
+| Scenario | World | Start→end entities | ms/tick | ticks/sec |
+| --- | --- | ---: | ---: | ---: |
+| demo-default | 128×128 | 144→187 | 1.2458 | 803 |
+| small-100 | 256×256 | 120→155 | 0.8357 | 1197 |
+| medium-1k | 512×512 | 1197→1518 | 10.8334 | 92 |
+| large-5k | 1024×1024 | 5983→7633 | **75.725** | 13 |
+
+⚠ **Do not read 75.7 against the 68.75 above as a 10% regression.** They are
+different populations. To separate the species' cost from both the extra animals
+and machine drift, medium-1k was run **interleaved in one process**, alternating
+the two rosters three times each:
+
+| arm | medium-1k (3 runs) | mean | animals alive |
+| --- | --- | ---: | ---: |
+| without hyena | 8.05, 8.33, 8.86 | 8.41 | 1165 |
+| with hyena | 8.56, 8.77, 8.93 | 8.75 | 1193 |
+
+**+4.0% total for +2.4% more animals — so ~+1.6% per animal**, which is the
+group registry finally doing work: founding, joining, dissolution, and the
+membership reads that HEAD skipped entirely at its first branch.
+
+⚠ **The within-arm spread is larger than the between-arm difference** (8.05→8.86
+against a 0.34 ms gap), so the means alone would prove nothing. What makes this a
+result is that the hyena arm is slower in **all three rounds**, each measured
+seconds after its own control. That is the whole argument for interleaving, and
+it is why this table has three rounds rather than one reading each.
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

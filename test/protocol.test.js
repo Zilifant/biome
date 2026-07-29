@@ -146,7 +146,7 @@ describe('snapshots and deltas', () => {
     // A newly spawned animal appears as a creation, then changes over time.
     const spawn = engine.submitCommand({
       type: 'entity.spawn',
-      entity: { kind: 'animal', speciesId: 'herbivore.grazer', x: 20, y: 20, energy: 80, maxEnergy: 100, bodyMass: 30 },
+      entity: { kind: 'animal', speciesId: 'herbivore.gazelle', x: 20, y: 20, energy: 80, maxEnergy: 100, bodyMass: 30 },
     });
     engine.step(2);
     const middle = buildFullSnapshot(engine.getSnapshotData());
@@ -169,7 +169,7 @@ describe('snapshots and deltas', () => {
     // dies and its animal→carcass kind change rides a delta `updated` entry.
     const engine = new SimulationEngine({ seed: 1, config: { world: { width: 16, height: 16 } } });
     engine.registerSystem(new MetabolismSystem({ basalRate: 0.04, edibleMassFraction: 0.6 }));
-    const id = engine.world.entities.queueSpawn({ kind: 'animal', speciesId: 'herbivore.grazer', x: 8, y: 8, bodyMass: 30, maxEnergy: 100, energy: 0.06 });
+    const id = engine.world.entities.queueSpawn({ kind: 'animal', speciesId: 'herbivore.gazelle', x: 8, y: 8, bodyMass: 30, maxEnergy: 100, energy: 0.06 });
     engine.applyDeferredEntityChanges(0);
     engine.step(1);
     const before = buildFullSnapshot(engine.getSnapshotData());

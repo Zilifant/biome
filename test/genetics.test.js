@@ -19,7 +19,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 
 const CONFIG = new SimulationEngine().config;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 const WIDE = Object.fromEntries(GENOME_LOCI.map((locus) => [locus, 0.25]));
 
 /** A genome with every locus fixed at one value — useful for exact assertions. */

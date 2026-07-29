@@ -25,7 +25,7 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 
 const CONFIG = new SimulationEngine().config;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 const STALKER = getSpecies('predator.stalker');
 
 function genomeWith(overrides = {}) {

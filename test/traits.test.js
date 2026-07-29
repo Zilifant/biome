@@ -15,7 +15,7 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 
 /** Traits equal to the species average except for the named overrides. */
 function traits(overrides = {}) {

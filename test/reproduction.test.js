@@ -50,7 +50,7 @@ function reproEngine(params = {}) {
 function spawnAdult(engine, x, y, overrides = {}) {
   const id = engine.world.entities.queueSpawn({
     kind: 'animal',
-    speciesId: 'herbivore.grazer',
+    speciesId: 'herbivore.gazelle',
     x,
     y,
     heading: 0,

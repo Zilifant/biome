@@ -23,7 +23,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 
 const CONFIG = new SimulationEngine().config;
 const ENG = CONFIG.engineering;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 
 function genomeWith(overrides = {}) {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [overrides[locus] ?? 1, overrides[locus] ?? 1]]));

@@ -105,11 +105,20 @@ export const MAX_FOUNDING_TOTAL = 30000;
  * ⚠ This is the **one** place a species id may appear in `src/protocol`, and it
  * exists only to retire. Delete it — and the alias handling in `validation.js`
  * and `buildDemoConfig` — at v30.
+ *
+ * ⚠ **And batch 1 made it a lie, exactly as v29 predicted it would.** The world
+ * now holds *two* scavengers, and `scavengers:` can only name one of them — it
+ * points at the vulture because that is the species the v28 field meant, so a v28
+ * client asking for "20 scavengers" silently founds no hyena at all. That is the
+ * closest thing to a defect this map can have, and it is the argument for
+ * deleting it on schedule rather than teaching it to split a count: splitting
+ * would be the host inventing a roster the client never asked for, which is the
+ * specific lie v29 exists to stop.
  */
 export const FOUNDING_ROLE_ALIASES = Object.freeze({
-  herbivores: 'herbivore.grazer',
+  herbivores: 'herbivore.gazelle',
   predators: 'predator.stalker',
-  scavengers: 'scavenger.corvid',
+  scavengers: 'scavenger.vulture',
 });
 
 /** @deprecated v29 — use MAX_FOUNDING_PER_SPECIES. Kept for the alias path. */

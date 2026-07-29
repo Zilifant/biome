@@ -121,7 +121,7 @@ export async function gotoLive(page) {
  * error. Page-level routes take precedence over the context's static file server.
  */
 /** Species ids the mocked host reports, in the order it reports them. */
-export const MOCK_SPECIES = ['herbivore.grazer', 'predator.stalker', 'scavenger.corvid'];
+export const MOCK_SPECIES = ['herbivore.gazelle', 'predator.stalker', 'scavenger.vulture'];
 
 /**
  * A canned `metrics` query response with real structure rather than an empty
@@ -191,9 +191,9 @@ async function installLiveMocks(page, commands) {
     seed: 42,
     simulationId: SNAPSHOT.simulationId ?? 'test-live',
     species: [
-      { id: 'herbivore.grazer', defaultCount: 120 },
+      { id: 'herbivore.gazelle', defaultCount: 120 },
       { id: 'predator.stalker', defaultCount: 8 },
-      { id: 'scavenger.corvid', defaultCount: 10 },
+      { id: 'scavenger.vulture', defaultCount: 10 },
     ],
   });
   const commandResult = (command) => ({ protocolVersion: PROTOCOL_VERSION, ok: true, tick: SNAPSHOT.tick ?? 0, seed: command?.seed ?? 42, simulationId: SNAPSHOT.simulationId ?? 'test-live', paused: command?.type === 'simulation.pause', speed: command?.multiplier ?? 1 });

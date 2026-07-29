@@ -60,7 +60,7 @@ describe('protocol v29: the bump itself', () => {
 
 describe('protocol v29: the founding roster', () => {
   test('a roster of { speciesId, count } is accepted', () => {
-    assert.equal(restart({ founding: [{ speciesId: 'herbivore.grazer', count: 40 }] }).ok, true);
+    assert.equal(restart({ founding: [{ speciesId: 'herbivore.gazelle', count: 40 }] }).ok, true);
     assert.equal(restart({ founding: [] }).ok, true, 'an empty roster is "found nothing", which is legal');
   });
 
@@ -134,8 +134,8 @@ describe('protocol v29: the founding roster', () => {
     // The two are different operations and the difference is load-bearing:
     // "found only gazelle" has to be expressible, and the role fields could
     // never mean that.
-    const replaced = buildDemoConfig({ founding: [{ speciesId: 'herbivore.grazer', count: 7 }] });
-    assert.deepEqual(replaced.demo.founding, [{ speciesId: 'herbivore.grazer', count: 7 }]);
+    const replaced = buildDemoConfig({ founding: [{ speciesId: 'herbivore.gazelle', count: 7 }] });
+    assert.deepEqual(replaced.demo.founding, [{ speciesId: 'herbivore.gazelle', count: 7 }]);
     const patched = buildDemoConfig({ herbivores: 7 });
     assert.equal(patched.demo.founding.length, defaultSimulationConfig.demo.founding.length);
   });
@@ -180,7 +180,7 @@ describe('protocol v29: the host publishes its roster', () => {
     // compose a world.
     const engine = createDemoSimulation({
       seed: 3,
-      config: buildDemoConfig({ founding: [{ speciesId: 'herbivore.grazer', count: 5 }] }),
+      config: buildDemoConfig({ founding: [{ speciesId: 'herbivore.gazelle', count: 5 }] }),
     });
     const roster = engine.getSpeciesRoster();
     assert.equal(roster.length, engine.species.ids().length);
@@ -188,8 +188,11 @@ describe('protocol v29: the host publishes its roster', () => {
   });
 
   test('the renderer names a species it has never seen, rather than hiding it', () => {
-    assert.equal(speciesLabel('herbivore.grazer'), 'grazer', 'a known species uses its appearance label');
-    assert.equal(speciesLabel('herbivore.wildebeest'), 'wildebeest', 'an unknown one falls back to its id');
+    assert.equal(speciesLabel('herbivore.gazelle'), 'gazelle', 'a known species uses its appearance label');
+    // ⚠ Not a roster species: every one of those has had an appearance entry
+    // since phase 6, so naming one here would exercise the registry rather than
+    // the fallback and the test would pass for the wrong reason.
+    assert.equal(speciesLabel('herbivore.okapi'), 'okapi', 'an unknown one falls back to its id');
     assert.equal(speciesLabel('bare'), 'bare');
   });
 });
@@ -232,18 +235,18 @@ describe('protocol v29: the projections A54 owed', () => {
     engine.step(200);
     const report = engine.world.metrics;
     assert.ok(report, 'metrics ran');
-    // ⚠ Zero in every world today — no shipped species forms a persistent group
-    // — which is exactly the claim worth pinning: the block exists and is honest
-    // rather than absent.
-    assert.deepEqual(report.groups, {
-      count: 0,
-      members: 0,
-      size: { count: 0, mean: null, stdev: null, min: null, max: null },
-      bySpecies: {},
-    });
+    // ⚠ This asserted an all-zero block until 2026-07-29, when no shipped species
+    // formed a persistent group. The hyena does, so the aggregate now carries
+    // real numbers — and `bySpecies` answering "the clans are hyena clans"
+    // without walking a roster is the whole reason that field exists.
+    assert.ok(report.groups.count > 0, 'the demo holds clans');
+    assert.ok(report.groups.members >= report.groups.count * 2, 'each with at least its minimum');
+    assert.deepEqual(Object.keys(report.groups.bySpecies), ['scavenger.hyena']);
+    assert.equal(report.groups.bySpecies['scavenger.hyena'], report.groups.count);
+    assert.equal(report.groups.size.max >= 2, true);
     // And the per-species `grouping` block is the *other* mechanism, still alive.
-    const grazer = report.species.find((entry) => entry.speciesId === 'herbivore.grazer');
-    assert.ok(grazer.grouping.groups > 0, 'herds are labelled as they always were');
+    const gazelle = report.species.find((entry) => entry.speciesId === 'herbivore.gazelle');
+    assert.ok(gazelle.grouping.groups > 0, 'herds are labelled as they always were');
   });
 
   test('entity inspection carries the group record, beside the herd label', () => {

@@ -35,7 +35,7 @@ import { EventTypes } from '../src/protocol/events.js';
 
 describe('entity appearance', () => {
   test('appearance lookup is deterministic and species-aware', () => {
-    const grazer = { kind: 'animal', speciesId: 'herbivore.grazer', alive: true };
+    const grazer = { kind: 'animal', speciesId: 'herbivore.gazelle', alive: true };
     const first = resolveAppearance(grazer);
     const second = resolveAppearance({ ...grazer });
     assert.equal(first, second, 'repeated lookups return the identical cached object');
@@ -46,9 +46,9 @@ describe('entity appearance', () => {
 
   test('glyphs differ across categories, so color is never the only distinction', () => {
     const glyphs = [
-      resolveAppearance({ kind: 'animal', speciesId: 'herbivore.grazer', alive: true }).glyph,
+      resolveAppearance({ kind: 'animal', speciesId: 'herbivore.gazelle', alive: true }).glyph,
       resolveAppearance({ kind: 'plant', speciesId: 'demo.grass', alive: true }).glyph,
-      resolveAppearance({ kind: 'animal', speciesId: 'herbivore.grazer', alive: false }).glyph,
+      resolveAppearance({ kind: 'animal', speciesId: 'herbivore.gazelle', alive: false }).glyph,
       resolveAppearance({ kind: 'mystery', speciesId: 'x', alive: true }).glyph,
     ];
     assert.equal(new Set(glyphs).size, glyphs.length, `expected distinct glyphs, got ${glyphs}`);
@@ -59,7 +59,7 @@ describe('entity appearance', () => {
   });
 
   test('letter case is age and italic is sex, independently', () => {
-    const base = { kind: 'animal', speciesId: 'herbivore.grazer', alive: true };
+    const base = { kind: 'animal', speciesId: 'herbivore.gazelle', alive: true };
     // Case is maturity: adult/senescent UPPERCASE, juvenile/subadult lowercase.
     assert.equal(resolveAppearance({ ...base, lifeStage: 'adult' }).glyph, 'G');
     assert.equal(resolveAppearance({ ...base, lifeStage: 'senescent' }).glyph, 'G');
@@ -77,7 +77,7 @@ describe('entity appearance', () => {
   });
 
   test('dead animals become carcasses; unknown kinds and species fall back', () => {
-    assert.equal(resolveAppearance({ kind: 'animal', speciesId: 'herbivore.grazer', alive: false }), CARCASS_APPEARANCE);
+    assert.equal(resolveAppearance({ kind: 'animal', speciesId: 'herbivore.gazelle', alive: false }), CARCASS_APPEARANCE);
     assert.equal(resolveAppearance({ kind: 'levitating.rock', speciesId: 'whatever', alive: true }), UNKNOWN_APPEARANCE);
     const unknownSpecies = resolveAppearance({ kind: 'animal', speciesId: 'not.mapped', alive: true });
     assert.equal(unknownSpecies.glyph, 'a', 'unmapped species fall back to the kind default');
@@ -85,9 +85,9 @@ describe('entity appearance', () => {
 
   test('appearance color tokens all resolve to exact Dracula values', () => {
     for (const entity of [
-      { kind: 'animal', speciesId: 'herbivore.grazer', alive: true },
+      { kind: 'animal', speciesId: 'herbivore.gazelle', alive: true },
       { kind: 'plant', speciesId: 'demo.grass', alive: true },
-      { kind: 'animal', speciesId: 'herbivore.grazer', alive: false },
+      { kind: 'animal', speciesId: 'herbivore.gazelle', alive: false },
       { kind: 'nope', speciesId: '', alive: true },
     ]) {
       const { colorToken } = resolveAppearance(entity);
@@ -97,9 +97,9 @@ describe('entity appearance', () => {
 
   test('multiple occupants order deterministically: living animal > carcass > plant, ties by id', () => {
     const plant = { id: 5, kind: 'plant', speciesId: 'demo.grass', alive: true };
-    const carcass = { id: 4, kind: 'animal', speciesId: 'herbivore.grazer', alive: false };
-    const animalOld = { id: 2, kind: 'animal', speciesId: 'herbivore.grazer', alive: true };
-    const animalNew = { id: 9, kind: 'animal', speciesId: 'herbivore.grazer', alive: true };
+    const carcass = { id: 4, kind: 'animal', speciesId: 'herbivore.gazelle', alive: false };
+    const animalOld = { id: 2, kind: 'animal', speciesId: 'herbivore.gazelle', alive: true };
+    const animalNew = { id: 9, kind: 'animal', speciesId: 'herbivore.gazelle', alive: true };
     const sorted = [plant, carcass, animalNew, animalOld].sort(compareOccupants);
     assert.deepEqual(sorted.map((entity) => entity.id), [2, 9, 4, 5]);
     assert.equal(topOccupant([plant, carcass, animalNew]).id, 9);

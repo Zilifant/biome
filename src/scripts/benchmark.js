@@ -24,28 +24,41 @@ import { captureSimulationState } from '../simulation/persistence/SimulationSeri
  * whole run's tick cost.
  * Predators scale with the herd (Step 16) at roughly the demo's ratio, so the
  * benchmark exercises a mixed population rather than a herbivore-only world.
+ *
+ * ⚠ **The hyena joined every scenario on 2026-07-29** (PLAN-SPECIES.md phase 7),
+ * at the demo's own 120:8:10:6 ratio. Two consequences, both deliberate:
+ * every scenario now carries ~4% more animals, so **figures taken before that
+ * date are not comparable** and large-5k was re-baselined; and `GroupSystem`
+ * finally does real work here — it early-outs when no species forms groups, so
+ * until now the benchmark measured a world where the registry was free. A
+ * roster that does not match the demo's is a benchmark that has stopped
+ * describing it, which is why this list moves with every species batch.
  * @type {Array<{name: string, world: object, founding: Array<{speciesId: string, count: number}>}>}
  */
 const SCENARIOS = [
   { name: 'demo-default', world: { width: 128, height: 128 }, founding: [
-      { speciesId: 'herbivore.grazer', count: 120 },
+      { speciesId: 'herbivore.gazelle', count: 120 },
       { speciesId: 'predator.stalker', count: 8 },
-      { speciesId: 'scavenger.corvid', count: 10 },
+      { speciesId: 'scavenger.vulture', count: 10 },
+      { speciesId: 'scavenger.hyena', count: 6 },
     ] },
   { name: 'small-100', world: { width: 256, height: 256 }, founding: [
-      { speciesId: 'herbivore.grazer', count: 100 },
+      { speciesId: 'herbivore.gazelle', count: 100 },
       { speciesId: 'predator.stalker', count: 7 },
-      { speciesId: 'scavenger.corvid', count: 8 },
+      { speciesId: 'scavenger.vulture', count: 8 },
+      { speciesId: 'scavenger.hyena', count: 5 },
     ] },
   { name: 'medium-1k', world: { width: 512, height: 512 }, founding: [
-      { speciesId: 'herbivore.grazer', count: 1000 },
+      { speciesId: 'herbivore.gazelle', count: 1000 },
       { speciesId: 'predator.stalker', count: 67 },
-      { speciesId: 'scavenger.corvid', count: 80 },
+      { speciesId: 'scavenger.vulture', count: 80 },
+      { speciesId: 'scavenger.hyena', count: 50 },
     ] },
   { name: 'large-5k', world: { width: 1024, height: 1024 }, founding: [
-      { speciesId: 'herbivore.grazer', count: 5000 },
+      { speciesId: 'herbivore.gazelle', count: 5000 },
       { speciesId: 'predator.stalker', count: 333 },
-      { speciesId: 'scavenger.corvid', count: 400 },
+      { speciesId: 'scavenger.vulture', count: 400 },
+      { speciesId: 'scavenger.hyena', count: 250 },
     ] },
 ];
 

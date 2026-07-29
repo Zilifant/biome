@@ -20,7 +20,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 import { buildFullSnapshot } from '../src/protocol/snapshots.js';
 
 const CONFIG = new SimulationEngine().config;
-const GRAZER = getSpecies('herbivore.grazer');
+const GRAZER = getSpecies('herbivore.gazelle');
 
 function uniformGenome(value) {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [value, value]]));
@@ -228,7 +228,7 @@ describe('metrics: selection sandbox', () => {
       config: {
         world: { width: 36, height: 36 },
         terrain: { lakes: 1, ridges: 0, thickets: 0, coverPatchDensity: 0.5 },
-        demo: { founding: [{ speciesId: 'herbivore.grazer', count: 70 }] },
+        demo: { founding: [{ speciesId: 'herbivore.gazelle', count: 70 }] },
         // Sparse food and an expensive body are the pressure, retuned in Step 22
         // (from capacity 1.4 at the default basal rate of 0.04). The old
         // settings barely applied one: breaking the deaths down by cause showed
