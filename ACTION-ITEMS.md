@@ -198,17 +198,26 @@ they are not re-opened by accident.
 
 ## Renderer — verification and tooling
 
-- **⚠ P9 — The inspector popover has never been driven in a browser.** Its pure
-  logic is tested and its wiring was reviewed (which caught two real bugs), but
-  positioning, edge-flipping, dragging, and the `<details>` toggle path stand on
-  review rather than evidence. The clicks that would settle it: select a cell
-  near the right edge (flip), drag the header (pin), press dock then float,
+- **⚠ P9 — The inspector popover's placement and hosting have never been driven
+  in a browser.** Its pure logic is tested and its wiring was reviewed (which
+  caught two real bugs), but positioning, edge-flipping, dragging, and the
+  dock/float path stand on review rather than evidence. ⚠ Narrowed 2026-07-28:
+  `tests-ui` opens the popover and checks it, and the `<details>` toggle path is
+  covered for the metrics panel — this is now four specific unwritten specs, not
+  an absence of browser automation. The clicks that would settle it: select a
+  cell near the right edge (flip), drag the header (pin), press dock then float,
   expand Genome and reload (persistence).
 
 - **P6 / E3 — Fixture mode has no inspection or metrics data at all**, so the
   panel shows ground and bulk fields but no sections offline. Closing it means
   adding an `entity.inspection` fixture to
   `scripts/generateRendererFixtures.js`.
+
+- **P14 — The `/api/metrics` payload has never been measured against a long
+  roster.** It carries a histogram per trait per species and grows roughly
+  linearly; PLAN-SPECIES §7 asks whether it eventually needs a server-side
+  species filter. The per-species collapsible sections (2026-07-28) changed what
+  is drawn, not what is fetched. Measure at batch 3, not before.
 
 - **E4 — Keep `README-RENDERER.md`, `DOCS-RENDERER.md`, `PLAN-RENDERER.md`, and
   `HANDOFF-RENDERER.md` current _with_ each phase** rather than after it. An

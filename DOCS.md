@@ -46,7 +46,7 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 812 passing / 0 failing, 206 suites _(2026-07-28)_     |
+| Tests                 | 819 passing / 0 failing, 208 suites _(2026-07-28)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
 | Benchmark (large-5k)  | see BENCHMARK.md — measured per phase, interleaved against the same-session HEAD, because ⚠ the machine drifted ~10% across 2026-07-28 on identical code. Never compare against the 67.25 figure from 2026-07-21: it predates line of sight, thickets, the water field, and the crowding cap |
@@ -767,7 +767,9 @@ change to make, and a test will fail if you make one.
    glyphs or colors.
 2. Add it to the roster in `config/species/index.js` and to
    `config.demo.founding` if it should exist in the demo world.
-3. Give it an appearance entry in the renderer's `SPECIES_APPEARANCE`.
+3. Give it an appearance entry in the renderer's `SPECIES_APPEARANCE` — though
+   since 2026-07-28 the whole planned African roster already has one, so this
+   step is usually a check rather than an edit (PLAN-SPECIES §7).
 4. Do **not** add a species-name conditional anywhere in `src/simulation`.
 
 ### ⚠ A species block beats a system's constructor options
@@ -2444,7 +2446,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-812 tests, 206 suites. Layers:
+819 tests, 208 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol

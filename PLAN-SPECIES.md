@@ -1147,10 +1147,11 @@ consecutive phases means two fixture regenerations for no reason.
 
 ## 7. What does not scale to a ten-species roster
 
-- **Glyph space.** One ASCII letter per species, with _case already meaning age_
-  and _italic already meaning sex_. The African roster is unusually kind here —
-  most common names give a distinct first letter. Proposed assignment, colour by
-  trophic family, `priority` in bands:
+- ✅ **Glyph space (shipped 2026-07-28, phase 6).** One ASCII letter per species,
+  with _case already meaning age_ and _italic already meaning sex_. The African
+  roster is unusually kind here — most common names give a distinct first letter.
+  Assignment as built, colour by trophic family, `priority` in bands — every row
+  landed exactly as proposed:
 
   | Species    | Glyph | Colour token    | Priority | Note                                  |
   | ---------- | :---: | --------------- | -------: | ------------------------------------- |
@@ -1174,12 +1175,34 @@ consecutive phases means two fixture regenerations for no reason.
   variants. The legend is generated, so it follows for free; the four legend tests
   already enforce that every registry entry reaches it.
 
-- **The metrics panel.** It renders one full section per species — trait
-  histograms, herds, disease, home range. At ten species the sidebar is
-  unusable and the `/api/metrics` payload grows roughly linearly. Proposal:
-  per-species `<details>`, collapsed by default (the pattern just built for the
-  event feed), and measure the payload before deciding whether metrics needs a
-  species filter server-side.
+  ⚠ **One thing the table did not anticipate: the entries had to coexist with the
+  species they replace.** The registry now holds thirteen entries, and three
+  pairs share a letter — `g` (grazer/gazelle), `v` (corvid/vulture) — or name the
+  same future animal (`s` stalker / `p` leopard). Rather than leave that as
+  folklore, the superseded entry carries **`supersededBy`**, so the pairing is
+  data: a test allows a shared glyph *only* between a species and its successor,
+  and the rename phase's renderer work is "delete the entry the field points
+  from".
+
+- ✅ **The metrics panel (shipped 2026-07-28, phase 6).** It rendered one full
+  section per species — trait histograms, herds, disease, home range — which at
+  ten species made the sidebar unusable. Built as proposed: per-species
+  `<details>`, collapsed by default, with the event feed's remembered-open-set
+  pattern. Two additions the proposal did not name:
+
+  - The collapsed summary carries the species' **grid glyph in its grid colour**,
+    so the panel and the map are recognizably about the same animals. Collapsed,
+    the panel is an overview it never had: a glyph, a name, a living count, and a
+    sparkline per species.
+  - The v29 `groups` aggregate was **being computed and shown nowhere** — phase 5
+    added it to `/api/metrics` and no panel read it. It now appears as a
+    world-level row and a per-species one, in both cases *only* where a group
+    exists, so it stays invisible until the first clan and needs no renderer edit
+    when one is founded.
+
+  ⏳ Still open from the proposal: **measuring the `/api/metrics` payload** at ten
+  species to decide whether it needs a server-side species filter. Collapsing
+  changed what is *drawn*, not what is *fetched*.
 
 - **`SpeciesRegistry.hunts()`** is a linear `includes` over `preySpeciesIds`, and
   the comment is explicit that this was measured at roster length 0–1 (a `Set`
@@ -1200,14 +1223,17 @@ consecutive phases means two fixture regenerations for no reason.
   constraint on the group registry (§3.8), which is a separate store — one more
   reason to keep the two mechanisms clearly named apart.
 
-- ⚠ **The metrics panel's trend sparklines are quadratic in species count.**
-  `MetricsPanel.js:75` does `history.map((sample) => sample.species.find(…))`
-  _inside_ a per-species, per-trait loop, so the cost is
-  `historyLength × species² × traits` — with `metrics.historyLength: 120` that is
-  ~7.5k comparisons at three species and ~84k at ten, on **every metrics render**.
-  The fix is trivial (index each history sample by `speciesId` once, then look
-  up), and it should ride with the collapsible-sections work rather than being
-  discovered as jank.
+- ✅ **The metrics panel's trend sparklines were quadratic in species count
+  (fixed 2026-07-28, phase 6).** `MetricsPanel.js:75` did
+  `history.map((sample) => sample.species.find(…))` _inside_ a per-species,
+  per-trait loop, so the cost was `historyLength × species² × traits` — with
+  `metrics.historyLength: 120` that is ~7.5k comparisons at three species and
+  ~84k at ten, on **every metrics render**. Fixed as described: `indexHistory`
+  buckets the history by `speciesId` once per render. It rode with the
+  collapsible-sections work rather than being discovered as jank, which was the
+  point. ⚠ The equivalence is asserted, not assumed — the old form produced an
+  `undefined` slot for a sample that did not mention a species and the new one
+  omits it, and a test proves the sparkline is identical either way.
 
 - **The rename in phase 7 touches 42 files.** Measured 2026-07-28: the three
   species ids appear in ~30 test files, `src/scripts/benchmark.js` (all four
@@ -1316,7 +1342,7 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 | ~~**3**~~ | ✅ **Done 2026-07-28.** Persistent group registry (§3.8): `GroupRegistry` (bounded at 64, refuses rather than evicts), `GroupSystem` (founding, joining, guardian inheritance, sex-biased departure, dissolution), `groupRecordId` on the entity, `SAVE_FORMAT_VERSION` 27 → 28, DOCS §9 Sociality rewritten to record the decision it overrides. ⚠ Inert by construction — no shipped species forms groups, and the demo is byte-identical across three seeds. ⚠ The protocol projection is **deliberately deferred** to phase 5's v29 (now DOCS A54) | high | new subsystem + save bump         |
 | ~~**4**~~ | ✅ **Done 2026-07-28.** `predation` added to `SPECIES_BLOCKS` and gated in perception **both ways** — what I commit to and what I fear (§3.6); the `agility` divide in `captureChance`, prey-resolved (§3.15); `riskyMassRatio` replacing a hardcoded `2`; **carcass possession and theft** via one `possessorId` field and `resolveContest` on its own stream (§3.9). ⚠ The first three are **exactly inert** — the control arm is state-identical to phase 3 on every entity field — so possession is the single attributable change and is the only one swept. ⚠ Protocol projection again **deferred** to phase 5 (DOCS A54) | med  | Perception / Hunting / Feeding    |
 | ~~**5**~~ | ✅ **Done 2026-07-28.** Protocol **v29** (§6): `founding: [{speciesId, count}]` replacing the three role counts (kept as deprecated aliases), the host publishing its roster on `/api/status`, renderer fields generated from it, ethologist `--founding=`. Plus the **whole A54 debt** from phases 3–4 in the same bump: the `group` block and `possessorId` on inspection, a `groups` aggregate in metrics, and `entity.robbed` / `entity.grouped` / `entity.ungrouped`. ⚠ The bump left the renderer and all three fixtures on 28 with the suite green — now guarded mechanically | med  | protocol bump, fixtures           |
-| **6**     | Renderer scale (§7): glyph/colour/priority scheme, collapsible per-species metrics                                                                                                                                                                                                                                                                                                                                                                                                                 | low  | renderer only                     |
+| ~~**6**~~ | ✅ **Done 2026-07-28.** Renderer scale (§7): all ten roster species have a glyph/colour/priority entry, with `supersededBy` naming each rename so a shared letter is a stated transition rather than a collision; per-species collapsible metrics sections with a remembered open-set; the quadratic sparkline lookup indexed once per render; the v29 `groups` aggregate finally rendered. ⚠ Driven in a browser (`tests-ui/metrics.spec.js`), per D32 | low  | renderer only                     |
 | **7**     | **Batch 1 — gazelle + hyena.** Convert `herbivore.grazer` → `herbivore.gazelle` (rename, biology ≈ unchanged); rename `scavenger.corvid` → `scavenger.vulture`; add `scavenger.hyena`; `predator.stalker` stays generic                                                                                                                                                                                                                                                                            | med  | config only                       |
 | **8**     | **Hidden-fawn phase** (§3.14) — its own measured change, per A12 discipline; carries the A34 "give patrol a reason" experiment                                                                                                                                                                                                                                                                                                                                                                     | med  | Decision / Parenting / Perception |
 | **9**     | Forage guilds (§3.3): grass-maturity preference from `biomass / capacity`; `habitat` block, closing A49 (§3.4)                                                                                                                                                                                                                                                                                                                                                                                     | med  | Feeding / Decision / Migration    |

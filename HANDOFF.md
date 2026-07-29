@@ -1,15 +1,15 @@
-# Handoff — 2026-07-28 session (species phases 0–5)
+# Handoff — 2026-07-28 session (species phases 0–6)
 
-Supersedes the phases 0–4 handoff, which it absorbs; the traps there are still
+Supersedes the phases 0–5 handoff, which it absorbs; the traps there are still
 live and repeated in §3. The 2026-07-23 handoff is at
 [`legacy-docs/HANDOFF-2026-07-23.md`](legacy-docs/HANDOFF-2026-07-23.md); its
 ranked ideas for the edge/corner congregation problem exist nowhere else, and
 that problem is still open (§6).
 
-This session executed **phases 0–5 of [`PLAN-SPECIES.md`](PLAN-SPECIES.md)**.
-Phases 0–4 are committed; **phase 5 — protocol v29 — is uncommitted and is what
-this file is about.** No new species have been added yet; **phase 7 is the first
-batch (gazelle + hyena)** and everything it needs now exists.
+This session executed **phases 0–6 of [`PLAN-SPECIES.md`](PLAN-SPECIES.md)**.
+Phases 0–4 are committed; **phases 5 and 6 are uncommitted.** No new species have
+been added yet; **phase 7 is the first batch (gazelle + hyena)** and everything
+it needs now exists — including, as of phase 6, its glyphs.
 
 ---
 
@@ -17,131 +17,139 @@ batch (gazelle + hyena)** and everything it needs now exists.
 
 | | |
 | --- | --- |
-| Tests | **812 passing / 0 failing**, 206 suites (was 796/202), plus 25 in `tests-ui` |
-| `PROTOCOL_VERSION` | **29** (was 28) — fixtures regenerated |
+| Tests | **819 passing / 0 failing**, 208 suites (was 812/206), plus **28** in `tests-ui` (was 25) |
+| `PROTOCOL_VERSION` | 29 (unchanged this phase) |
 | `SAVE_FORMAT_VERSION` | 29 (unchanged this phase) |
-| Species | still 3 — grazer, stalker, corvid |
+| Species | still 3 shipped — grazer, stalker, corvid — but **10 have glyphs** |
 | Species blocks | 12 |
 | Systems | 23 |
-| Benchmark | not re-measured — phase 5 changed no engine behaviour (§4) |
-| Git | phases 0–4 committed; **phase 5 uncommitted**. The user handles git |
+| Benchmark | not re-measured — phase 6 is renderer-only and touched no engine file |
+| Git | phases 0–4 committed; **phases 5 and 6 uncommitted**. The user handles git |
 
 ---
 
-## 2. What phase 5 shipped
+## 2. What phase 6 shipped
 
-Two things, taken in one version on purpose.
+Renderer-only groundwork (§7 of the plan), the last before species land. Three
+things, plus one debt paid.
 
-**a. The founding roster (§6).** `simulation.restart` took three per-role counts
-— `herbivores`, `predators`, `scavengers` — which assumed a bijection between a
-role and a species. It now takes `founding: [{ speciesId, count }]`, and **the
-host publishes its roster** on `/api/status` so the renderer builds one field per
-species from what it is told. The three role fields are accepted for one version
-and translated host-side; the renderer no longer sends them.
+**a. The whole roster has a glyph.** `SPECIES_APPEARANCE` now carries all ten
+planned species — gazelle, wildebeest, zebra, buffalo, rhino, elephant, leopard,
+lion, hyena, vulture — exactly as §7's table proposed, beside the three the
+engine actually ships. The point is that a species batch stays a **config**
+change: the engine can found a species the moment its config file exists, and
+without an entry here it would draw as a bare `a` and be nameless in the metrics
+and restart panels.
 
-**b. The A54 debt from phases 3 and 4**, paid in the same bump rather than a
-second one: the `group` block and `possessorId` on entity inspection, a `groups`
-aggregate on `/api/metrics`, and three event types — `entity.robbed`,
-`entity.grouped`, `entity.ungrouped` — each with its `EventCatalog` entry.
+**b. Per-species metrics sections.** Each species is a collapsed `<details>`
+whose summary is its grid glyph in its grid colour, its name, its living count,
+and the population sparkline. Collapsed, the panel is an overview it never had;
+expanded, it is what it always was. Open-set in `localStorage`.
 
-**Four decisions worth knowing before touching it:**
+**c. The quadratic sparkline lookup, fixed.** `history.map((s) =>
+s.species.find(…))` inside a per-species, per-trait loop — ~7.5k comparisons at
+three species, ~84k at ten, on every render. `indexHistory` buckets once.
 
-- ⚠ **A roster replaces; a role alias patches.** `founding` is what the world is
-  founded with, full stop — a species left out gets none, because "found only the
-  gazelle" has to be expressible. The role fields could never mean that, so they
-  override three counts inside the default roster, exactly as at v28.
-- ⚠ **Both forms in one command is refused**, not resolved.
-- ⚠ **The protocol does not know which species exist** and deliberately does not
-  learn. It validates shape and bounds; the host rejects an unknown id loudly,
-  naming it. `FOUNDING_ROLE_ALIASES` is the one place a species id appears in
-  `src/protocol`, and exists only to retire — **delete it at v30**, along with the
-  alias branches in `validation.js` and `buildDemoConfig`.
-- ⚠ **`entity.robbed` is not `entity.contested`.** The payloads are nearly
-  identical and reusing the existing type would have avoided the bump entirely —
-  but the renderer labels that one "contests over a mate", so a carcass fight
-  filed under it would have made the UI lie, which is the specific thing this
-  version exists to stop.
+**d. The v29 `groups` aggregate was being computed and rendered nowhere.** Phase
+5 added it to `/api/metrics` and no panel read it. It now shows as a world-level
+row and a per-species one, in both cases **only where a group exists** — so it is
+invisible today and appears by itself at the first hyena clan.
+
+**Three decisions worth knowing before touching it:**
+
+- ⚠ **`supersededBy` is why two species may share a letter.** Case means age and
+  italic means sex, so the letter is all that says *which animal this is* — two
+  live species on one letter would be indistinguishable. Three entries
+  (`herbivore.grazer`, `scavenger.corvid`, `predator.stalker`) are renamed into
+  roster entries later and carry a `supersededBy` naming the successor, which
+  makes the transitional duplicate **data rather than folklore**: a test permits a
+  shared glyph *only* between a species and its successor. **Phase 7's renderer
+  work is "delete the entry whose `supersededBy` is now live"**, and phase 14's
+  is the same for the stalker.
+- ⚠ **The gazelle keeps the grazer's `g`/`yellow`/50 exactly**, so batch 1 is
+  visually identical to today's demo apart from the hyena — which is what makes a
+  visual regression obvious.
+- **A group count is absent, not zero, in a world with no groups.** Showing `0
+  clans` on every species forever would be noise for a mechanism nothing uses;
+  the row appearing at all is the signal.
 
 ---
 
 ## 3. ⚠ Traps, in the order they will bite again
 
-**D25–D30 are inherited and unchanged.** The four that still matter most: a guard
+**D25–D32 are inherited and unchanged.** The four that still matter most: a guard
 can go blind silently; a species-level constant is not an entity-level one; ⚠⚠
 the hottest function in the engine is arity-sensitive (one extra parameter on
 `#perceive` once cost 12%); and an off switch must leave no trace, not merely no
 effect (D30).
 
-One new, and it is the sharpest of the session:
+**⚠ D32 was obeyed and earned its keep again.** `npx playwright test` before
+calling a renderer change done — the metrics panel rewrites its whole
+`innerHTML` on every poll, and a `<details>` open-state that survives review but
+not a rebuild is exactly the failure no node test can see (the repo builds no
+DOM). `tests-ui/metrics.spec.js` drives it: expand, wait for a *real* rebuild
+(proved by marking the element and watching the mark vanish), assert it is still
+open **and** that the toggle still works afterwards. The listener is bound once,
+on the container, in the capture phase — `toggle` does not bubble, and one bound
+to the sections would be destroyed by the next poll.
 
-⚠ **"Regenerate fixtures on every protocol bump" was discipline only, and it
-failed silently the first time it was tested.** Bumping `PROTOCOL_VERSION` to 29
-left the renderer's `SUPPORTED_PROTOCOL_VERSION` and all three committed fixtures
-on 28 — **with the entire suite green**, because the tests compared the
-renderer's version against *itself* (`SUPPORTED_PROTOCOL_VERSION + 1` and so on)
-rather than against the protocol's. Fixture mode would have refused every message
-at runtime, and `npm test` would never have said so. Now asserted by
-`test/protocol-v29.test.js`: the renderer's version equals the protocol's, and
-every committed fixture carries it.
+⚠ **From phase 5, and still the sharpest of the session:** "regenerate fixtures
+on every protocol bump" was discipline only, and it failed silently the first
+time it was tested — the suite compared the renderer's `SUPPORTED_PROTOCOL_VERSION`
+against *itself*. Now asserted by `test/protocol-v29.test.js`. The general shape
+is worth carrying: **a test that compares a copy against itself is not a test of
+the copy.**
 
-The general shape is worth carrying: **a test that compares a copy against itself
-is not a test of the copy.** The same pattern held the EventCatalog honestly
-(it is checked against `EventTypes`, a different source), which is why the three
-new event types could not have gone missing the same way.
+One new, and it is small but general:
 
-And a second, from the same phase and now **D32**:
-
-⚠ **Run `npx playwright test` before calling a renderer change done.** Replacing
-the three hardcoded restart fields left `setEnabled` still naming them, so it set
-`.disabled` on `undefined` and **the renderer failed to boot in fixture mode
-entirely** — with all 812 node tests green, because none of them builds a DOM.
-⚠ The near-miss worth remembering: the *live*-mode controls spec passed, because
-the panel is only disabled in fixture mode. "The controls test passed" was not
-evidence. The full UI suite runs in ~13 s when the browser cooperates.
+⚠ **A cheap inner lookup is only cheap at today's N.** Nothing about the
+sparkline code changed to make it quadratic; the roster did. It was found by
+reading for it in advance rather than by feeling jank, which is the same move as
+the engine's mass audit — and the equivalence of the fix is **asserted, not
+assumed**, because the old form produced an `undefined` slot where the new one
+omits a value, and a silently different trend line is exactly what nobody
+notices.
 
 ---
 
 ## 4. Measurements
 
-**None taken, and that is the finding.** Phase 5 is protocol, host, and renderer
-work; the only engine edits are read-only projections (`getSpeciesRoster`, the
-inspection blocks), a metrics aggregate, and three `context.emit` calls. Verified
-rather than assumed: with possession switched off the demo is **state-identical
-on every entity field to phase-3 HEAD**, across three seeds at 1500 ticks —
-the same comparison phases 3 and 4 were held to.
+**None taken, and that is the finding.** Phase 6 touched `src/renderer/app` and
+its tests, plus documentation. No engine, protocol, server, or config file
+changed, so there is nothing for a seed sweep or the benchmark to say. Phase 4's
+figures stand (BENCHMARK.md).
 
-The benchmark was not re-run for the same reason. Phase 4's figures stand
-(BENCHMARK.md), including the isolating arm that showed the perception edit free.
+The one measurement phase 6 *should have taken and did not* is carried forward:
+**the `/api/metrics` payload size at ten species.** §7 asks whether metrics needs
+a server-side species filter, and collapsing the panel changed what is drawn, not
+what is fetched. It is answerable only once a long roster exists.
 
 ---
 
-## 5. Next step: phase 6 — renderer scale
+## 5. Next step: phase 7 — batch 1 (gazelle + hyena)
 
-Phases 0–5 are done. **Phase 6 (§7) is renderer-only** and is the last groundwork
-before species land:
+Phases 0–6 are done, and phase 7 is the first phase that adds a species.
 
-- The glyph/colour/priority scheme for the ten-species roster (§7 has the table).
-  ⚠ The gazelle keeps `g`/`yellow` deliberately, so batch 1 is visually
-  indistinguishable from today's demo except for the new carnivore.
-- Per-species `<details>` in the metrics panel, collapsed by default — at ten
-  species the sidebar is unusable.
-- ⚠ **`MetricsPanel.js:75` is quadratic in species count**:
-  `history.map((sample) => sample.species.find(…))` inside a per-species,
-  per-trait loop, so ~7.5k comparisons at three species and ~84k at ten, on every
-  render. Index each history sample by `speciesId` once. Fix it with the
-  collapsible work rather than discovering it as jank.
-
-Then **phase 7 is batch 1: gazelle + hyena.** What phases 3–5 built for it, all
-untested against a species that wants it:
-
-- `groups.forms` — the hyena is the first species that will set it.
-- `predation` mass ratios — the first that will set those too.
+- **`herbivore.grazer` → `herbivore.gazelle`.** A rename, a docstring, and
+  deleting the superseded appearance entry. ⚠ §9 requires this half to be
+  provably **byte-identical** — mass and every block unchanged — and measured
+  *before* the hyena arrives. If it is not identical, the diff is the answer.
+- **`scavenger.corvid` → `scavenger.vulture`**, 4 → 6 kg, otherwise unchanged.
+- **`scavenger.hyena` is net-new** and takes the full ten-seed gate. It is the
+  first consumer of `groups.forms`, of `predation` mass ratios, and of a
+  per-species `herdWeight`.
 - ⚠ **`possessionShare: 0.25` was measured on the *corvid–stalker* world**, not
   on the 60 kg hyena and 6 kg vulture the mechanism was designed for. Expect to
-  re-measure it in batch 1; it is not a universal constant.
-- ⚠ Phase 7 splits into a **no-op half and a real half** and §9 says to measure
-  them separately: the grazer → gazelle rename should be provably byte-identical,
-  and only then does the hyena arrive behind the full ten-seed gate.
+  re-measure it; it is not a universal constant.
+- ⚠ **Watch the vulture.** A 60 kg facultative scavenger entering a world with a
+  6 kg obligate one is the batch's tightest interaction; report its population and
+  carcass share per seed explicitly.
+- **What batch 1 must actually demonstrate is the group registry** — clans form,
+  persist through separation, hold and lose carcasses, and dissolve. Assert those
+  directly; a registry that quietly never founds a second clan would pass a
+  survival gate.
+- The renderer needs **nothing** for any of it except the two deletions, which is
+  what phase 6 was for.
 
 ---
 
@@ -160,8 +168,10 @@ a fresh multi-seed sweep — and there are now **two** swept results that would 
 re-running afterwards (the phase-1/2 energy sweep and phase 4's possession
 sweep), not one. Budget for the re-measure.
 
-Also still open: the `escapeHeading` wide-pocket limitation, and **A51 (dynamic
-shrub layer)**, scheduled at phase 15.
+Also still open: the `escapeHeading` wide-pocket limitation, **A51 (dynamic
+shrub layer)** scheduled at phase 15, and the renderer's own P6/E3 — fixture mode
+still has no metrics data, so the new per-species sections are only reachable in
+live mode (which is why their UI tests use the mocked live host).
 
 ---
 

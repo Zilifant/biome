@@ -94,7 +94,7 @@ app/
     InspectorView.js          what the inspector says: ground + occupants, protocol fields, and the collapsible sections
     InspectorPanel.js         where the inspector is: floating popover anchored to the cell, or docked in the sidebar
     Legend.js                 the key to the grid, generated from the appearance registries
-    MetricsPanel.js           population histograms, generations, selection differentials (polled)
+    MetricsPanel.js           population histograms, generations, selection differentials (polled), one collapsible section per species
     EventLog.js               domain-event feed with one filter per event type
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
@@ -151,6 +151,17 @@ protocol `speciesId`, e.g.
 The first herbivore, `herbivore.grazer`, maps to `g`/yellow. Nothing in the
 grid-rendering algorithm changes. `colorToken` must be a key of
 `DRACULA_COLORS` (rendered from the `--dracula-<token>` CSS variable).
+
+**The whole planned species roster already has an entry**, not only the three
+species the engine ships — gazelle, wildebeest, zebra, buffalo, rhino, elephant,
+leopard, lion, hyena, and vulture (PLAN-SPECIES §7). Glyph by common name,
+colour by trophic family, priority in bands: carnivores 60+, herbivores 50–55,
+obligate scavenger 45. Assigning the scheme in one pass is what keeps it
+coherent, and it is what lets a species batch be a config change rather than a
+config change and a renderer change. ⚠ Three shipped species are renamed into
+roster entries later (grazer → gazelle, corvid → vulture, stalker → leopard);
+each carries a `supersededBy` naming its successor, which is why two entries may
+share a letter, and the old entry is deleted in the phase that renames it.
 
 **Age and sex are two independent glyph channels** on top of the species letter.
 **Letter case is age**: a mature animal (`lifeStage` adult or senescent) is
@@ -548,7 +559,13 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   is scaling bars to the tallest bin, which is layout. Since protocol v21 it
   also shows the sex counts and the selection differential **split by sex**,
   which is the row that distinguishes sexual from natural selection: a mate
-  preference moves only the sex being chosen.
+  preference moves only the sex being chosen. Each species is a **collapsed
+  `<details>`** whose summary is its grid glyph, its name, how many are alive,
+  and the population sparkline — a full section apiece reads at three species and
+  makes the sidebar unusable at ten. What you expand is remembered
+  (`biome.metrics.openSpecies`). A persistent group count (protocol v29) appears
+  beside the herd row for any species that forms clans or prides, and nowhere at
+  all for a world with none.
 - Territory (protocol v23) is inspection-only. The claim layer is deliberately
   **not** projected: a per-cell ownership map in every snapshot would rival the
   vegetation block for something that changes far more slowly and matters for

@@ -120,6 +120,62 @@ export async function gotoLive(page) {
  * REST endpoints return benign canned data so status polling and recovery never
  * error. Page-level routes take precedence over the context's static file server.
  */
+/** Species ids the mocked host reports, in the order it reports them. */
+export const MOCK_SPECIES = ['herbivore.grazer', 'predator.stalker', 'scavenger.corvid'];
+
+/**
+ * A canned `metrics` query response with real structure rather than an empty
+ * species list — the metrics panel renders one collapsible section per species,
+ * and an empty roster leaves nothing for a test to open. Numbers are arbitrary;
+ * only the shape matters, and it mirrors `buildMetricsReport`.
+ */
+function metricsReport() {
+  const trait = (mean) => ({
+    phenotype: { mean, stdev: 0.1 },
+    histogram: { bins: [1, 3, 6, 3, 1] },
+    selectionDifferential: 0.01,
+    selectionDifferentialBySex: { female: 0.02, male: -0.01 },
+  });
+  const species = MOCK_SPECIES.map((speciesId, index) => ({
+    speciesId,
+    living: 40 - index * 10,
+    sexes: { female: 20 - index * 5, male: 20 - index * 5 },
+    grouping: { groups: 3, size: { mean: 4.5, max: 8 }, solitary: 2 },
+    disease: { infectious: 1, symptomatic: 0, recovered: 3 },
+    homeRange: { settled: 5, radius: { mean: 12.5 } },
+    generation: { mean: 1.5, max: 3 },
+    reproductiveSuccess: { mean: 0.8, max: 4 },
+    births: 3,
+    deaths: 2,
+    traits: { size: trait(1), speed: trait(1.05), metabolicEfficiency: trait(0.98), boldness: trait(1.02) },
+  }));
+  const tick = SNAPSHOT.tick ?? 0;
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    kind: 'metrics',
+    simulationId: SNAPSHOT.simulationId ?? 'test-live',
+    available: true,
+    metrics: {
+      tick,
+      windowTicks: 500,
+      metricsRange: '0.5–1.5',
+      territory: { claimed: 120, cells: 1024, holders: 4 },
+      groups: null,
+      species,
+    },
+    history: [0, 1, 2].map((step) => ({
+      tick: tick - (2 - step) * 50,
+      species: species.map((entry) => ({
+        speciesId: entry.speciesId,
+        living: entry.living - (2 - step),
+        generation: 1.5,
+        traits: { size: 1, speed: 1.05, metabolicEfficiency: 0.98, boldness: 1.02 },
+        infectious: 1,
+      })),
+    })),
+  };
+}
+
 async function installLiveMocks(page, commands) {
   const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
   // ⚠ `species` is the protocol-v29 roster the host publishes, and the restart
@@ -158,7 +214,7 @@ async function installLiveMocks(page, commands) {
     } else if (pathname.includes('/api/snapshot')) {
       await route.fulfill(json(SNAPSHOT));
     } else if (pathname.includes('/api/metrics')) {
-      await route.fulfill(json({ protocolVersion: PROTOCOL_VERSION, tick: SNAPSHOT.tick ?? 0, species: [] }));
+      await route.fulfill(json(metricsReport()));
     } else if (pathname.includes('/api/entities/')) {
       await route.fulfill(json({ protocolVersion: PROTOCOL_VERSION, found: false }));
     } else {

@@ -9,13 +9,50 @@
  * Metrics are fetched on an interval rather than pushed per tick: histograms
  * for every trait of every species would dwarf the entity array in a per-tick
  * payload, and a summary view does not need tick resolution.
+ *
+ * **One collapsed `<details>` per species.** The panel renders a full section
+ * per species — trait histograms, herds, disease, home range — which reads
+ * fine at three species and makes the sidebar unusable at ten
+ * (PLAN-SPECIES §7). Collapsed, each species is one line: its grid glyph, its
+ * name, how many are alive, and the population trend — which is the overview
+ * the panel never had. The open-set is remembered, exactly as the inspector's
+ * sections are.
  */
+
+import { SPECIES_APPEARANCE, KIND_APPEARANCE, speciesLabel } from '../rendering/EntityAppearance.js';
 
 /** Trait rows worth showing; the rest are available in the raw query. */
 const SHOWN_TRAITS = ['size', 'speed', 'metabolicEfficiency', 'boldness'];
 
 /** Blocks used to draw a histogram bar, lightest to fullest. */
 const BAR_LEVELS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+/** Species a viewer has expanded, remembered across reloads. */
+const OPEN_SPECIES_KEY = 'biome.metrics.openSpecies';
+
+/**
+ * Read the remembered open-set. Presentation state, so it lives in localStorage
+ * rather than the store — and a browser that refuses storage must degrade to
+ * "nothing expanded" rather than breaking the panel.
+ * @returns {Set<string>}
+ */
+function loadOpenSpecies() {
+  try {
+    const raw = globalThis.localStorage?.getItem(OPEN_SPECIES_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** @param {Set<string>} open */
+function saveOpenSpecies(open) {
+  try {
+    globalThis.localStorage?.setItem(OPEN_SPECIES_KEY, JSON.stringify([...open]));
+  } catch {
+    // Remembering is a convenience; failing to remember is not an error.
+  }
+}
 
 function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -48,13 +85,70 @@ function drawTrend(values) {
     .join('');
 }
 
+/**
+ * The species' grid glyph, coloured as the grid colours it, so a row in this
+ * panel and an animal on the map are recognizably the same thing. The base
+ * (lowercase) form is used — case means age on the grid, and a population is
+ * not an age. A species with no appearance entry falls back to the generic
+ * animal glyph rather than vanishing.
+ */
+function speciesGlyph(speciesId) {
+  const appearance = SPECIES_APPEARANCE[speciesId] ?? KIND_APPEARANCE.animal;
+  return `<span class="metrics-glyph" style="color: var(--dracula-${appearance.colorToken})">${appearance.glyph}</span>`;
+}
+
+/**
+ * Index the bounded history by species, once per render.
+ *
+ * ⚠ This exists to keep the panel linear in species count. The trends used to
+ * be drawn with a `history.find(…)` *inside* a per-species, per-trait loop, so
+ * the cost was `historyLength × species² × traits` — ~7.5k comparisons at three
+ * species and ~84k at ten, on every render (PLAN-SPECIES §7). Samples that do
+ * not mention a species are simply absent from its series, which is what the
+ * old `undefined` slots amounted to: `drawTrend` discards non-numbers.
+ *
+ * Exported, unusually for a private detail of one panel, for the reason
+ * `structureSignature` is: it *is* the mechanism, it is pure, and the repo has
+ * no DOM test dependency — so a thing testable only through the panel is
+ * effectively not testable at all.
+ *
+ * @param {Array<{species: Array<{speciesId: string}>}>} history
+ * @returns {Map<string, object[]>}
+ */
+export function indexHistory(history) {
+  const bySpecies = new Map();
+  for (const sample of history) {
+    for (const entry of sample.species ?? []) {
+      const series = bySpecies.get(entry.speciesId);
+      if (series) series.push(entry);
+      else bySpecies.set(entry.speciesId, [entry]);
+    }
+  }
+  return bySpecies;
+}
+
 export class MetricsPanel {
   #container;
+  /** @type {Set<string>} */
+  #openSpecies = loadOpenSpecies();
 
   /** @param {HTMLElement} container */
   constructor(container) {
     this.#container = container;
     container.innerHTML = '<h2>Population</h2><p class="hint">Waiting for metrics…</p>';
+    // `toggle` does not bubble, so this listens in the capture phase — and on
+    // the container, which survives the innerHTML rewrite every render does.
+    container.addEventListener(
+      'toggle',
+      (event) => {
+        const speciesId = event.target?.dataset?.species;
+        if (!speciesId) return;
+        if (event.target.open) this.#openSpecies.add(speciesId);
+        else this.#openSpecies.delete(speciesId);
+        saveOpenSpecies(this.#openSpecies);
+      },
+      true,
+    );
   }
 
   /**
@@ -67,15 +161,14 @@ export class MetricsPanel {
         '<h2>Population</h2><p class="hint">Metrics appear once the simulation has run a little.</p>';
       return;
     }
-    const { metrics, history } = report;
+    const { metrics, history = [] } = report;
+    const historyBySpecies = indexHistory(history);
 
     const sections = metrics.species
       .map((species) => {
-        const trendFor = (trait) =>
-          drawTrend(history.map((sample) => sample.species.find((s) => s.speciesId === species.speciesId)?.traits[trait]));
-        const populationTrend = drawTrend(
-          history.map((sample) => sample.species.find((s) => s.speciesId === species.speciesId)?.living),
-        );
+        const series = historyBySpecies.get(species.speciesId) ?? [];
+        const trendFor = (trait) => drawTrend(series.map((sample) => sample.traits?.[trait]));
+        const populationTrend = drawTrend(series.map((sample) => sample.living));
 
         const traitRows = SHOWN_TRAITS.filter((trait) => species.traits[trait])
           .map((trait) => {
@@ -105,10 +198,19 @@ export class MetricsPanel {
               species.grouping.size.mean?.toFixed(1) ?? '–'
             }, max ${species.grouping.size.max ?? '–'} · ${species.grouping.solitary} alone</span></span></div>`
           : '';
+        // ⚠ Persistent groups (v29) are a different mechanism from the herd
+        // label above, so they get their own row rather than a second number on
+        // that one: a herd is who this animal is standing with, a clan is who it
+        // belongs to. Shown only for a species that has one — no shipped species
+        // forms groups, so the row is absent everywhere today and appears by
+        // itself the first time a clan-forming carnivore is founded.
+        const clans = metrics.groups?.bySpecies?.[species.speciesId]
+          ? `<div class="field"><span>clans</span><span>${metrics.groups.bySpecies[species.speciesId]} <span class="dim">persistent groups</span></span></div>`
+          : '';
 
         const outbreak = species.disease
           ? `<div class="field"><span>disease</span><span>${species.disease.infectious} infectious <span class="dim">(${species.disease.symptomatic} visible) · ${species.disease.recovered} immune ${drawTrend(
-              history.map((sample) => sample.species.find((s) => s.speciesId === species.speciesId)?.infectious),
+              series.map((sample) => sample.infectious),
             )}</span></span></div>`
           : '';
 
@@ -118,26 +220,40 @@ export class MetricsPanel {
             }</span></span></div>`
           : '';
 
+        const open = this.#openSpecies.has(species.speciesId) ? ' open' : '';
         return `
-          <h3>${escapeHtml(species.speciesId)} <span class="dim">${species.living} alive ${populationTrend}</span></h3>
-          ${sexes}
-          ${grouping}
-          ${ranges}
-          ${outbreak}
-          <div class="field"><span>generation</span><span>mean ${species.generation.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.generation.max ?? '–'}</span></span></div>
-          <div class="field"><span>offspring each</span><span>mean ${species.reproductiveSuccess.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.reproductiveSuccess.max ?? '–'}</span></span></div>
-          <div class="field"><span>births / deaths</span><span>${species.births} / ${species.deaths} <span class="dim">last ${metrics.windowTicks}t</span></span></div>
-          ${traitRows}`;
+          <details class="inspector-section" data-species="${escapeHtml(species.speciesId)}"${open}>
+            <summary>${speciesGlyph(species.speciesId)} <span class="section-title">${escapeHtml(
+              speciesLabel(species.speciesId),
+            )}</span> <span class="section-badge">${species.living} alive ${populationTrend}</span></summary>
+            <div class="section-body">
+              ${sexes}
+              ${grouping}
+              ${clans}
+              ${ranges}
+              ${outbreak}
+              <div class="field"><span>generation</span><span>mean ${species.generation.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.generation.max ?? '–'}</span></span></div>
+              <div class="field"><span>offspring each</span><span>mean ${species.reproductiveSuccess.mean?.toFixed(2) ?? '–'} <span class="dim">max ${species.reproductiveSuccess.max ?? '–'}</span></span></div>
+              <div class="field"><span>births / deaths</span><span>${species.births} / ${species.deaths} <span class="dim">last ${metrics.windowTicks}t</span></span></div>
+              ${traitRows}
+            </div>
+          </details>`;
       })
       .join('');
 
     const territory = metrics.territory
       ? `<div class="field"><span>claimed ground</span><span>${Math.round((metrics.territory.claimed / metrics.territory.cells) * 100)}% <span class="dim">${metrics.territory.holders} holders</span></span></div>`
       : '';
+    const groups = metrics.groups?.count
+      ? `<div class="field"><span>groups</span><span>${metrics.groups.count} <span class="dim">${metrics.groups.members} members, mean ${
+          metrics.groups.size?.mean?.toFixed(1) ?? '–'
+        }</span></span></div>`
+      : '';
 
     this.#container.innerHTML = `
       <h2>Population <span class="dim">t${metrics.tick}</span></h2>
       ${territory}
+      ${groups}
       ${sections}
       <p class="hint">histogram spans ${metrics.metricsRange ?? '0.5–1.5'} · S = breeder mean − adult mean, then by sex</p>`;
   }

@@ -18,6 +18,7 @@ import {
 } from '../src/renderer/app/rendering/EntityAppearance.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend } from '../src/renderer/app/ui/Legend.js';
+import { indexHistory } from '../src/renderer/app/ui/MetricsPanel.js';
 import { matchWatched, WATCHABLE } from '../src/renderer/app/ui/Watchlist.js';
 import {
   EVENT_CATALOG,
@@ -103,6 +104,115 @@ describe('entity appearance', () => {
     assert.deepEqual(sorted.map((entity) => entity.id), [2, 9, 4, 5]);
     assert.equal(topOccupant([plant, carcass, animalNew]).id, 9);
     assert.equal(topOccupant([plant, carcass]).id, 4);
+  });
+});
+
+describe('the species roster', () => {
+  // The whole planned roster has an appearance entry before the species exist,
+  // so that adding one is a config change rather than a config change *and* a
+  // renderer change (PLAN-SPECIES §7). This list is the claim: a species batch
+  // that lands without its glyph fails here rather than drawing a bare `a`.
+  const ROSTER = [
+    'herbivore.gazelle',
+    'herbivore.wildebeest',
+    'herbivore.zebra',
+    'herbivore.buffalo',
+    'herbivore.rhino',
+    'herbivore.elephant',
+    'predator.leopard',
+    'predator.lion',
+    'scavenger.hyena',
+    'scavenger.vulture',
+  ];
+
+  test('every roster species has an appearance entry', () => {
+    for (const speciesId of ROSTER) {
+      assert.ok(SPECIES_APPEARANCE[speciesId], `${speciesId} has no appearance entry`);
+    }
+  });
+
+  test('every species glyph is one ASCII letter drawn in a real Dracula colour', () => {
+    for (const [speciesId, appearance] of Object.entries(SPECIES_APPEARANCE)) {
+      assert.match(appearance.glyph, /^[a-z]$/, `${speciesId} should be one lowercase ASCII letter`);
+      assert.match(DRACULA_COLORS[appearance.colorToken] ?? '', /^#[0-9A-F]{6}$/, `${speciesId}`);
+      assert.equal(typeof appearance.priority, 'number', `${speciesId} needs a display priority`);
+      assert.ok(appearance.label, `${speciesId} needs a label`);
+    }
+  });
+
+  test('two species share a glyph only when one is the rename of the other', () => {
+    // Case is age and italic is sex, so the letter is all that is left to say
+    // *which animal this is* — two live species on one letter would be
+    // indistinguishable. The three that do share one are the shipped species
+    // and the roster entries they are renamed into, which never coexist in a
+    // world; `supersededBy` is what says so, and it is deleted with the entry
+    // when the rename lands.
+    const byGlyph = new Map();
+    for (const [speciesId, appearance] of Object.entries(SPECIES_APPEARANCE)) {
+      const sharing = byGlyph.get(appearance.glyph) ?? [];
+      sharing.push(speciesId);
+      byGlyph.set(appearance.glyph, sharing);
+    }
+    for (const [glyph, sharing] of byGlyph) {
+      if (sharing.length === 1) continue;
+      assert.equal(sharing.length, 2, `more than two species claim "${glyph}": ${sharing}`);
+      const [first, second] = sharing;
+      const superseded =
+        SPECIES_APPEARANCE[first].supersededBy === second ||
+        SPECIES_APPEARANCE[second].supersededBy === first;
+      assert.ok(superseded, `"${glyph}" is claimed by unrelated species ${sharing}`);
+    }
+  });
+
+  test('a supersededBy names a species that actually has an entry', () => {
+    // Otherwise the successor is a promise rather than a glyph, and the rename
+    // phase discovers it at the point it is meant to be trivial.
+    for (const [speciesId, appearance] of Object.entries(SPECIES_APPEARANCE)) {
+      if (!appearance.supersededBy) continue;
+      assert.ok(
+        SPECIES_APPEARANCE[appearance.supersededBy],
+        `${speciesId} is superseded by ${appearance.supersededBy}, which has no entry`,
+      );
+      assert.ok(!SPECIES_APPEARANCE[appearance.supersededBy].supersededBy, 'supersession does not chain');
+    }
+  });
+});
+
+describe('metrics history indexing', () => {
+  // The panel draws a sparkline per trait per species out of one bounded
+  // history. Indexing it once is what keeps that linear rather than quadratic
+  // in species count (PLAN-SPECIES §7).
+  const history = [
+    { tick: 1, species: [{ speciesId: 'a', living: 3, traits: { size: 1 } }, { speciesId: 'b', living: 9, traits: { size: 2 } }] },
+    { tick: 2, species: [{ speciesId: 'b', living: 8, traits: { size: 3 } }] },
+    { tick: 3, species: [{ speciesId: 'a', living: 5, traits: { size: 4 } }, { speciesId: 'b', living: 7, traits: { size: 5 } }] },
+  ];
+
+  test('groups every sample by species, in the order the history holds them', () => {
+    const index = indexHistory(history);
+    assert.deepEqual(index.get('a').map((sample) => sample.living), [3, 5]);
+    assert.deepEqual(index.get('b').map((sample) => sample.living), [9, 8, 7]);
+    assert.equal(index.get('never-existed'), undefined);
+  });
+
+  test('it agrees with the per-sample lookup it replaced', () => {
+    // The old code mapped over the whole history and looked each species up,
+    // producing an `undefined` for samples that did not mention it. The trend
+    // renderer discards non-numbers, so dropping those slots is the same
+    // sparkline — asserted rather than assumed, because a silently different
+    // trend line is exactly the kind of regression nobody notices.
+    const index = indexHistory(history);
+    for (const speciesId of ['a', 'b']) {
+      const viaFind = history
+        .map((sample) => sample.species.find((entry) => entry.speciesId === speciesId)?.traits.size)
+        .filter((value) => typeof value === 'number');
+      assert.deepEqual(index.get(speciesId).map((sample) => sample.traits.size), viaFind);
+    }
+  });
+
+  test('an empty or species-less history indexes to nothing rather than throwing', () => {
+    assert.equal(indexHistory([]).size, 0);
+    assert.equal(indexHistory([{ tick: 1 }]).size, 0);
   });
 });
 

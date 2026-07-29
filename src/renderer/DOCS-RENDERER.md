@@ -37,14 +37,15 @@ stands, not a reading. A dated figure is a record of what was true when it was
 taken — the demo world it was measured in keeps changing underneath these
 numbers, so re-measure rather than inherit.
 
-### Current state (as of 2026-07-24)
+### Current state (as of 2026-07-28)
 
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 94, runner 18 (of 812 repo-wide); 25 in `tests-ui` |
+| Tests               | renderer 104, runner 18 (of 819 repo-wide); 28 in `tests-ui` |
 | Protocol understood | **29** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v29 is drawn or inspectable   |
+| Species scheme      | **all ten roster species have a glyph** (§9), three of them shipped |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
 | Git                 | uncommitted (the user handles git)                         |
 
@@ -67,14 +68,17 @@ cross-references in code and history keep resolving.
 
 ### 1.1 Unverified
 
-- **⚠ P9 — The inspector popover has never been driven in a browser.** Its pure
-  logic is tested and its wiring was reviewed (which caught two real bugs — see
-  §11), but popover positioning, edge-flipping, dragging, and the `<details>`
-  toggle path have not been exercised by a real DOM. There is no browser
-  automation here, and a hand-rolled DOM stub would test the stub more than the
-  code. This is the one part of Phase B standing on review rather than evidence.
-  The clicks that would settle it: select a cell near the right edge (flip), drag
-  the header (pin), press dock then float, expand Genome and reload (persistence).
+- **⚠ P9 — The inspector popover's *placement and hosting* have never been driven
+  in a browser.** Its pure logic is tested and its wiring was reviewed (which
+  caught two real bugs — see §11), but popover positioning, edge-flipping,
+  dragging, and the dock/float path have not been exercised by a real DOM.
+  ⚠ **Narrowed 2026-07-28**: `tests-ui` now opens the popover, checks it against
+  axe, and confirms a drag never opens it — and the `<details>` toggle path is
+  covered *for the metrics panel* (`metrics.spec.js`), including surviving a
+  full rebuild. So this is no longer "no browser automation exists"; it is four
+  specific interactions nobody has written a spec for. The clicks that would
+  settle it: select a cell near the right edge (flip), drag the header (pin),
+  press dock then float, expand Genome and reload (persistence).
 
 ### 1.2 Undecided — Phase D (stepping backward)
 
@@ -146,6 +150,14 @@ present** (P5).
   offline, and the metrics panel is empty. Closing it means adding an
   `entity.inspection` fixture to `scripts/generateRendererFixtures.js`. More
   annoying now that collapsible sections are the bulk of the panel.
+- **P14 — The `/api/metrics` payload has never been measured against a long
+  roster** _(opened 2026-07-28 with the per-species sections)_. It carries a
+  histogram per trait per species and grows roughly linearly, and the open
+  question from PLAN-SPECIES §7 is whether it eventually needs a **server-side
+  species filter**. Collapsing the panel changed what is *drawn*, not what is
+  *fetched*, so the collapsible work did not touch this. Answerable only once
+  the roster is long — measure at batch 3, not before.
+
 - **E4 — Keep the three docs current _with_ each change**, not after it —
   `README-RENDERER.md` (what it is), `PLAN-RENDERER.md` (what was planned and
   why), `HANDOFF-RENDERER.md` (where it stands), and now this file. An ongoing
@@ -217,7 +229,7 @@ app/
     InspectorView.js          what the inspector says (ground + occupants + sections)
     InspectorPanel.js         where the inspector is (floating popover or docked sidebar)
     Legend.js                 the key to the grid, generated from the registries
-    MetricsPanel.js           population histograms, generations, selection differentials
+    MetricsPanel.js           population histograms and trends, one collapsible section per species
     EventLog.js               domain-event feed, one filter per event type
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
@@ -471,6 +483,39 @@ kept roughly one tick's worth. ⚠ It keeps everything it *receives* — a long
 coalesced step still drops events in the host's outbox before they ever arrive
 (P12).
 
+### The metrics panel is one collapsed row per species
+
+`MetricsPanel` renders a full section per species — trait histograms with
+sparklines, herds, disease, home range, generations, births and deaths. That
+reads at three species and is unusable at ten, so **each species is a collapsed
+`<details>`** whose summary is the species' own grid glyph, its name, its living
+count, and the population sparkline. Collapsed, the panel is finally an
+_overview_; expanded, it is what it always was. The open-set lives in
+`localStorage` (`biome.metrics.openSpecies`) exactly as the inspector's does.
+
+Three things about it are easy to get wrong:
+
+- ⚠ **The panel rewrites its whole `innerHTML` on every poll**, so the `open`
+  attribute is re-applied from the remembered set on each render, and the
+  `toggle` listener is bound **once, on the container, in the capture phase** —
+  `toggle` does not bubble, and a listener bound to the sections themselves would
+  be destroyed by the next poll. Driven in a browser rather than reviewed
+  (`tests-ui/metrics.spec.js`): expand, wait for a real rebuild, assert it is
+  still open _and_ that the toggle still works.
+- ⚠ **The trend sparklines were quadratic in species count.** `history.map((s) =>
+  s.species.find(…))` sat _inside_ a per-species, per-trait loop, so the cost was
+  `historyLength × species² × traits` — ~7.5k comparisons at three species and
+  ~84k at ten, on every render. `indexHistory` now buckets the history by
+  `speciesId` once; it is exported and tested for the usual reason (there is no
+  DOM test dependency, so the mechanism has to be a pure function to be testable
+  at all), including an assertion that it draws the *same* sparkline the `find`
+  version did.
+- **A persistent group count (v29) appears only for a species that has one.**
+  It is a separate row from `herds`, because the two are separate mechanisms — a
+  herd label is who an animal is standing with, a group record is who it belongs
+  to — and it is absent rather than `0` in a world where nothing forms clans,
+  which is every world today. It appears by itself the first time one does.
+
 ### Clickable ids
 
 Every `#123` in the inspector and event log is a button that selects and centres
@@ -663,6 +708,37 @@ viewer information no animal in the world has. `resolveColorToken` is kept separ
 from `resolveAppearance` so the glyph (a cached species fact) and the tint (a
 moment-to-moment condition) stay independent.
 
+### The roster has glyphs before it has species (2026-07-28)
+
+`SPECIES_APPEARANCE` carries an entry for **all ten** species the engine plans to
+have, not only the three it ships (PLAN-SPECIES §7). Two reasons, and the second
+is the load-bearing one:
+
+- **The scheme is coherent because it was assigned in one pass.** Glyph by common
+  name, colour by trophic family, priority in bands — carnivores 60+ so a hunt
+  reads as the hunter, herbivores 50–55, the obligate scavenger at 45. Assigned
+  one species at a time it would have become whatever letters were left.
+  ⚠ Terrain already owns `cyan`, `green`, `comment`, and `background-lighter`,
+  which is why the rhino and elephant take `bright-*` variants.
+- **A species batch stays a config change.** The engine can found a species the
+  moment its config file exists; without an entry here it would draw as a bare
+  `a` and be nameless in the metrics and restart panels, so every batch would be
+  a renderer release too. This is the same reasoning as v29's host-published
+  roster, one step earlier.
+
+⚠ **The gazelle keeps the grazer's `g`/`yellow`/50 exactly**, so the first
+species batch is visually identical to today's demo apart from the carnivore that
+arrives with it — which is what would make a visual regression obvious.
+
+⚠ **Three entries are transitional.** `herbivore.grazer`, `scavenger.corvid`, and
+`predator.stalker` are renamed into `herbivore.gazelle`, `scavenger.vulture`, and
+`predator.leopard`, and each carries a **`supersededBy`** naming its successor.
+That field is why two entries may share a letter without it being a collision —
+they never coexist in a world — and `renderer-view.test.js` enforces both halves:
+a shared glyph must be a supersession, and a `supersededBy` must name an entry
+that exists. The old entry is deleted in the phase that does the rename, and the
+test is the checklist.
+
 **The legend is generated, never written.** `describeLegend()` reads the
 appearance registries, so adding a species updates it for free and it cannot drift
 from what the grid draws. Four tests enforce that every registry entry (every
@@ -799,6 +875,14 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
   sounds rare and fires every few ticks (79 in ~480). The hints say which are
   frequent because the intuition is wrong.
 
+- **A cheap inner lookup is only cheap at today's N.** The metrics sparklines did
+  a linear `find` over the history inside a per-species, per-trait loop —
+  invisible at three species, ~84k comparisons per render at ten. Nothing about
+  the code changed to make it wrong; the roster did. It was found by reading for
+  it ahead of the species that would expose it, and fixed with the collapsible
+  work rather than rediscovered as jank — which is the same "audit for it in
+  advance" move the engine's mass audit is.
+
 ---
 
 ## 12. Phase history
@@ -832,7 +916,12 @@ panel surviving a tick.
   protocol `speciesId`, e.g.
   `'predator.fox': { glyph: 'f', colorToken: 'orange', priority: 55, label: 'fox' }`.
   `colorToken` must be a key of `DRACULA_COLORS`. Nothing in the grid algorithm or
-  the legend changes — the legend reads the registry.
+  the legend changes — the legend reads the registry. **Check first: the ten
+  planned roster species already have entries** (§9), so a species batch usually
+  needs nothing here.
+- **To retire a renamed species:** delete the entry carrying `supersededBy` once
+  the engine stops shipping that id. Its successor is already in the registry with
+  the glyph it inherits; the tests in `renderer-view.test.js` are the checklist.
 - **To show a new protocol-visible field:** once the protocol actually provides
   it, add one `<div class="field">` row to the relevant formatter in
   `InspectorView.js`. ⚠ Two follow-ups fail silently: if the row can appear or

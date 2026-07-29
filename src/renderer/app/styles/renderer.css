@@ -472,6 +472,15 @@ input:focus-visible {
   padding: 0 0 4px 10px;
 }
 
+/* The species glyph beside a collapsed metrics section, drawn in the same
+   colour the grid draws it, so a row here and an animal on the map are
+   recognizably the same thing. Bold because a single lowercase letter at panel
+   size is otherwise easy to miss; the colour comes from the appearance registry
+   as an inline `var(--dracula-…)`, never from here. */
+.metrics-glyph {
+  font-weight: bold;
+}
+
 /* ---- entity references ----
    Every `#123` in the inspector and event log is a way into the grid. Styled as
    text rather than a button so a dense panel does not turn into a field of

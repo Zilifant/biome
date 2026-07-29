@@ -76,32 +76,125 @@ export const KIND_APPEARANCE = Object.freeze({
  * Species-specific overrides (renderer-only knowledge). Keyed by the protocol
  * `speciesId`; add an entry to give a species its own glyph/color without
  * touching the grid-rendering algorithm.
+ *
+ * **The whole African roster has an entry, not only the species that exist.**
+ * That is deliberate (PLAN-SPECIES §7, phase 6): a species batch is meant to be
+ * a *config* change, and a species the engine can found but the renderer draws
+ * as a bare `a` would make every batch a renderer change too. The scheme is
+ * assigned once, here, so it can be assigned *coherently* — glyph by common
+ * name, colour by trophic family, priority in bands — rather than one letter at
+ * a time against whatever is left.
+ *
+ * ⚠ Terrain already owns `cyan` (water), `green` (thicket), `comment` (cover),
+ * and `background-lighter` (rock), which is why the rhino and elephant take
+ * `bright-*` variants rather than the obvious grey and blue.
+ *
+ * Priority bands: carnivores 60+ (a hunt reads as the hunter's glyph rather
+ * than disappearing behind the animal it is standing on), herbivores 50–55,
+ * obligate scavenger 45 — *below* prey, because a bird on a carcass should not
+ * hide the more informative glyph of the two.
  */
 export const SPECIES_APPEARANCE = Object.freeze({
+  // ---- shipped today ----
+  // ⚠ Each of these three is renamed into a roster species below, and the entry
+  // here is deleted in the phase that renames it: grazer → gazelle and corvid →
+  // vulture at phase 7, stalker → leopard at phase 14. `supersededBy` names the
+  // successor so the pairing is mechanical rather than folklore — it is what
+  // lets two species share a glyph without that being a collision, and
+  // `renderer-view.test.js` checks both halves.
   'herbivore.grazer': Object.freeze({
     glyph: 'g',
     colorToken: 'yellow',
     priority: 50,
     label: 'grazer',
+    supersededBy: 'herbivore.gazelle',
   }),
-  // Predators outrank prey in a shared cell, so a hunt reads as the hunter's
-  // glyph rather than disappearing behind the animal it is standing on.
   'predator.stalker': Object.freeze({
     glyph: 's',
     colorToken: 'red',
     priority: 60,
     label: 'stalker',
+    supersededBy: 'predator.leopard',
   }),
   // Step 29 added this species to the engine with no engine code at all, and
   // adding it here is the renderer's whole share of that: one entry, no change
-  // to the drawing algorithm. Ranked *below* prey, because a corvid on a
-  // carcass should not hide the carcass — the body is the more informative
-  // glyph, and the bird is only there because of it.
+  // to the drawing algorithm.
   'scavenger.corvid': Object.freeze({
     glyph: 'v',
     colorToken: 'purple',
     priority: 45,
     label: 'corvid',
+    supersededBy: 'scavenger.vulture',
+  }),
+
+  // ---- the roster (PLAN-SPECIES §7) ----
+  // ⚠ The gazelle keeps the grazer's `g`/`yellow`/50 exactly, so batch 1 is
+  // indistinguishable on screen from today's demo except for the carnivore that
+  // arrives with it — which is what makes a visual regression obvious.
+  'herbivore.gazelle': Object.freeze({
+    glyph: 'g',
+    colorToken: 'yellow',
+    priority: 50,
+    label: 'gazelle',
+  }),
+  'herbivore.wildebeest': Object.freeze({
+    glyph: 'w',
+    colorToken: 'bright-yellow',
+    priority: 51,
+    label: 'wildebeest',
+  }),
+  'herbivore.zebra': Object.freeze({
+    glyph: 'z',
+    colorToken: 'foreground',
+    priority: 52,
+    label: 'zebra',
+  }),
+  'herbivore.buffalo': Object.freeze({
+    glyph: 'b',
+    colorToken: 'orange',
+    priority: 53,
+    label: 'buffalo',
+  }),
+  'herbivore.rhino': Object.freeze({
+    glyph: 'r',
+    colorToken: 'bright-cyan',
+    priority: 54,
+    label: 'rhino',
+  }),
+  'herbivore.elephant': Object.freeze({
+    glyph: 'e',
+    colorToken: 'bright-purple',
+    priority: 55,
+    label: 'elephant',
+  }),
+  // `l` goes to the lion, so the leopard takes `p` for *panther*.
+  'predator.leopard': Object.freeze({
+    glyph: 'p',
+    colorToken: 'bright-red',
+    priority: 60,
+    label: 'leopard',
+  }),
+  // Between the two cats, as in life: a clan displaces a leopard from a kill
+  // and yields to a pride.
+  'scavenger.hyena': Object.freeze({
+    glyph: 'h',
+    colorToken: 'pink',
+    priority: 61,
+    label: 'hyena',
+  }),
+  'predator.lion': Object.freeze({
+    glyph: 'l',
+    colorToken: 'red',
+    priority: 62,
+    label: 'lion',
+  }),
+  // Keeps the corvid's glyph and rank — the obligate-scavenger niche is
+  // unchanged by the rename, and so is what it looks like on the grid.
+  'scavenger.vulture': Object.freeze({
+    glyph: 'v',
+    colorToken: 'purple',
+    priority: 45,
+    label: 'vulture',
   }),
 });
 
