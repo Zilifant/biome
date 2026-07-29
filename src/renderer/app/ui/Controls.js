@@ -12,6 +12,7 @@
  */
 
 import { WATCHABLE, loadWatchlist, saveWatchlist } from "./Watchlist.js";
+import { speciesLabel } from "../rendering/EntityAppearance.js";
 
 /**
  * Selectable tick rates, slowest first. Stepped through with the `«` / `»`
@@ -45,11 +46,16 @@ const MAX_SEED = 0xffffffff;
  */
 const MIN_WORLD_DIMENSION = 16;
 const MAX_WORLD_DIMENSION = 1024;
-const MAX_FOUNDING = Object.freeze({
-  herbivores: 20000,
-  predators: 5000,
-  scavengers: 5000,
-});
+/**
+ * ⚠ **Per species, not per role, since protocol v29.** This panel used to carry
+ * three hardcoded number fields — Herbivores, Predators, Scavengers — which is
+ * the renderer knowing engine concepts it was only ever handed by coincidence,
+ * and which stops being *true* the moment one species is both predator and
+ * scavenger. The fields are now generated from the roster the host publishes on
+ * `/api/status`, so this client never hardcodes a species list again.
+ */
+const MAX_FOUNDING_PER_SPECIES = 20000;
+const MAX_FOUNDING_TOTAL = 30000;
 
 /**
  * Terrain prevalence is an abstract 0..MAX scale (matching the protocol's
@@ -70,9 +76,6 @@ const MAX_TERRAIN_PREVALENCE = 10;
 const DEFAULTS = Object.freeze({
   width: 128,
   height: 128,
-  herbivores: 120,
-  predators: 8,
-  scavengers: 10,
   rocks: 2,
   thickets: 2,
 });
@@ -100,10 +103,35 @@ function prevalenceSelect(id, selected, ariaLabel) {
   return `<select id="${id}" aria-label="${ariaLabel}">${options}</select>`;
 }
 
+/**
+ * A species id (`herbivore.grazer`) as a DOM id fragment. Dots are legal in an
+ * `id` attribute but not in a plain CSS selector, and these fields are looked up
+ * by selector in the UI suite.
+ * @param {string} speciesId
+ */
+function cssId(speciesId) {
+  return String(speciesId).replace(/[^a-zA-Z0-9]+/g, "-");
+}
+
+/** Minimal escaping for text that reaches innerHTML — the roster is host data. */
+function escapeHtml(value) {
+  return String(value).replace(
+    /[&<>"']/g,
+    (char) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        char
+      ],
+  );
+}
+
 export class Controls {
   #els;
   #callbacks;
   #runState = { paused: null, speed: 1 };
+  /** The roster the founder fields were last built from, so polling is idempotent. */
+  #speciesSignature = null;
+  /** The last `setEnabled` call, re-applied to founder fields built after it. */
+  #enabled = { enabled: true, reason: "" };
   /** Watchable ids to auto-pause on, remembered across reloads. @type {Set<string>} */
   #watching = loadWatchlist();
 
@@ -168,18 +196,7 @@ export class Controls {
             <span class="dim">×</span>
             <input type="number" id="ctl-world-h" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.height}" aria-label="World height" />
           </div>
-          <div class="control-row">
-            <label for="ctl-herbivores" class="dim">Herbivores</label>
-            <input type="number" id="ctl-herbivores" min="0" max="${MAX_FOUNDING.herbivores}" step="1" value="${DEFAULTS.herbivores}" aria-label="Starting herbivores" />
-          </div>
-          <div class="control-row">
-            <label for="ctl-predators" class="dim">Predators</label>
-            <input type="number" id="ctl-predators" min="0" max="${MAX_FOUNDING.predators}" step="1" value="${DEFAULTS.predators}" aria-label="Starting predators" />
-          </div>
-          <div class="control-row">
-            <label for="ctl-scavengers" class="dim">Scavengers</label>
-            <input type="number" id="ctl-scavengers" min="0" max="${MAX_FOUNDING.scavengers}" step="1" value="${DEFAULTS.scavengers}" aria-label="Starting scavengers" />
-          </div>
+          <div id="ctl-founding"><p class="hint">Waiting for the host's species list…</p></div>
           <p class="hint">How much of the map is rock or thicket rather than open grazing ground — 0 is none, ${MAX_TERRAIN_PREVALENCE} crowds it out.</p>
           <div class="control-row">
             <label for="ctl-rocks" class="dim">Rocks</label>
@@ -210,9 +227,7 @@ export class Controls {
       restartSame: container.querySelector("#ctl-restart-same"),
       worldW: container.querySelector("#ctl-world-w"),
       worldH: container.querySelector("#ctl-world-h"),
-      herbivores: container.querySelector("#ctl-herbivores"),
-      predators: container.querySelector("#ctl-predators"),
-      scavengers: container.querySelector("#ctl-scavengers"),
+      founding: container.querySelector("#ctl-founding"),
       rocks: container.querySelector("#ctl-rocks"),
       thickets: container.querySelector("#ctl-thickets"),
       status: container.querySelector("#command-status"),
@@ -274,6 +289,53 @@ export class Controls {
     return this.#watching;
   }
 
+  /**
+   * Build one founder field per species the host says it has (protocol v29).
+   *
+   * ⚠ Called from status polling, which repeats — so it rebuilds only when the
+   * roster actually changes. Otherwise a viewer typing a count would have the
+   * field replaced underneath them every poll interval, which is the sort of bug
+   * that reads as "the number won't stick".
+   *
+   * A species with no appearance entry still gets a field, labelled from its id
+   * (see `speciesLabel`): a roster this build has never seen is exactly the case
+   * publishing the roster was for, and hiding it would put the world beyond
+   * reach of the control that exists to compose it.
+   *
+   * @param {Array<{id: string, defaultCount: number}>} roster
+   */
+  setSpecies(roster) {
+    if (!Array.isArray(roster)) return;
+    const signature = roster.map((entry) => `${entry.id}:${entry.defaultCount}`).join("|");
+    if (signature === this.#speciesSignature) return;
+    this.#speciesSignature = signature;
+
+    if (roster.length === 0) {
+      this.#els.founding.innerHTML = `<p class="hint">The host reports no species.</p>`;
+      this.#els.foundingInputs = [];
+      return;
+    }
+    this.#els.founding.innerHTML = roster
+      .map((entry) => {
+        const id = `ctl-founding-${cssId(entry.id)}`;
+        const label = speciesLabel(entry.id);
+        return `
+          <div class="control-row">
+            <label for="${id}" class="dim">${escapeHtml(label)}</label>
+            <input type="number" id="${id}" data-species="${escapeHtml(entry.id)}" min="0" max="${MAX_FOUNDING_PER_SPECIES}"
+                   step="1" value="${Number(entry.defaultCount) || 0}" aria-label="Starting ${escapeHtml(label)}" />
+          </div>`;
+      })
+      .join("");
+    this.#els.foundingInputs = [
+      ...this.#els.founding.querySelectorAll("[data-species]"),
+    ];
+    for (const input of this.#els.foundingInputs) {
+      input.disabled = !this.#enabled.enabled;
+      input.title = this.#enabled.enabled ? "" : this.#enabled.reason;
+    }
+  }
+
   #renderWatchCount() {
     const count = this.#watching.size;
     this.#els.watchCount.textContent =
@@ -332,18 +394,15 @@ export class Controls {
 
   /**
    * Read and validate the world-composition fields. Returns
-   * `{ width, height, herbivores, predators, scavengers }` or null (after
-   * setting a status message) if any field is out of range. Bounds mirror the
-   * host's; the host validates again regardless.
+   * `{ width, height, rocks, thickets, founding? }` or null (after setting a
+   * status message) if any field is out of range. Bounds mirror the host's; the
+   * host validates again regardless.
    * @returns {object | null}
    */
   #compositionParams() {
     const fields = [
       ["width", this.#els.worldW, MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION],
       ["height", this.#els.worldH, MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION],
-      ["herbivores", this.#els.herbivores, 0, MAX_FOUNDING.herbivores],
-      ["predators", this.#els.predators, 0, MAX_FOUNDING.predators],
-      ["scavengers", this.#els.scavengers, 0, MAX_FOUNDING.scavengers],
       // Prevalence dropdowns only offer valid levels, so the range check is a
       // formality — but it keeps every composition field validated the same way.
       ["rocks", this.#els.rocks, 0, MAX_TERRAIN_PREVALENCE],
@@ -361,6 +420,35 @@ export class Controls {
       }
       params[key] = value;
     }
+
+    // The founding roster (v29). ⚠ Omitted entirely when the host has not told
+    // us its species yet — sending an empty roster would mean "found nothing",
+    // which is a real and very different request from "use your defaults".
+    const inputs = this.#els.foundingInputs ?? [];
+    if (inputs.length === 0) return params;
+    const founding = [];
+    let total = 0;
+    for (const input of inputs) {
+      const count = Math.round(Number(input.value));
+      const label = speciesLabel(input.dataset.species);
+      if (!Number.isFinite(count) || count < 0 || count > MAX_FOUNDING_PER_SPECIES) {
+        this.setStatus(
+          `${label} must be a whole number in [0, ${MAX_FOUNDING_PER_SPECIES}]`,
+          "bad",
+        );
+        return null;
+      }
+      total += count;
+      founding.push({ speciesId: input.dataset.species, count });
+    }
+    if (total > MAX_FOUNDING_TOTAL) {
+      this.setStatus(
+        `founders must total at most ${MAX_FOUNDING_TOTAL} (asked for ${total})`,
+        "bad",
+      );
+      return null;
+    }
+    params.founding = founding;
     return params;
   }
 
@@ -457,16 +545,19 @@ export class Controls {
       this.#els.seed,
       this.#els.worldW,
       this.#els.worldH,
-      this.#els.herbivores,
-      this.#els.predators,
-      this.#els.scavengers,
       this.#els.rocks,
       this.#els.thickets,
       ...this.#els.steps,
+      // ⚠ The founder fields are *generated* from the host's roster, so they may
+      // not exist yet — and when they do arrive, `setSpecies` has to re-apply
+      // whatever state this left, which is why it is remembered rather than
+      // inferred. Fixture mode disables the panel before any roster exists.
+      ...(this.#els.foundingInputs ?? []),
     ]) {
       element.disabled = !enabled;
       element.title = enabled ? "" : reason;
     }
+    this.#enabled = { enabled, reason };
   }
 
   /** @param {string} label */

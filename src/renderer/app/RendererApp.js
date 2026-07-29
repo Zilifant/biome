@@ -271,6 +271,11 @@ export class RendererApp {
    */
   #applyRunState(report) {
     if (typeof report?.seed === 'number') this.#ui.controls.setSeed(report.seed);
+    // The host's species roster (protocol v29): the restart panel builds one
+    // founder field per species from it rather than hardcoding three roles. Only
+    // the status report carries it — a command result does not — which is why
+    // this is guarded like every other field here.
+    if (Array.isArray(report?.species)) this.#ui.controls.setSpecies(report.species);
     if (typeof report?.paused === 'boolean') this.#runState.paused = report.paused;
     if (typeof report?.speed === 'number') this.#runState.speed = report.speed;
     if (typeof report?.running === 'boolean') this.#runState.running = report.running;

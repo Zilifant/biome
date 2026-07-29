@@ -250,6 +250,26 @@ export function computeMetrics(world, { tick, windowTicks }) {
     // (one pass over a coarse grid) and world-level rather than per-species,
     // because the claim layer does not distinguish them.
     territory: world.scent ? world.scent.summary() : null,
+    // Persistent groups (v29). ⚠ Not the `grouping` block on each species above
+    // — that summarizes *herd labels*, which are positional and recomputed every
+    // tick. This is the record store: how many prides or clans exist and how big
+    // they are. Summarized, never enumerated, for the same reason herds are: a
+    // membership list here would be the per-organism record the observation
+    // roadmap rules out, and the inspector already answers the one-animal
+    // question. Zero in every world today, because no shipped species forms one.
+    groups: world.groups
+      ? {
+          count: world.groups.size,
+          members: world.groups.all().reduce((total, record) => total + record.memberIds.length, 0),
+          size: describe(world.groups.all().map((record) => record.memberIds.length)),
+          // Per species, so "the clans are hyena clans" is answerable without
+          // walking a roster. Ascending id order, like everything else here.
+          bySpecies: world.groups.all().reduce((counts, record) => {
+            counts[record.speciesId] = (counts[record.speciesId] ?? 0) + 1;
+            return counts;
+          }, {}),
+        }
+      : null,
     species,
   };
 }

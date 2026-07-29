@@ -69,10 +69,24 @@ export const EVENT_CATALOG = Object.freeze(
     { type: 'entity.cured', label: 'animals recovering', group: 'Disease', hint: '' },
 
     // ---- conflict and care ----
+    // ⚠ Three contests, three labels, and they are not interchangeable. The
+    // engine emits a separate type for each because dominance settles all three
+    // but an observer cares which one they are watching — and a carcass fight
+    // filed under "contests over a mate" would be the UI lying, which is the
+    // thing protocol v29 exists to stop.
     { type: 'entity.contested', label: 'contests over a mate', group: 'Conflict', hint: '' },
     { type: 'entity.disputed', label: 'disputes over ground', group: 'Conflict', hint: '' },
+    { type: 'entity.robbed', label: 'carcasses stolen', group: 'Conflict', hint: 'with both dominance scores' },
     { type: 'entity.defended', label: 'an adult defending another', group: 'Conflict', hint: '' },
     { type: 'entity.alarmed', label: 'alarm calls', group: 'Conflict', hint: '', retention: PASSING },
+
+    // ---- persistent groups ----
+    // ⚠ Not herds. A herd is the positional `groupId` that rides in every
+    // snapshot and needs no event because the state is always there; these are
+    // the *records* — prides, clans, bands — which change rarely and whose
+    // beginning and end are milestones worth keeping.
+    { type: 'entity.grouped', label: 'joining a pride or clan', group: 'Conflict', hint: 'founding one too' },
+    { type: 'entity.ungrouped', label: 'leaving a pride or clan', group: 'Conflict', hint: 'and clans dissolving' },
 
     // ---- the world ----
     { type: 'environment.changed', label: 'season and weather turning', group: 'World', hint: '' },

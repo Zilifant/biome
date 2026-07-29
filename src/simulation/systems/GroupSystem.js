@@ -63,6 +63,7 @@
  * shift another system's stream even in principle.
  */
 import { SimulationSystem } from './SimulationSystem.js';
+import { EventTypes } from '../events/EventTypes.js';
 import { groupsOf } from '../world/GroupRegistry.js';
 import { isDispersing } from '../migration/migration.js';
 import { Sexes } from '../mating/mateChoice.js';
@@ -144,7 +145,7 @@ export class GroupSystem extends SimulationSystem {
       });
       if (record.memberIds.length < this.#paramsFor(world, record.speciesId).minMembers) doomed.push(record.id);
     }
-    for (const id of doomed) this.#dissolve(world, registry, id);
+    for (const id of doomed) this.#dissolve(world, registry, id, context);
 
     // ── 2. Decide, walking entities in ascending id (creation order). Founding
     // and joining take effect immediately, so a third animal arriving later in
@@ -166,8 +167,10 @@ export class GroupSystem extends SimulationSystem {
 
       if (entity.groupRecordId !== null) {
         if (this.#leavesAtDispersal(entity, params, context.tick)) {
-          registry.leave(entity.groupRecordId, entity.id);
+          const groupId = entity.groupRecordId;
+          registry.leave(groupId, entity.id);
           entity.groupRecordId = null;
+          this.#emitLeft(context, entity, groupId, registry.get(groupId)?.memberIds.length ?? 0, false);
         }
         continue;
       }
@@ -176,7 +179,7 @@ export class GroupSystem extends SimulationSystem {
       // else — it does not found or join by proximity, because the animals it
       // is standing next to are its guardian's business, not its own.
       if (entity.guardianId !== null) {
-        if (params.inheritFromGuardian) this.#inherit(world, registry, entity, params);
+        if (params.inheritFromGuardian) this.#inherit(world, registry, entity, params, context);
         continue;
       }
 
@@ -235,13 +238,36 @@ export class GroupSystem extends SimulationSystem {
   }
 
   /** Join the guardian's group, if it has one with room. */
-  #inherit(world, registry, entity, params) {
+  #inherit(world, registry, entity, params, context) {
     const guardian = world.entities.get(entity.guardianId);
     if (!guardian || !guardian.alive || guardian.speciesId !== entity.speciesId) return;
     if (guardian.groupRecordId === null) return;
     if (registry.join(guardian.groupRecordId, entity.id, params.maxMembers)) {
       entity.groupRecordId = guardian.groupRecordId;
+      this.#emitJoined(context, entity, registry.get(guardian.groupRecordId), false);
     }
+  }
+
+  /**
+   * ⚠ Emitted on the **transition**, never on the state — the discipline every
+   * event in this engine follows (DOCS §11). Membership changes are rare by
+   * construction (a group is joined once and left once), so these are milestone
+   * events rather than a per-tick stream, and the renderer keeps them for as
+   * long as it keeps births and deaths.
+   */
+  #emitJoined(context, entity, record, founded) {
+    if (!record) return;
+    context.emit(EventTypes.ENTITY_GROUPED, {
+      entityId: entity.id,
+      groupId: record.id,
+      speciesId: record.speciesId,
+      size: record.memberIds.length,
+      founded,
+    });
+  }
+
+  #emitLeft(context, entity, groupId, size, dissolved) {
+    context.emit(EventTypes.ENTITY_UNGROUPED, { entityId: entity.id, groupId, size, dissolved });
   }
 
   /**
@@ -272,7 +298,10 @@ export class GroupSystem extends SimulationSystem {
     }
 
     if (bestGroupId !== null) {
-      if (registry.join(bestGroupId, entity.id, params.maxMembers)) entity.groupRecordId = bestGroupId;
+      if (registry.join(bestGroupId, entity.id, params.maxMembers)) {
+        entity.groupRecordId = bestGroupId;
+        this.#emitJoined(context, entity, registry.get(bestGroupId), false);
+      }
       return;
     }
     if (partnerId === null) return;
@@ -286,15 +315,27 @@ export class GroupSystem extends SimulationSystem {
     entity.groupRecordId = founded.id;
     const partner = world.entities.get(partnerId);
     if (partner) partner.groupRecordId = founded.id;
+    // `founded: true` on both, because a group beginning is one fact about two
+    // animals rather than a join and a separate creation — there is no moment
+    // at which the record exists with one member in it.
+    this.#emitJoined(context, entity, founded, true);
+    if (partner) this.#emitJoined(context, partner, founded, true);
   }
 
   /** Destroy a group and release whoever is left in it. */
-  #dissolve(world, registry, groupId) {
+  #dissolve(world, registry, groupId, context) {
     const record = registry.get(groupId);
     if (!record) return;
     for (const memberId of record.memberIds) {
       const member = world.entities.get(memberId);
-      if (member && member.groupRecordId === groupId) member.groupRecordId = null;
+      if (member && member.groupRecordId === groupId) {
+        member.groupRecordId = null;
+        // ⚠ `size: 0` and `dissolved: true` — the group is gone, so reporting
+        // the roster it had a moment ago would describe something that no
+        // longer exists. What survives is that this animal is out and the
+        // group ended, which is the whole of what an observer can act on.
+        this.#emitLeft(context, member, groupId, 0, true);
+      }
     }
     registry.dissolve(groupId);
   }

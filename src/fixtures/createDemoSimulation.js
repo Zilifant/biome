@@ -35,6 +35,7 @@ import { DiseaseSystem } from '../simulation/systems/DiseaseSystem.js';
 import { infect } from '../simulation/disease/disease.js';
 import { getSpecies } from '../simulation/config/species/index.js';
 import { defaultSimulationConfig } from '../simulation/config/defaultSimulationConfig.js';
+import { FOUNDING_ROLE_ALIASES } from '../protocol/commands.js';
 import { sampleGenome, expressGenome } from '../simulation/traits/genetics.js';
 import { Sexes } from '../simulation/mating/mateChoice.js';
 import { createEngineFromSave } from '../simulation/persistence/SimulationSerializer.js';
@@ -331,17 +332,17 @@ function populateDemoWorld(engine) {
 }
 
 /**
- * The demo founding roles the renderer's restart panel exposes, mapped to the
- * species that fill them. The roster in `config.demo.founding` is keyed by
- * species id; the UI speaks in roles, so this is the one place that bridges the
- * two. A species not named here keeps whatever count the default roster gives
- * it.
+ * ⚠ **Retired at protocol v29.** This used to be the bridge between a UI that
+ * spoke in roles (`herbivores`, `predators`, `scavengers`) and a config keyed by
+ * species id — a bijection that was only ever true by coincidence and that the
+ * African roster breaks outright, since a hyena is both predator and scavenger.
+ * The restart command now carries a `founding` roster and the host publishes its
+ * species list, so nothing has to guess.
+ *
+ * What survives is the **alias map**, imported from the protocol where the
+ * deprecated fields are defined, kept for exactly one version so a client still
+ * sending v28 role counts is translated rather than broken. Delete both at v30.
  */
-const FOUNDING_ROLE_BY_SPECIES = Object.freeze({
-  'herbivore.grazer': 'herbivores',
-  'predator.stalker': 'predators',
-  'scavenger.corvid': 'scavengers',
-});
 
 /**
  * Terrain-prevalence mapping. The restart panel offers `rocks` and `thickets` as
@@ -387,7 +388,10 @@ function formationCountForPrevalence(level, countAtDefault) {
  * command into a config override merged over the demo defaults. Every field is
  * optional: an omitted dimension or role count keeps the default. Bounds are
  * the protocol's responsibility (validated before this runs); this only maps.
- * @param {{width?: number, height?: number, herbivores?: number, predators?: number, scavengers?: number, rocks?: number, thickets?: number}} [options]
+ * @param {{width?: number, height?: number, founding?: Array<{speciesId: string, count: number}>,
+ *          herbivores?: number, predators?: number, scavengers?: number,
+ *          rocks?: number, thickets?: number}} [options] `founding` is the v29
+ *        roster; the three role counts are deprecated aliases (see below).
  * @returns {object} partial config for createDemoSimulation
  */
 export function buildDemoConfig(options = {}) {
@@ -410,16 +414,26 @@ export function buildDemoConfig(options = {}) {
       config.terrain.thickets = formationCountForPrevalence(options.thickets, FORMATION_COUNT_AT_DEFAULT.thickets);
     }
   }
-  const overridesFounding =
-    options.herbivores !== undefined || options.predators !== undefined || options.scavengers !== undefined;
-  if (overridesFounding) {
+  // ⚠ **A roster replaces the whole default roster; role aliases patch it.**
+  // The two are deliberately different operations. `founding` is what the world
+  // should be founded with, full stop — a species omitted from it gets none,
+  // because "leave out the wildebeest" has to be expressible. The deprecated
+  // role fields cannot mean that: they only ever named three counts, so they
+  // override those three counts within the default roster and leave the rest
+  // alone, which is exactly what they did at v28.
+  if (Array.isArray(options.founding)) {
+    config.demo = { founding: options.founding.map(({ speciesId, count }) => ({ speciesId, count: count ?? 0 })) };
+    return config;
+  }
+  const roles = Object.entries(FOUNDING_ROLE_ALIASES).filter(([role]) => options[role] !== undefined);
+  if (roles.length > 0) {
+    const bySpecies = new Map(roles.map(([role, speciesId]) => [speciesId, options[role]]));
     config.demo = {
-      founding: defaultSimulationConfig.demo.founding.map(({ speciesId, count }) => {
-        const role = FOUNDING_ROLE_BY_SPECIES[speciesId];
-        const override = role ? options[role] : undefined;
-        // `?? count` (not `|| count`) so an explicit 0 clears a role.
-        return { speciesId, count: override ?? count };
-      }),
+      founding: defaultSimulationConfig.demo.founding.map(({ speciesId, count }) => ({
+        speciesId,
+        // `?? count` (not `|| count`) so an explicit 0 clears a species.
+        count: bySpecies.get(speciesId) ?? count,
+      })),
     };
   }
   return config;

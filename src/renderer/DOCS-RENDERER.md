@@ -42,9 +42,9 @@ numbers, so re-measure rather than inherit.
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 94, runner 18 (of 725 repo-wide); 24 in `tests-ui` |
-| Protocol understood | **28** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
-| Coverage            | every protocol layer through v28 is drawn or inspectable   |
+| Tests               | renderer 94, runner 18 (of 812 repo-wide); 25 in `tests-ui` |
+| Protocol understood | **29** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
+| Coverage            | every protocol layer through v29 is drawn or inspectable   |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
 | Git                 | uncommitted (the user handles git)                         |
 
@@ -537,34 +537,48 @@ over ~480 demo ticks: courtship 79, migration 44, mating 34, conflict 14, diseas
 courtship" stops you every few ticks. All twelve fire against the real engine,
 which is the check that no toggle is decorative.
 
-### Restart with a seed (protocol v28)
+### Restart with a seed (protocol v29)
 
-`simulation.restart { seed?, width?, height?, herbivores?, predators?, scavengers?, rocks?, thickets? }`,
+`simulation.restart { seed?, width?, height?, founding?, rocks?, thickets? }`,
 a runner-level command. A restart is the one change that cannot be a delta — no
 shared ids, tick, or `simulationId` — so the runner emits its own `restart` event
 and the WebSocket transport broadcasts a **full snapshot**, and the store
 _replaces_ its state.
 
-The optional world-composition fields (dimensions, per-role founder counts, and
-terrain prevalence) were added additively — omitting them reproduces the original
-behaviour, so the protocol version did not move. The layering is deliberate: the
-**renderer** speaks in roles (herbivores/predators/scavengers) and abstract
-terrain prevalence (rocks/thickets) and validates against restated bounds; the
-**runner** stays ignorant of world composition and hands the options to the
-engine factory the host gave it; `createServer`'s factory routes them through
-`buildDemoConfig`, which is the single place that maps a role to its species id
-(`herbivore.grazer`, `predator.stalker`, `scavenger.corvid`) and turns a count
-into a `config.demo.founding` override. **Terrain prevalence is an abstract
+⚠ **The renderer stopped speaking in roles at v29, and that is the whole point of
+the bump.** This panel used to carry three hardcoded number fields — Herbivores,
+Predators, Scavengers — which is the renderer knowing engine concepts it was only
+ever handed by coincidence, and which stop being *true* the moment one species is
+both predator and scavenger. It now builds **one field per species** from the
+roster the host publishes on `/api/status` (`species: [{ id, defaultCount }]`),
+and sends `founding: [{ speciesId, count }]`. Three consequences for anyone
+working here:
+
+- **The fields are generated, so `setSpecies` is called from status polling** —
+  and rebuilds only when the roster actually changes, or a viewer typing a count
+  would have the field replaced underneath them every poll interval.
+- **A species with no `SPECIES_APPEARANCE` entry still gets a field**, labelled
+  from its id by `speciesLabel`. A roster this build has never seen is exactly
+  the case publishing the roster was for; hiding it would put the world beyond
+  reach of the control that exists to compose it. What to *call* a species stays
+  renderer-side — the host sends ids and counts, never labels.
+- ⚠ **An empty roster is not "use your defaults"**, it is "found nothing". So the
+  field is omitted entirely until the host has said what its species are.
+
+The v28 role fields are still accepted by the host for one version and are
+translated by `buildDemoConfig`; the renderer no longer sends them. **Terrain
+prevalence is an abstract
 `0..MAX_TERRAIN_PREVALENCE` level, not a count** — 0 is none of that terrain,
 `DEFAULT_TERRAIN_PREVALENCE` (2) reproduces the demo's own terrain, and the top
 crowds out open grazing ground — and `buildDemoConfig` maps it linearly through
 the default to the generator's `terrain.ridges` (rock) and `terrain.thickets`
 formation counts, so the renderer never has to know a formation from a cell.
-Bounds are the protocol's (`MAX_WORLD_DIMENSION`, `MAX_FOUNDING_*`,
+Bounds are the protocol's (`MAX_WORLD_DIMENSION`, `MAX_FOUNDING_PER_SPECIES`
+and `MAX_FOUNDING_TOTAL`,
 `MAX_TERRAIN_PREVALENCE` in `commands.js`), chosen high enough to reach the sim's
 performance ceiling — a ~1M-cell world, tens of thousands of founders — without
-an out-of-memory or a non-terminating build. An explicit `0` clears a role
-(`?? count`, not `|| count`) or a terrain type. The renderer drops its
+an out-of-memory or a non-terminating build. An explicit `0` clears a species or
+a terrain type. The renderer drops its
 selection, inspection detail, and follow target rather than leaving them pointing
 at animals that no longer exist; the run state (paused, speed) belongs to the host
 and survives.

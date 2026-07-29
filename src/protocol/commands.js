@@ -17,7 +17,11 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
-  SIMULATION_RESTART: 'simulation.restart', //     { seed?, width?, height?, herbivores?, predators?, scavengers?, rocks?, thickets? } rebuild the world
+  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets? }
+  // ⚠ v29 replaced the per-role counts with a roster. `herbivores` /
+  // `predators` / `scavengers` are still accepted as **deprecated aliases** for
+  // one version; see FOUNDING_ROLE_ALIASES below.
+  SIMULATION_RESTART: 'simulation.restart', //     rebuild the world
   ENTITY_SPAWN: 'entity.spawn', //                { entity: {...} }
   ENTITY_REMOVE: 'entity.remove', //              { entityId }
 });
@@ -66,8 +70,53 @@ export const MAX_MANUAL_STEP_TICKS = 10000;
  */
 export const MIN_WORLD_DIMENSION = 16;
 export const MAX_WORLD_DIMENSION = 1024;
+
+/**
+ * ⚠ **The founding roster stopped being three role counts at v29.**
+ *
+ * Until then `simulation.restart` took `herbivores`, `predators`, and
+ * `scavengers`, which quietly assumed a bijection between a role and a species.
+ * That was only ever true by coincidence, and the roster this protocol is being
+ * grown for breaks it outright: a hyena is both predator and scavenger, and
+ * there is no third box to put it in. Splitting a role's count across its
+ * species host-side would have kept v28 and would have been exactly the lie the
+ * bump exists to stop — the UI would still be offering a control whose label was
+ * false.
+ *
+ * So restart now takes `founding: [{ speciesId, count }]`, and the **host
+ * publishes its roster** on the status report so a client can build one field
+ * per species from what it is told rather than from what it was compiled with.
+ *
+ * Bounds are per species and in total. The total is the sum of the three old
+ * per-role maxima, so the ceiling is exactly what it was; the per-species cap is
+ * the old herbivore one, since any single species may now be the numerous one.
+ */
+export const MAX_FOUNDING_PER_SPECIES = 20000;
+export const MAX_FOUNDING_TOTAL = 30000;
+
+/**
+ * ⚠ **Deprecated, accepted for one version.** The v28 role fields, mapped to the
+ * species that filled them in the demo. A command carrying these is translated
+ * host-side (see `buildDemoConfig`) so nothing in flight breaks at the bump; a
+ * command carrying both a `founding` roster and a role field is refused rather
+ * than silently preferring one, because there is no reading of that which is not
+ * a guess.
+ *
+ * ⚠ This is the **one** place a species id may appear in `src/protocol`, and it
+ * exists only to retire. Delete it — and the alias handling in `validation.js`
+ * and `buildDemoConfig` — at v30.
+ */
+export const FOUNDING_ROLE_ALIASES = Object.freeze({
+  herbivores: 'herbivore.grazer',
+  predators: 'predator.stalker',
+  scavengers: 'scavenger.corvid',
+});
+
+/** @deprecated v29 — use MAX_FOUNDING_PER_SPECIES. Kept for the alias path. */
 export const MAX_FOUNDING_HERBIVORES = 20000;
+/** @deprecated v29 */
 export const MAX_FOUNDING_PREDATORS = 5000;
+/** @deprecated v29 */
 export const MAX_FOUNDING_SCAVENGERS = 5000;
 
 /**

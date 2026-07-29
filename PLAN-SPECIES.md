@@ -1090,7 +1090,30 @@ an error message.
 
 ---
 
-## 6. One-species-per-role assumptions outside the engine
+## 6. ✅ One-species-per-role assumptions outside the engine (closed 2026-07-28, phase 5)
+
+✅ **All five rows below are gone**, and the settled decision was implemented as
+written. Four things are worth recording because the section did not anticipate
+them:
+
+- **A roster and a role alias are different operations**, not two spellings of
+  one. `founding` *replaces* the roster — a species left out gets none, because
+  "found only the gazelle" has to be expressible — while a role field can only
+  *patch* three counts inside the default roster, which is exactly what it did at
+  v28. Conflating them would have made the alias path silently destructive.
+- ⚠ **Both forms in one command is refused**, not resolved. There is no reading
+  of "40 herbivores *and* this roster" that is not a guess.
+- **The protocol does not learn the roster**, and that was the right call: it
+  validates shape and bounds, and an unknown species id is rejected by the host,
+  loudly, naming the id. A species list in `src/protocol` would have been one
+  more thing to keep in step.
+- ⚠ **The bump nearly shipped broken.** `SUPPORTED_PROTOCOL_VERSION` and all
+  three committed fixtures stayed on 28 with the entire suite green, because the
+  tests compared the renderer's version against *itself*. Fixture mode would have
+  refused every message at runtime. The rule in §12 ("mandatory on every protocol
+  bump") was discipline only; it is now a test.
+
+### The section as written
 
 These are all outside `src/simulation`, and each one silently assumes a bijection
 between "role" and "species":
@@ -1292,7 +1315,7 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 | ~~**2**~~ | ✅ **Done 2026-07-28.** `config.decision` split into `config.behavior` (22 fields, a species block) + `config.decision` (14, global); `behavior` added to `SPECIES_BLOCKS`; `carcassRange` deduped — a **third** D11 duplicate, found during the split. ⚠ Cost one real hot-path regression (12%) and its fix; see D28                                                                                                                                                                             | med  | schema + 3 test fixes             |
 | ~~**3**~~ | ✅ **Done 2026-07-28.** Persistent group registry (§3.8): `GroupRegistry` (bounded at 64, refuses rather than evicts), `GroupSystem` (founding, joining, guardian inheritance, sex-biased departure, dissolution), `groupRecordId` on the entity, `SAVE_FORMAT_VERSION` 27 → 28, DOCS §9 Sociality rewritten to record the decision it overrides. ⚠ Inert by construction — no shipped species forms groups, and the demo is byte-identical across three seeds. ⚠ The protocol projection is **deliberately deferred** to phase 5's v29 (now DOCS A54) | high | new subsystem + save bump         |
 | ~~**4**~~ | ✅ **Done 2026-07-28.** `predation` added to `SPECIES_BLOCKS` and gated in perception **both ways** — what I commit to and what I fear (§3.6); the `agility` divide in `captureChance`, prey-resolved (§3.15); `riskyMassRatio` replacing a hardcoded `2`; **carcass possession and theft** via one `possessorId` field and `resolveContest` on its own stream (§3.9). ⚠ The first three are **exactly inert** — the control arm is state-identical to phase 3 on every entity field — so possession is the single attributable change and is the only one swept. ⚠ Protocol projection again **deferred** to phase 5 (DOCS A54) | med  | Perception / Hunting / Feeding    |
-| **5**     | Protocol **v29** (§6): founding roster by species, host-published species list, group projection, renderer fields, ethologist flags                                                                                                                                                                                                                                                                                                                                                                | med  | protocol bump, fixtures           |
+| ~~**5**~~ | ✅ **Done 2026-07-28.** Protocol **v29** (§6): `founding: [{speciesId, count}]` replacing the three role counts (kept as deprecated aliases), the host publishing its roster on `/api/status`, renderer fields generated from it, ethologist `--founding=`. Plus the **whole A54 debt** from phases 3–4 in the same bump: the `group` block and `possessorId` on inspection, a `groups` aggregate in metrics, and `entity.robbed` / `entity.grouped` / `entity.ungrouped`. ⚠ The bump left the renderer and all three fixtures on 28 with the suite green — now guarded mechanically | med  | protocol bump, fixtures           |
 | **6**     | Renderer scale (§7): glyph/colour/priority scheme, collapsible per-species metrics                                                                                                                                                                                                                                                                                                                                                                                                                 | low  | renderer only                     |
 | **7**     | **Batch 1 — gazelle + hyena.** Convert `herbivore.grazer` → `herbivore.gazelle` (rename, biology ≈ unchanged); rename `scavenger.corvid` → `scavenger.vulture`; add `scavenger.hyena`; `predator.stalker` stays generic                                                                                                                                                                                                                                                                            | med  | config only                       |
 | **8**     | **Hidden-fawn phase** (§3.14) — its own measured change, per A12 discipline; carries the A34 "give patrol a reason" experiment                                                                                                                                                                                                                                                                                                                                                                     | med  | Decision / Parenting / Perception |
@@ -1603,17 +1626,19 @@ Per E4 discipline, and all lists must stay in step:
   A51 in phase 15; A18 by §3.12; A3 and A37 remain open
 - `src/renderer/DOCS-RENDERER.md` + `README-RENDERER.md` — appearance scheme,
   metrics panel, restart controls, protocol version
-- `tests-ui/controls.spec.js` — fills `#ctl-herbivores` / `#ctl-predators` /
-  `#ctl-scavengers` and asserts the emitted command, so the restart panel test
-  changes shape with protocol v29 in phase 5
+- ✅ `tests-ui/controls.spec.js` — done at phase 5. It now asserts the founder
+  fields are **generated from the host's roster** rather than merely present; a
+  panel that hardcoded the same three species would pass a presence check
 - ⚠ `src/renderer/app/state/EventCatalog.js` — **every new event type needs an
   entry** (label, group, retention tier) or `test/renderer-*.test.js` fails
-  against the protocol's type list. Kill theft, group formation/dissolution, and
-  mobbing each imply at least one new type
-- ⚠ `npm run fixtures:renderer` — mandatory on **every** protocol bump (phase 5,
-  and again if §3.2's `diet` change lands). `SUPPORTED_PROTOCOL_VERSION` is
-  checked on every message, so a bump without regeneration leaves fixture mode
-  refusing everything as unsupported
+  against the protocol's type list. ✅ Kill theft and group formation/dissolution
+  landed at phase 5; mobbing (phase 10) still implies at least one more
+- ⚠ `npm run fixtures:renderer` — mandatory on **every** protocol bump (done at
+  phase 5; due again if §3.2's `diet` change lands).
+  ⚠⚠ **And bump `SUPPORTED_PROTOCOL_VERSION` with it.** At v29 both were missed
+  and *the whole suite stayed green*, because the renderer tests compared that
+  constant against itself — fixture mode would have refused every message at
+  runtime. Both are now asserted by `test/protocol-v29.test.js`; see DOCS D31
 - `src/scripts/benchmark.js` — all four scenarios hardcode the roster and its
   ratios; they must move with every rename and every added species, or the
   benchmark stops describing the demo

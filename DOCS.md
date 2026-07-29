@@ -46,9 +46,9 @@ npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as poss
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 796 passing / 0 failing, 202 suites _(2026-07-28)_     |
-| `PROTOCOL_VERSION`    | 28                                                     |
-| `SAVE_FORMAT_VERSION` | **29** — carcass possession (§9 Carcasses)              |
+| Tests                 | 812 passing / 0 failing, 206 suites _(2026-07-28)_     |
+| `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
+| `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
 | Benchmark (large-5k)  | see BENCHMARK.md — measured per phase, interleaved against the same-session HEAD, because ⚠ the machine drifted ~10% across 2026-07-28 on identical code. Never compare against the 67.25 figure from 2026-07-21: it predates line of sight, thickets, the water field, and the crowding cap |
 | Species               | 3 (grazer, stalker, corvid) — all pure config          |
 | Species blocks        | **11** — `feeding`, `hunting`, `behavior` joined 2026-07-28 |
@@ -183,7 +183,6 @@ reminder.
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
 | A49 | **"Activity pattern" and "habitat preference" are not schema blocks**                                                                                                          | Open. There is no diurnal cycle for a pattern to exist in, and habitat preference is expressed through `migration.tracksForage` plus the comfort band rather than as a field                                                                                                                                                                     |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
-| A54 | ⚠ **Two mechanisms are invisible through the protocol.** (a) Persistent group membership — `world.groups` and the per-entity `groupRecordId` exist in the engine, but neither entity inspection nor `/api/metrics` mentions them and there are no formation/dissolution events. (b) **Carcass possession** — `possessorId` is not projected and a kill theft emits nothing, so an observer watching the demo sees a scavenger stop eating for no stated reason | Open, **scheduled**, and (b) is the sharper half because it is *live in the demo* rather than dormant. Both are held back deliberately so the projection rides the v29 bump the founding-roster rework needs anyway (PLAN-SPECIES.md §6) — bumping twice in consecutive phases means regenerating renderer fixtures twice for nothing. ⚠ Reusing `entity.contested` for a carcass fight was considered and **rejected**: the renderer's `EventCatalog` labels it "contests over a mate", so it would have made the UI lie, which is exactly what protocol v29 exists to stop. v29 owes: the group projection, `possessorId` on carcass inspection, and one new event type with its catalog entry |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
@@ -300,6 +299,7 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | C7  | Movement uses the **current** cell's terrain modifier, and feeding is **in-cell**                                            | _Settled_ — two deliberate modelling choices                                                                                                                                                                                                              |
 | A52 | ⚠ **Herbivore intake was flat while carnivore intake was mass-scaled.** `FeedingSystem` scaled `fleshIntakeRate` from Step 29 (the corvid, D22) but the herbivore branch above it still took a flat `0.6` biomass/tick at any body mass — the same latent bug, left standing on the other side of the same function because every herbivore was 30 kg | **Closed 2026-07-28** — scaled on the same allometric exponent. Inert in the demo by construction: the grazer sits exactly at `referenceMass`, so its factor is 1 and the world is bit-identical. Found by auditing for it rather than by a failure, which is the point of doing the audit in advance |
 | A53 | ⚠ **A carcass returned its nutrients to one cell, and `addAt` clamps to that cell's carrying capacity and discards the remainder.** So the closing half of the death→nutrient loop (Step 6) leaked for everything above the reference mass. Measured against `vegetation.capacity: 8`: a 30 kg grazer loses ~1 of ~9 — invisible, which is why it stood for fourteen steps — while **a 45 kg stalker loses ~60%**, true since Step 16 | **Closed 2026-07-28** — the return spills outward through Chebyshev rings to `carcass.nutrientSpreadRadius` (default 4), fixed order, no randomness. `0` restores the old single-cell behaviour and is the measured control. Also the truer model: one cell is a stride, and a body enriches a patch |
+| A54 | ⚠ **Persistent groups and carcass possession were invisible through the protocol.** Both shipped engine-side (phases 3 and 4) with no projection and no events, so an observer watching the demo saw a scavenger stop eating for no stated reason | **Closed 2026-07-28 by protocol v29.** Held back on purpose for two phases rather than bumping twice in a row and regenerating renderer fixtures twice for nothing — the debt was recorded, scheduled, and paid in the same version as the founding-roster rework it was waiting for. v29 added the `group` block and `possessorId` to entity inspection, a `groups` aggregate to `/api/metrics`, and three event types (`entity.robbed`, `entity.grouped`, `entity.ungrouped`). ⚠ Reusing `entity.contested` for a carcass fight was considered and **rejected**: the renderer labels it "contests over a mate", so it would have made the UI lie |
 | C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge. **Follow-up 2026-07-22:** reflection closed only the _wander_ half; the residual crowding was predator-driven `flee` re-aiming into the wall every tick, closed at the decision layer by edge-aware fleeing (`escapeHeading`, §7 Decision). 2-cell edge occupancy ~19% → ~9%, acute corner pinning ~×4–9 → ~×1.5, survival unchanged. Remaining outer-ring occupancy is a herd-distribution effect for the forage-taper change, not flee-pinning |
 
 ---
@@ -375,6 +375,11 @@ a higher one.
   `src/simulation`**, plus a companion scan requiring every `'herbivore'` /
   `'carnivore'` literal to sit within sixty characters of a `.diet` read.
 - `test/source-scan.test.js` — the comment stripper the three scans above share.
+- `test/protocol-v29.test.js` — the renderer's `SUPPORTED_PROTOCOL_VERSION` and
+  every committed fixture carry the current `PROTOCOL_VERSION`, and every
+  `EventTypes` entry has a renderer catalog entry. ⚠ Added because the first of
+  those failed silently at the v29 bump: the suite compared the renderer's
+  version against *itself*, so a stale renderer and three stale fixtures passed.
 
 ⚠ **Source scans strip comments before matching.** A scan once rejected a file
 for the word "window." inside a doc comment. The tempting fix is to reword the
@@ -1996,7 +2001,7 @@ this. **Assert the effect landed, not that the call happened.**
 
 ## 11. Protocol reference
 
-Everything a client sees carries `protocolVersion` (currently **28**) and is
+Everything a client sees carries `protocolVersion` (currently **29**) and is
 built by `src/protocol/`.
 
 ### Commands
@@ -2015,15 +2020,48 @@ host rolls that die because `src/simulation`, `src/protocol`, and the renderer
 all ban unseeded randomness — a client that wants to replay a world simply names
 the seed it was given.
 
-It also takes optional **world-composition** fields — `width`, `height`, and the
-per-role founder counts `herbivores`, `predators`, `scavengers` — each bounded in
-`commands.js` (`MAX_WORLD_DIMENSION` and `MAX_FOUNDING_*`, set high enough to
-reach the performance ceiling without an OOM or a non-terminating build). They
-are additive and optional, so omitting them is the original behaviour and the
-protocol version did not move. The runner never learns world _composition_: it
-passes the options to the engine factory, and `buildDemoConfig` (in the demo
-fixture) is the single place that maps a role to its species id and to a
-`config.demo.founding` override.
+It also takes optional **world-composition** fields — `width`, `height`, terrain
+prevalence, and a **founding roster** — each bounded in `commands.js`, set high
+enough to reach the performance ceiling without an OOM or a non-terminating
+build. The runner never learns world _composition_: it passes the options to the
+engine factory, and `buildDemoConfig` (in the demo fixture) is the single place
+that turns them into a `config.demo.founding` override.
+
+#### ⚠ The founding roster, and why v29 exists
+
+Until v29 the composition fields were three per-role counts — `herbivores`,
+`predators`, `scavengers` — which assumed a bijection between a role and a
+species. That was only ever true by coincidence, and the roster the engine is
+being grown for breaks it outright: **a hyena is both predator and scavenger, and
+there is no third box to put it in.** Splitting a role's count across its species
+host-side would have preserved v28 and would have been exactly the lie the bump
+exists to stop — the UI would still be offering a control whose label was false.
+
+So restart now takes `founding: [{ speciesId, count }]`, and **the host publishes
+its roster** on the status report (`species: [{ id, defaultCount }]`) so a client
+builds one control per species from what it is told rather than from what it was
+compiled with. Three details are load-bearing:
+
+- **A roster replaces; a role alias patches.** `founding` is what the world is
+  founded with, full stop — a species omitted from it gets none, because "found
+  only the gazelle" has to be expressible. The deprecated role fields could never
+  mean that, so they override three counts within the default roster and leave
+  the rest alone, exactly as they did at v28.
+- ⚠ **Both forms at once is refused**, not resolved. There is no reading of "40
+  herbivores *and* this roster" that is not a guess about which the caller meant.
+- ⚠ **The protocol does not know which species exist**, and deliberately does not
+  learn: it imports nothing and validates shape and bounds only. An unknown id is
+  the host's to reject, which it does loudly — `SpeciesRegistry.require` throws
+  and the runner returns `restart-unsupported` naming the id. A structural check
+  here plus a loud failure there beats this layer carrying a species list that
+  would have to be kept in step.
+
+Bounds moved with the shape: `MAX_FOUNDING_PER_SPECIES` (20 000) and
+`MAX_FOUNDING_TOTAL` (30 000), the latter being the sum of the three old per-role
+maxima, so the ceiling is exactly what it was. `FOUNDING_ROLE_ALIASES` is the
+**one** place a species id appears in `src/protocol`, and it exists only to
+retire — delete it, and the alias handling in `validation.js` and
+`buildDemoConfig`, at v30.
 
 ### Snapshots
 
@@ -2040,12 +2078,23 @@ Inspection-only (`GET /api/entities/:id`): absolute energy/hydration/health and
 speed, the action target, the utility breakdown, the perception summary, the
 individual's `traits` and `adultMass`, its `genome`/`genotype`/parent traits, its
 bounded `memories`, its `injuries` and derived `impairment`, its `stamina` and
-hunt target, carcass detail, the `mateChoice` block, the `social` block, the
-`territory` block, the `disease` block (which spells out `infectious` separately
-from `symptomatic` — they are not the same claim), the `migration` block (the
-drift beside the live habitat reading it was computed from, so a bias is
-checkable rather than mysterious), `caughtIn`, and the family/life-history block
-(resolved `lineage`, parenting state, bounded `lifeEvents`).
+hunt target, carcass detail (including `possessorId` — who is standing over this
+body, v29), the `mateChoice` block, the `social` block, the **`group`** block,
+the `territory` block, the `disease` block (which spells out `infectious`
+separately from `symptomatic` — they are not the same claim), the `migration`
+block (the drift beside the live habitat reading it was computed from, so a bias
+is checkable rather than mysterious), `caughtIn`, and the family/life-history
+block (resolved `lineage`, parenting state, bounded `lifeEvents`).
+
+⚠ **`group` and `social.groupId` are the two sociality mechanisms side by side**
+(§9 Sociality), and reporting both is the point: the label is who this animal is
+standing with now, the record is who it belongs to. The record comes whole —
+`{ id, speciesId, size, memberIds, founderId, foundedTick }` — because "which
+pride is this lion in" is only answerable if you can see who else is in it, and
+`memberIds` is bounded by `groups.maxMembers` so it cannot be large. Neither
+`groupRecordId` nor `possessorId` is in the bulk snapshot: both change rarely and
+matter for one animal at a time, which is the standing test for what stays
+inspection-only.
 
 Full snapshots also embed:
 
@@ -2087,7 +2136,8 @@ Facts with `{ seq, tick }`, never presentation instructions.
 `entity.disputed` · `entity.defended` · `entity.hunted` · `entity.killed` ·
 `entity.escaped` · `entity.injured` · `entity.recovered` · `entity.decayed` ·
 `entity.provisioned` · `entity.migrated` · `entity.lifeEvent` ·
-`entity.infected` · `entity.sickened` · `entity.cured` · `environment.changed` ·
+`entity.infected` · `entity.sickened` · `entity.cured` · `entity.robbed` ·
+`entity.grouped` · `entity.ungrouped` · `environment.changed` ·
 `environment.disturbed` · `environment.settled` · `environment.feature`.
 
 **Several events publish the number behind the verdict rather than hiding it** —
@@ -2099,6 +2149,22 @@ hands — the part an observer could not otherwise see. `entity.alarmed` carries
 `hops` from whoever actually saw the predator, so a wave of panic is readable.
 `environment.settled` carries `durationTicks` — how long it _actually_ lasted,
 the one fact that is gone once the record is.
+
+⚠ **Three contests, three event types, and reusing one for another was
+considered and rejected.** `entity.contested` (a mate), `entity.disputed`
+(ground), and `entity.robbed` (a carcass, v29) all resolve the same way and carry
+nearly the same payload, so folding the third into the first would have kept the
+protocol version. The renderer labels `entity.contested` "contests over a mate" —
+so it would also have made the UI lie, which is precisely what this bump exists
+to stop. `entity.robbed` has no `winnerId`: a challenger only challenges when it
+is already stronger, so the field could only ever hold one value, and reporting
+it would be noise dressed as information.
+
+⚠ **`entity.grouped` / `entity.ungrouped` are not about herds.** A herd label is
+positional and rides in every snapshot as `groupId`, so it needs no event — the
+state is always there. These are the persistent *records* (§9 Persistent groups),
+which change rarely and whose beginning and end are milestones: `founded` marks
+the join that created a group and `dissolved` the departure that ended it.
 
 **Event volume is a real budget.** Emit on the **transition**, not on the state.
 Nothing is emitted per tick while a disturbance runs — the region rides in every
@@ -2187,15 +2253,28 @@ version history — and which step invalidated which format — is documented in
   regenerate-from-seed over storing derived grids; provide a migration or an
   explicit dev-save invalidation note — **never silently break saves**.
 - Regenerate renderer fixtures whenever the protocol changes
-  (`npm run fixtures:renderer`).
+  (`npm run fixtures:renderer`), **and bump the renderer's
+  `SUPPORTED_PROTOCOL_VERSION` with it**. ⚠ Both are now asserted
+  (`test/protocol-v29.test.js`) rather than remembered — see D31 for why that
+  became necessary at exactly the bump this rule had survived 28 times.
 - Extend `PUBLIC_ENTITY_FIELDS`/inspection deliberately; never widen the
   projection to raw records.
 
 Across 30 steps: **28 protocol bumps and 27 save-format bumps**, each with
 fixtures regenerated and invalidation notes. No incompatibility incident. The
 species work has since taken the save format to **29** (the group registry, then
-carcass possession) with the protocol deliberately held at 28 — see A54 for what
-that owes and when it is paid.
+carcass possession) and the protocol to **29** (the founding roster, the
+host-published species list, and the projections the two previous phases
+deliberately deferred — A54).
+
+⚠ **The "regenerate fixtures on every protocol change" rule was discipline only,
+and it silently failed the first time it was tested.** Bumping to v29 left the
+renderer's `SUPPORTED_PROTOCOL_VERSION` and all three committed fixtures on 28
+with the whole suite green, because the tests compared the renderer's number
+against *itself*. Fixture mode would have refused every message at runtime.
+`test/protocol-v29.test.js` now asserts the renderer's version equals the
+protocol's and that every committed fixture carries it — the risk register's
+"renderer fixtures drifting" row made mechanical rather than hoped for.
 
 ---
 
@@ -2365,7 +2444,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-796 tests, 202 suites. Layers:
+812 tests, 206 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol
@@ -2386,7 +2465,8 @@ sources and costs · ids stable · **lineage references resolve to an accurate
 status** · expressed traits always equal what the genome expresses (nothing
 writes traits post-birth) · observation never perturbs the population · commands
 apply at deterministic boundaries · save/load continuation matches uninterrupted
-runs · renderer imports nothing internal · no species-name literals in core
+runs · renderer imports nothing internal · **the renderer and the committed
+fixtures speak the current protocol version** · no species-name literals in core
 systems.
 
 ### The demonstration scenarios
@@ -2503,6 +2583,8 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | D26   | The replacement scanner had a bug of its own: it left template-literal mode at `${` and never returned, so everything after a substitution was read as code. In a file of HTML templates the next `"` opened a bogus string and the scanner desynced — surfacing as `Controls.js` failing for a `Math.random` that appears only inside a comment saying it is banned | A hand-written scanner needs its own tests before it is trusted to police anything else. This one failed loudly by luck; it could as easily have gone blind in the other direction |
 | ⚠ D27 | Mass-scaling herbivore intake was written up as "inert — the grazer sits exactly at `referenceMass`, so its factor is 1". It is not: the system reads the **individual's** `bodyMass`, which is `adultMass × size trait` walked up a growth curve. Seed 42's cohort measured 5.1–33.7 kg, factors 0.265–1.092 — a half-grown animal's intake fell ~40% | **A species-level constant is not an entity-level one.** To decide whether a change is inert, check the value the code actually reads, on real entities — not the config it resolves from. The claim was written before it was measured, which is the entire error |
 | ⚠ D28 | Making `foodMinLevel` per-species meant resolving it beside `radius` and passing both into `PerceptionSystem#perceive` — a four-argument call instead of three. That cost **12% of total engine time** at large-5k (66.1 → 70.7 ms/tick). An A/B pinned it on the **arity alone**: keeping the fourth parameter but passing the old global value was just as slow (70.4), while returning to three arguments was 62.8. Passing the resolved block as one object restored it | **The hottest function in the engine is arity-sensitive, and nothing about the diff looks expensive.** `#perceive` is ~53% of a tick and holds the (2r+1)² cell scan; one more parameter is enough to change what the optimiser does with it. Prefer handing a hot helper one object over widening its signature — and ⚠ note the whole-system profiler *hid* this: wrapping prototypes to time each system showed only +0.8%, because the wrapper overhead perturbed exactly the inlining under test |
+| ⚠ D32 | Replacing three hardcoded restart fields with generated ones left `setEnabled` still naming the three removed elements, so it set `.disabled` on `undefined` and **the whole renderer failed to boot in fixture mode**. `npm test` stayed green — all 812 of it — because no node test constructs the DOM. The Playwright suite caught it, and only because it exercises fixture mode: the *live*-mode specs passed too, since the panel is not disabled there | **A field removed from a template has to be chased through every list that names it**, and the lists are usually far from the template. More usefully: this is the class of bug the node suite structurally cannot see, which is what `tests-ui` is *for* — so a renderer change is not verified until it has run. ⚠ And note the near-miss: the failure was in the one mode the live-mode specs do not cover, so "the controls test passed" was not evidence |
+| D31   | Bumping `PROTOCOL_VERSION` to 29 left the renderer's `SUPPORTED_PROTOCOL_VERSION` and all three committed fixtures on 28 — **with the whole suite green**. The renderer tests were not weak; they were *tautological*, building their fixtures from `SUPPORTED_PROTOCOL_VERSION` and asserting against the same constant, so the copy always agreed with itself. Fixture mode would have refused every message at runtime and `npm test` would never have said so | **A test that compares a copy against itself is not a test of the copy.** Where a value is deliberately duplicated across a boundary (the renderer restates the protocol version, the event catalog restates the event list), the guard has to assert against the **other** source, not the local one. The event catalog was safe for exactly that reason — `renderer-view.test.js` imports the protocol's `EventTypes` — which is why three new event types could not go missing the same way. Twenty-eight protocol bumps held by discipline; the twenty-ninth is held by a test |
 | D30   | Carcass possession shipped behind `possessionEnabled` so it had a reproducible control — but with the switch **off** the feeding system still stamped `possessorId` on every body it fed from. Behaviour was identical, so nothing failed; the control world simply was not the old world, it was the old world plus a field, and every "identical to before" comparison taken against it would have been quietly false. Caught only because a test asserted the control claims *nothing*, not merely that it behaves the same | **An off switch must leave no trace, not merely no effect.** D16 says an identity path has to be *exactly* the identity; this is the same rule applied to state rather than to arithmetic. When adding a control arm, assert what it *writes*, not only what it does — and put the guard on the write, not on the read, because a field nothing reads today is still a field in the save |
 | D29   | A test spawned two animals, asserted they formed a herd, and got `null`. `social.minGroupSize: 2` is compared against **groupmates** — how many *others* are in range — so it means "three animals", and the comment beside it ("a lone animal is not a herd of one") reads as though it means "two". Two test iterations to notice                                                                     | **A threshold named for an aggregate is often counted on a part.** When a parameter's name describes one quantity (group *size*) and the code compares it against another (neighbour *count*), the off-by-one is invisible in both the name and the comment. State which quantity beside the number, not just what it is for — the same discipline D11 asks for a threshold defined on another parameter |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
@@ -2526,7 +2608,7 @@ Predicted risks, with what actually happened over 30 steps.
 | **Quadratic neighbour searches**         | Medium / High   | **No**                                           | All neighbour work goes through `SpatialGrid.queryRadius`, and there is now exactly one walk per tick                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | **AI-generated duplication**             | Medium / Medium | **No — actively countered**                      | Shared helpers extracted instead of duplicated (§10). New behaviours went into the decision system rather than building a second action-selection path                                                                                                                                                                                                                                                                                                                                                                          |
 | **Over-generalized abstractions**        | Medium / Medium | **No**                                           | Species config stayed single-species until the mechanics were proven; no trait was admitted that no system reads                                                                                                                                                                                                                                                                                                                                                                                                                |
-| **Renderer fixtures drifting**           | Medium / Medium | **No**                                           | Regenerated on every protocol change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Renderer fixtures drifting**           | Medium / Medium | **Nearly — once**                                | Regenerated on every protocol change for 28 bumps by discipline alone. At v29 that discipline failed silently: the bump left the renderer and all three fixtures on 28 with the suite green, because the tests compared the renderer version against itself. Now asserted mechanically (`protocol-v29.test.js`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ---
 

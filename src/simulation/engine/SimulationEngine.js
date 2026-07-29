@@ -300,6 +300,27 @@ export class SimulationEngine {
   }
 
   /**
+   * The species this world knows, with the founding count the scenario gives
+   * each one — the roster a host publishes so a client never has to be compiled
+   * with one (protocol v29, PLAN-SPECIES.md §6).
+   *
+   * ⚠ Ids and counts only, never labels or glyphs. What to *call* a species is
+   * presentation and belongs to the renderer (§19); what the engine can say is
+   * which species exist and how many of each this scenario starts with.
+   *
+   * @returns {Array<{id: string, defaultCount: number}>}
+   */
+  getSpeciesRoster() {
+    const founding = new Map(
+      (this.config.demo?.founding ?? []).map(({ speciesId, count }) => [speciesId, count]),
+    );
+    // Every *known* species, not just the founded ones: a species the scenario
+    // starts with none of is still one a caller may ask for, and a roster that
+    // hid it would make it unreachable through the UI.
+    return this.species.ids().map((id) => ({ id, defaultCount: founding.get(id) ?? 0 }));
+  }
+
+  /**
    * Public inspection view of one entity, or null.
    * @param {number} entityId
    */
@@ -336,6 +357,12 @@ export class SimulationEngine {
       decayStage: entity.decayStage,
       diedTick: entity.diedTick,
       deathCause: entity.deathCause,
+      // Who is standing over this body (v29; see predation/possession.js).
+      // Inspection-only: it changes rarely and matters for one carcass at a
+      // time, which is the standing test for what stays out of the bulk
+      // snapshot. Without it a viewer sees a scavenger stop eating for no
+      // stated reason, which is what A54 was open about.
+      possessorId: entity.possessorId ?? null,
       // Individual variation (Step 14) — inspection-only. `adultMass` is the
       // size this individual grows toward, so a juvenile's eventual build is
       // readable long before it gets there.
@@ -471,6 +498,27 @@ export class SimulationEngine {
       // are actually in range, and how far off their centre this animal has
       // drifted), which is the thing herding steers on — not a roster, because
       // no roster exists anywhere.
+      // Persistent group membership (v29; see world/GroupRegistry.js). ⚠ A
+      // different thing from `social.groupId` below, and the pair is the whole
+      // point: the label there is who this animal is standing with *now*, and
+      // this is who it belongs to — an identity that survives them walking
+      // apart. Reported as the record rather than a bare id, because "which
+      // pride is this lion in" is only answerable if you can see who else is in
+      // it. `memberIds` is bounded by `groups.maxMembers`, so this cannot be
+      // large. Null for the overwhelming majority of animals, which is honest:
+      // most species form no persistent groups at all.
+      group: (() => {
+        const record = this.world.groups.get(entity.groupRecordId);
+        if (!record) return null;
+        return {
+          id: record.id,
+          speciesId: record.speciesId,
+          size: record.memberIds.length,
+          memberIds: [...record.memberIds],
+          founderId: record.founderId,
+          foundedTick: record.foundedTick,
+        };
+      })(),
       social: {
         groupId: entity.groupId,
         dominance: dominanceOf(entity),

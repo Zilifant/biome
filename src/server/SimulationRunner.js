@@ -222,6 +222,17 @@ export class SimulationRunner extends EventEmitter {
       paused: this.paused,
       speed: this.speed,
       baseTickIntervalMs: this.baseTickIntervalMs,
+      // ⚠ **The host publishes its roster** (v29, PLAN-SPECIES.md §6). This is
+      // what stops the UI lying: before it, the renderer knew the words
+      // "herbivore", "predator", and "scavenger" — engine concepts it was only
+      // ever handed by coincidence, and ones that stop being *true* the moment a
+      // species is both predator and scavenger. A client now builds one control
+      // per species from what it is told, and never hardcodes a roster again.
+      //
+      // It rides the status report rather than a `/api/species` query because
+      // the renderer already polls status for the run state, so this costs no
+      // extra round trip and cannot go stale relative to the world it describes.
+      species: this.engine.getSpeciesRoster(),
     };
   }
 
@@ -255,10 +266,15 @@ export class SimulationRunner extends EventEmitter {
         return okResult({ tick: this.engine.tick });
       case CommandTypes.SIMULATION_RESTART: {
         try {
-          const { width, height, herbivores, predators, scavengers, rocks, thickets } = command;
+          // ⚠ The runner still never learns world *composition* — it hands the
+          // fields to the engine factory and the fixture decides what they mean.
+          // `founding` is a roster of `{ speciesId, count }` (v29); the three
+          // role fields ride along as deprecated aliases the fixture translates.
+          const { width, height, founding, herbivores, predators, scavengers, rocks, thickets } = command;
           const { seed, simulationId } = this.restart(command.seed, {
             width,
             height,
+            founding,
             herbivores,
             predators,
             scavengers,

@@ -31,7 +31,7 @@ import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory
 import { CarcassSystem } from './CarcassSystem.js';
 import { diseaseSeverity } from '../disease/disease.js';
 import { DEFAULT_POSSESSION, holderOf, mayFeedFreely, outranks } from '../predation/possession.js';
-import { resolveContest } from '../social/dominance.js';
+import { dominanceOf, resolveContest } from '../social/dominance.js';
 import { MAX_INJURIES } from '../injury/injuries.js';
 
 export class FeedingSystem extends SimulationSystem {
@@ -228,6 +228,20 @@ export class FeedingSystem extends SimulationSystem {
         // wins by construction — but read the result rather than assuming it, so
         // the two can never drift apart.
         if (result.winner.id !== entity.id) share = this.possession.share;
+        else {
+          // Kill theft, published with both scores rather than as a bare fact —
+          // the same discipline `entity.contested` and `entity.disputed` follow,
+          // because dominance decided it and there are no odds to report.
+          context.emit(EventTypes.ENTITY_ROBBED, {
+            entityId: entity.id,
+            victimId: holder.id,
+            carcassId: carcass.id,
+            dominance: dominanceOf(entity),
+            victimDominance: dominanceOf(holder),
+            escalated: result.escalated,
+            injured: result.injured,
+          });
+        }
       } else {
         // ⚠ **Scraps, not exclusion, and the difference was measured.** An
         // outmatched animal does not challenge — dominance decides a contest, so

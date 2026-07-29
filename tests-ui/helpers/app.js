@@ -122,7 +122,24 @@ export async function gotoLive(page) {
  */
 async function installLiveMocks(page, commands) {
   const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
-  const status = () => ({ protocolVersion: PROTOCOL_VERSION, running: true, paused: false, speed: 1, tick: SNAPSHOT.tick ?? 0, seed: 42, simulationId: SNAPSHOT.simulationId ?? 'test-live' });
+  // ⚠ `species` is the protocol-v29 roster the host publishes, and the restart
+  // panel builds its founder fields from it — so a mocked host that omits it
+  // leaves the panel permanently waiting, which is the failure a test would
+  // otherwise report as "the field does not exist".
+  const status = () => ({
+    protocolVersion: PROTOCOL_VERSION,
+    running: true,
+    paused: false,
+    speed: 1,
+    tick: SNAPSHOT.tick ?? 0,
+    seed: 42,
+    simulationId: SNAPSHOT.simulationId ?? 'test-live',
+    species: [
+      { id: 'herbivore.grazer', defaultCount: 120 },
+      { id: 'predator.stalker', defaultCount: 8 },
+      { id: 'scavenger.corvid', defaultCount: 10 },
+    ],
+  });
   const commandResult = (command) => ({ protocolVersion: PROTOCOL_VERSION, ok: true, tick: SNAPSHOT.tick ?? 0, seed: command?.seed ?? 42, simulationId: SNAPSHOT.simulationId ?? 'test-live', paused: command?.type === 'simulation.pause', speed: command?.multiplier ?? 1 });
 
   await page.route('**/api/**', async (route) => {

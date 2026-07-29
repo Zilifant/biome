@@ -25,18 +25,34 @@ test.describe('controls send commands (live, mocked host)', () => {
     await expect.poll(() => commands.slice(before).find((c) => c.type === 'simulation.setSpeed')?.multiplier).toBeGreaterThan(1);
   });
 
-  test('restart sends the seed, world size, and founder counts from the panel', async ({ live: { page, commands } }) => {
+  test('the founder fields are built from the roster the host publishes', async ({ live: { page } }) => {
+    // ⚠ Protocol v29. The panel used to carry three hardcoded fields named for
+    // roles; it now generates one per species from `/api/status`, so this
+    // asserts the *source* of the fields rather than their existence — a panel
+    // that hardcoded the same three would pass a mere presence check.
+    const restartSection = page.locator('#controls-panel details').filter({ has: page.locator('#ctl-restart') });
+    await restartSection.locator('summary').click();
+    await expect(page.locator('#ctl-founding input[data-species]')).toHaveCount(3);
+    await expect(page.locator('#ctl-founding-herbivore-grazer')).toHaveValue('120');
+    // Labelled from the renderer's own appearance registry, never from the host:
+    // what to call a species is presentation.
+    await expect(page.locator('#ctl-founding')).toContainText('grazer');
+    await expect(page.locator('#ctl-herbivores')).toHaveCount(0);
+  });
+
+  test('restart sends the seed, world size, and a founding roster', async ({ live: { page, commands } }) => {
     // The restart controls sit in a collapsed <details> — open it, then fill in
     // a distinctive world and submit.
     const restartSection = page.locator('#controls-panel details').filter({ has: page.locator('#ctl-restart') });
     await restartSection.locator('summary').click();
+    await expect(page.locator('#ctl-founding input[data-species]')).toHaveCount(3);
 
     await page.locator('#ctl-seed').fill('7');
     await page.locator('#ctl-world-w').fill('200');
     await page.locator('#ctl-world-h').fill('150');
-    await page.locator('#ctl-herbivores').fill('40');
-    await page.locator('#ctl-predators').fill('5');
-    await page.locator('#ctl-scavengers').fill('0');
+    await page.locator('#ctl-founding-herbivore-grazer').fill('40');
+    await page.locator('#ctl-founding-predator-stalker').fill('5');
+    await page.locator('#ctl-founding-scavenger-corvid').fill('0');
 
     const before = commands.length;
     await page.locator('#ctl-restart').click();
@@ -46,9 +62,11 @@ test.describe('controls send commands (live, mocked host)', () => {
       seed: 7,
       width: 200,
       height: 150,
-      herbivores: 40,
-      predators: 5,
-      scavengers: 0,
+      founding: [
+        { speciesId: 'herbivore.grazer', count: 40 },
+        { speciesId: 'predator.stalker', count: 5 },
+        { speciesId: 'scavenger.corvid', count: 0 },
+      ],
     });
   });
 

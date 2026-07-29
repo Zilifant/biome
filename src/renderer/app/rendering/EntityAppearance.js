@@ -106,6 +106,28 @@ export const SPECIES_APPEARANCE = Object.freeze({
 });
 
 /**
+ * What to call a species in the UI.
+ *
+ * ⚠ **The engine never sends a label**, and that is deliberate rather than an
+ * omission: species definitions hold biology, and a display name is
+ * presentation, which lives here (DOCS §19). But from protocol v29 the host
+ * publishes its *roster*, so the renderer can be handed an id it has no
+ * appearance entry for — a species added to the engine before anyone got round
+ * to giving it a glyph. Falling back to the id's last segment means such a
+ * species is still nameable, still controllable, and visibly unstyled rather
+ * than invisible.
+ *
+ * @param {string} speciesId
+ * @returns {string}
+ */
+export function speciesLabel(speciesId) {
+  const known = SPECIES_APPEARANCE[speciesId]?.label;
+  if (known) return known;
+  const tail = String(speciesId ?? '').split('.').pop();
+  return tail || String(speciesId ?? '');
+}
+
+/**
  * Dead animals render as carcasses, and a carcass visibly rots (protocol v17).
  * The ramp is indexed by the `decayStage` the snapshot carries: a fresh body is
  * a bold `%`, and by the time it is bare remains it is a faint `.` — so a

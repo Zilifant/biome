@@ -153,21 +153,6 @@ they are not re-opened by accident.
   back than that. Only bites a query that walks ancestry; lineage _depth_ is
   carried on the entity as `generation`.
 
-- **⚠ A54 — Two mechanisms are invisible through the protocol.** (a) Persistent
-  group membership: `world.groups` and the per-entity `groupRecordId` exist in
-  the engine, but neither entity inspection nor `/api/metrics` mentions them and
-  there are no formation/dissolution events. (b) **Carcass possession**:
-  `possessorId` is not projected and a kill theft emits nothing, so an observer
-  watching the demo sees a scavenger stop eating for no stated reason.
-  **Scheduled, not forgotten:** both are held back so the projection rides the
-  v29 bump the founding-roster rework needs anyway (PLAN-SPECIES.md §6) — two
-  protocol versions in consecutive phases means regenerating renderer fixtures
-  twice for nothing. ⚠ (b) is the sharper half, because it is live in the demo
-  rather than dormant. Reusing `entity.contested` was considered and rejected:
-  the renderer labels it "contests over a mate", so it would make the UI lie.
-  v29 owes the group projection, `possessorId` on carcass inspection, and one
-  new event type with its `EventCatalog` entry.
-
 - **A36 — The territorial claim layer is not projected to the renderer.** The
   home-range ring is drawn from inspection, for the selected animal only. Blocks
   renderer item P1.

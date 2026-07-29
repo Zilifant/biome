@@ -9,9 +9,12 @@
 import {
   CommandTypes,
   ENTITY_KINDS,
+  FOUNDING_ROLE_ALIASES,
   MAX_FOUNDING_HERBIVORES,
+  MAX_FOUNDING_PER_SPECIES,
   MAX_FOUNDING_PREDATORS,
   MAX_FOUNDING_SCAVENGERS,
+  MAX_FOUNDING_TOTAL,
   MAX_MANUAL_STEP_TICKS,
   MAX_SEED,
   MAX_SPEED_MULTIPLIER,
@@ -55,6 +58,50 @@ function validateOptionalIntInRange(value, path, min, max, errors) {
     return false;
   }
   return true;
+}
+
+/**
+ * Validate the v29 founding roster: `[{ speciesId, count }]`.
+ *
+ * ⚠ **Which species exist is not the protocol's business.** This layer imports
+ * nothing and knows no roster, so it checks the *shape* and the bounds and lets
+ * the host reject an id it has never heard of — which it does loudly, because
+ * `SpeciesRegistry.require` throws and the runner turns that into a
+ * `restart-unsupported` error naming the id. A structural check here plus a
+ * loud failure there beats this layer carrying a species list it would have to
+ * be kept in step with.
+ *
+ * Duplicates are refused rather than summed or last-wins: a caller that names a
+ * species twice has a bug, and picking a reading for it would hide the bug.
+ */
+function validateFoundingRoster(founding, errors) {
+  if (founding === undefined) return;
+  if (!Array.isArray(founding)) {
+    errors.push({ path: 'founding', message: 'must be an array of { speciesId, count }' });
+    return;
+  }
+  const seen = new Set();
+  let total = 0;
+  founding.forEach((entry, index) => {
+    const at = `founding[${index}]`;
+    if (!isPlainObject(entry)) {
+      errors.push({ path: at, message: 'must be an object { speciesId, count }' });
+      return;
+    }
+    if (typeof entry.speciesId !== 'string' || entry.speciesId.length === 0) {
+      errors.push({ path: `${at}.speciesId`, message: 'must be a non-empty string' });
+    } else if (seen.has(entry.speciesId)) {
+      errors.push({ path: `${at}.speciesId`, message: `duplicate species "${entry.speciesId}"` });
+    } else {
+      seen.add(entry.speciesId);
+    }
+    if (validateOptionalIntInRange(entry.count, `${at}.count`, 0, MAX_FOUNDING_PER_SPECIES, errors)) {
+      total += entry.count ?? 0;
+    }
+  });
+  if (total > MAX_FOUNDING_TOTAL) {
+    errors.push({ path: 'founding', message: `total founders must not exceed ${MAX_FOUNDING_TOTAL}` });
+  }
 }
 
 function validateSpawnEntity(entity, errors) {
@@ -152,6 +199,20 @@ export function validateCommand(command) {
       // here rather than crashing the build (see MAX_* in commands.js).
       validateOptionalIntInRange(command.width, 'width', MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION, errors);
       validateOptionalIntInRange(command.height, 'height', MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION, errors);
+      // v29: the founding roster. Which species exist is the host's business,
+      // not this layer's — see validateFoundingRoster.
+      validateFoundingRoster(command.founding, errors);
+      // ⚠ The v28 role fields, accepted for one version and no longer part of
+      // the shape this protocol describes. Both forms at once is refused rather
+      // than resolved: there is no reading of "40 herbivores *and* this roster"
+      // that is not a guess about which the caller meant.
+      const roleFields = Object.keys(FOUNDING_ROLE_ALIASES).filter((role) => command[role] !== undefined);
+      if (command.founding !== undefined && roleFields.length > 0) {
+        errors.push({
+          path: 'founding',
+          message: `cannot be combined with the deprecated role fields (${roleFields.join(', ')})`,
+        });
+      }
       validateOptionalIntInRange(command.herbivores, 'herbivores', 0, MAX_FOUNDING_HERBIVORES, errors);
       validateOptionalIntInRange(command.predators, 'predators', 0, MAX_FOUNDING_PREDATORS, errors);
       validateOptionalIntInRange(command.scavengers, 'scavengers', 0, MAX_FOUNDING_SCAVENGERS, errors);

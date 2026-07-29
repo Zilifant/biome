@@ -62,6 +62,28 @@ export const EventTypes = Object.freeze({
   ENTITY_DISPUTED: 'entity.disputed', // { entityId, ownerId, winnerId, dominance, ownerDominance, escalated, cellsTransferred }
   // An adult putting itself between a predator and a groupmate or its own young.
   ENTITY_DEFENDED: 'entity.defended', // { entityId, wardId, threatId }
+  // Kleptoparasitism (v29): one carnivore takes a carcass off another. Same
+  // family as the two contests above and reported the same way — no odds,
+  // because dominance decides it, so both scores are published instead.
+  //
+  // ⚠ There is no `winnerId`: the challenger only ever challenges when it is
+  // already stronger, so the winner is always `entityId`. Reporting a field that
+  // can only hold one value would be noise dressed as information.
+  //
+  // ⚠ It is deliberately **not** `entity.contested`, though the payload is
+  // nearly identical. That type means "contested a mate" to every consumer that
+  // has one — the renderer labels it exactly that — so reusing it would have
+  // kept the protocol version and made the UI lie, which is the specific thing
+  // this bump exists to stop.
+  ENTITY_ROBBED: 'entity.robbed', // { entityId, victimId, carcassId, dominance, victimDominance, escalated, injured }
+  // Persistent social groups (v29; see world/GroupRegistry.js). ⚠ Not the herd
+  // label — that is positional and rides in every snapshot as `groupId`. These
+  // are the *record*: an identity that survives separation, which is what a
+  // pride or a clan is. `founded` marks the join that created the group and
+  // `dissolved` the departure that ended it, so an observer can see a clan begin
+  // and end rather than inferring it from a membership number changing.
+  ENTITY_GROUPED: 'entity.grouped', //   { entityId, groupId, speciesId, size, founded }
+  ENTITY_UNGROUPED: 'entity.ungrouped', // { entityId, groupId, size, dissolved }
   // Disease (Step 25). `infected` names the animal it came from, which is what
   // makes a transmission chain traceable; note it fires while the new carrier
   // still looks perfectly healthy, because an incubating animal is infectious

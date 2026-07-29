@@ -79,7 +79,12 @@ function parseArgs(argv) {
     const m = /^--([a-zA-Z]+)=(.+)$/.exec(arg);
     if (!m) { fail(`unknown argument: ${arg}`); }
     const [, key, value] = m;
-    if (key === 'seed') opts.seeds = [Number(value)];
+    // ⚠ `--founding=id:count,...` is the protocol-v29 form and the one to use.
+    // The three role flags below still work, are deprecated with the protocol
+    // fields they mirror, and cannot express a roster where one species is both
+    // predator and scavenger — which is the whole reason the roster exists.
+    if (key === 'founding') opts.composition.founding = parseFoundingRoster(value);
+    else if (key === 'seed') opts.seeds = [Number(value)];
     else if (key === 'seeds') opts.seeds = value.split(',').map(Number);
     else if (key === 'seedBase') opts.seedBase = Number(value);
     else if (key === 'seedCount') opts.seedCount = Number(value);
@@ -91,10 +96,40 @@ function parseArgs(argv) {
   return opts;
 }
 
+/**
+ * `herbivore.grazer:120,predator.stalker:8` → `[{ speciesId, count }]`.
+ * A malformed entry fails loudly rather than being skipped: a sweep quietly run
+ * on a different world than the one asked for is worse than no sweep.
+ */
+function parseFoundingRoster(value) {
+  return value.split(',').map((pair) => {
+    const [speciesId, count] = pair.split(':');
+    if (!speciesId || !/^\d+$/.test(count ?? '')) fail(`--founding entries must be speciesId:count, got "${pair}"`);
+    return { speciesId, count: Number(count) };
+  });
+}
+
+/**
+ * A composition as a one-line label. The founding roster is a list of objects,
+ * so the obvious `${value}` prints `[object Object]` — worth a helper rather
+ * than a header that silently stops saying which world was run.
+ * @param {object} composition @param {string} separator
+ */
+function describeComposition(composition, separator) {
+  return Object.entries(composition)
+    .map(([key, value]) =>
+      key === 'founding' && Array.isArray(value)
+        ? `founding=${value.map((entry) => `${entry.speciesId}:${entry.count}`).join('+')}`
+        : `${key}=${value}`,
+    )
+    .join(separator);
+}
+
 function fail(message) {
   console.error(message);
   console.error('usage: ethologist.js [--seed=N | --seeds=a,b,c | --seedCount=N] [--ticks=N] [--top=N]');
-  console.error('       [--width --height --herbivores --predators --scavengers --rocks --thickets] [--json]');
+  console.error('       [--width --height --rocks --thickets] [--founding=id:count,id:count] [--json]');
+  console.error('       (--herbivores/--predators/--scavengers are deprecated aliases for --founding)');
   process.exit(1);
 }
 
@@ -362,7 +397,7 @@ function bbox(cells, W, H) {
 }
 
 function printReport(report, top) {
-  const compStr = Object.entries(report.composition).map(([k, v]) => `${k}=${v}`).join(' ') || '(demo defaults)';
+  const compStr = describeComposition(report.composition, ' ') || '(demo defaults)';
   console.log(`\n${'='.repeat(78)}\nseed ${report.seed} — ${report.world} — ${compStr} — ${report.ticks} ticks`);
   console.log(`terrain: ${JSON.stringify(report.terrain)}`);
   console.log(`water: ${report.waterBbox}`);
@@ -425,7 +460,7 @@ function main() {
   // Cross-run summary: where the anomalies concentrate.
   console.log(`\n${'='.repeat(78)}\nSUMMARY — ${reports.length} world(s)`);
   const ranked = reports
-    .map((r) => ({ seed: r.seed, comp: Object.entries(r.composition).map(([k, v]) => `${k}=${v}`).join(',') || 'demo', flaggedDeaths: r.flaggedDeaths.length, stuck: r.stuckEpisodes.length, worst: r.flaggedDeaths[0]?.suspicion ?? 0 }))
+    .map((r) => ({ seed: r.seed, comp: describeComposition(r.composition, ',') || 'demo', flaggedDeaths: r.flaggedDeaths.length, stuck: r.stuckEpisodes.length, worst: r.flaggedDeaths[0]?.suspicion ?? 0 }))
     .sort((a, b) => b.flaggedDeaths + b.stuck - (a.flaggedDeaths + a.stuck));
   for (const r of ranked) {
     console.log(`  seed ${String(r.seed).padStart(10)} [${r.comp}] — ${r.flaggedDeaths} flagged deaths, ${r.stuck} stuck episodes (worst death score ${r.worst.toFixed(1)})`);

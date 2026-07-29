@@ -263,18 +263,28 @@ ticks: courtship fired 79 times and migration 44, against 4 kills, 1 birth, and
 
 ## Restarting the world
 
-The **Restart** panel rebuilds the world from a seed (protocol v28). Name a seed
+The **Restart** panel rebuilds the world from a seed (protocol v29). Name a seed
 for a specific world, press **Random seed** to get any world, or **Replay this
 one** to start the current seed over.
 
-The panel also sets the **world size** (width × height), the **starting numbers**
-of herbivores, predators, and scavengers, and how prevalent **rocks** and
-**thickets** are. These describe the world to build, so they apply to whichever
-restart button you press — the seed only varies which world you get within those
-settings. The number fields open on the demo defaults (128×128, 120/8/10) and
-their maxima are deliberately high — up to a 1024×1024 world and tens of
-thousands of founders — so you can push the sim to its performance ceiling; a
-world near both maxima runs slowly but does not crash. **Rocks** and **thickets**
+The panel also sets the **world size** (width × height), a **starting number for
+each species**, and how prevalent **rocks** and **thickets** are. These describe
+the world to build, so they apply to whichever restart button you press — the
+seed only varies which world you get within those settings.
+
+⚠ **The species fields are built from what the host says it has**, not from a
+list compiled into the renderer. Until protocol v29 there were three fixed
+fields — Herbivores, Predators, Scavengers — which was the UI claiming to know an
+engine's roster, and which stops being *true* as soon as one species is both
+predator and scavenger. The host now publishes its species on `/api/status` and
+this panel grows a field per species from it, so a species added to the engine
+appears here with no renderer change at all. A species the renderer has no glyph
+for still gets a field, named from its id.
+
+The number fields open on the demo's own founding counts, and their maxima are
+deliberately high — up to a 1024×1024 world and tens of thousands of founders —
+so you can push the sim to its performance ceiling; a world near both maxima runs
+slowly but does not crash. **Rocks** and **thickets**
 are dropdowns on a 0–10 prevalence scale, not counts: 0 puts none of that terrain
 on the map, 10 crowds out open grazing ground, and the default of 2 reproduces
 the demo's own terrain. Each field is validated against the same bounds the host
@@ -432,6 +442,17 @@ a renderer exists.
 What the renderer does with each layer the protocol projects, and why. Open
 gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
+- Species roster, founding by species, and the deferred projections (protocol
+  v29): the host publishes `species: [{ id, defaultCount }]` on `/api/status` and
+  the restart panel builds a field per species from it (see "Restarting the
+  world"). Entity inspection gained a **`group`** block — the persistent-group
+  record an animal belongs to, ⚠ *not* the herd label, which is the separate
+  `social.groupId` and has always been there — and carcasses gained
+  `possessorId`, the animal standing over the body. Three event types arrived
+  with them: `entity.robbed` (a carcass taken off another carnivore),
+  `entity.grouped`, and `entity.ungrouped`. ⚠ `entity.robbed` is deliberately not
+  `entity.contested`, whose filter label is "contests over a mate" — the whole
+  reason this version exists is that the UI must not lie.
 - Worn ground (protocol v27): trails and burrows arrive as a revision-gated
   sparse list (`{ revision, cells: [{ cellX, cellY, kind, wear }] }`) on both
   snapshots and deltas, and are drawn from `FEATURE_APPEARANCE` (`:` trail
