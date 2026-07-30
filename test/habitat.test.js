@@ -42,6 +42,7 @@ import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 
 const CONFIG = new SimulationEngine().config;
 const GAZELLE = getSpecies('herbivore.gazelle');
+const BUFFALO = getSpecies('herbivore.buffalo');
 
 /** A grazer that wants the short flush, stated in data and nothing else. */
 const SHORT_GRASS = Object.freeze({
@@ -568,19 +569,32 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     let ticks = 0;
     let coverTicks = 0;
     let animalTicks = 0;
+    let buffaloTicks = 0;
+    let buffaloGround = 0;
     for (let t = 0; t < 1500; t += 1) {
       engine.step(1);
       for (const entity of world.entities.all()) {
-        if (entity.kind !== 'animal' || !entity.alive || entity.speciesId !== GAZELLE.id) continue;
+        if (entity.kind !== 'animal' || !entity.alive) continue;
         const { cellX, cellY } = world.cellOf(entity.x, entity.y);
+        const code = world.terrain.codeAt(cellX, cellY);
+        if (entity.speciesId === BUFFALO.id) {
+          buffaloTicks += 1;
+          // "Open ground" is everything that is not one of the three named
+          // terrains — the cells this species weights above 1.
+          if (code !== TerrainType.COVER && code !== TerrainType.THICKET && code !== TerrainType.ROCK) {
+            buffaloGround += 1;
+          }
+          continue;
+        }
+        if (entity.speciesId !== GAZELLE.id) continue;
         animalTicks += 1;
-        if (world.terrain.codeAt(cellX, cellY) === TerrainType.COVER) coverTicks += 1;
+        if (code === TerrainType.COVER) coverTicks += 1;
         if (entity.action !== 'eat') continue;
         total += world.vegetation.biomassAt(cellX, cellY);
         ticks += 1;
       }
     }
-    return { crop: total, eatTicks: ticks, coverTicks, animalTicks };
+    return { crop: total, eatTicks: ticks, coverTicks, animalTicks, buffaloTicks, buffaloGround };
   }
 
   /** Both arms over every seed, summed — computed once and shared by both tests. */
@@ -595,6 +609,8 @@ describe('forage guilds and habitat: not inert in the demo', () => {
       eatTicks: runs.reduce((sum, r) => sum + r.eatTicks, 0),
       coverShare:
         runs.reduce((sum, r) => sum + r.coverTicks, 0) / Math.max(1, runs.reduce((sum, r) => sum + r.animalTicks, 0)),
+      buffaloGround: runs.reduce((sum, r) => sum + r.buffaloGround, 0),
+      buffaloTicks: runs.reduce((sum, r) => sum + r.buffaloTicks, 0),
       perSeed: runs,
     });
     return { on: pool(both.on), off: pool(both.off) };
@@ -614,15 +630,29 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     );
   });
 
-  test('and spends less of its life in cover, which is not gazelle ground', () => {
-    // The habitat half. Cover grows 1.35× the biomass of open ground, so before
-    // this the forage cue pulled an open-plain animal into it and nothing pulled
-    // back.
+  test('and each grazer spends more of its life on the ground it prefers', () => {
+    // The habitat half. ⚠⚠ **This asserted the *gazelle's* cover share until
+    // 2026-07-30, and phase 11 reversed it — not by breaking the mechanism but by
+    // adding a second grazer.** Measured over the same three seeds, gazelle cover
+    // share went 6.6→6.9, 3.9→7.0 and 3.7→4.8 percent with preference on: it now
+    // spends *more* time in cover, because a 600 kg buffalo with its own
+    // open-ground preference grazes the open ground both of them want and the
+    // gazelle is displaced onto the margin. That is competitive displacement —
+    // the first two-herbivore interaction in this project and exactly what §2 is
+    // about — rather than a habitat cue that stopped working.
+    //
+    // So the claim moves to the one that is actually about the mechanism and
+    // survives a growing roster: **the species that declares a preference acts on
+    // it.** The buffalo weights open ground 1.1 against cover 0.9, and switching
+    // preference off is what lets it drift into cover (measured on seed 42:
+    // 93.9% on open ground with the cue, 83.6% without).
     const { on, off } = arms;
-    const percent = (r) => `${((100 * r.coverTicks) / Math.max(1, r.animalTicks)).toFixed(1)}%`;
+    const percent = (r) => `${((100 * r.buffaloGround) / Math.max(1, r.buffaloTicks)).toFixed(1)}%`;
+    assert.ok(on.buffaloTicks > 1000 && off.buffaloTicks > 1000, 'there were buffalo in both arms');
     assert.ok(
-      on.coverShare < off.coverShare,
-      `cover share: ${(on.coverShare * 100).toFixed(1)}% on against ${(off.coverShare * 100).toFixed(1)}% off\n` +
+      on.buffaloGround / on.buffaloTicks > off.buffaloGround / off.buffaloTicks,
+      `buffalo on open ground: ${((100 * on.buffaloGround) / on.buffaloTicks).toFixed(1)}% on against ` +
+        `${((100 * off.buffaloGround) / off.buffaloTicks).toFixed(1)}% off\n` +
         `  on  ${bySeed(on, percent)}\n` +
         `  off ${bySeed(off, percent)}`,
     );

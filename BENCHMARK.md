@@ -204,6 +204,43 @@ ever reaches a grid query. The only work that actually runs in this world is
 perceived threat and living young — measured at **0.8–1.5%** of adult-ticks having a
 threat at all, before the offspring test.
 
+### Batch 2: the lion and buffalo join every scenario (2026-07-30, phase 11)
+
+⚠ **The scenario roster changed again, so every figure above this line describes a
+different world.** Phase 11 added `herbivore.buffalo` and `predator.lion` to all
+four scenarios at the demo's own 120:35:8:8:10:6 ratio — **~30% more animals**,
+and animals that weigh 600 kg.
+
+Full run, all four scenarios, on the new roster:
+
+| Scenario | World | Start→end entities | ms/tick | ticks/sec |
+| --- | --- | ---: | ---: | ---: |
+| demo-default | 128×128 | 187→222 | 1.8209 | 549 |
+| small-100 | 256×256 | 156→190 | 1.1487 | 871 |
+| medium-1k | 512×512 | 1556→1868 | 15.4633 | 65 |
+| large-5k | 1024×1024 | 7774→9305 | **106.5133** | 9 |
+
+To separate the two species' cost from the extra animals and from machine drift,
+medium-1k was run **interleaved in one process**, alternating the two rosters
+three times each:
+
+| arm | medium-1k (3 rounds) | mean | entities alive |
+| --- | --- | ---: | ---: |
+| batch 1 roster | 8.881, 8.892, 8.609 | 8.794 | 1147 |
+| batch 2 roster | 12.237, 12.302, 11.964 | 12.168 | 1501 |
+
+**+38% total for +31% more animals — so ~+5.7% per animal** (7.667 → 8.106 µs),
+and the batch-2 arm is slower in **all three** rounds, which by this file's rule is
+what a real cost looks like rather than noise.
+
+⚠ **The cost is not the new mechanisms.** Cooperation and mobbing both ask a
+per-species weight first and never reach a grid query for a species that declares
+none, and both fire only at a capture attempt. What actually moved is the
+**long-range cue**: the buffalo is the second species in the world to carry a
+`migration.cueRadius`, and it carries *two* rings — forage and habitat — so 292
+buffalo do per-animal gradient work that the batch-1 roster only ever paid for
+gazelle. A species with `cueRadius: 0` is close to free; one with a cue is not.
+
 **Standing figure with phase 10 in place:** large-5k **80.86 ms/tick**
 (2026-07-30, 5983→7546 entities; demo-default 1.3337, small-100 0.8825, medium-1k
 11.1659). ⚠ Not comparable to phase 9's 79.06 either — the interleaved A/B above

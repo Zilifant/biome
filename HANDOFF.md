@@ -1,4 +1,4 @@
-# Handoff — 2026-07-30 session (species phase 10)
+# Handoff — 2026-07-30 session (species phases 10 and 11)
 
 Supersedes the phase-9 handoff, which it absorbs; its traps are still live and
 repeated in §4. The 2026-07-23 handoff is at
@@ -6,14 +6,16 @@ repeated in §4. The 2026-07-23 handoff is at
 ranked ideas for the edge/corner congregation problem exist nowhere else, and
 that problem is still open (§6).
 
-**Phase 10 of [`PLAN-SPECIES.md`](PLAN-SPECIES.md) is done** — cooperative
-hunting, mobbing, and the A32 geometry fix. Phases 0–4 are committed; **phases 5,
-6, 7, 8, 9, and 10 are uncommitted.**
+**Phases 10 and 11 of [`PLAN-SPECIES.md`](PLAN-SPECIES.md) are done** — phase 10
+built cooperative hunting and mobbing and measured the A32 lever; phase 11 shipped
+the **lion and buffalo**, which are the species those mechanisms were built for.
+Phases 0–10 are committed; **phase 11 is uncommitted.**
 
-⚠ **Read §2 before touching any of the three.** Two of them shipped in a shape the
-plan did not propose, and the third — the A32 fix the docs have named as "the only
-lever left standing" since Step 23 — **was built, measured, and does nothing.**
-That measurement is the phase's real result.
+⚠ **Read §2 and §3 before touching any of it.** Phase 10's two mechanisms shipped
+in a shape the plan did not propose, its third deliverable (the A32 fix) was
+measured to do nothing, and phase 11 then found that **both mechanisms are
+density mechanisms** — they count neighbours, so they fire or not depending on how
+close animals stand, which no parameter is named for.
 
 ---
 
@@ -21,24 +23,19 @@ That measurement is the phase's real result.
 
 | | |
 | --- | --- |
-| Tests | **886 passing / 0 failing**, 225 suites (+26 from phase 10's own suite), plus 28 in `tests-ui` |
-| `PROTOCOL_VERSION` | 29 (unchanged, and checked rather than assumed — see §2c: mobbing needed **no** new event type, because a mobber *is* what `entity.defended` already means) |
-| `SAVE_FORMAT_VERSION` | 29 (unchanged — the mechanism stores nothing new; a mob is read off `defendingId`, which was already saved) |
-| Species | **4** — gazelle, stalker, vulture, hyena |
-| Benchmark | large-5k **80.86 ms/tick** (2026-07-30, 5983→7546 entities) — phase 10's own interleaved A/B measured **flat**, and ⚠ 80.86 is *not* comparable to phase 9's 79.06: different session, and the machine drifts ~10% across a day on identical code. The A/B is the measurement; this is the dated reading |
-| Closed | nothing outright. **A33 is implemented but inert** (no species mobs) and moves to DOCS §1.2 |
-| Opened | **A59** (cooperative hunting cannot make a pride take prey a lone hunter would refuse) |
-| Gate | 10 seeds × 15 000 ticks, `decision.defendTargeted` on against off: **PASS**, every species ≥8/10 |
-| Git | phases 0–4 committed; **5–10 uncommitted**. The user handles git |
+| Tests | **890 passing / 0 failing**, 226 suites, plus 28 in `tests-ui` |
+| `PROTOCOL_VERSION` | 29 (unchanged, and checked rather than assumed — §2c: mobbing needed **no** new event type, because a mobber *is* what `entity.defended` already means, and two new species need none by construction since v29 publishes the roster) |
+| `SAVE_FORMAT_VERSION` | 29 (unchanged — neither phase stores anything new; a mob is read off `defendingId`, which was already saved) |
+| Species | **6** — gazelle, **buffalo**, stalker, **lion**, vulture, hyena. The roster now spans **6 kg to 600 kg** |
+| Benchmark | large-5k **106.51 ms/tick** (7774→9305 entities). ⚠ Every scenario gained the two species, so **no earlier figure describes this world**; the interleaved roster A/B reads **+5.7% per animal**, and it is the buffalo's long-range cue rather than the new mechanisms (§5) |
+| Closed | **A33** (mobbing, built phase 10 and demonstrated phase 11) |
+| Opened | **A59** (a pride cannot take prey a lone lion would refuse), **A60** (territory is an individual claim, so a group cannot hold ground) |
+| Gate | **PASS** — 10 seeds × 15 000 ticks against the batch-1 roster; every species ≥9/10 and the gazelle within 7% of control (§3f). ⚠ **It failed once first**, exactly as §8 predicted |
+| Git | phases 0–10 committed (`5403bce phase 10`); **phase 11 uncommitted**. The user handles git |
 
 ---
 
 ## 2. ⚠ Phase 10, and the three things it found
-
-The deliverable is small: a species may state `hunting.cooperationWeight` (hunt
-together) or `behavior.mobWeight` (turn on a predator that has gone for a
-groupmate), and **neither is declared by any shipped species**, so the demo is
-byte-identical. Everything below is what the phase actually cost and learned.
 
 ### a. ⚠⚠ Mobbing is not a new action — it is the half of `defend` nobody built
 
@@ -50,134 +47,142 @@ half was ever implemented.
 
 So mobbing shipped as a second *trigger* for an existing action: same intent, same
 `defendingId` field, same slot in the utility table, its own weight because a
-herdmate is a different risk from your own calf. The candidate set is exactly the
-size it was, and the effects land on `shielding` and `trampleChance`, which
-already existed.
-
-**The rule worth carrying:** ⚠ *before adding an action, check whether the action
-you want is already described by an existing one and merely unimplemented on one
-branch.* Six steps of "give existing machinery a reason" turned into "give an
-existing action its second reason", and the whole §9 Decision hazard (a new
-movement behaviour competes with foraging, and foraging must win) never came up.
+herdmate is a different risk from your own calf. **The rule worth carrying:**
+⚠ *before adding an action, check whether the action you want is already described
+by an existing one and merely unimplemented on one branch.*
 
 ### b. ⚠⚠ The A32 lever was built, measured, and is not the constraint
 
 DOCS A32 has named one fix since Step 23: relax "the calf must be nearer the
-predator than I am" to "near enough to interpose". Territory failed to move A32
-(Step 24), the hidden-fawn stage failed to move it (phase 8), and this was
-explicitly *"the only one left standing"*.
+predator than I am". Built as `decision.interposeSlack`, measured over 2000 ticks
+× seeds 1/2/42, `entity.defended`: strict **1/1/0**, slack 2 **0/1/0**, slack 6
+**0/1/1**, **no test at all 0/1/1**. Removing the clause entirely does not move
+the thing it was blamed for, so it ships at **0**, its identity.
 
-Built as `decision.interposeSlack`. Measured, demo, 2000 ticks × seeds 1/2/42,
-`entity.defended`:
-
-| arm | events |
-| --- | --- |
-| strict (today) | 1 / 1 / 0 |
-| slack 2 | 0 / 1 / 0 |
-| slack 6 | 0 / 1 / 1 |
-| **no test at all** (slack ∞) | 0 / 1 / 1 |
-
-**Removing the clause entirely does not move the thing it was blamed for.** It
-still perturbs the world — slack 2 was enough to flip a phase-9 single-seed
-assertion — so it ships at **0**, its identity. A knob that changes the world and
-buys nothing is not a fix.
-
-⚠ **Measuring the whole chain instead of the last link is what produced a
-diagnosis** (2000 ticks, seeds 1/2/42):
-
-| | s1 | s2 | s42 |
-| --- | ---: | ---: | ---: |
-| hunter-ticks with a committed target | 1513 | 1587 | 1466 |
-| …on a **juvenile** | 119 (7.9%) | 141 (8.9%) | 93 (6.3%) |
-| …whose parent is alive | 88 | 45 | 38 |
-| …and within 6 units of the hunter (what a gazelle can perceive) | **4** | **2** | **1** |
-| capture attempts on a juvenile at all | 4 | 3 | 4 |
-
-There are **one to four opportunities per 2000 ticks before any geometry test
-runs**. No ward-selection rule can be the fix, because ward selection is not what
-is scarce: predators commit to adults 91–94% of the time, and the mother is almost
-never within perception of the hunt. The remaining levers are **prey selection**
-and **perception radius / `defendRange`** — species biology, to be settled against
-the buffalo cow in phase 11, not against the only species in the demo that has
-young.
-
-One change did ship from this pass, on correctness rather than measured effect:
-`decision.defendTargeted` makes a parent defend **the calf the hunter actually
-committed to** rather than whichever calf is nearest the predator. Before it, a
-mother could stand over a calf nothing was hunting.
+⚠ Measuring the whole chain instead of the last link produced the diagnosis:
+predators commit to a **juvenile** in 6–9% of hunter-ticks, and in **1–4 of those
+per 2000 ticks** is a living parent within the 6 units it needs to perceive the
+hunt. The remaining levers are prey selection and sensory radius — species
+biology. `decision.defendTargeted` shipped from that pass on correctness: a parent
+defends the calf the hunter actually committed to.
 
 ### c. Mobbing needed no protocol bump, and that was checked rather than assumed
 
 A mobber is reported through **`entity.defended`** — *"an adult putting itself
 between a predator and a groupmate or its own young"*, which is exactly what it
-is. So there is no new event type, no `SUPPORTED_PROTOCOL_VERSION` bump, and no
-fixture regeneration. ⚠ Contrast `entity.contested`, where reuse *would* have made
-the UI lie (a carcass fight is not a fight over a mate) and phase 4 correctly took
-the bump instead. **The test is whether the existing type's stated meaning already
-covers the new fact, not whether the payload happens to fit.**
-
-### d. What cooperation cannot express, stated rather than discovered later (A59)
-
-`attackersFor` counts the other hunters on the same quarry — same species, and the
-same group record when the hunter has one — and multiplies `captureChance`. A
-predator with nothing of its own in sight also joins a conspecific's committed
-chase (⚠ a `chase`, never a `stalk`: a stalk is not yet a hunt, and a chase bounds
-the geometry for free).
-
-⚠ **But prey eligibility is resolved per animal in perception (§3.6), where it
-cannot know whether help is at hand.** So "prey no single hunter would commit to,
-that a pride will" is *not* expressible: somebody has to start the hunt, so a
-cooperative species needs a mass ceiling high enough to commit **alone**, and
-cooperation then supplies the odds rather than the eligibility. A lion at
-`maxPreyMassRatio: 3.5` will single-handedly commit to a buffalo and usually fail,
-where the truth is that it would not try. Named fix: a second, cooperative ceiling.
-**Decide it in phase 11 with the buffalo in front of it** — deciding it now would
-be inventing a number for a case that does not exist yet.
+is. ⚠ Contrast `entity.contested`, where reuse *would* have made the UI lie and
+phase 4 correctly took the bump. **The test is whether the existing type's stated
+meaning already covers the new fact, not whether the payload happens to fit.**
 
 ---
 
-## 3. What the mechanisms do, and why nothing measures them yet
+## 3. ⚠ Phase 11, and why every difficulty was about density
 
-⚠ **Both halves ship inert, and that is the plan's instruction rather than a
-shortcut.** §9 is explicit that a cooperative capture only pays when the prey is
-too large for one hunter, so `cooperationWeight` is built at phase 10 and tuned at
-phase 11; mobbing is the same argument with the buffalo instead of the lion. A
-weight fitted to a 30 kg gazelle that a single hyena takes solo would be re-tuned
-twice.
+The two species are one deliverable: a lion in a gazelle-only world is a heavy
+stalker with a group label, and a buffalo with nothing large enough to hunt it
+never mobs.
 
-So the claim this phase can make is **resolution plus inertness**, not effect:
+### a. ⚠⚠ Both mechanisms count neighbours, and nothing in their names says so
 
-- **Inertness is proved byte-identical**, not merely "no measurable difference":
-  400 demo ticks at seed 42 with `cooperation.enabled` and `mobbing.enabled` both
-  off produce identical serialized entity state (`test/cooperation.test.js`).
-  ⚠ Take that reading while the roster still declares nothing — once a species
-  states a weight the arms diverge by design and the check is gone (the same
-  warning phase 9 recorded, and phase 3 before it).
-- **A companion test asserts no shipped species declares either weight**, so the
-  byte-identity claim cannot quietly become false when one does — the failure would
-  otherwise read as a determinism bug rather than as the roster change it was.
-- **Resolution is asserted directly** (26 tests): who counts as a co-attacker, that
-  "conspecific" tightens to "same group record", that joining never takes a hunter
-  off prey of its own, that a mob is found from `defendingId`, that kin outrank the
-  herd, and that both world switches are real off switches.
+Cooperation counts hunters committed to **one quarry** within 6 units; mobbing
+counts adults within 6 units of the animal under attack. So:
 
-**Gate** (10 seeds × 15 000 ticks, `decision.defendTargeted` on against off — the
-one part of the phase a shipped world can feel):
+- A pride whose members forage four units apart produced **0 shared-quarry ticks
+  in 8 000**. `herdDistance: 2.0` is what turned a shared record into a shared hunt.
+- A buffalo herd thin enough to graze alone cannot defend itself however well the
+  mechanism resolves — at 20 buffalo, **0 mobbed attempts**.
 
-| Species | on | off (control) |
-| --- | --- | --- |
-| gazelle | **10/10**, mean 88.7 | 8/10, mean 94.3 |
-| stalker | 8/10, mean 4.8 | 9/10, mean 4.8 |
-| hyena | 10/10, mean 3.7 | 9/10, mean 3.0 |
-| vulture | 10/10, mean 140.7 | 10/10, mean 119.1 |
+**Treat `behavior.herdDistance` and the founding count as parameters of any
+mechanism that counts neighbours.** Neither reads as one.
 
-⚠ **Read this as "no cost", not as "a gain".** The control loses gazelle seeds 7
-and 10 late (t13291, t14275) — *the same two seeds at the same two ticks phase 9
-recorded losing*, so the control faithfully reproduces the phase-9 world — and the
-arm keeps them. But the mechanism fires a handful of times per thousand ticks and
-cannot plausibly hold up a population; on a species whose final range is 0–242,
-D14 says two seeds is the signature of a reshuffled trajectory. The honest
-statement is that the gate passes and nothing is materially worse.
+### b. ⚠⚠ A lion that also hunts gazelle never hunts buffalo
+
+Perception reports the **nearest eligible** prey (A58), and the demo runs six
+gazelle to every buffalo — so a lion listing both spent its life on gazelle:
+**2 buffalo attempts in 4000 ticks, 0 cooperative hunts, 0 mob-ticks.** Batch 2
+with neither mechanism firing, and every population number looking reasonable.
+`preySpeciesIds: ['herbivore.buffalo']` is the fix and is what §3.6 says
+`minPreyMassRatio` is *for*.
+
+### c. ⚠⚠ 600 kg broke a species number before it broke any global constant
+
+The §4 mass audit prepared for global constants. What actually broke was
+`maxEnergy`: every energy cost is multiplied by `(bodyMass/30)^0.75`, while the
+roster's tanks fit ~mass^0.34 — a trend nobody had to defend inside one order of
+magnitude. At 600 kg it means starving **3.4× faster** than a gazelle, and the
+first measured buffalo died mostly of **exposure**. Two fixes, both species data:
+
+- size the tank on **mass^0.75**, so time-to-starve and time-to-fill are
+  mass-independent;
+- **widen the comfort band as mass rises** — bulk is what buys cold tolerance, and
+  the first draft gave the largest animal in the world a *narrower* band than a
+  45 kg stalker. Exposure was a third of buffalo deaths until it was fixed.
+
+### d. ⚠⚠ A pride cannot hold territory (A60)
+
+`TerritorySystem` marks cells by **entity id** and `retreat` moves an animal off
+ground *anyone else* marked, pride-mate included. `territory.defends: true` made
+the pride scatter itself. The lion therefore has a home range and no claims, and
+"shared pride territory" is not expressible — the fix is keying the claim layer on
+`groupRecordId`. ⚠ It sharpens **A35**: territory is not predator-only, it is
+*solitary*-only.
+
+### e. One correction to phase 10: the hunted animal stands its ground
+
+A fleeing target is carried away from its herd by the chase, so the capture
+happens where no mobber can reach it — **not one attempt in 12 000 tick-seeds was
+resolved against a mob** until the buffalo turned and faced. Phase 10 had excluded
+the target from its own mob on the reasoning that A33 is about animals *coming to
+the aid*; measurement said that makes the mechanism unreachable.
+
+### f. The passing world
+
+10 seeds × 15 000 ticks against the batch-1 roster, same seeds, one process:
+
+| Species | batch 2 | batch-1 control | read as |
+| --- | --- | --- | --- |
+| gazelle | 10/10, mean 82.4 | 10/10, mean 88.7 | **−7%** — barely touched, because the lion does not hunt it and 35 buffalo do not crowd it off the grass |
+| buffalo | **9/10**, mean 15.8 | — | establishes from 35 founders; the one loss is late (t14977) |
+| stalker | **9/10**, mean 5.1 | 8/10, mean 4.8 | level, and a seed *better* — it competes with neither newcomer |
+| lion | **9/10**, mean 10.2 | — | establishes well; the one loss is early (t8017) |
+| hyena | 10/10, mean 7.7 | 10/10, mean 3.7 | ⚠ **doubled** — a 600 kg carcass is twenty gazelle, and the facultative scavenger is what that feeds |
+| vulture | 10/10, mean 157.8 | 10/10, mean 140.7 | +12%, same reason |
+
+⚠ **This batch costs the incumbents almost nothing and feeds two of them**, which
+is the opposite of batch 1. The reason is the prey partition: the lion took a
+species nothing else hunts, so all it added to the old food web was 360 kg of
+carrion at a time.
+
+### g. The demonstration, as a 2×2
+
+⚠ **The two mechanisms confound each other** — a co-attacked buffalo is usually
+also a mobbed one — and the uncontrolled comparison read **backwards** while both
+were working perfectly (0.330 with company against 0.391 alone). Controlled, three
+seeds × 8000 ticks:
+
+| lion attempt | attempts | mean capture chance | taken |
+| --- | ---: | ---: | ---: |
+| alone, unmobbed | 31 | 0.451 | 29.0% |
+| with a pride-mate, unmobbed | 20 | **0.535** | 70.0% |
+| alone, against a mob | 5 | **0.275** | 0% |
+| with a pride-mate, against a mob | 8 | 0.331 | 25% |
+
+⚠ **The odds are the claim; the outcomes are context.** At a few dozen attempts the
+captured *rate* is a coin flip — one seed read 54.5% with company against 55.6%
+alone, the opposite of the pooled figure, from the same mechanism.
+`test/cooperation.test.js` asserts the odds inside the 2×2 for exactly that reason.
+
+### h. ⚠⚠ The gate failed first, and the window is narrower than batch 1's
+
+At `minHungerToHunt: 0.3` the buffalo survived **5/10 seeds** (317 of 501 deaths
+from predation) while the lion population *grew* on **37.6% of all carrion taken
+in the world**. That is phase 7's lesson exactly: a carrion-subsidised predator is
+not limited by its prey, so it eats it out.
+
+⚠ The tension is sharper than in batch 1, and it is the thing to carry into
+batch 3: **the same number that keeps the prey alive is the one that stops the
+pride hunting often enough to demonstrate cooperation.** 0.3 fires the mechanism
+and loses the buffalo; 0.6 saves the buffalo and fires nothing; 0.45 does both.
 
 ---
 
@@ -188,117 +193,115 @@ blind silently; a species-level constant is not an entity-level one; ⚠⚠ the
 hottest function in the engine is arity-sensitive; an off switch must leave no
 trace (D30).
 
-⚠ **An off switch in a species block is not an off switch.** Inherited from phase
-8 and now applied twice more by construction: `hunting.cooperationWeight` and
-`behavior.mobWeight` are the biology, and their switches live in the new global
-`config.cooperation` / `config.mobbing`. **Any per-species mechanism that needs a
-reproducible control has this shape.**
+⚠ **An off switch in a species block is not an off switch.** Applied twice more by
+construction: `hunting.cooperationWeight` and `behavior.mobWeight` are biology,
+and their switches live in the global `config.cooperation` / `config.mobbing`.
 
 ⚠ **Before adding an action, re-read what the existing actions claim to do.**
-`defend` had promised the groupmate case for twenty steps (§2a). The docstring was
-the specification and the code was the subset.
+`defend` had promised the groupmate case for twenty steps (§2a).
 
 ⚠ **Measure the whole chain, not the last link.** A32 was blamed on its final
-clause for three phases because that is the clause anyone reads. Counting the
-funnel — how often a predator even targets a juvenile, how often that juvenile has
-a living parent, how often that parent is within perception — took twenty minutes
-and moved the diagnosis off the clause entirely (§2b).
+clause for three phases because that is the clause anyone reads (§2b).
 
-⚠ **A single-seed assertion about the demo is an assertion about a trajectory.**
-Two of them broke this session on changes that fire a handful of times per thousand
-ticks, and neither break was a regression:
+⚠ **A mechanism that counts neighbours is a density mechanism.** Both of phase
+10's fire only when animals stand close enough, and nothing in `cooperationWeight`
+or `mobWeight` says so (§3a).
 
-- `test/habitat.test.js`'s cover share (phase 9) is thinnest at exactly the seed it
-  was pinned to. **Now pooled over three seeds**, with the per-seed numbers in the
-  failure message.
-- `test/carcass.test.js` compared the standing carcass count at tick 9000 against a
-  **1-in-100 sample** of the interior — an assertion about where the sampling
-  landed. **Now states the claim directly**: the count falls repeatedly over the
-  run, and removals outnumber standing bodies.
+⚠ **Two mechanisms shipped together will confound each other's measurement.**
+Split the cells before comparing (§3f). This is the same warning phase 9 gave
+about attribution, in a sharper form: there it was two mechanisms moving different
+quantities, here it is two moving the *same* one in opposite directions.
 
-⚠ **Phase 11 adds two species and will move every such number again.** Expect to
-recalibrate rather than to debug.
+⚠ **A single-seed assertion about the demo is an assertion about a trajectory**,
+and a roster change invalidates several at once. Six broke across these two
+phases; **none was a regression**:
+
+- `test/habitat.test.js` cover share — pooled over three seeds at phase 10, then
+  **reversed outright** at phase 11 when a second grazer arrived (see §6).
+- `test/carcass.test.js` compared an endpoint against a 1-in-100 sample.
+- `test/groups.test.js`, `test/protocol-v29.test.js`, and `test/predation.test.js`
+  each hardcoded "only the hyena". All three now read the roster.
 
 ---
 
 ## 5. Measurements
 
-- Inertness: byte-identical serialized entity state, 400 demo ticks at seed 42,
-  both switches off against both on.
-- A32: the slack sweep and the funnel in §2b (2000 ticks × seeds 1/2/42).
-- Gate: 10 seeds × 15 000 ticks, `--set=decision.defendTargeted=true
-  --controlSet=decision.defendTargeted=false`, in one process over the same seeds.
-- Performance: **flat.** Interleaved medium-1k, three rounds alternating all three
-  phase-10 switches: 9.229 (off) vs 9.190 (on) ms/tick, "on" slower in **2 of 3**
-  rounds with the ranges overlapping — no effect either way. ⚠ Entity counts
-  **identical** (1147), so the comparison is not quietly measuring a population
-  difference.
+- **Phase 10 inertness**: byte-identical entity state, 400 demo ticks at seed 42,
+  both switches off. ⚠ That reading is **gone** as of phase 11 — a species now
+  declares each weight. What survives is asserted instead: a world with no lion
+  and no buffalo is byte-identical with both mechanisms off.
+- **Phase 11 zero-count proof** (the §9 procedure's first half): both species
+  added at `count: 0` left **5.9 MB of state identical across three seeds**,
+  modulo the roster literal itself.
+- **A32**: the slack sweep and the funnel in §2b.
+- **Gate**: 10 seeds × 15 000 ticks, batch-2 roster against the batch-1 control.
+- **Performance**: phase 10 measured **flat** (interleaved medium-1k, 9.229 off vs
+  9.190 on, identical entity counts). ⚠ Phase 11 adds ~30% more animals to every
+  benchmark scenario *and* animals that are 600 kg, so its figures are a new
+  baseline rather than a comparison — see `BENCHMARK.md`.
 
 ---
 
 ## 6. ⚠ Open threads
 
-**Unchanged from the last handoff:** A56 (a two-member clan flaps — fix not before
-batch 2), A57 (concealment needs cover), P14 (metrics payload at a long roster),
-A34 (patrol's target is a place, not a purpose), A58 (perception reports the
-nearest food cell, not the best), the `escapeHeading` wide-pocket limitation, A51
-at phase 15, and the renderer's P6/E3 and P9.
+**Unchanged:** A56 (a two-member clan flaps), A57 (concealment needs cover), P14
+(metrics payload at a long roster), A34 (patrol's target is a place, not a
+purpose), A58 (nearest rather than best), the `escapeHeading` wide-pocket
+limitation, A51 at phase 15, and the renderer's P6/E3 and P9.
 
-**New or sharpened by phase 10:**
+**New or sharpened:**
 
-- **A32 stays open with a new diagnosis and no named lever left in the defense
-  code** (§2b). The two candidates are prey selection favouring juveniles and a
-  wider sensory radius for a species whose defense is meant to matter — both
-  species biology, both for phase 11.
-- **A33 is implemented and inert**; it closes when a species mobs.
-- **A59 is new**: cooperation cannot make a pride take prey a lone hunter would
-  refuse (§2d).
-- ⚠ **Neither new weight has ever been tuned in a world.** Phase 11 is the first
-  time either mechanism does anything at all, so budget a failed gate for it — as
-  phase 7 did for the hyena and phase 9 for forage guilds. §11.1's rule stands:
-  budget a failed gate per net-new species, not per batch.
+- **A32** stays open with a new diagnosis and no lever left in the defense code.
+- **A33 closed** — mobbing is built and demonstrated.
+- **A59**: cooperation cannot change *eligibility*, so a lone lion commits to a
+  buffalo it takes 29% of the time. This world can say "a pride is better at it",
+  not "only a pride will try it".
+- **A60**: territory is an individual claim; a group cannot hold ground.
+- ⚠ **A second grazer reversed a phase-9 finding, and it is not a regression.**
+  Habitat preference was measured at phase 9 to move the gazelle *out* of cover;
+  with the buffalo in the world the gazelle now spends **more** time in cover with
+  preference on (6.6→6.9, 3.9→7.0, 3.7→4.8 percent across three seeds), because a
+  600 kg animal with its own open-ground preference grazes the ground both want
+  and displaces the smaller one. That is competitive displacement — the first
+  two-herbivore interaction in this project, and what §2 is entirely about. The
+  test now asserts the claim that is actually about the mechanism: **the species
+  that declares a preference acts on it** (buffalo on open ground, 93.9% with the
+  cue against 83.6% without, seed 42).
+- ⚠ **B7's constants are no longer hypothetical.** `carcass.decayTicks` now has a
+  600 kg body on a 6 kg animal's clock, and it is the mechanism behind the lion's
+  carrion subsidy. Fixing it changes a food source, so it needs its own sweep —
+  and it is the first thing to try if batch 3 sees the same apparent-competition
+  failure.
 
 **Unchanged, and the user explicitly chose to skip them:** edge/corner
-congregation and disturbance size (`NOTES.md` Tier 1). ⚠ Both move where animals
-are and how often they die, so both need a fresh multi-seed sweep — and there are
-now **six** swept results to re-run afterwards (phase 1/2 energy, phase 4
-possession, phase 7 batch 1, phase 8 concealment, phase 9 forage guilds, phase 10
-targeted defense). `npm run sweep --set=` makes each arm one command.
+congregation and disturbance size (`NOTES.md` Tier 1). ⚠ There are now **seven**
+swept results to re-run afterwards.
 
 ---
 
-## 7. Next step: phase 11 — batch 2, lion + buffalo
+## 7. Next step: phase 12 — batch-3 prerequisites
 
-The first phase in which phase 10's mechanisms do anything. Five warnings, four
-inherited and one from this session:
+Heterospecific association (§3.16) and seasonal breeding windows (§3.11), then
+batch 3 (wildebeest + zebra) at phase 13. Four warnings:
 
-- ⚠ **Check `minHungerToHunt` first.** The lion is the same shape of animal as the
-  hyena — a large carnivore that also scavenges — and §10.1 records exactly how
-  that failed its first gate: a carrion-subsidised predator is not limited by its
-  prey, and it ate the gazelle to extinction in 7 of 10 seeds at a stalker-ish
-  value.
-- ⚠ **`buffalo` needs `mobWeight` above `fleeWeight` (2.0) or it will simply
-  run**, and `minMobbers` decides whether a mob is a herd or a pair.
-- ⚠ **A59 is a decision the buffalo forces** (§2d): give the lion a
-  `maxPreyMassRatio` high enough to commit to a buffalo alone and accept that it
-  will try alone, or build the second cooperative ceiling. Do not build the ceiling
-  speculatively.
-- ⚠ **Do not tune `cooperationWeight` against the gazelle** — unchanged from the
-  phase-9 handoff, and now also true of `mobWeight`.
-- **New:** the shape phase 10 shipped in is worth holding to. `attackersFor` and
-  the mob each modify an existing product; if either turns out to need to influence
-  *where* an animal goes, bend an existing cue rather than adding a competitor to
-  the utility table (the phase-9 §2c/§2d rule).
+- ⚠ **Batch 3 is three grazers on one grass**, which is the competitive-exclusion
+  case §2 is about — and phase 11 has now shown it happening in miniature (§6).
+  Expect the gazelle's `forage` numbers to move; §3.3 always said they would.
+- ⚠ **`social.maxGroupSize: 12` is still a global cap on a herd label**, and §7
+  asked for a decision on it "before batch 2". It was not needed there — 35
+  buffalo never crowd one label — but wildebeest are the species the cap is wrong
+  for. Decide it at batch 3 with the measurement in hand.
+- ⚠ **`hunts()` is due for re-measurement** once a roster reaches four or five
+  prey entries (§7). The lion has one; nothing has forced it yet.
+- **Density, again.** Anything that counts neighbours is a density mechanism
+  (§3a), and batch 3 adds two herd species at once.
 
 ---
 
 ## 8. Three constants left deliberately mass-blind (DOCS §1.4 B7)
 
-- `carcass.decayTicks` — a 600 kg body rots on a 6 kg body's clock; interacts
-  with possession. ⚠ **Phase 11 is where this finally bites**, because the buffalo
-  is the 600 kg body.
-- `hunting.captureStaminaCost` — flat against a per-species `maxStamina`, and
-  ⚠ the hyena is the first species to differ on `maxStamina` (120 vs 100), so the
-  ratio it implies is no longer uniform. Re-check when the lion arrives — which is
-  now.
-- `locomotion.maxOccupantsPerCell` — a headcount, not a volume.
+- `carcass.decayTicks` — ⚠ **now live**: see §6.
+- `hunting.captureStaminaCost` — flat against a `maxStamina` that now ranges
+  80 (lion) to 120 (hyena), so the ratio it implies varies 50%.
+- `locomotion.maxOccupantsPerCell` — a headcount, not a volume, and the world now
+  holds animals that differ 100× in mass.

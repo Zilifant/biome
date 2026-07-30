@@ -30,7 +30,7 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { SocialSystem } from '../src/simulation/systems/SocialSystem.js';
 import { HuntingSystem } from '../src/simulation/systems/HuntingSystem.js';
 import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
-import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
+import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/species/index.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { EventTypes } from '../src/simulation/events/EventTypes.js';
@@ -46,6 +46,8 @@ import {
 import { DEFAULT_MOBBING, mobWardFor, mobbersFor } from '../src/simulation/predation/mobbing.js';
 
 const CONFIG = new SimulationEngine().config;
+const LION = getSpecies('predator.lion');
+const BUFFALO = getSpecies('herbivore.buffalo');
 
 /** Plain prey: it runs, and it has no opinion about anything. */
 const HERD_ANIMAL = Object.freeze({
@@ -360,7 +362,11 @@ describe('mobbing: who stands, and when', () => {
     engine.step(1);
     assert.equal(mobber.action, 'defend', 'it stands rather than runs');
     assert.equal(mobber.defendingId, ward.id, 'over the animal being hunted');
-    assert.equal(ward.action, 'flee', '⚠ and the one being hunted still runs — it is not part of its own mob');
+    // ⚠ And so does the target, since phase 11: a fleeing animal is carried away
+    // from the herd by the chase, and the capture then happens where no mobber
+    // can reach it (measured: 0 mobbed attempts in 12 000 tick-seeds).
+    assert.equal(ward.action, 'defend', 'the hunted animal turns and faces too');
+    assert.equal(ward.defendingId, ward.id, 'standing its ground is defending itself');
   });
 
   test('a species that does not mob runs, in exactly the same geometry', () => {
@@ -414,9 +420,9 @@ describe('mobbing: who stands, and when', () => {
     );
     hunter.huntTargetId = mobber.id;
     assert.equal(
-      mobWardFor(engine.world, mobber, threat, behavior, DEFAULT_MOBBING, social),
-      null,
-      '⚠ the animal being hunted is not part of its own mob',
+      mobWardFor(engine.world, mobber, threat, behavior, DEFAULT_MOBBING, social)?.id,
+      mobber.id,
+      '⚠ the animal being hunted stands its ground — phase 11 measured that a fleeing target separates from its herd, so no mob ever reaches the attempt',
     );
     hunter.huntTargetId = ward.id;
     mobber.lifeStage = 'juvenile';
@@ -581,30 +587,178 @@ describe('A32: the geometry, and what the measurement said about it', () => {
   });
 });
 
-describe('cooperative action: inert in the shipped world', () => {
-  test('⚠ the demo is byte-identical with both mechanisms switched off', () => {
-    // The claim this phase rests on: no shipped species declares
-    // `hunting.cooperationWeight` or `behavior.mobWeight`, so both mechanisms
-    // must leave *no trace at all* (D30) — not "no measurable difference", but
-    // the same bytes. Take this reading while the roster still states nothing;
-    // once a species declares a weight the arms diverge by design and the check
-    // is no longer available (the same warning phase 9 recorded).
-    const on = createDemoSimulation({ seed: 42 });
-    const off = createDemoSimulation({ seed: 42, config: { cooperation: { enabled: false }, mobbing: { enabled: false } } });
+describe('cooperative action: inert wherever the declaring species is not', () => {
+  // ⚠ **This block used to assert the demo byte-identical with both mechanisms
+  // off, and phase 11 took that reading away** — exactly as phase 9 warned it
+  // would: "take it while the roster still states nothing, because once a species
+  // declares a weight the arms diverge by design". The lion declares
+  // `hunting.cooperationWeight` and the buffalo `behavior.mobWeight`, so the demo
+  // is now *supposed* to differ.
+  //
+  // What survives is the claim that still means something: a world without those
+  // two species is untouched by either mechanism, down to the byte. That is what
+  // makes the four incumbent species' numbers still comparable across the phase
+  // boundary, and it is the property that would break silently if a future
+  // species picked up a weight without anyone noticing.
+  const BATCH1 = [
+    { speciesId: 'herbivore.gazelle', count: 120 },
+    { speciesId: 'predator.stalker', count: 8 },
+    { speciesId: 'scavenger.vulture', count: 10 },
+    { speciesId: 'scavenger.hyena', count: 6 },
+  ];
+
+  test('⚠ a world with no lion and no buffalo is byte-identical with both mechanisms off', () => {
+    const on = createDemoSimulation({ seed: 42, config: { demo: { founding: BATCH1 } } });
+    const off = createDemoSimulation({
+      seed: 42,
+      config: { demo: { founding: BATCH1 }, cooperation: { enabled: false }, mobbing: { enabled: false } },
+    });
     on.step(400);
     off.step(400);
     assert.deepEqual(captureSimulationState(on).entities, captureSimulationState(off).entities);
   });
 
-  test('no shipped species declares either weight, which is what makes that true', () => {
+  test('exactly one species declares each weight, and it is the one the mechanism was built for', () => {
     // ⚠ Stated as a test rather than as a comment, because the byte-identity
-    // above would quietly become a *false* claim the moment one did — and the
-    // failure would read as a determinism bug rather than as the roster change it
-    // actually was.
+    // above becomes a *false* claim the moment another species picks up a weight
+    // — and the failure would read as a determinism bug rather than as the roster
+    // change it actually was.
     const registry = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
-    for (const species of registry.all()) {
-      assert.equal(species.hunting.cooperationWeight, 0, `${species.id} hunts alone`);
-      assert.equal(species.behavior.mobWeight, 0, `${species.id} does not mob`);
+    const cooperates = registry.all().filter((s) => s.hunting.cooperationWeight > 0).map((s) => s.id);
+    const mobs = registry.all().filter((s) => s.behavior.mobWeight > 0).map((s) => s.id);
+    assert.deepEqual(cooperates, ['predator.lion'], 'a pride, and nothing else');
+    assert.deepEqual(mobs, ['herbivore.buffalo'], 'a buffalo herd, and nothing else');
+    // And the mobbing species must want to stand more than it wants to run, or
+    // the mechanism can never win the decision it competes in.
+    const buffalo = registry.require('herbivore.buffalo');
+    assert.ok(buffalo.behavior.mobWeight > buffalo.behavior.fleeWeight, 'mobbing outranks fleeing for a mobbing species');
+  });
+});
+
+describe('batch 2: the two mechanisms in the demo world', () => {
+  // ⚠ **PLAN-SPECIES §9 asks for this directly rather than through populations**,
+  // and phase 7 is why: a registry that quietly never founded a second clan would
+  // still pass a survival gate. The same is true here — a lion pride that never
+  // once hunted together, and a buffalo herd that never once stood its ground,
+  // would leave every population number looking perfectly reasonable.
+  //
+  // ⚠⚠ **The two mechanisms confound each other, and the first version of this
+  // test was fooled by it.** A co-attacked buffalo is very often also a mobbed
+  // one, so comparing "attempts with company" against "attempts alone" compares
+  // cells that differ in *two* ways at once — and it read backwards (0.330 with
+  // company against 0.391 alone) while both mechanisms were working perfectly.
+  // The claim is therefore made inside a 2×2: company against alone **among
+  // unmobbed attempts**, and mobbed against unmobbed **among solo attempts**.
+  const SEEDS = [1, 42];
+  const TICKS = 6000;
+
+  const observed = (() => {
+    const cell = () => ({ n: 0, kills: 0, chance: 0 });
+    const seen = {
+      lionKills: new Map(),
+      soloClean: cell(),
+      coopClean: cell(),
+      soloMobbed: cell(),
+      coopMobbed: cell(),
+      buffaloStandTicks: 0,
+      buffaloMobTicks: 0,
+      lionTrampled: 0,
+      prideTicks: 0,
+    };
+    for (const seed of SEEDS) {
+      const engine = createDemoSimulation({ seed });
+      const world = engine.world;
+      for (let t = 0; t < TICKS; t += 1) {
+        const before = engine.events.lastSeq;
+        engine.step(1);
+        for (const event of engine.eventsSince(before)) {
+          if (event.type === EventTypes.ENTITY_INJURED && event.injury === 'trample') {
+            if (world.entities.get(event.entityId)?.speciesId === LION.id) seen.lionTrampled += 1;
+          }
+          if (event.type === EventTypes.ENTITY_KILLED) {
+            const prey = world.entities.get(event.entityId);
+            const hunter = world.entities.get(event.predatorId);
+            if (hunter?.speciesId === LION.id && prey) {
+              seen.lionKills.set(prey.speciesId, (seen.lionKills.get(prey.speciesId) ?? 0) + 1);
+            }
+          }
+          if (event.type !== EventTypes.ENTITY_HUNTED) continue;
+          const hunter = world.entities.get(event.entityId);
+          if (hunter?.speciesId !== LION.id) continue;
+          const prey = world.entities.get(event.targetId);
+          if (!prey) continue;
+          // The two counts the hunting system itself made, recomputed from the
+          // state the attempt was resolved against.
+          let attackers = 0;
+          let mobbers = 0;
+          for (const other of world.entities.all()) {
+            if (other.kind !== 'animal' || other.id === hunter.id || !other.alive) continue;
+            if (Math.hypot(other.x - prey.x, other.y - prey.y) > 6) continue;
+            if (other.speciesId === LION.id && other.huntTargetId === event.targetId) attackers += 1;
+            if (other.defendingId === event.targetId) mobbers += 1;
+          }
+          const bucket = seen[(attackers > 0 ? 'coop' : 'solo') + (mobbers > 0 ? 'Mobbed' : 'Clean')];
+          bucket.n += 1;
+          bucket.chance += event.chance;
+          if (event.captured) bucket.kills += 1;
+        }
+        for (const entity of world.entities.all()) {
+          if (entity.kind !== 'animal' || !entity.alive) continue;
+          if (entity.speciesId === LION.id && entity.groupRecordId !== null) seen.prideTicks += 1;
+          if (entity.speciesId !== BUFFALO.id || entity.action !== 'defend') continue;
+          if (entity.defendingId === entity.id) seen.buffaloStandTicks += 1;
+          else seen.buffaloMobTicks += 1;
+        }
+      }
     }
+    return seen;
+  })();
+
+  /** Mean capture chance in a cell — the deterministic product, not the draw. */
+  const odds = (cell) => cell.chance / Math.max(1, cell.n);
+  const show = (label, cell) =>
+    `${label} ${odds(cell).toFixed(3)} (${cell.n} attempts, ${cell.kills} taken)`;
+
+  test('lions and hyenas partition the prey base by mass, rather than competing for it', () => {
+    // ⚠ The whole reason the lion lists only buffalo: perception reports the
+    // *nearest* eligible prey (A58), so a lion that would also take gazelle spends
+    // its life on gazelle — measured at 2 buffalo attempts in 4000 ticks — and
+    // batch 2 then demonstrates nothing. §2's competitive-exclusion case, avoided
+    // by a mass partition rather than by tuning.
+    assert.ok(observed.lionKills.get(BUFFALO.id) > 0, 'the pride kills buffalo');
+    assert.equal(observed.lionKills.get('herbivore.gazelle'), undefined, 'and never a gazelle');
+  });
+
+  test('a pride exists between sightings, and hunting together pays', () => {
+    assert.ok(observed.prideTicks > 0, 'the group registry founds prides');
+    const alone = observed.soloClean;
+    const company = observed.coopClean;
+    assert.ok(company.n >= 5 && alone.n >= 5, `enough of each to compare (${alone.n} alone, ${company.n} with company)`);
+    // ⚠ The odds, not the outcomes: a demo run yields a few dozen attempts and at
+    // that sample size the captured *rate* is a coin flip. `chance` is the
+    // deterministic product the mechanism multiplies.
+    assert.ok(
+      odds(company) > odds(alone),
+      `${show('mean capture chance with a pride-mate', company)} against ${show('alone', alone)}`,
+    );
+  });
+
+  test('a buffalo herd stands its ground, and a hunt it stands against is a worse hunt', () => {
+    assert.ok(observed.buffaloStandTicks > 0, 'the hunted buffalo turns and faces');
+    assert.ok(observed.buffaloMobTicks > 0, 'and herdmates come to it');
+    const mobbed = observed.soloMobbed;
+    const unmobbed = observed.soloClean;
+    assert.ok(mobbed.n >= 3, `attempts are resolved against a mob (${mobbed.n})`);
+    assert.ok(
+      odds(mobbed) < odds(unmobbed),
+      `${show('mean capture chance against a mob', mobbed)} against ${show('unmobbed', unmobbed)}`,
+    );
+  });
+
+  test('⚠ and hunting a 600 kg animal hurts: lions are trampled', () => {
+    // `predation.riskyMassRatio: 3` is what lets a buffalo's mass reach the
+    // hunter's injury odds at all — the config's 2 would clip it to the danger of
+    // a 360 kg animal. This is "takes buffalo at real risk" as a number.
+    assert.ok(observed.lionTrampled > 0, 'the risk term fires in the demo');
   });
 });

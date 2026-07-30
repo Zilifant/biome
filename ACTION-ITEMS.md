@@ -44,22 +44,25 @@ they are not re-opened by accident.
   sharper reason: `patrol`'s target is a *place* rather than a *purpose*, so
   giving it a den means giving it something at the den to want.
 
-- **⚠ A33 — Mobbing is built and nothing mobs** (implemented 2026-07-30, phase
-  10). Prey collectively turning on a predator exists, as the *groupmate* half of
-  `defend` rather than as a new action — no new candidate in the utility table, and
-  the effect lands on `shielding` and `trampleChance`. No shipped species declares
-  `behavior.mobWeight`, so it is inert by construction and the demo is asserted
-  byte-identical with it off. The buffalo (phase 11) is the animal it was built
-  for; ⚠ do not tune the weight against the gazelle before then.
+- **⚠ A59 — A pride cannot take prey a lone lion would refuse** (from
+  2026-07-30, phase 10; narrowed by phase 11). Cooperative hunting works and is
+  measured — a lion's mean capture chance goes 0.454 alone to 0.534 with a
+  pride-mate on the same quarry. What it cannot do is change **eligibility**:
+  `predation.maxPreyMassRatio` is resolved per animal in perception, which cannot
+  know whether help is at hand, so the lion needs a ceiling that lets it commit to
+  a buffalo **alone** and does. This world can say "a pride is better at it" but
+  not "only a pride will try it". The fix is a second cooperative ceiling, which
+  means either teaching the perception hot loop about company (D28) or resolving
+  eligibility twice; not worth it for one species.
 
-- **⚠ A59 — Cooperative hunting is built, and cannot yet make a pride take prey a
-  lion would not** (from 2026-07-30, phase 10). `attackersFor` and target-joining
-  ship inert (`hunting.cooperationWeight: 0` everywhere). ⚠ The stated limit: prey
-  eligibility is resolved per animal in perception, which cannot know whether help
-  is at hand, so a cooperative species needs a mass ceiling high enough to commit
-  **alone** and cooperation supplies the odds rather than the eligibility. A second
-  cooperative ceiling is the named fix; phase 11, with the buffalo in front of it,
-  is where to decide whether it is needed.
+- **⚠ A60 — Territory is an individual claim, so a social species cannot hold
+  ground** (from 2026-07-30, phase 11). `TerritorySystem` marks cells by entity
+  id and `retreat` moves an animal off ground *anyone* has marked, pride-mate
+  included — so a pride with `territory.defends: true` scatters itself, and
+  cooperative hunting measured **zero shared-quarry ticks in 8 000** until the lion
+  was given `defends: false`. Shared pride territory is therefore not expressible;
+  the fix is keying the claim layer on `groupRecordId`. ⚠ It sharpens **A35**:
+  territory is not predator-only, it is *solitary*-only.
 
 - **A32 — Juvenile defense fires about once in 12 000 ticks.** ⚠⚠ **All three
   named fixes have now been tried and measured, and all three failed** — territory
@@ -176,11 +179,22 @@ they are not re-opened by accident.
   a grazer walks to ordinary grass with a better patch two cells further off.
   Widening it means scoring every candidate instead of only cells nearer than the
   best so far — in the hottest loop in the engine, where D28 records one extra
-  *argument* costing 12% of a tick. A stated bargain, harmless at one grazer;
-  re-examine at batch 3 when three species disagree about what a good cell is.
+  *argument* costing 12% of a tick. A stated bargain, harmless at one grazer.
+  ⚠ **Phase 11 hit the same limit on the predator side, where it was decisive**:
+  perception reports the nearest *eligible prey*, so a lion listing both gazelle
+  and buffalo engaged a buffalo twice in 4000 ticks and batch 2 demonstrated
+  nothing. Narrowing `preySpeciesIds` fixed that case; the general fix would close
+  both. Re-examine at batch 3, when three grazers disagree about what a good cell
+  is.
 
 - **B7 — Three mass-blind constants, found by the 2026-07-28 mass audit** and
-  deliberately left until the species that exposes each one exists.
+  deliberately left until the species that exposes each one exists. ⚠ **The
+  species arrived on 2026-07-30**: `carcass.decayTicks` now has a 600 kg body
+  rotting on a 6 kg animal's clock (one buffalo is 360 edible mass against a
+  gazelle's 18, and the lion took 37.6% of all carrion in the world), and
+  `hunting.captureStaminaCost` is flat against a `maxStamina` that now ranges
+  80–120. Both are still unfixed, because each changes a food source or a hunt
+  and phase 11 already changed both.
   `carcass.decayTicks` (a 600 kg body rots on a 6 kg body's clock — and changing
   it changes a food source, so it needs its own multi-seed sweep);
   `hunting.captureStaminaCost` (flat against a per-species `maxStamina`, so the

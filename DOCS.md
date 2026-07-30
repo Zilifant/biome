@@ -49,12 +49,12 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 886 passing / 0 failing, 225 suites _(2026-07-30)_     |
+| Tests                 | 890 passing / 0 failing, 226 suites _(2026-07-30)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | **80.86 ms/tick** _(2026-07-30, phase 10)_ — ⚠ **not** comparable to phase 9's 79.06 or phase 7's 75.7: each is a different session, and the machine drifted ~10% across a single day on identical code. Phase 10's own interleaved A/B measured **flat**, as phase 9's did. See BENCHMARK.md; every arm is measured against a same-session control for exactly this reason |
-| Species               | **4** (gazelle, stalker, vulture, hyena) — all pure config |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus seven always-per-species **fields**, two of them new on 2026-07-29: `forage` and `habitat` (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat`. ⚠ `hunting.cooperationWeight` and `behavior.mobWeight` (2026-07-30) are the newest fields and **no species uses either yet** — the lion and buffalo, phase 11 |
+| Benchmark (large-5k)  | **106.51 ms/tick** _(2026-07-30, phase 11, 7774→9305 entities)_ — ⚠ **not comparable to anything earlier**: phase 11 put the lion and buffalo into every scenario, so the world is ~30% more animals *and* 100× the mass range. The interleaved roster A/B reads **+5.7% per animal**, and it is the buffalo's long-range cue rather than the new mechanisms. See BENCHMARK.md |
+| Species               | **6** (gazelle, buffalo, stalker, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg** |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus seven always-per-species **fields**, two of them new on 2026-07-29: `forage` and `habitat` (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat`; the **lion** the first to use `hunting.cooperationWeight` and the **buffalo** the first to use `behavior.mobWeight` (2026-07-30) |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Steps 26–30 and species phases 5–10 are **uncommitted** (the user handles git) |
 
@@ -237,45 +237,41 @@ size distribution from a hyena clan, and tuning a dissolution delay against the
 only clan-forming species in the world would fit it to a case the mechanism is
 about to outgrow.
 
-**⚠ A33 — Mobbing is built and nothing mobs** _(implemented 2026-07-30,
-PLAN-SPECIES.md §3.7, phase 10; opened Step 23)_
+**⚠ A59 — A pride cannot take prey a lone lion would refuse** _(from 2026-07-30,
+PLAN-SPECIES.md §3.7; narrowed by phase 11)_
 
-Prey collectively turning on a predator exists as of phase 10, and **no shipped
-species declares `behavior.mobWeight`**, so it is inert by construction — the
-schema arriving one phase ahead of the roster, exactly as `disease` did at Step 29
-(A38) and the group registry did at phase 3 (A55). The demo is asserted
-**byte-identical** with the mechanism switched off, which is the only honest way to
-ship a mechanism nothing uses yet.
+Cooperative hunting works and is measured (§9 Hunting). What it cannot do is
+change **eligibility**: `predation.maxPreyMassRatio` is resolved per animal in
+perception, where it cannot know whether help is at hand, so somebody has to be
+willing to start the hunt alone. The lion therefore ships with a ceiling of 3.5 —
+above a 600 kg buffalo — and a lone lion does commit to one, taking it 39.6% of
+the time against 55.2% with a pride-mate.
 
-⚠ It is **not a new action**: mobbing is the *groupmate* half of `defend`, which
-§7 Decision has described as "kin or a groupmate" since Step 23 while only the kin
-half was implemented. The candidate set is the size it always was, and the effect
-lands on `shielding` and the injury-bonus term of `trampleChance` — products that
-already exist. That is what made it safe to add at all, because a new movement
-behaviour competes with foraging and foraging must win (§9 Decision).
+⚠ That is a modelling limit rather than a bug, and the honest reading is that this
+world can express *"a pride is better at it"* but not *"only a pride will try
+it"*. The named fix is a second, cooperative ceiling consulted when co-attackers
+are present — which means teaching the perception hot loop about company (D28) or
+resolving eligibility a second time in the decision system. Neither is worth it
+for one species; revisit when a second cooperative hunter exists, or when
+something arrives that a lone hunter genuinely must not attack (an adult rhino,
+batch 5).
 
-The animal this is for is the **buffalo**, in phase 11, and this item closes when
-it arrives and the mechanism is measured in a world. ⚠ Until then, do not tune
-`mobWeight` against the gazelle: a Thomson's gazelle does not mob, and a weight
-fitted to the only prey species in the demo would be re-tuned twice.
+**⚠ A60 — Territory is an individual claim, so a social species cannot hold
+ground** _(from 2026-07-30, phase 11)_
 
-**⚠ A59 — Cooperative hunting is built, and cannot yet make a pride take prey a
-lion would not** _(from 2026-07-30, PLAN-SPECIES.md §3.7, phase 10)_
+`TerritorySystem` marks cells by **entity id**, and `retreat` moves an animal off
+ground *anyone else* has marked — pride-mate included. So a lion pride with
+`territory.defends: true` pushes its own members apart, and cooperative hunting,
+which needs two hunters on one quarry, measured **zero shared-quarry ticks in
+8 000** until the lion was given `defends: false`.
 
-`attackersFor` and target-joining ship with `hunting.cooperationWeight: 0` for every
-species, so — like A33 above — the mechanism is inert and the demo is byte-identical
-with it off. The lion arrives in phase 11 and is what it will be tuned against.
-
-⚠ **The stated limit, and it is a real one:** prey eligibility
-(`predation.maxPreyMassRatio`, §3.6) is resolved **per animal in perception**, where
-it cannot know whether help is at hand. So "prey no single hunter would commit to,
-that a pride will" is not expressible: somebody has to start the hunt, so a
-cooperative species needs a ceiling high enough to commit **alone**, and cooperation
-then supplies the odds rather than the eligibility. That is a modelling gap rather
-than a bug — a lion at `maxPreyMassRatio: 3.5` will single-handedly commit to a
-buffalo and usually fail, where the truth is that it would not try. The named fix is
-a second, cooperative ceiling, and the honest place to decide whether it is needed is
-phase 11, with the buffalo in front of it.
+The lion therefore ships with a home range and no claims, like the gazelle and the
+buffalo, and "shared pride territory" — which `african-species.md` asks for and
+real lions have — is **not expressible**. The fix is to key the claim layer on
+`groupRecordId` rather than on an entity id, a real extension of the group
+registry (§3.8) rather than a tuning change. ⚠ It also sharpens **A35**: territory
+is not merely predator-only, it is *solitary*-only, and the only species that can
+use it as built is one that defends ground against its own kind.
 
 **⚠ A57 — A hidden fawn is concealed only if it was born on cover, which is
 ~8–10% of the time** _(from 2026-07-29, PLAN-SPECIES.md §3.14)_
@@ -344,7 +340,7 @@ reminder.
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
 | A49 | **"Activity pattern" is not a schema field** — ⚠ half of this item **closed 2026-07-29**                                                                                        | Open, and now only half of what it was: there is still no diurnal cycle for an activity pattern to exist in. **Habitat preference closed** as a per-species `habitat` field consumed by the long-range cue (§9 Migration); it is no longer expressed only through `migration.tracksForage` and the comfort band                                    |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
-| A58 | **Perception reports the _nearest_ food cell, not the best-scoring one** _(from 2026-07-29, phase 9)_                                                                       | Open, and a stated bargain rather than an oversight. Forage preference (§9 Feeding) discounts a cell once the animal is standing on it, but perception still picks the nearest cell with anything on it — so a grazer walks to ordinary grass with a better patch two cells further off. Ranking cells by preference means scoring every candidate instead of only cells nearer than the best so far, in the hottest loop in the engine (D28: one extra _argument_ there cost 12% of a tick). Harmless at one grazer; re-examine at batch 3, when three species disagree about what a good cell is |
+| A58 | **Perception reports the _nearest_ food cell, not the best-scoring one** _(from 2026-07-29, phase 9)_                                                                       | Open, and a stated bargain rather than an oversight. Forage preference (§9 Feeding) discounts a cell once the animal is standing on it, but perception still picks the nearest cell with anything on it — so a grazer walks to ordinary grass with a better patch two cells further off. Ranking cells by preference means scoring every candidate instead of only cells nearer than the best so far, in the hottest loop in the engine (D28: one extra _argument_ there cost 12% of a tick). ⚠ **Phase 11 found the same limit on the predator side, and there it was decisive:** perception reports the *nearest eligible prey*, so a lion that listed both gazelle and buffalo spent its life on gazelle (six times more numerous) and engaged a buffalo twice in 4000 ticks — batch 2 with neither of phase 10's mechanisms firing. That was solved by narrowing `preySpeciesIds` rather than by ranking candidates, but it is the same bargain and the same fix would close both. Re-examine at batch 3, when three grazers disagree about what a good cell is |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
@@ -357,7 +353,7 @@ until the species that exposes them exists:
 
 | Constant                         | Why it is open                                                                                                                              |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `carcass.decayTicks`             | A 600 kg body rots on the same clock as a 6 kg one — wrong in both directions. Changing it changes a food source, so it needs its own sweep  |
+| `carcass.decayTicks`             | ⚠ **Now live** (phase 11): the 600 kg body exists. One buffalo is **360 edible mass** against a gazelle's 18, lying on a 6 kg animal's clock, and the lion took **37.6%** of all carrion in the world on the strength of it. Still not fixed here, because changing it changes a food source and the batch already was one — but it stops being hypothetical |
 | `hunting.captureStaminaCost`     | Flat against a per-species `maxStamina`, so the ratio is _expressible_ but no species varies it yet. Re-check when two predators differ      |
 | `locomotion.maxOccupantsPerCell` | A headcount, not a volume: two 6 kg animals and two 600 kg animals cost a cell the same. The fix is an occupancy _cost_, on a knife edge     |
 
@@ -462,6 +458,7 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | A52 | ⚠ **Herbivore intake was flat while carnivore intake was mass-scaled.** `FeedingSystem` scaled `fleshIntakeRate` from Step 29 (the corvid, D22) but the herbivore branch above it still took a flat `0.6` biomass/tick at any body mass — the same latent bug, left standing on the other side of the same function because every herbivore was 30 kg | **Closed 2026-07-28** — scaled on the same allometric exponent. Inert in the demo by construction: the grazer sits exactly at `referenceMass`, so its factor is 1 and the world is bit-identical. Found by auditing for it rather than by a failure, which is the point of doing the audit in advance |
 | A53 | ⚠ **A carcass returned its nutrients to one cell, and `addAt` clamps to that cell's carrying capacity and discards the remainder.** So the closing half of the death→nutrient loop (Step 6) leaked for everything above the reference mass. Measured against `vegetation.capacity: 8`: a 30 kg grazer loses ~1 of ~9 — invisible, which is why it stood for fourteen steps — while **a 45 kg stalker loses ~60%**, true since Step 16 | **Closed 2026-07-28** — the return spills outward through Chebyshev rings to `carcass.nutrientSpreadRadius` (default 4), fixed order, no randomness. `0` restores the old single-cell behaviour and is the measured control. Also the truer model: one cell is a stride, and a body enriches a patch |
 | A54 | ⚠ **Persistent groups and carcass possession were invisible through the protocol.** Both shipped engine-side (phases 3 and 4) with no projection and no events, so an observer watching the demo saw a scavenger stop eating for no stated reason | **Closed 2026-07-28 by protocol v29.** Held back on purpose for two phases rather than bumping twice in a row and regenerating renderer fixtures twice for nothing — the debt was recorded, scheduled, and paid in the same version as the founding-roster rework it was waiting for. v29 added the `group` block and `possessorId` to entity inspection, a `groups` aggregate to `/api/metrics`, and three event types (`entity.robbed`, `entity.grouped`, `entity.ungrouped`). ⚠ Reusing `entity.contested` for a carcass fight was considered and **rejected**: the renderer labels it "contests over a mate", so it would have made the UI lie |
+| A33 | **Mobbing** — prey collectively attacking a predator                                                                        | **Closed 2026-07-30** (built phase 10, demonstrated phase 11). ⚠ Not a new action: it is the *groupmate* half of `defend`, which §7 Decision had described since Step 23 with only the kin half implemented. The buffalo declares `behavior.mobWeight` and a mobbed hunt drops the lion's mean capture chance 0.508 → 0.277 (§9 Hunting). ⚠ Phase 11 corrected one thing phase 10 got wrong: the hunted animal **stands its ground** too, because a fleeing target is carried away from the herd by the chase and no mob ever reaches the attempt |
 | C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge. **Follow-up 2026-07-22:** reflection closed only the _wander_ half; the residual crowding was predator-driven `flee` re-aiming into the wall every tick, closed at the decision layer by edge-aware fleeing (`escapeHeading`, §7 Decision). 2-cell edge occupancy ~19% → ~9%, acute corner pinning ~×4–9 → ~×1.5, survival unchanged. Remaining outer-ring occupancy is a herd-distribution effect for the forage-taper change, not flee-pinning |
 
 ---
@@ -1013,14 +1010,35 @@ held by a `SpeciesRegistry` on the world. A lookup in a hot loop is one
 singleton on purpose: resolution depends on the _config_, and every sweep and
 half the test suite runs engines with different configs in one process.
 
-### The four species
+### The six species
 
 | Species             | Role                  | Mass | Perception radius | Notes                                                                                                      |
 | ------------------- | --------------------- | ---: | ----------------: | ---------------------------------------------------------------------------------------------------------- |
 | `herbivore.gazelle` | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; tracks forage; home range but no territory                               |
+| `herbivore.buffalo` | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
 | `predator.stalker`  | predator, carnivore   |   45 |                12 | Displays **speed**; holds, marks, and disputes ground; born at 8 kg, matures slower, lives to 14 000 ticks |
+| `predator.lion`     | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming; buffalo only |
 | `scavenger.vulture` | obligate scavenger    |    6 |                14 | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty                    |
-| `scavenger.hyena`   | facultative scavenger |   60 |                13 | Hunts gazelle **and** eats carrion; the only species that declares `groups.forms` or a `predation` ratio   |
+| `scavenger.hyena`   | facultative scavenger |   60 |                13 | Hunts gazelle **and** eats carrion; the first species to declare `groups.forms` or a `predation` ratio     |
+
+⚠ **The lion and the buffalo arrived together on 2026-07-30** (phase 11) and must
+be read as a pair: each is the only thing that makes the other interesting. A
+lion in a gazelle-only world is a heavy stalker with a group label, and a buffalo
+with nothing large enough to hunt it never mobs. Between them they are the first
+demonstration of phase 10's two mechanisms — see §9 Hunting for the measured
+effect, and note that **the roster now spans 6 kg to 600 kg**, a factor of 100 in
+a world whose constants were tuned in a 4–45 kg band.
+
+⚠⚠ **The first thing 600 kg broke was not a global constant but a *species*
+number, and it is worth stating as a rule: `maxEnergy` must scale at least as
+fast as the burn does.** Every energy cost — basal, movement, and thermal — is
+multiplied by `(bodyMass / 30) ** 0.75`, while the roster's tanks had been sized
+by eye and happen to fit ~mass^0.34. Nobody had to defend that trend while the
+whole roster lived inside one order of magnitude; at 600 kg it means an animal
+starves **3.4× faster** than a gazelle, and the first measured buffalo died mostly
+of **exposure** — the largest animal in the world burning out against the weather.
+Sizing the tank on mass^0.75 makes time-to-starve and time-to-fill
+mass-independent, which is the honest default for a roster that now spans 100×.
 
 ⚠ **The first two of those were renamed on 2026-07-29** (PLAN-SPECIES.md phase
 7): `herbivore.grazer` → `herbivore.gazelle` and `scavenger.corvid` →
@@ -1033,7 +1051,7 @@ a date; renaming the animal does not change what was measured. The vulture's mas
 then went 4 → 6 kg as a separate, separately-measured change, and the hyena
 arrived after that.
 
-⚠ **The hyena is the first species that is not inert in any of its mechanisms.**
+⚠ **The hyena was the first species that is not inert in any of its mechanisms.**
 `groups.forms: true` makes it the animal the persistent-group registry was built
 for (closing A55, inert since phase 3), and its `predation` ratios are the first
 in the roster. Its defining behaviour is **kill theft** rather than cooperative
@@ -1488,13 +1506,35 @@ or a competitor in the utility table.**
   its own young") — so no new event type and no protocol bump, the opposite of the
   `entity.contested` case where reuse would have made the UI lie.
 
-⚠ **Both ship inert**: every species leaves `hunting.cooperationWeight` and
-`behavior.mobWeight` at 0, and the demo is asserted **byte-identical** with the two
-world switches (`config.cooperation`, `config.mobbing`) off. Both are built now and
-*tuned* in phase 11, against the lion and the 600 kg buffalo that justify them —
-tuning either against a 30 kg gazelle a single hyena takes solo would fit a
-parameter to the case it was not built for. See A33 and A59 for the open halves,
-including the one thing cooperation cannot yet express.
+✅ **Both were demonstrated on 2026-07-30** (phase 11), by the two species they
+were built for. Every lion attempt over three seeds × 8000 demo ticks, split by
+what was actually standing on the field:
+
+| lion attempt | attempts | mean capture chance | taken |
+| --- | ---: | ---: | ---: |
+| alone, unmobbed | 31 | 0.451 | 29.0% |
+| with a pride-mate, unmobbed | 20 | **0.535** | 70.0% |
+| alone, against a mob | 5 | **0.275** | 0% |
+| with a pride-mate, against a mob | 8 | 0.331 | 25% |
+
+⚠⚠ **A 2×2, because the two mechanisms confound each other.** A co-attacked
+buffalo is usually also a mobbed one, so comparing "with company" against "alone"
+compares cells that differ twice — and it read **backwards** (0.330 with company
+against 0.391 alone) while both mechanisms were working perfectly. Inside each
+cell both main effects hold.
+
+⚠ **The odds are the claim; the outcomes are context.** A demo run yields a few
+dozen attempts, and at that sample size the *captured* rate is a coin flip — one
+seed read 54.5% with company against 55.6% alone, the opposite of the pooled
+figure, from the same mechanism. `chance` is the deterministic product the
+mechanism multiplies, so that is what `test/cooperation.test.js` asserts.
+
+⚠ **Both needed the *density* to be right before they fired at all**, and neither
+was a resolution problem: cooperation counts hunters committed to one quarry, and
+mobbing counts adults within six units of the animal under attack, so a pride that
+forages four units apart and a herd thin enough to graze alone produce **zero** of
+either. Tightening `herdDistance` for both species is what turned a shared record
+into a shared hunt. See A33 and A59 for what remains open.
 
 ### Feeding
 
@@ -1858,13 +1898,21 @@ across three seeds at 1500 ticks to the tree without it, and large-5k was flat.
 It was the schema arriving ahead of the roster, exactly as `disease` did at Step
 29 (A38).
 
-**The hyena (phase 7) is that roster.** It is the only species in the world that
-declares `groups.forms`, so the early-out still fires for every other animal, and
-the demo now founds real clans — asserted directly in `test/groups.test.js`
+**The hyena (phase 7) is that roster, and the lion (phase 11) joined it.** They
+are the two species that declare `groups.forms` — a clan and a pride, run by one
+set of rules — so the early-out still fires for every other animal, and the demo
+now founds real clans and prides — asserted directly in `test/groups.test.js`
 rather than inferred from a population number, because a registry that quietly
 never founded a second clan would pass any survival gate. ⚠ See **A56** for the
 one thing the first real measurement found: at `minMembers: 2` a clan can flap
 between founding and dissolution on some seeds.
+
+⚠ **The pride exposed the limit the clan never reached: a group cannot hold
+ground** (A60). Territory is an *individual* claim — cells are marked by entity id
+and `retreat` moves an animal off anyone else's mark — so a pride-forming species
+with `territory.defends: true` pushes its own members apart, and cooperative
+hunting measured **zero shared-quarry ticks in 8 000** until the lion was given
+`defends: false`. A group record can own membership but not a place.
 
 **The rules, all of them the cheapest honest first cut:**
 
@@ -2982,7 +3030,8 @@ populations for stochastic runs.
 | —   | Clan sandbox                 | an invented group-forming species founds, joins, separates, and dissolves | membership outlives a separation the herd label does not; a clan-forming world and a control are identical animal for animal |
 | —   | Carcass-possession sandbox   | two carnivores, one body: the holder eats, the weaker waits, the stronger takes it | the weaker gains no energy while the claim stands; a clanmate does; the disabled control is the exact id-ordered queue |
 | —   | Forage-guild sandbox         | a short-grass grazer settles on the flush and walks off the rank sward; a tolerant one stays | the same two cells rank oppositely for the two species; a starving animal eats either; the demo gazelle feeds on visibly shorter grass than a preference-off control |
-| —   | Habitat sandbox              | a cover-liking animal drifts toward cover; a satisfied one still does | the drift exists where no need-cue would produce one; the demo gazelle spends less of its life on cover than a preference-off control |
+| —   | Habitat sandbox              | a cover-liking animal drifts toward cover; a satisfied one still does | the drift exists where no need-cue would produce one; the demo **buffalo** spends more of its life on the open ground it prefers than a preference-off control. ⚠ This asserted the *gazelle's* cover share until phase 11, when a second grazer reversed it — competitive displacement, not a broken cue (§6 of the handoff) |
+| —   | Cooperative-action sandbox   | a pack hunter joins a clanmate's chase; a mobbing species turns on a predator that has committed to a herdmate | the odds move in both directions inside a 2×2 (company raises the capture chance, a mob lowers it) — ⚠ **controlled**, because a co-attacked animal is usually a mobbed one and the uncontrolled comparison reads backwards; both switches off leave a lion-free, buffalo-free world byte-identical |
 
 **Scenario 11 is the pattern to copy** whenever a step adds a _second_ force
 acting on something already being measured: run the same seeded world with the

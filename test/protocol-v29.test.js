@@ -241,8 +241,17 @@ describe('protocol v29: the projections A54 owed', () => {
     // without walking a roster is the whole reason that field exists.
     assert.ok(report.groups.count > 0, 'the demo holds clans');
     assert.ok(report.groups.members >= report.groups.count * 2, 'each with at least its minimum');
-    assert.deepEqual(Object.keys(report.groups.bySpecies), ['scavenger.hyena']);
-    assert.equal(report.groups.bySpecies['scavenger.hyena'], report.groups.count);
+    // ⚠ Two group-forming species since phase 11 (hyena clan, lion pride), so this
+    // reads the roster rather than naming one — and the point of the aggregate is
+    // exactly that it answers "whose groups are these" without the caller walking
+    // a roster.
+    const forming = engine.species.all().filter((s) => s.groups?.forms).map((s) => s.id);
+    for (const speciesId of Object.keys(report.groups.bySpecies)) {
+      assert.ok(forming.includes(speciesId), `${speciesId} declares groups.forms`);
+    }
+    const counted = Object.values(report.groups.bySpecies).reduce((sum, n) => sum + n, 0);
+    assert.equal(counted, report.groups.count, 'and they sum to the world total');
+    assert.equal(report.groups.bySpecies['herbivore.gazelle'], undefined, 'a herd label is not a record');
     assert.equal(report.groups.size.max >= 2, true);
     // And the per-species `grouping` block is the *other* mechanism, still alive.
     const gazelle = report.species.find((entry) => entry.speciesId === 'herbivore.gazelle');

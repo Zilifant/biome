@@ -112,15 +112,29 @@ describe('predation: prey eligibility by mass', () => {
     const hyena = engine.species.require('scavenger.hyena');
     assert.equal(hyena.predation.maxPreyMassRatio, 1.0, 'a solo hyena takes prey up to its own mass');
     assert.equal(hyena.predation.minPreyMassRatio, 0.08, 'and does not bother below a floor');
+    // ⚠ The lion (phase 11) is the second, and its ceiling is the load-bearing
+    // one: 3.5 × 180 kg is above a 600 kg buffalo, which is what lets a lion
+    // *start* a hunt cooperation then improves the odds of. Eligibility is
+    // resolved per animal in perception and cannot know whether help is coming
+    // (DOCS A59), so a pride's ceiling has to admit prey it will usually fail
+    // against alone.
+    const lion = engine.species.require('predator.lion');
+    assert.ok(lion.predation.maxPreyMassRatio * lion.bodyMass > engine.species.require('herbivore.buffalo').bodyMass);
+    assert.equal(lion.predation.riskyMassRatio, 3, 'and it accepts more risk than the default 2 for doing it');
 
+    // The claim that survives a growing roster: a bound is either **stated** by
+    // the species that needs it or **absent**, and absent means `null`, which
+    // skips the comparison entirely rather than approximating it (D16).
+    const declares = (species) => species.predation.maxPreyMassRatio !== null || species.predation.minPreyMassRatio !== null;
+    assert.deepEqual(
+      engine.species.all().filter(declares).map((s) => s.id).sort(),
+      ['predator.lion', 'scavenger.hyena'],
+      'only the two species with a reason to bound their prey do',
+    );
     for (const species of engine.species.all()) {
-      if (species.id === 'scavenger.hyena') continue;
+      if (declares(species)) continue;
       assert.equal(species.predation.maxPreyMassRatio, null, `${species.id} states no ceiling`);
       assert.equal(species.predation.minPreyMassRatio, null, `${species.id} states no floor`);
-    }
-    // Nothing in the roster has a reason to raise this yet — the buffalo does,
-    // in batch 2.
-    for (const species of engine.species.all()) {
       assert.equal(species.predation.riskyMassRatio, 2, `${species.id} inherits the old hardcoded cap`);
     }
   });

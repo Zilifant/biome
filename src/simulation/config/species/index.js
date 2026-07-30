@@ -23,6 +23,8 @@ import { herbivoreGazelle } from './herbivoreGazelle.js';
 import { predatorStalker } from './predatorStalker.js';
 import { scavengerVulture } from './scavengerVulture.js';
 import { scavengerHyena } from './scavengerHyena.js';
+import { herbivoreBuffalo } from './herbivoreBuffalo.js';
+import { predatorLion } from './predatorLion.js';
 
 /**
  * The declared roster, in a fixed order. Iteration order is deterministic
@@ -30,7 +32,14 @@ import { scavengerHyena } from './scavengerHyena.js';
  * metrics bucketing walk.
  * @type {ReadonlyArray<object>}
  */
-export const SPECIES_DEFINITIONS = Object.freeze([herbivoreGazelle, predatorStalker, scavengerVulture, scavengerHyena]);
+export const SPECIES_DEFINITIONS = Object.freeze([
+  herbivoreGazelle,
+  herbivoreBuffalo,
+  predatorStalker,
+  predatorLion,
+  scavengerVulture,
+  scavengerHyena,
+]);
 
 /** @type {Readonly<Record<string, object>>} raw definitions by id */
 export const SPECIES = Object.freeze(Object.fromEntries(SPECIES_DEFINITIONS.map((s) => [s.id, s])));

@@ -31,13 +31,21 @@
  *     predator is *committed to a groupmate*. A herd standing around unmolested
  *     grazes exactly as it did.
  *
- * ⚠ **The animal being hunted is not part of its own mob**, and that is a choice
- * rather than an omission. A33 is "prey collectively attacking a predator" — the
- * animals coming to the aid — and the targeted animal fleeing while its herd turns
- * is both the honest picture and the smaller change. "Prey that stands its ground
- * alone" is a different mechanism (it would have to make being caught *more*
- * likely and being eaten *more* costly at once), and there is nothing in the
- * roster to tune it against until the buffalo arrives.
+ * ⚠⚠ **The animal being hunted stands its ground, and phase 10 got this wrong.**
+ * The first cut excluded it — A33 is "prey collectively attacking a predator", so
+ * the mob was the animals coming to the aid while the target ran. Phase 11
+ * measured that to be self-defeating: **a fleeing animal separates from its herd**,
+ * the chase carries it away from every potential mobber, and the capture then
+ * happens alone in open ground. Over 12 000 tick-seeds with a lion pride hunting
+ * buffalo, **not one attempt was resolved against a mob**, though the herd mobbed
+ * plenty of times somewhere behind the chase.
+ *
+ * So a mobbing species' *target* turns and faces too, which is what a real buffalo
+ * does and what keeps the hunt inside the herd where its herdmates are. The
+ * effect is positional rather than a new term: standing does not raise
+ * `shielding` — it is not an extra body — and `mobbersFor` still skips the prey.
+ * It is also honestly a **trade**: an animal that stops running is reached sooner,
+ * and what it buys is that its herd is still there when the predator arrives.
  *
  * ⚠ **Inert until a species declares `behavior.mobWeight`**, which is 0 in the
  * config and 0 for every shipped species: no ward is looked for, no grid is
@@ -102,7 +110,7 @@ export const DEFAULT_MOBBING = Object.freeze({
  * @param {{mobWeight?: number, defendRange: number}} behavior resolved species block
  * @param {object} mobbing resolved world-level parameters
  * @param {{adults?: number}|null} social this animal's social summary
- * @returns {object|null} the animal to stand over
+ * @returns {object|null} the animal to stand over — a herdmate, or **itself**
  */
 export function mobWardFor(world, entity, threat, behavior, mobbing, social) {
   if (!mobbing.enabled || !((behavior.mobWeight ?? 0) > 0) || threat === null) return null;
@@ -114,7 +122,11 @@ export function mobWardFor(world, entity, threat, behavior, mobbing, social) {
 
   const hunter = world.entities.get(threat.id);
   const targetId = hunter?.huntTargetId ?? null;
-  if (targetId === null || targetId === entity.id) return null;
+  if (targetId === null) return null;
+  // ⚠ Itself, when it is the one being hunted: standing its ground is what keeps
+  // the hunt inside the herd (see the header — with the target fleeing instead,
+  // no attempt in 12 000 tick-seeds was ever resolved against a mob).
+  if (targetId === entity.id) return entity;
   const ward = world.entities.get(targetId);
   if (!ward || ward.kind !== 'animal' || !ward.alive) return null;
   if (ward.speciesId !== entity.speciesId) return null;

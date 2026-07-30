@@ -1309,6 +1309,23 @@ export const defaultSimulationConfig = Object.freeze({
       // seeds in ten and holds the gazelle at about two thirds of its
       // hyena-free abundance.
       Object.freeze({ speciesId: 'scavenger.hyena', count: 6 }),
+      // Batch 2 (PLAN-SPECIES.md phase 11): the pair that finally exercises phase
+      // 10, and the first pair whose *counts* are load-bearing for a mechanism
+      // rather than only for survival.
+      //
+      // ⚠ **35 buffalo is a density, not an appetite.** Mobbing needs
+      // `mobbing.minMobbers` adults within six units of the animal under attack,
+      // so a herd thin enough to graze alone cannot defend itself however well the
+      // mechanism resolves — measured at 20 buffalo, mobbing reached **zero**
+      // capture attempts. The same is true of the pride: cooperative capture is
+      // counted from lions committed to one quarry, which needs lions near each
+      // other. Both were raised until the mechanisms fired, then gated.
+      //
+      // ⚠ The §9 procedure was followed in order: both went in at `count: 0` and
+      // the world was proved unchanged (5.9 MB of state identical across three
+      // seeds, modulo the roster literal itself) before either was raised.
+      Object.freeze({ speciesId: 'herbivore.buffalo', count: 35 }),
+      Object.freeze({ speciesId: 'predator.lion', count: 8 }),
     ]),
   }),
 });

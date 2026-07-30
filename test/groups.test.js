@@ -517,16 +517,25 @@ describe('persistent groups: the two mechanisms stay apart', () => {
     engine.step(1500);
 
     assert.ok(engine.world.groups.size > 0, 'the demo world holds live clans');
+    // ⚠ **Asserted against what the roster *declares*, not against a species
+    // name** — since 2026-07-30 there are two: the hyena clan and the lion pride
+    // (phase 11). Hardcoding "only the hyena" made this fail the moment a second
+    // social carnivore shipped, which is the incidental-roster trap D1 records;
+    // the invariant is that a record's species opted in and a label-only species
+    // never carries one.
+    const forming = new Set(engine.species.all().filter((s) => s.groups?.forms).map((s) => s.id));
+    assert.ok(forming.size >= 2, 'the roster has more than one group-forming species to keep apart');
     const clans = engine.world.groups.all();
     for (const record of clans) {
-      assert.equal(record.speciesId, 'scavenger.hyena', 'only the hyena forms them');
+      assert.ok(forming.has(record.speciesId), `${record.speciesId} declares groups.forms`);
       assert.ok(record.memberIds.length >= 2, 'a clan of one is not a clan');
     }
-    // Membership is the hyena's alone: no gazelle, stalker, or vulture carries a
-    // record, which is the half of §3.8 that keeps the two mechanisms apart.
+    // Membership belongs to those species alone: no gazelle, buffalo, stalker, or
+    // vulture carries a record, which is the half of §3.8 that keeps the two
+    // mechanisms apart.
     for (const e of engine.world.entities.all()) {
       if (e.groupRecordId !== null) {
-        assert.equal(e.speciesId, 'scavenger.hyena', `${e.speciesId} #${e.id} must not carry a record`);
+        assert.ok(forming.has(e.speciesId), `${e.speciesId} #${e.id} must not carry a record`);
       }
     }
     // And the herd labels are alive and well beside it — the control that proves

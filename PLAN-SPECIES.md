@@ -7,11 +7,11 @@ per role**, each with its own behaviour, food, and water needs. Written
 six settled decisions (§11), and again to put the **gazelle** rather than the
 wildebeest in the first batch.
 
-> ### ⚠ Status: phases 0–10 are done (last updated 2026-07-30)
+> ### ⚠ Status: phases 0–11 are done (last updated 2026-07-30)
 >
-> **This document is no longer a plan for unimplemented work.** Phases 0–10 have
-> shipped — see the table in §8 — and the world now has **four species**
-> (gazelle, stalker, vulture, hyena) at protocol v29.
+> **This document is no longer a plan for unimplemented work.** Phases 0–11 have
+> shipped — see the table in §8 — and the world now has **six species**
+> (gazelle, buffalo, stalker, lion, vulture, hyena) at protocol v29.
 >
 > A section marked ✅ has an **"As built"** block recording where its own
 > prediction was wrong; those blocks are the most useful part of the document now,
@@ -19,12 +19,12 @@ wildebeest in the first batch.
 > written". ⚠ Read the two together and prefer the As-built block: the plan was
 > right about shape far more often than about consequence.
 >
-> **Next: phase 11** (batch 2 — lion + buffalo), which is where phase 10's two
-> mechanisms are finally *tuned*: both shipped inert by design, so nothing about
-> `hunting.cooperationWeight` or `behavior.mobWeight` has been measured in a world
-> yet. Everything from §3.11, §3.12, §3.13, and §3.16 is still ahead; §3.3, §3.4,
-> and §3.7 have landed, and ⚠ **all three landed differently from how they were
-> proposed** — read their As-built blocks before touching any of them.
+> **Next: phase 12** (batch-3 prerequisites — heterospecific association and
+> seasonal breeding windows). §3.11, §3.12, §3.13, and §3.16 are still ahead;
+> §3.3, §3.4, and §3.7 have landed, and ⚠ **all three landed differently from how
+> they were proposed** — read their As-built blocks before touching any of them.
+> ⚠ Batch 2's own As-built (§10.2) is the one to read before adding any species:
+> every difficulty in it was about **density and scale**, not about mechanisms.
 
 The short version, still true of what remains: **the species system is already
 good enough to declare new species, and not yet good enough to make them behave
@@ -231,7 +231,7 @@ is only which of them the engine can express.
 | ~~**Where it lives**~~          | ✅ **since 2026-07-29** | a per-species `habitat` weight per terrain, read by the long-range cue (§3.4, phase 9) — ⚠ needs a `cueRadius` to act through, which three of four species set to 0 | leopard, buffalo, rhino         |
 | ~~**Which individuals it eats**~~ | ✅ **since 2026-07-28** | `predation.maxPreyMassRatio` / `minPreyMassRatio`, gated in perception on `bodyMass` (§3.6, phase 4) | lion, leopard, hyena            |
 | ~~**Persistent social identity**~~ | ✅ **since 2026-07-28** | `world.groups` + `groupRecordId`, gated by `groups.forms` (§3.8, phase 3) | lion, hyena, zebra, elephant    |
-| ~~**Cooperative action**~~     | ✅ **since 2026-07-30** | `hunting.cooperationWeight` + `attackersFor`, and mobbing as the groupmate half of `defend` (§3.7, phase 10) — ⚠ both inert until a species declares a weight | lion, hyena, buffalo            |
+| ~~**Cooperative action**~~     | ✅ **since 2026-07-30** | `hunting.cooperationWeight` + `attackersFor`, and mobbing as the groupmate half of `defend` (§3.7, phase 10); **demonstrated at phase 11** by the lion and buffalo — company takes a hunt's odds 0.451 → 0.535, a mob takes them 0.451 → 0.275 | lion, hyena, buffalo            |
 | ~~**Contested carcasses**~~    | ✅ **since 2026-07-28** | `carcass.possessorId`, contested through `resolveContest` (§3.9, phase 4) | lion vs hyena vs vulture        |
 | ~~**Escape by agility**~~      | ✅ **since 2026-07-28** | `hunting.agility`, prey-resolved, one divide in `captureChance` (§3.15) | gazelle                         |
 | ~~**Concealed newborns**~~     | ✅ **since 2026-07-29** | `aging.hiddenUntil` + the `hide`/`tend` actions and concealment in perception (§3.14, phase 8). ⚠ The *invisibility* half only bites for a fawn born on cover — DOCS A57 | gazelle |
@@ -1623,8 +1623,8 @@ in the section it links to — read those before repeating any of this work.
 | **8** | **Hidden-fawn stage** (§3.14): `aging.hiddenUntil`, the `hide` and `tend` actions, concealment in perception | ✅ **2026-07-29** | Benchmark flat. ✅ **A34's lever proved** (`tend` 1000×, `patrol` 0×); ⚠ **A32 did not improve**; opened **A57** |
 | **9** | Forage guilds (§3.3): grass-maturity preference; `habitat` weights, closing A49's habitat half (§3.4) | ✅ **2026-07-29** | Decision / Migration. ⚠⚠ **Two gates failed first**: `biomass / capacity` as the axis, then a symmetric window. What shipped is **absolute standing crop** with a one-sided falloff, and a cue whose *direction* is scored but whose *strength* is not. `npm run sweep --set=` added so a config A/B is one command |
 | **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | ✅ **2026-07-30** | Decision / Hunting. ⚠ **No new action**: mobbing turned out to be the unimplemented groupmate half of `defend`. Both mechanisms ship **inert and byte-identical**; ⚠⚠ **the A32 fix failed** — removing the clause entirely moves nothing, and the measured blocker is that only 6–9% of hunts commit to a juvenile at all. Opened **A59** |
-| **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | ← **next** | high — config only. ⚠ Expect phase 7's failure mode again: check `minHungerToHunt` first. ⚠ Also where A59 is settled (does a pride need its own mass ceiling?) and where A32's remaining levers are decided |
-| **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | planned | low — Social / Reproduction |
+| **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | ✅ **2026-07-30** | config + one correction to phase 10. ⚠⚠ **The gate failed first, exactly as predicted** — a carrion-subsidised pride ate the buffalo out (5/10 seeds) until `minHungerToHunt` went 0.3 → 0.45. ⚠ Every other difficulty was **density**: both mechanisms count neighbours, so `herdDistance` is a parameter of both. Closed **A33**, narrowed **A59**, opened **A60** (territory is an individual claim, so a pride cannot hold ground) |
+| **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | ← **next** | low — Social / Reproduction |
 | **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | planned | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring |
 | **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`; optionally ambush concealment (§3.12) | planned | med — config (+ perception). The last `supersededBy` entry is deleted here |
 | **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | planned | high — large. §5.7 must move in the same commit |
@@ -1862,7 +1862,102 @@ to be a pride _for_.
 hyena does not replace it**; a hyena hunts _and_ scavenges, which is a different
 niche the engine expresses differently.
 
-### 10.2 Batch 2 (phase 11) — lion, buffalo
+### 10.2 ✅ Batch 2 (shipped 2026-07-30, phase 11) — lion, buffalo
+
+#### ✅ As built — and the four things that had to be measured rather than reasoned
+
+The pairing was right and the section below stands: cooperative hunting was built
+at phase 10 and **demonstrated here**, against the one animal in the roster that
+justifies it. What the section did not predict is that *every one* of the phase's
+difficulties was about **density and scale**, not about the mechanisms:
+
+- ⚠⚠ **A lion that also hunts gazelle never hunts buffalo.** The first draft listed
+  both, which reads as obviously correct — a lion takes what it finds. Perception
+  reports the **nearest eligible** prey (A58) and the demo runs six gazelle to
+  every buffalo, so the pride spent its life on gazelle: **2 buffalo attempts in
+  4000 ticks, 0 cooperative hunts, 0 mob-ticks.** Batch 2 with neither mechanism
+  firing. `preySpeciesIds: ['herbivore.buffalo']` is the fix, and it is exactly
+  what §3.6 says `minPreyMassRatio` is *for* — "what stops a large predator
+  bothering with something it cannot profit from" — reached by the species
+  relation rather than by a ratio because the ratio would have been a boundary
+  that never fires.
+- ⚠⚠ **Both mechanisms are density mechanisms, and neither says so in its name.**
+  Cooperation counts hunters committed to *one quarry* within 6 units; mobbing
+  counts adults within 6 units of the animal under attack. A pride whose members
+  forage four units apart is a pride on paper: **0 shared-quarry ticks in 8 000**.
+  A herd thin enough to graze alone cannot defend itself however well the
+  mechanism resolves. `herdDistance` — 2.0 for both species — is what turned a
+  shared record into a shared hunt, and the founding counts had to be raised until
+  the herds were herds. **Treat `behavior.herdDistance` as a parameter of any
+  mechanism that counts neighbours.**
+- ⚠⚠ **A pride cannot hold territory, because territory is an individual claim.**
+  `TerritorySystem` marks by entity id and `retreat` moves an animal off ground
+  *anyone else* marked, pride-mate included — so `territory.defends: true` made
+  the pride scatter itself. Recorded as **DOCS A60**, and it sharpens A35:
+  territory is not predator-only, it is *solitary*-only.
+- ⚠⚠ **600 kg broke a species number before it broke any global constant**, which
+  is the opposite of what §4 spent its length preparing for. Every energy cost is
+  multiplied by `(bodyMass/30)^0.75`, while the roster's `maxEnergy` values fit
+  ~mass^0.34 — a trend nobody had to defend inside one order of magnitude. At
+  600 kg it means starving 3.4× faster than a gazelle, and the first measured
+  buffalo died mostly of **exposure**. Two fixes, both species data: size the tank
+  on mass^0.75 (time-to-starve becomes mass-independent), and **widen the comfort
+  band as mass rises** — bulk is what buys cold tolerance, and the first draft had
+  the largest animal in the world with a *narrower* band than a 45 kg stalker.
+
+**And phase 7's failure mode arrived exactly where §8's table said it would.** The
+first ten-seed gate **failed**: buffalo alive on 5/10 seeds, with 317 of 501 deaths
+from predation, while the lion population *grew* on 37.6% of all carrion taken in
+the world. A predator subsidised by carrion is not limited by its prey, so it eats
+it out — the hyena's lesson, and the reason §8 said "check `minHungerToHunt`
+first". ⚠ The tension this time is sharper than in batch 1, and worth stating: the
+same number that keeps the buffalo alive is the one that stops the pride hunting
+often enough to *demonstrate* cooperation. 0.3 fires the mechanism and loses the
+buffalo; 0.6 saves the buffalo and fires nothing; **0.45 does both**, which is a
+narrower window than any parameter in batch 1.
+
+**The passing world** (10 seeds × 15 000 ticks against the batch-1 roster, on the
+same seeds and in one process):
+
+| Species | batch 2 | batch-1 control | read as |
+| --- | --- | --- | --- |
+| gazelle | 10/10, mean 82.4 | 10/10, mean 88.7 | **−7%** — barely touched, because the lion does not hunt it and 35 buffalo do not crowd it off the grass |
+| buffalo | **9/10**, mean 15.8 | — | establishes from 35 founders; the one loss is late (t14977) |
+| stalker | **9/10**, mean 5.1 | 8/10, mean 4.8 | level, and a seed *better* — it competes with neither newcomer |
+| lion | **9/10**, mean 10.2 | — | establishes well; the one loss is early (t8017) |
+| hyena | 10/10, mean 7.7 | 10/10, mean 3.7 | ⚠ **doubled** — a 600 kg carcass is twenty gazelle, and the facultative scavenger is what that feeds |
+| vulture | 10/10, mean 157.8 | 10/10, mean 140.7 | +12%, same reason |
+
+⚠ **Batch 2 costs the incumbents almost nothing and *feeds* two of them**, which is
+the opposite of batch 1 (where the hyena cost the stalker three seeds in ten and cut
+the vulture 42%). The reason is the prey partition: the lion took a species nothing
+else hunts, so the only thing it added to the old food web was 360 kg of carrion at
+a time.
+
+**The demonstration** (three seeds × 8000 ticks, every lion attempt split by what
+was actually on the field). ⚠ A 2×2, because the two mechanisms **confound each
+other** — a co-attacked buffalo is usually also a mobbed one, and the uncontrolled
+comparison read *backwards* while both mechanisms were working perfectly:
+
+| lion attempt | attempts | mean capture chance | taken |
+| --- | ---: | ---: | ---: |
+| alone, unmobbed | 31 | 0.451 | 29.0% |
+| with a pride-mate, unmobbed | 20 | **0.535** | 70.0% |
+| alone, against a mob | 5 | **0.275** | 0% |
+| with a pride-mate, against a mob | 8 | 0.331 | 25% |
+
+Both main effects hold inside both cells. ⚠ The *odds* are the claim and the
+outcomes are context: a demo run yields a few dozen attempts, and at that sample
+size the captured rate is a coin flip (one seed read 54.5% with company against
+55.6% alone — the opposite of the pooled figure, from the same mechanism).
+
+⚠ **One correction to phase 10 came out of this**: mobbing's target now **stands
+its ground** rather than fleeing. A fleeing animal is carried away from its herd by
+the chase, so the capture happens where no mobber can reach it — **not one attempt
+in 12 000 tick-seeds was resolved against a mob** until the hunted buffalo turned
+and faced. See `predation/mobbing.js`.
+
+### 10.2 The section as written
 
 | Species             | Mass | Niche                                                                                                            | Gated on                                                  |
 | ------------------- | ---: | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
