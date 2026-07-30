@@ -302,6 +302,13 @@ function formatSocial(detail) {
   } else {
     rows.push('<div class="field"><span>herd</span><span class="dim">alone</span></div>');
   }
+  // Heterospecific company (PLAN-SPECIES.md §3.16). Its own row, and only when
+  // there is any: an animal standing with another species is standing in a herd
+  // it is not a member of, which the `herd` row above cannot say. Zero for every
+  // animal until a species declares an association, so this row does not exist yet.
+  if (nearby?.associates > 0) {
+    rows.push(`<div class="field"><span>alongside</span><span>${nearby.associates} <span class="dim">of other species</span></span></div>`);
+  }
   if (nearby?.drift != null) {
     rows.push(`<div class="field"><span>from centre</span><span>${nearby.drift.toFixed(1)}</span></div>`);
   }

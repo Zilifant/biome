@@ -64,6 +64,18 @@ they are not re-opened by accident.
   the fix is keying the claim layer on `groupRecordId`. ⚠ It sharpens **A35**:
   territory is not predator-only, it is *solitary*-only.
 
+- **⚠ A61 — An association weight only bites in mixed company** (from
+  2026-07-30, phase 12). The weight is an *exchange rate between bodies* in the
+  herd's centre of mass, so it decides whose centre wins when both kinds are
+  present and cancels out of the mean when only the other kind is: a gazelle alone
+  among wildebeest sticks to them exactly as hard as to its own herd. ⚠ The obvious
+  fix — scale the herd *pull* by it too — was built first and measured **inert**:
+  it charges the animal twice for one fact, and at `herdWeight` 0.6 a second
+  discount of 0.5 caps the pull at 0.30 against a `wanderBias` of 0.35, so it can
+  never win (a follower held station no better than one with the mechanism off,
+  16.1 units either way). The lever is a *separate* pull weight rather than a reuse
+  of this one; nothing has asked for it yet.
+
 - **A32 — Juvenile defense fires about once in 12 000 ticks.** ⚠⚠ **All three
   named fixes have now been tried and measured, and all three failed** — territory
   (Step 24), the hidden-fawn stage (2026-07-29), and, at phase 10, relaxing the

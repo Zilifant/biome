@@ -254,6 +254,45 @@ on identical code, which is why this file's rule is to interleave — and phase 
 changes the population trajectory, so the end-entity counts differ. The interleaved
 A/B above is the measurement; this is only the dated reading.
 
+### Batch-3 prerequisites (2026-07-30, PLAN-SPECIES.md phase 12)
+
+Heterospecific association (§3.16) and seasonal breeding windows (§3.11), both
+inert — no species declares either — so this is a measurement of what a mechanism
+nobody uses costs to have in the tree.
+
+Interleaved against HEAD (phase 11), alternating arms three times each. ⚠ Two
+scenarios rather than one, because the change is inside `SocialSystem`'s
+**neighbour** loop: cost there scales with how many animals are in range of each
+other, which is exactly what large-5k has more of.
+
+| arm | medium-1k (3 rounds) | mean | large-5k (3 rounds) | mean |
+| --- | --- | ---: | --- | ---: |
+| phase 11 (HEAD) | 14.382, 14.584, 14.201 | 14.389 | 88.696, 90.394, 85.027 | 88.04 |
+| phase 12 | 14.665, 14.591, 13.486 | 14.247 | 84.683, 86.452, 85.531 | 85.56 |
+
+**Flat.** At medium-1k phase 12 loses one round, ties one, and wins one; at
+large-5k it wins two and loses one. By this file's rule — a real cost is slower in
+*every* round — that is noise in both directions, and the nominal 2.8% "win" at
+large-5k is drift rather than an improvement.
+
+Free by construction, and each half for its own reason:
+
+- **Association** adds one boolean to the neighbour loop and nothing else, because
+  the declaring-species map is empty: the system asks "does any species in this
+  world associate?" once per world (the `GroupSystem` early-out, copied) and the
+  loop's first comparison still drops every animal of another species.
+- **A breeding window** is one `null` check inside `isReproductivelyReady`, which
+  is reached once per adult per tick and already does more work than that.
+
+Full run on the final tree: demo-default **1.9067**, small-100 **1.4386**,
+medium-1k **16.5913**, large-5k **112.83 ms/tick** (7774→9305 entities, identical
+to phase 11's counts). ⚠ **That is not a regression against phase 11's 106.51** —
+same roster, same seed, same end population, and the interleaved A/B above says
+flat. It is the same machine drift this file exists to warn about: HEAD itself
+measured 85–90 ms/tick at large-5k in the interleaved rounds an hour earlier, so a
+single dated reading spans ±25% depending on when it is taken. **Interleave, or do
+not compare.**
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

@@ -533,6 +533,12 @@ export class SimulationEngine {
           return {
             groupmates: summary.groupmates,
             adults: summary.adults,
+            // Heterospecific company (§3.16) — reported beside the groupmate
+            // count rather than folded into it, because "three of my own kind"
+            // and "three wildebeest" are different facts about an animal and
+            // invariant 19 wants the one that moved its centre of mass visible.
+            // 0 for every animal in this world until batch 3.
+            associates: summary.associates ?? 0,
             nearestDistance: summary.nearestDistance,
             drift: summary.centroid ? Math.hypot(summary.centroid.x - entity.x, summary.centroid.y - entity.y) : null,
           };

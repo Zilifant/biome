@@ -47,17 +47,43 @@
  * is transient, rebuilt every tick into `world.social`, exactly like
  * `world.perception`. Nothing about a group is stored except the label.
  *
+ * ⚠ **Both jobs gained a heterospecific half on 2026-07-30** (PLAN-SPECIES.md
+ * §3.16, phase 12), and it is deliberately confined to the two places above where
+ * a *position* or a *warning* is read — never to the label. A species that
+ * declares an `association` builds its centre of mass from the animals it stands
+ * with rather than from its own kind alone, and hears their alarms; its `groupId`,
+ * its groupmate counts, and everything downstream that reads them stay
+ * conspecific. See `social/association.js` for why that line is where it is, and
+ * for the measured claim that a world with no declaring species is arithmetically
+ * unchanged.
+ *
  * Runs in the `decision` phase at priority -10, ahead of the decision system
  * (priority 0) which consumes the summary to score `herd` and `defend`, and
  * ahead of anything that reads alarm state. Ownership: writes `groupId`,
  * `alarmedUntil`, `alarmSource`, and `world.social`; reads positions, headings,
- * life stages, and the perception summary. No randomness.
+ * life stages, species, and the perception summary. No randomness.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { isSymptomatic } from '../disease/disease.js';
+import {
+  CONSPECIFIC_WEIGHT,
+  DEFAULT_ASSOCIATION,
+  associationWeightFor,
+  associationsIn,
+} from '../social/association.js';
 
 export class SocialSystem extends SimulationSystem {
+  /**
+   * The species registry the association map was built from, so the map is
+   * rebuilt rather than silently describing the wrong roster if one system
+   * instance is ever reused across worlds. Same guard as `GroupSystem`'s.
+   * @type {object|null}
+   */
+  #associationsFrom = null;
+  /** @type {Map<string, Record<string, number>>} */
+  #associations = new Map();
+
   /**
    * @param {object} [options]
    * @param {number} [options.groupRadius] how far conspecifics recognize each other as groupmates
@@ -67,6 +93,8 @@ export class SocialSystem extends SimulationSystem {
    * @param {number} [options.maxGroupHops] neighbour-hops a herd label survives from its root
    * @param {number} [options.maxAlarmHops] neighbour-hops a warning survives from the sighting
    * @param {number} [options.minGroupSize] neighbours needed before founding a group
+   * @param {boolean} [options.associationEnabled] heterospecific association at all (§3.16)
+   * @param {boolean} [options.associationSharesAlarm] whether an associate's warning carries
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -77,6 +105,13 @@ export class SocialSystem extends SimulationSystem {
     alarmTicks = 25,
     maxAlarmHops = 2,
     minGroupSize = 2,
+    // Heterospecific association (phase 12, PLAN-SPECIES.md §3.16). ⚠ Wired from
+    // `config.association`, a global section — *not* from a species block, which a
+    // species overrides, so a switch inside one could not switch anything off
+    // (DOCS §8). The biology (which species, how strongly) is the per-species
+    // `association` field; these two are the machinery.
+    associationEnabled = DEFAULT_ASSOCIATION.enabled,
+    associationSharesAlarm = DEFAULT_ASSOCIATION.sharesAlarm,
     updateInterval = 1,
   } = {}) {
     super({ id: 'social', phase: 'decision', priority: -10, updateInterval });
@@ -87,6 +122,8 @@ export class SocialSystem extends SimulationSystem {
     this.alarmTicks = alarmTicks;
     this.maxAlarmHops = maxAlarmHops;
     this.minGroupSize = minGroupSize;
+    this.associationEnabled = associationEnabled;
+    this.associationSharesAlarm = associationSharesAlarm;
   }
 
   update(world, context) {
@@ -111,6 +148,12 @@ export class SocialSystem extends SimulationSystem {
     /** @type {Map<number, {x: number, y: number, sourceId: number|null, hops: number}>} */
     const raised = new Map();
 
+    // Heterospecific association (§3.16), in one `size` comparison when no species
+    // in this world declares one — which is every world today, and is what makes
+    // the loop below the loop it has always been.
+    const associations = this.#associationsFor(world);
+    const associating = associations.size > 0;
+
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
@@ -122,6 +165,14 @@ export class SocialSystem extends SimulationSystem {
       let sumSin = 0;
       let sumCos = 0;
       let nearestMate = Infinity;
+      // The heterospecific half of the same sums. Kept in its own
+      // accumulator rather than folded into `groupmates` so the conspecific
+      // arithmetic below is untouched — `groupmates + 0` is exactly `groupmates`,
+      // which is what makes a world with no association bit-identical rather than
+      // merely equivalent.
+      let associates = 0;
+      let associateWeight = 0;
+      const association = associating ? (associations.get(entity.speciesId) ?? null) : null;
       // Every animal can always found a herd on its own id, at zero hops from
       // itself. Seeding from the *id* rather than from the label it happens to
       // be carrying is what lets an orphaned half of a split herd escape the
@@ -147,7 +198,17 @@ export class SocialSystem extends SimulationSystem {
         const otherId = neighbours[i];
         const other = world.entities.get(otherId);
         if (!other || other.kind !== 'animal' || !other.alive) continue;
-        if (other.speciesId !== entity.speciesId) continue;
+        // ⚠ The species test that has ended this iteration since Step 23 now has
+        // a second half, and the order matters: an animal of another species is
+        // still dropped on the first comparison unless *this* species declares an
+        // association, so the common path pays one null check and nothing else.
+        const conspecific = other.speciesId === entity.speciesId;
+        let worth = CONSPECIFIC_WEIGHT;
+        if (!conspecific) {
+          if (association === null) continue;
+          worth = associationWeightFor(association, other.speciesId);
+          if (worth === 0) continue;
+        }
         const distance = neighbours[i + 1];
 
         // Social avoidance of illness (Step 25), done *without* a new movement
@@ -158,27 +219,46 @@ export class SocialSystem extends SimulationSystem {
         // lesson). Note it only works on *symptomatic* animals: an incubating
         // one looks fine and is embraced, which is how the outbreak spreads.
         if (distance <= this.groupRadius && !isSymptomatic(other)) {
-          groupmates += 1;
-          if (other.lifeStage === 'adult' || other.lifeStage === 'senescent') adults += 1;
-          sumX += other.x;
-          sumY += other.y;
-          sumSin += Math.sin(other.heading);
-          sumCos += Math.cos(other.heading);
-          if (distance < nearestMate) nearestMate = distance;
-          // Label propagation: the smallest id in sight wins, which makes merges
-          // symmetric — both herds reach the same answer without negotiating.
-          // A label is only worth taking if its root is still reachable within
-          // `maxGroupHops`; that is the check a split fails. The size cap is
-          // checked against a *live* tally (see below), so a rush of animals
-          // joining in one tick cannot collectively overshoot it.
-          if (other.groupId !== null) {
-            const hops = (other.groupHops ?? 0) + 1;
-            const better = other.groupId < label || (other.groupId === label && hops < labelHops);
-            if (hops <= this.maxGroupHops && better) {
-              const size = groupSizes.get(other.groupId) ?? 0;
-              if (size < this.maxGroupSize || other.groupId === entity.groupId) {
-                label = other.groupId;
-                labelHops = hops;
+          // ⚠ An associate contributes a *position* and nothing else: it is not a
+          // groupmate, not an adult of this herd, and never a label. Everything
+          // downstream that counts bodies — mobbing's `minMobbers`, the hunting
+          // system's collective vigilance — reads the conspecific counts, and a
+          // mob of the wrong species defends nobody (see social/association.js).
+          if (!conspecific) {
+            associates += 1;
+            associateWeight += worth;
+            sumX += other.x * worth;
+            sumY += other.y * worth;
+            sumSin += Math.sin(other.heading) * worth;
+            sumCos += Math.cos(other.heading) * worth;
+          } else {
+            groupmates += 1;
+            if (other.lifeStage === 'adult' || other.lifeStage === 'senescent') adults += 1;
+            sumX += other.x;
+            sumY += other.y;
+            sumSin += Math.sin(other.heading);
+            sumCos += Math.cos(other.heading);
+            if (distance < nearestMate) nearestMate = distance;
+            // Label propagation: the smallest id in sight wins, which makes merges
+            // symmetric — both herds reach the same answer without negotiating.
+            // A label is only worth taking if its root is still reachable within
+            // `maxGroupHops`; that is the check a split fails. The size cap is
+            // checked against a *live* tally (see below), so a rush of animals
+            // joining in one tick cannot collectively overshoot it.
+            //
+            // ⚠ Inside the conspecific branch on purpose (§3.16): a label that
+            // crossed species would merge two species into one herd and make every
+            // per-species herd metric meaningless. Association is an attraction,
+            // never a membership.
+            if (other.groupId !== null) {
+              const hops = (other.groupHops ?? 0) + 1;
+              const better = other.groupId < label || (other.groupId === label && hops < labelHops);
+              if (hops <= this.maxGroupHops && better) {
+                const size = groupSizes.get(other.groupId) ?? 0;
+                if (size < this.maxGroupSize || other.groupId === entity.groupId) {
+                  label = other.groupId;
+                  labelHops = hops;
+                }
               }
             }
           }
@@ -188,7 +268,16 @@ export class SocialSystem extends SimulationSystem {
         // always by the *shortest* route back to whoever actually saw the
         // threat, so the hop count measures real distance from the sighting
         // rather than however the warning happened to arrive.
-        if (distance <= this.alarmRadius) {
+        //
+        // ⚠ An associate's warning carries too, and that is the half of §3.16
+        // that pays for the other one: "more eyes" is the reason a gazelle stands
+        // with wildebeest, and it is worth nothing if their alarm stops at the
+        // species boundary. It rides the existing wave unchanged — same hops, same
+        // `maxAlarmHops` cap — because that cap is what keeps the mechanism local,
+        // and crossing species does not weaken the argument for it. The
+        // conspecific test comes first, so a world with no association never reads
+        // the switch.
+        if (distance <= this.alarmRadius && (conspecific || this.associationSharesAlarm)) {
           const perceived = world.perception.get(otherId);
           const theirThreat = perceived?.nearestThreat ?? null;
           let candidate = null;
@@ -232,19 +321,53 @@ export class SocialSystem extends SimulationSystem {
       }
       entity.groupId = groupId;
 
+      // Total weight behind the centre of mass: one per groupmate, its declared
+      // worth per associate. ⚠ With no associates this is *exactly* `groupmates` — an
+      // integer-valued float added to zero — so every division below is the
+      // division it was before phase 12, bit for bit.
+      const weight = groupmates + associateWeight;
       world.social.set(entity.id, {
         groupId,
         groupmates,
         adults,
+        // Heterospecific company (§3.16). Counted separately from `groupmates`
+        // and never merged into it: these animals are why the centre of mass is
+        // where it is, and they are not this animal's herd.
+        associates,
         // The local centre of mass and mean heading — the two signals herding
         // needs. Null when alone, so the decision system has nothing to steer at.
-        centroid: groupmates > 0 ? { x: sumX / groupmates, y: sumY / groupmates } : null,
-        heading: groupmates > 0 ? Math.atan2(sumSin / groupmates, sumCos / groupmates) : null,
+        // ⚠ Gated on the *weight* rather than on `groupmates`, which is what gives
+        // a lone gazelle standing in a wildebeest herd something to steer at.
+        centroid: weight > 0 ? { x: sumX / weight, y: sumY / weight } : null,
+        heading: weight > 0 ? Math.atan2(sumSin / weight, sumCos / weight) : null,
         nearestDistance: groupmates > 0 ? nearestMate : null,
       });
     }
 
     this.#applyAlarms(world, context, raised);
+  }
+
+  /**
+   * The association weights of every species in this world that declares any,
+   * keyed by species id — empty when the mechanism is off or nobody declares one.
+   *
+   * Built once per registry rather than per animal per tick, and checked for
+   * emptiness before the entity walk, so a world with no associating species
+   * (which is every world today) pays one `Map.size` comparison for the whole
+   * mechanism. Same guard as `GroupSystem`'s forming-species set, and for the same
+   * reason: the registry is per-world, so a system instance reused across worlds
+   * must not keep describing the first one.
+   *
+   * @param {import('../world/World.js').World} world
+   * @returns {Map<string, Record<string, number>>}
+   */
+  #associationsFor(world) {
+    const registry = world.species ?? null;
+    if (this.#associationsFrom !== registry) {
+      this.#associationsFrom = registry;
+      this.#associations = this.associationEnabled ? associationsIn(registry) : new Map();
+    }
+    return this.#associations;
   }
 
   /**

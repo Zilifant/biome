@@ -41,9 +41,17 @@
 /**
  * Blocks a species may override, each falling back to the global config section
  * of the same name. Anything not listed here is either already per-species
- * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`) or
+ * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, and —
+ * from the species plan — `groups`, `forage`, `habitat`, `association`) or
  * genuinely world-level (terrain, weather, disturbances, the decision weights)
  * and stays in the config.
+ *
+ * ⚠ **The always-per-species *fields* are not a leftover; they are the shape a
+ * mechanism takes when it needs a reproducible control.** A species block beats
+ * the config, so an `enabled` inside one cannot switch anything off — the trap
+ * phase 8 fell into. Every mechanism since has put its biology in a field beside
+ * a global section holding the switch, and that is now the rule rather than a
+ * preference.
  */
 export const SPECIES_BLOCKS = Object.freeze([
   'metabolism', // B3 — basal cost, movement cost, mass scaling

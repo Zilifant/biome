@@ -67,6 +67,7 @@ import { isReproductivelyReady } from './ReproductionSystem.js';
 import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js';
 import { thermalStress } from '../world/Environment.js';
 import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateChoice.js';
+import { DEFAULT_BREEDING } from '../mating/breeding.js';
 import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
@@ -243,6 +244,12 @@ export class DecisionSystem extends SimulationSystem {
     recallDistanceWeight = 0.15,
     dangerRadius = 6,
     reproduction = { minEnergyFraction: 0.7, cooldownTicks: 800 },
+    // Seasonal breeding (phase 12, PLAN-SPECIES.md §3.11). ⚠ From
+    // `config.breeding`, the global section that owns the switch — the window
+    // itself is per-species and lives in the `reproduction` block, which a species
+    // overrides, so the switch could not live there (DOCS §8). This system only
+    // reads the answer: whether an animal is worth walking to a mate for.
+    breedingEnabled = DEFAULT_BREEDING.enabled,
     minCommitTicks = 8,
     commitTickSpan = 16,
     wanderJitter = 0.5,
@@ -336,6 +343,7 @@ export class DecisionSystem extends SimulationSystem {
     this.recallDistanceWeight = recallDistanceWeight;
     this.dangerRadius = dangerRadius;
     this.reproduction = reproduction;
+    this.breedingEnabled = breedingEnabled;
     this.minCommitTicks = minCommitTicks;
     this.commitTickSpan = commitTickSpan;
     this.wanderJitter = wanderJitter;
@@ -348,6 +356,12 @@ export class DecisionSystem extends SimulationSystem {
 
   update(world, context) {
     const random = context.random('decision');
+    // Where in the year the world is, hoisted out of the animal loop because it
+    // is one number for the whole tick (phase 12, §3.11). `null` when seasonal
+    // breeding is off or the world has no environment, which skips the window
+    // test rather than evaluating one — the same identity discipline as a null
+    // prey-mass ratio.
+    const yearProgress = this.breedingEnabled ? (world.environment?.yearProgress ?? null) : null;
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
@@ -443,7 +457,11 @@ export class DecisionSystem extends SimulationSystem {
       // the choosing sex walks toward the best animal it can see rather than the
       // closest, and pays for that in the ground it covers. Whether the pair
       // actually mates is still the reproduction system's call.
-      const mateCandidate = isReproductivelyReady(entity, context.tick, species?.reproduction ?? this.reproduction)
+      // ⚠ The season gates *going looking* as well as pairing, because both read
+      // this one predicate (phase 12). Without it a female out of season would
+      // walk to a male she is going to refuse — the same drift `foodMinLevel` and
+      // `drinkRange` each had when two systems held their own copy of a rule.
+      const mateCandidate = isReproductivelyReady(entity, context.tick, species?.reproduction ?? this.reproduction, yearProgress)
         ? bestMateCandidate(perceived?.mateCandidates ?? [], (id) => world.entities.get(id), {
             preference: matePreferenceFor(species),
             distanceWeight: this.mateDistanceWeight,
@@ -528,6 +546,14 @@ export class DecisionSystem extends SimulationSystem {
       // its group. Scaled by (2 − boldness) exactly as `rest` is, so the same
       // trait that makes an animal roam also makes it a looser herd member —
       // no new trait needed for temperament to show up in social behaviour.
+      // ⚠ **The centre may be a mixed-species one** (phase 12, PLAN-SPECIES.md
+      // §3.16), and this line is deliberately unchanged by that. The whole of an
+      // association weight is spent *inside* the centroid — an associate counts
+      // as a fraction of a body — so scaling the pull by it as well would charge
+      // the animal twice for one fact. Measured, and it is not a nicety: at
+      // `herdWeight` 0.6 a second discount of 0.5 caps the pull at 0.30 against a
+      // `wanderBias` of 0.35, so it could never win and the mechanism was born
+      // inert across most of its own range (see social/association.js).
       const social = world.social.get(entity.id) ?? null;
       const drift = social?.centroid
         ? Math.hypot(social.centroid.x - entity.x, social.centroid.y - entity.y)

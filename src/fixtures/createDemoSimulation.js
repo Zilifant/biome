@@ -77,7 +77,18 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(new MemorySystem(engine.config.memory));
   // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision
   // system, which consumes the group summary it builds.
-  engine.registerSystem(new SocialSystem(engine.config.social));
+  engine.registerSystem(
+    new SocialSystem({
+      ...engine.config.social,
+      // Heterospecific association (PLAN-SPECIES.md §3.16, phase 12). Both
+      // switches from `config.association`, the global section that owns them —
+      // ⚠ *not* from a species block, which a species overrides (DOCS §8). The
+      // per-species half is the `association` field, which no species declares,
+      // so this system's neighbour loop is exactly what it was.
+      associationEnabled: engine.config.association.enabled,
+      associationSharesAlarm: engine.config.association.sharesAlarm,
+    }),
+  );
   // Priority -8: after the herd labels are settled, before anything that would
   // score an action on membership. ⚠ Different mechanism from the line above —
   // `SocialSystem` owns the positional label, this owns the persistent record
@@ -167,7 +178,13 @@ export function registerDemoSystems(engine) {
         cooldownTicks: engine.config.reproduction.cooldownTicks,
         suitorMinEnergyFraction: engine.config.reproduction.suitorMinEnergyFraction,
         suitorCooldownTicks: engine.config.reproduction.suitorCooldownTicks,
+        breedingWindow: engine.config.reproduction.breedingWindow,
       },
+      // Seasonal breeding (PLAN-SPECIES.md §3.11, phase 12): whether a species'
+      // declared window gates its females' readiness. From `config.breeding`,
+      // which is global precisely so a species cannot override the switch — the
+      // window itself is read per-species from the `reproduction` block above.
+      breedingEnabled: engine.config.breeding.enabled,
     }),
   );
   engine.registerSystem(
@@ -197,6 +214,10 @@ export function registerDemoSystems(engine) {
   engine.registerSystem(
     new ReproductionSystem({
       ...engine.config.reproduction,
+      // The window is per-species (`reproduction.breedingWindow`, resolved inside
+      // the system); this is only the world-level switch, from the one section
+      // that a species cannot override (PLAN-SPECIES.md §3.11).
+      breedingEnabled: engine.config.breeding.enabled,
       birthMass: engine.config.aging.birthMass,
       genetics: engine.config.genetics,
       injuryHealthDamage: engine.config.injury.healthDamage,

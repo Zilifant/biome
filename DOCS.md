@@ -49,14 +49,14 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 890 passing / 0 failing, 226 suites _(2026-07-30)_     |
+| Tests                 | 927 passing / 0 failing, 236 suites _(2026-07-30)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | **106.51 ms/tick** _(2026-07-30, phase 11, 7774→9305 entities)_ — ⚠ **not comparable to anything earlier**: phase 11 put the lion and buffalo into every scenario, so the world is ~30% more animals *and* 100× the mass range. The interleaved roster A/B reads **+5.7% per animal**, and it is the buffalo's long-range cue rather than the new mechanisms. See BENCHMARK.md |
+| Benchmark (large-5k)  | **112.83 ms/tick** _(2026-07-30, phase 12, 7774→9305 entities)_ — ⚠ **a dated reading, not a comparison.** Phase 12 measured **flat** interleaved against phase 11 at two scenarios, while HEAD itself read 85–90 ms/tick in those rounds an hour earlier: a single reading on this machine spans ±25%. Nothing earlier than phase 11 is comparable at all — that phase put the lion and buffalo into every scenario (~30% more animals, 100× the mass range). See BENCHMARK.md |
 | Species               | **6** (gazelle, buffalo, stalker, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg** |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus seven always-per-species **fields**, two of them new on 2026-07-29: `forage` and `habitat` (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat`; the **lion** the first to use `hunting.cooperationWeight` and the **buffalo** the first to use `behavior.mobWeight` (2026-07-30) |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eight** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` on 2026-07-30 (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat`; the **lion** the first to use `hunting.cooperationWeight` and the **buffalo** the first to use `behavior.mobWeight` (2026-07-30). ⚠ **Nothing yet uses `association` or `reproduction.breedingWindow`** — batch 3 is what declares them |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
-| Git                   | Steps 26–30 and species phases 5–10 are **uncommitted** (the user handles git) |
+| Git                   | Species phases 0–11 are committed (`c8bfaff phase 11`); **phase 12 is uncommitted** (the user handles git) |
 
 The renderer is a fully separate subsystem with its own reference documentation,
 [`src/renderer/DOCS-RENDERER.md`](src/renderer/DOCS-RENDERER.md) (and its own
@@ -272,6 +272,30 @@ real lions have — is **not expressible**. The fix is to key the claim layer on
 registry (§3.8) rather than a tuning change. ⚠ It also sharpens **A35**: territory
 is not merely predator-only, it is *solitary*-only, and the only species that can
 use it as built is one that defends ground against its own kind.
+
+**⚠ A61 — An association weight only bites in mixed company** _(from 2026-07-30,
+phase 12, PLAN-SPECIES.md §3.16)_
+
+The weight a species declares for a partner species is an **exchange rate between
+bodies** in the herd's centre of mass, so it decides whose centre wins when both
+kinds are standing there — and cancels out of the mean entirely when only the
+other kind is. A gazelle alone among wildebeest therefore sticks to them exactly
+as hard as it would to gazelle, and "half attached to them, fully attached to my
+own" is **not expressible**.
+
+⚠ The obvious fix — scale the herd pull by the mean weight of the company as well
+— was built first and **measured inert**, which is why the limitation is recorded
+rather than closed. It charges the animal twice for one fact (phase 9's symmetric
+forage window, again), and herding is the weakest utility in the table: at
+`herdWeight` 0.6 a second discount of 0.5 caps the pull at 0.30 against a
+`wanderBias` of 0.35, so it can never win. A follower held station no better than
+one with association switched off — 16.1 units from the herd in both arms over 200
+ticks — and every weight below ~0.58 behaved the same way.
+
+The honest lever, if batch 3 wants the distinction, is a **separate weight for the
+pull** rather than a reuse of this one, declared high enough to clear `wanderBias`
+and understood as a second number rather than a discount on the first. Nothing has
+asked for it yet.
 
 **⚠ A57 — A hidden fawn is concealed only if it was born on cover, which is
 ~8–10% of the time** _(from 2026-07-29, PLAN-SPECIES.md §3.14)_
@@ -964,7 +988,8 @@ Alongside them sit fields that were always per-species: `matePreference`,
 `territory`, `migration`, `diet`, `preySpeciesIds` — and `groups`, which joined
 them the same day rather than becoming a block, because its config section also
 carries world-level machinery (see §19). **`forage` and `habitat` joined that list
-on 2026-07-29** (§9 Feeding), for the same reason plus a sharper one:
+on 2026-07-29** (§9 Feeding) and **`association` on 2026-07-30** (§9 Sociality),
+for the same reason plus a sharper one:
 
 ⚠ **An off switch cannot live in a species block.** A species block *beats* the
 config, so `config.forage.enabled: false` would be overridden by any species stating
@@ -980,8 +1005,11 @@ currently eat at the same declared rate, two predators cannot differ in how they
 capture, and nothing states a prey mass ratio. ⚠ **Phase 10 added two more fields
 of exactly that kind** — `hunting.cooperationWeight` (with `maxAttackers`) and
 `behavior.mobWeight`, both 0 for every shipped species, with their off switches in
-the new global `cooperation` and `mobbing` sections per the rule above. Three notes on how they resolve,
-all modelling choices rather than plumbing:
+the new global `cooperation` and `mobbing` sections per the rule above. ⚠ **Phase
+12 added a third, inside an old block**: `reproduction.breedingWindow` is `null`
+for every species, and its switch is the global `breeding` section for the same
+reason. Three notes on how they resolve, all modelling choices rather than
+plumbing:
 
 - **`hunting` resolves off the _hunter_** — how you capture is your biology —
   **except `edibleMassFraction` and `agility`, which resolve off the prey**,
@@ -1805,6 +1833,41 @@ matched for either to back down. A fight wounds both, the loser worse.
 Together: **competition decides who she is offered, and she still decides whether
 to take him.** Neither silently overrides the other.
 
+#### Seasonal breeding windows
+
+_Added 2026-07-30 (PLAN-SPECIES.md §3.11, phase 12)._
+
+**A species may state that it only conceives at one time of year.**
+`reproduction.breedingWindow: { startFraction, endFraction }` — fractions of the
+year, gating the gestating sex's readiness against `world.environment.yearProgress`.
+`null` is year-round and skips the test entirely, which is what every species
+shipped today does.
+
+⚠⚠ **Birth synchrony then needs nothing at all.** No mechanism groups births: a
+compressed conception window plus a roughly constant `gestationTicks` *is* a
+compressed calving window, offset by the gestation. That is the whole feature, and
+it is why one config field buys predator swamping.
+
+Four boundaries, each stated rather than left to be found:
+
+- **The chooser only.** A rut is a fact about both sexes, but conception is what a
+  window is for, and gating the seeking sex would stop males competing for females
+  about to become receptive. **Males are ready year-round.**
+- **The gate lives in `isReproductivelyReady`**, the single shared rule, so the
+  decision system's `seekMate` is gated by the same predicate that gates pairing —
+  she does not walk to a male she would refuse.
+- **A window may wrap the year boundary** (`0.9 → 0.1` is a rut running from late
+  autumn into early spring). Half-open at the end, like every range here.
+- **Conception only.** A pregnancy carried past the window's end is delivered
+  normally, and nothing about gestation, birth, or parenting is seasonal.
+
+⚠ **A degenerate window is year-round, not a sterile species.** Equal ends, or
+non-numeric ones, read as no window. "Breeds on exactly one instant of the year" is
+a config typo that quietly extinguishes a species over ten seeds and looks like an
+ecological result; the identity is the safe failure. And she enters each window at
+**full choosiness**, because the search clock stops while she is not receptive —
+that fell out, it was not built.
+
 ### Sociality
 
 ⚠ **This section used to open "a herd is a label, not a roster — nothing
@@ -1813,12 +1876,18 @@ of the world as a whole.** It is recorded here rather than quietly edited,
 because it was a deliberate design decision held for seven steps and the reasons
 it was right are the reasons the replacement is shaped the way it is.
 
-There are now **two** sociality mechanisms, and they model different things:
+There are now **three** things in the neighbourhood that sound like one, and they
+model different things:
 
 | Mechanism                     | Models                                    | State                                                  | Owner          |
 | ----------------------------- | ----------------------------------------- | ------------------------------------------------------ | -------------- |
 | **Herd label** (`groupId`)    | fission–fusion aggregation: who I happen to be standing with | a label, recomputed every tick by local propagation | `SocialSystem` |
 | **Group record** (`world.groups`) | identity that survives separation: who I belong to | a bounded, saved record with a membership list | `GroupSystem`  |
+| **Association** (`species.association`) | who I am willing to stand with that is *not* my own kind | none at all — a weight in the species file | `SocialSystem` |
+
+A gazelle in a wildebeest herd is in none of that herd's labels and none of its
+records, and is still standing in it. That is the whole reason the third row
+exists; it is written up under **Heterospecific association** below.
 
 The label is not deprecated, weakened, or wrapped. It is what every loosely
 aggregating species keeps using, and the grazer keeps using it exclusively —
@@ -1875,6 +1944,57 @@ Alarm is staged into a map and committed after the pass, so panic spreads exactl
 one hop per tick regardless of entity iteration order. Writing straight to the
 entity would let an alarm race down the id ordering and cross the whole herd in a
 single tick.
+
+#### Heterospecific association
+
+_Added 2026-07-30 (PLAN-SPECIES.md §3.16, phase 12)._
+
+**A species states who it is willing to stand with, and how much one of them is
+worth.** One weight per partner species, keyed by id, in the shape `habitat` uses
+for terrain — `association: { 'herbivore.wildebeest': 0.5 }` — where 1 is parity
+with a conspecific and an unnamed species is nothing at all. Gazelle stand with
+wildebeest and zebra for reasons this engine can measure (more eyes watching, more
+bodies to be picked between, and the short flush the bigger grazers leave behind),
+and until now the herd was conspecific-only, so none of it was expressible.
+
+⚠ **It is an attraction, never a membership**, which is the same line §3.8 draws
+between a label and a record, and it is where every design decision came from:
+
+- **Herd labels stay conspecific**, so two species never merge into one herd and
+  no per-species herd metric becomes meaningless.
+- **So do `groupmates`, `adults`, and `nearestDistance`.** Anything that counts
+  bodies counts your own kind — which matters most at `mobbing.minMobbers`, since
+  a mob of the wrong species defends nobody.
+- **It is directional.** Each animal reads *its own* species' list, so a gazelle
+  can follow wildebeest without the wildebeest caring. Mutual association is two
+  declarations.
+
+Two things change: the **centre of mass** an animal herds toward becomes a
+weighted mean including its company, and an associate's **alarm carries** (its own
+switch, `association.sharesAlarm`, so the two halves can be measured apart — phase
+11's lesson that two mechanisms shipped together confound each other).
+
+⚠⚠ **The pull's strength is deliberately not scaled by the weight as well**, and
+the first cut did that and was wrong for the same reason phase 9's symmetric
+forage window was: **it charges the animal twice for one fact.** The weight has
+already been spent inside the centroid. Measured — herding is the weakest utility
+there is, so at `herdWeight` 0.6 a second discount of 0.5 caps the pull at 0.30
+against a `wanderBias` of 0.35 and it can never win: a follower held station no
+better than one with the mechanism off (16.1 units from the herd either way). Every
+weight below ~0.58 was inert, which is most of the range anyone would declare. So
+the weight means exactly one thing: **how much of a body a member of that species
+is worth when the herd's centre is worked out.**
+
+**Predator dilution needs nothing and gets nothing.** It already falls out:
+perception reports the nearest eligible prey (A58), so a predator entering a mixed
+aggregation takes what is closest and the odds of that being any one species fall
+as the mixture grows.
+
+⚠ **No shipped species declares an association**, so this is inert by
+construction — `SocialSystem` builds the declaring-species map once per world and,
+when it is empty, its neighbour loop is the loop it has always been. The demo is
+byte-identical with `association.enabled: false`. The wildebeest and zebra of
+batch 3 are what the weights get tuned against.
 
 ### Persistent groups
 
@@ -3240,11 +3360,11 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 
 `config` sections in `defaultSimulationConfig.js`: `world`, `time`, `terrain`,
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
-`engineering`, `disturbance`, `migration`, `disease`, `social`, `groups`,
-`environment`, `carcass`, `lineage`, `injury`, `hunting`, `cooperation`,
-`mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`, `parenting`,
-`aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`, `decision`,
-`predation`, `demo`.
+`engineering`, `disturbance`, `migration`, `disease`, `social`, `breeding`,
+`association`, `groups`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
+`cooperation`, `mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`,
+`parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`,
+`decision`, `predation`, `demo`.
 
 **Twelve** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
 `genetics`, `disease`, `reproduction`, and — from 2026-07-28 — `feeding`,
@@ -3255,33 +3375,40 @@ see §8.
 `DecisionSystem`: `behavior` is what an animal wants (per-species), `decision`
 is the machinery of choosing (global). See §9 Decision.
 
-⚠ **`social` and `groups` are two mechanisms that sound like one**, and reading
-either as the other will waste an afternoon. `social` is the herd *label* —
-positional, recomputed every tick, owned by `SocialSystem`. `groups` is the
-persistent group *record* — an identity that survives separation, owned by
-`GroupSystem`. See §9 Sociality, which opens with the design decision this
-overrode.
+⚠ **`social`, `groups`, and `association` are three mechanisms that sound like
+one**, and reading any of them as another will waste an afternoon. `social` is the
+herd *label* — positional, recomputed every tick, owned by `SocialSystem`.
+`groups` is the persistent group *record* — an identity that survives separation,
+owned by `GroupSystem`. `association` (2026-07-30) is who an animal will stand
+with that is **not** its own kind, and it is neither a label nor a record: it is a
+weight in the species file, read by `SocialSystem` where the herd centre is
+computed. See §9 Sociality, which opens with the design decision the second
+overrode and ends with what the third is allowed to touch.
 
-⚠ **`cooperation` and `mobbing` (2026-07-30) are switches with no section of
-their own to sit in.** Cooperative hunting's weight belongs in `hunting` and
-mobbing's in `behavior` — both species blocks — so their off switches had to live
-somewhere a species cannot override, and that is these two sections. They hold an
-`enabled` plus the geometry (`range`, `joinRange`, `minMobbers`) and nothing a
-species would ever want to state. Same shape as `forage` and `habitat`, and by now
-the standing pattern rather than a one-off.
+⚠ **`cooperation`, `mobbing`, `breeding`, and `association` are switches with no
+section of their own to sit in.** Cooperative hunting's weight belongs in
+`hunting`, mobbing's in `behavior`, and a breeding window in `reproduction` — all
+species blocks — so their off switches had to live somewhere a species cannot
+override, and that is these sections. They hold an `enabled` plus the geometry
+(`range`, `joinRange`, `minMobbers`, `sharesAlarm`) and nothing a species would
+ever want to state; `breeding` holds the switch and *nothing else*, which is the
+shape reduced to its point. Same shape as `forage` and `habitat`, and by now the
+standing pattern rather than a one-off.
 
-⚠ **`groups`, `migration`, `territory`, `forage`, and `habitat` are the five
-sections that are half-global and half-per-species**, and none of them is a species
-block. Each has a same-named field on the species record holding that animal's
-biology (`groups.forms`, `migration.tracksForage`, `territory.defends`,
-`forage.preferredBiomass`, `habitat.cover`), while the config section holds
-world-level machinery — for `groups` that is `enabled`, `updateInterval`, and the
-store bound `maxGroups`; for `forage` and `habitat` (2026-07-29) it is `enabled`
-plus the shared shape of the effect (`qualityFloor`, `biasWeight`, `cueReference`).
-They are not blocks precisely *because* of that mixture: a species inheriting
-`maxGroups` would be inheriting a knob on a store it does not own, and — the sharper
-reason, learned at phase 8 — **an `enabled` inside a species block is not an off
-switch at all**, because a species block beats the config (§8).
+⚠ **`groups`, `migration`, `territory`, `forage`, `habitat`, and `association` are
+the six sections that are half-global and half-per-species**, and none of them is a
+species block. Each has a same-named field on the species record holding that
+animal's biology (`groups.forms`, `migration.tracksForage`, `territory.defends`,
+`forage.preferredBiomass`, `habitat.cover`, and a weight per partner species in
+`association`), while the config section holds world-level machinery — for `groups`
+that is `enabled`, `updateInterval`, and the store bound `maxGroups`; for `forage`
+and `habitat` (2026-07-29) it is `enabled` plus the shared shape of the effect
+(`qualityFloor`, `biasWeight`, `cueReference`); for `association` (2026-07-30) it is
+`enabled` and `sharesAlarm`. They are not blocks precisely *because* of that
+mixture: a species inheriting `maxGroups` would be inheriting a knob on a store it
+does not own, and — the sharper reason, learned at phase 8 — **an `enabled` inside a
+species block is not an off switch at all**, because a species block beats the
+config (§8).
 
 ⚠ **A value must have exactly one home.** Three constants were restated in a second
 section with a comment saying they matched the first, which is the D11 shape

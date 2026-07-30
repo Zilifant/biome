@@ -166,6 +166,25 @@ export const defaultSimulationConfig = Object.freeze({
     fightInjurySeverity: 0.22, // milder than a predator's bite (0.35)
     fightWinnerInjuryFraction: 0.4, // winning a fight is not the same as being unhurt
     birthOffset: 1.0, // how far behind the parent the newborn appears
+    // Seasonal breeding (see mating/breeding.js). PLAN-SPECIES.md §3.11, phase 12.
+    //
+    // ⚠ **`null` means year-round, and the comparison is then never made** —
+    // exactly the identity rather than a window that happens to cover the year
+    // (D16, as `predation`'s mass ratios are). Every species inherits it; the
+    // wildebeest of batch 3 is the first animal with a compressed rut, and
+    // synchronized calving then needs nothing else at all, because a compressed
+    // conception window plus a constant `gestationTicks` *is* a calving season.
+    //
+    // ⚠ The off switch is `config.breeding.enabled`, **not** a field in here:
+    // `reproduction` is a species block and a species block beats the config
+    // (DOCS §8), so a switch in this section could not switch anything off.
+    //
+    // ⚠ Fractions of the year, and the window may wrap the boundary
+    // (`{ startFraction: 0.8, endFraction: 0.1 }` is a rut running from late
+    // autumn into early spring). Start **wide** and narrow it under measurement:
+    // a species that misses one window loses a year of recruitment, and at 8000
+    // ticks to the year a 15k-tick sweep contains only two windows.
+    breedingWindow: null,
   }),
   // Territories and home ranges (see systems/TerritorySystem.js and
   // world/ScentGrid.js). Nothing here draws a boundary. A home range is a
@@ -434,6 +453,56 @@ export const defaultSimulationConfig = Object.freeze({
     // first cut left 106 of 119 grazers permanently fleeing. At 2 hops the wave
     // reaches ~3 herd-radii from the sighting and then dies.
     maxAlarmHops: 2,
+  }),
+  // Seasonal breeding windows (see mating/breeding.js). PLAN-SPECIES.md §3.11,
+  // phase 12.
+  //
+  // ⚠ **A section holding one switch, and it has to be its own section.** The
+  // window is per-species biology and belongs in `reproduction` — where it is —
+  // but `reproduction` is a species block, so an `enabled` inside it would be
+  // overridable by the very species being switched off. Same shape as
+  // `cooperation` and `mobbing`, and by now the standing pattern.
+  //
+  // Inert until a species declares `reproduction.breedingWindow`, which is `null`
+  // for all six. The wildebeest arrives in phase 13.
+  breeding: Object.freeze({
+    // False ⇒ every species breeds year-round whatever it declares: the measured
+    // control. Costs nothing when true either — a null window skips the test.
+    enabled: true,
+  }),
+  // Heterospecific association (see social/association.js). PLAN-SPECIES.md
+  // §3.16, phase 12.
+  //
+  // ⚠ **A third thing in the neighbourhood that is not the other two.** `social`
+  // is who I am standing with *of my own kind*; `groups` is who I belong to;
+  // this is who I am willing to stand with that is **not** my own kind. A gazelle
+  // in a wildebeest herd is in none of that herd's labels and none of its records,
+  // and is still standing in it.
+  //
+  // The biology — which species, and how strongly — is the always-per-species
+  // `association` field, one weight per partner species keyed by id, in the shape
+  // `habitat` uses for terrain. What lives here is the machinery and the two
+  // switches, for the phase-8 reason that a species block beats the config and an
+  // off switch inside one cannot switch anything off.
+  //
+  // ⚠ **No shipped species declares an association**, so this is inert by
+  // construction: `SocialSystem` builds the declaring-species map once per world
+  // and its neighbour loop is unchanged when that map is empty. The wildebeest and
+  // zebra arrive in batch 3 (phase 13) and are what the weights get tuned against —
+  // declaring one now would be fitting a parameter to a world with nothing to
+  // associate with.
+  association: Object.freeze({
+    // False ⇒ no species associates with anything, whatever it declares: the
+    // measured control, in the pattern every mechanism since migration ships.
+    enabled: true,
+    // ⚠ **The second switch is not decoration.** Association does two things — it
+    // moves the herd centre an animal steers at, and it lets an associate's alarm
+    // carry — and a co-attracted animal is usually also a co-alarmed one. Phase 11
+    // paid for that lesson: two mechanisms shipped together confound each other's
+    // measurement, and the uncontrolled comparison read *backwards* while both
+    // were working perfectly (§10.2). This splits the cells before anybody needs
+    // them split. False keeps the attraction and leaves warnings conspecific.
+    sharesAlarm: true,
   }),
   // Persistent social groups (see world/GroupRegistry.js and
   // systems/GroupSystem.js). PLAN-SPECIES.md §3.8.

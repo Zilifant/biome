@@ -42,6 +42,7 @@ import {
   matePreferenceFor,
 } from '../mating/mateChoice.js';
 import { FightInjuryKinds, dominanceOf, resolveContest } from '../social/dominance.js';
+import { DEFAULT_BREEDING, breedingWindowOf, inBreedingWindow } from '../mating/breeding.js';
 import { isSymptomatic } from '../disease/disease.js';
 
 /**
@@ -54,12 +55,20 @@ import { isSymptomatic } from '../disease/disease.js';
  * is not a tuning convenience — it is the investment asymmetry that makes
  * choosing worth anything.
  *
+ * ⚠ **And, from phase 12, on the time of year** — but only for the gestating sex,
+ * and only for a species that declares a `breedingWindow` (see `mating/breeding.js`
+ * for why the seeking sex is deliberately left ready year-round). `yearProgress` is
+ * `null` when the caller has no clock or the mechanism is switched off, which skips
+ * the test entirely rather than evaluating a window that covers the year.
+ *
  * @param {object} entity
  * @param {number} tick
  * @param {{minEnergyFraction: number, cooldownTicks: number,
- *   suitorMinEnergyFraction?: number, suitorCooldownTicks?: number}} params
+ *   suitorMinEnergyFraction?: number, suitorCooldownTicks?: number,
+ *   breedingWindow?: {startFraction: number, endFraction: number}|null}} params
+ * @param {number|null} [yearProgress] fraction of the year elapsed, or null for no season
  */
-export function isReproductivelyReady(entity, tick, params) {
+export function isReproductivelyReady(entity, tick, params, yearProgress = null) {
   const { minEnergyFraction, cooldownTicks, suitorMinEnergyFraction, suitorCooldownTicks } = params;
   const gestates = isChooser(entity);
   const energyBar = gestates ? minEnergyFraction : (suitorMinEnergyFraction ?? minEnergyFraction);
@@ -68,6 +77,10 @@ export function isReproductivelyReady(entity, tick, params) {
     entity.kind === 'animal' &&
     entity.alive &&
     entity.lifeStage === 'adult' &&
+    // Out of season she is simply not receptive — the same shape as being on
+    // cooldown, and it reaches the decision system through this one predicate, so
+    // she does not go looking for a mate she would refuse.
+    (yearProgress === null || !gestates || inBreedingWindow(yearProgress, breedingWindowOf(params))) &&
     // A visibly ill animal does not breed (Step 25). Incubating ones do, which
     // is deliberate: the disease travels through the population's ordinary life
     // rather than being quarantined by a rule.
@@ -99,6 +112,7 @@ export class ReproductionSystem extends SimulationSystem {
    * @param {number} [options.injuryHealthDamage] health lost per unit of severity
    * @param {number} [options.birthOffset]
    * @param {number} [options.birthMass] newborn body mass (from the aging curve)
+   * @param {boolean} [options.breedingEnabled] whether a species' breeding window is honoured
    * @param {object} [options.genetics] mutation rate and step (see traits/genetics.js)
    * @param {number} [options.updateInterval]
    */
@@ -121,6 +135,12 @@ export class ReproductionSystem extends SimulationSystem {
     injuryHealthDamage = 60,
     birthOffset = 1.0,
     birthMass = 5,
+    // Seasonal breeding (phase 12, PLAN-SPECIES.md §3.11). ⚠ Wired from
+    // `config.breeding`, a global section — *not* from `reproduction`, which is a
+    // species block a species overrides, so a switch inside one could not switch
+    // anything off (DOCS §8). The window itself is per-species biology and does
+    // live in that block.
+    breedingEnabled = DEFAULT_BREEDING.enabled,
     genetics = {},
     updateInterval = 1,
   } = {}) {
@@ -143,6 +163,7 @@ export class ReproductionSystem extends SimulationSystem {
     this.injuryHealthDamage = injuryHealthDamage;
     this.birthOffset = birthOffset;
     this.birthMass = birthMass;
+    this.breedingEnabled = breedingEnabled;
     this.genetics = genetics;
   }
 
@@ -414,18 +435,38 @@ export class ReproductionSystem extends SimulationSystem {
     return world.species.get(entity.speciesId)?.reproduction ?? this;
   }
 
+  /**
+   * Where in the year this world is, or null when the season must not gate
+   * breeding — the mechanism switched off, or a world with no environment at all
+   * (a hand-built test world). Read off `world.environment`, which `WeatherSystem`
+   * rewrites every tick in the `environment` phase, ahead of both this system
+   * (`interaction`) and the decision system (`decision`). One property read, and
+   * `null` skips the window test entirely (§3.11).
+   * @param {import('../world/World.js').World} world
+   * @returns {number|null}
+   */
+  #yearProgress(world) {
+    return this.breedingEnabled ? (world.environment?.yearProgress ?? null) : null;
+  }
+
   /** @param {import('../world/World.js').World} world @param {object} entity @param {number} tick */
   #eligible(world, entity, tick) {
-    return isReproductivelyReady(entity, tick, this.#params(world, entity));
+    return isReproductivelyReady(entity, tick, this.#params(world, entity), this.#yearProgress(world));
   }
 
   /** Public readiness view for inspection (mirrors #eligible). */
   readinessFor(world, entity, tick) {
+    const breedingWindow = this.breedingEnabled ? breedingWindowOf(this.#params(world, entity)) : null;
     return {
       ready: this.#eligible(world, entity, tick),
       gestating: entity.gestationUntil !== null,
       gestationUntil: entity.gestationUntil,
       lastMatedTick: entity.lastMatedTick,
+      // Null for a species that breeds year-round, which is every species today.
+      // Reported so "she is not ready" can be told from "she is not ready *yet*"
+      // without the observer having to know the tick maths (invariant 19).
+      inBreedingSeason:
+        breedingWindow === null ? null : inBreedingWindow(world.environment?.yearProgress ?? 0, breedingWindow),
     };
   }
 }

@@ -7,9 +7,9 @@ per role**, each with its own behaviour, food, and water needs. Written
 six settled decisions (§11), and again to put the **gazelle** rather than the
 wildebeest in the first batch.
 
-> ### ⚠ Status: phases 0–11 are done (last updated 2026-07-30)
+> ### ⚠ Status: phases 0–12 are done (last updated 2026-07-30)
 >
-> **This document is no longer a plan for unimplemented work.** Phases 0–11 have
+> **This document is no longer a plan for unimplemented work.** Phases 0–12 have
 > shipped — see the table in §8 — and the world now has **six species**
 > (gazelle, buffalo, stalker, lion, vulture, hyena) at protocol v29.
 >
@@ -19,12 +19,14 @@ wildebeest in the first batch.
 > written". ⚠ Read the two together and prefer the As-built block: the plan was
 > right about shape far more often than about consequence.
 >
-> **Next: phase 12** (batch-3 prerequisites — heterospecific association and
-> seasonal breeding windows). §3.11, §3.12, §3.13, and §3.16 are still ahead;
-> §3.3, §3.4, and §3.7 have landed, and ⚠ **all three landed differently from how
-> they were proposed** — read their As-built blocks before touching any of them.
-> ⚠ Batch 2's own As-built (§10.2) is the one to read before adding any species:
-> every difficulty in it was about **density and scale**, not about mechanisms.
+> **Next: phase 13 — batch 3 (wildebeest + zebra)**, the first batch whose two
+> prerequisites were both built for it in advance (§3.11 and §3.16, phase 12) and
+> are both **inert until it declares them**. §3.12 and §3.13 are still ahead;
+> §3.3, §3.4, §3.7, and §3.16 have landed, and ⚠ **all four landed differently
+> from how they were proposed** — read their As-built blocks before touching any of
+> them. ⚠ Batch 2's own As-built (§10.2) is the one to read before adding any
+> species: every difficulty in it was about **density and scale**, not about
+> mechanisms — and batch 3 adds two herd species at once.
 
 The short version, still true of what remains: **the species system is already
 good enough to declare new species, and not yet good enough to make them behave
@@ -235,7 +237,12 @@ is only which of them the engine can express.
 | ~~**Contested carcasses**~~    | ✅ **since 2026-07-28** | `carcass.possessorId`, contested through `resolveContest` (§3.9, phase 4) | lion vs hyena vs vulture        |
 | ~~**Escape by agility**~~      | ✅ **since 2026-07-28** | `hunting.agility`, prey-resolved, one divide in `captureChance` (§3.15) | gazelle                         |
 | ~~**Concealed newborns**~~     | ✅ **since 2026-07-29** | `aging.hiddenUntil` + the `hide`/`tend` actions and concealment in perception (§3.14, phase 8). ⚠ The *invisibility* half only bites for a fawn born on cover — DOCS A57 | gazelle |
-| **Heterospecific association** | ❌                      | herding is conspecific-only                          | gazelle with wildebeest / zebra |
+| ~~**Heterospecific association**~~ | ✅ **since 2026-07-30** | a per-species `association` weight per partner species, read where the herd centre is already computed, plus the associate's alarm (§3.16, phase 12) | gazelle with wildebeest / zebra |
+
+⚠ **This table is now one row from empty**, and the row left is `diet` (phase 15).
+When it closes, the *next* unrepresentable axis will have to be found rather than
+looked up — which is a harder job than any of the twelve above, and worth knowing
+is coming.
 
 **Six ❌ rows closed on 2026-07-28**, across phases 2–4: `behavior` became a
 species block (§3.1), which is what makes "a skittish gazelle" and "a pride
@@ -247,10 +254,12 @@ grass maturity and habitat at phase 9. **Cooperative action closed on 2026-07-30
 (phase 10), ⚠ *expressible* but not yet exercised: no shipped species declares
 either weight, so the row records a schema rather than a behaviour until phase 11.
 
-What remains is **two rows**: what food it eats (the `diet` string, phase 15) and
-heterospecific association (phase 12). ⚠ So the ❌ column is nearly spent, and after
-phase 12 this table has nothing left in it — which means the *next* unrepresentable
-axis will have to be found rather than looked up.
+**Heterospecific association closed on 2026-07-30** (phase 12), ⚠ *expressible* and
+not yet exercised, in the same sense cooperative action was between phases 10 and
+11: no shipped species declares an `association`, so the row records a schema until
+batch 3 declares one.
+
+What remains is **one row**: what food it eats (the `diet` string, phase 15).
 
 ⚠ **Prior art from this repo:** adding the corvid read as a balance problem
 (3/10 seeds vs a 6/10 control) until the real cause turned up — `fleshIntakeRate`
@@ -950,7 +959,42 @@ already derived. Three roster requirements sit on top of that:
   dominance rather than replace it. Elephant-only in its full form, so it rides at
   the very end and may never be built.
 
-### 3.11 Seasonal reproduction and birth synchrony
+### 3.11 ✅ Seasonal reproduction and birth synchrony (shipped 2026-07-30, phase 12)
+
+✅ **Built exactly as proposed — the only section in this document so far whose
+prediction needed no correction.** `breedingWindow: { startFraction, endFraction }`
+in the `reproduction` block, gated against the `yearProgress` `WeatherSystem`
+already publishes, and **birth synchrony did emerge for free**: with a conception
+window a quarter of the year wide and a constant gestation, every birth in a
+two-year run landed inside that quarter shifted by the gestation, with nothing
+anywhere synchronizing them. Asserted in `test/breeding.test.js` on the births
+rather than on the matings, because the births are the claim.
+
+Four things the section did not say, none of them a correction:
+
+- ⚠ **The switch could not go in `reproduction`.** That block is per-species, and a
+  species block beats the config, so `config.breeding` exists to hold one boolean —
+  the standing pattern (§3.4, §3.7) reduced to its point.
+- ⚠ **A window may wrap the year**, and that is the normal case rather than an edge
+  one: a rut running from late autumn into early spring is `{ 0.9, 0.1 }`. A
+  mechanism that could not express it would push every species' season away from the
+  boundary for reasons that are purely arithmetic.
+- **It gates the chooser only, and that is a stated limit.** Conception is what a
+  window is for; gating the seeking sex would stop males competing for females about
+  to become receptive, and would change nothing about when calves are born.
+- ⚠ **A degenerate window is year-round, not a sterile species.** Equal ends read as
+  no window at all. "Breeds on exactly one instant of the year" is a config typo that
+  quietly extinguishes a species over ten seeds and looks like an ecological result;
+  the identity is the safe failure.
+
+And one thing that fell out: **she enters each window at full choosiness**, because
+the search clock already stops while she is not receptive. Nothing was built for it.
+
+⚠ **The section's own warning is the one to carry into phase 13** and it is
+unchanged: a species that misses a window loses a year of recruitment, and a
+15 000-tick sweep contains only two windows. Start wide.
+
+### 3.11 The section as written
 
 The **wildebeest** is the roster's clearest case: a compressed rut and
 synchronized calving. The pieces are all present — `environment.ticksPerYear` is
@@ -1104,7 +1148,57 @@ Sort those by what this engine can honestly represent:
   to read a per-prey signal. Genuinely interesting, entirely unnecessary for a
   convincing gazelle.
 
-### 3.16 Herding is conspecific-only (new)
+### 3.16 ✅ Heterospecific association (shipped 2026-07-30, phase 12)
+
+✅ **Built, and the section below was right about the cost, the chokepoint, and
+the warning.** "A filter change rather than a traversal change" is exactly what it
+turned out to be: one comparison in `SocialSystem`'s existing neighbour loop, no
+new walk, no new state, no save or protocol change. Four deltas:
+
+- ⚠⚠ **The weight means one thing, and the first cut gave it two.** The section
+  asks for "a weight below conspecific herding", which reads as *both* a smaller
+  contribution to the herd centre and a weaker pull toward it. Built that way, and
+  it is the phase-9 symmetric-window error again — **it charges the animal twice
+  for one fact.** Measured: herding is the weakest utility in the table, so at
+  `herdWeight` 0.6 a second discount of 0.5 caps the pull at 0.30 against a
+  `wanderBias` of 0.35 and it can *never* win; a follower held station no better
+  than one with the mechanism off (16.1 units from the herd either way, 200 ticks),
+  and every weight below ~0.58 behaved identically. So the weight is spent inside
+  the centroid alone: **how much of a body a member of that species is worth.** The
+  cost is that it only bites in *mixed* company — recorded as **A61**.
+- ⚠ **It is a weight map, not a list, and not in `social`.** The section proposes
+  `social.associatesWith: [speciesId]`. `config.social` is the herd-label section,
+  and hanging a second sociality mechanism inside it is the merge phase 3
+  specifically refused for the group registry. It ships as an always-per-species
+  `association` field keyed by partner species id — the shape `habitat` uses for
+  terrain, so a partial declaration is one number — beside a global
+  `config.association` holding the switches.
+- ✅ **"Keep it out of the label propagation" was the load-bearing warning** and is
+  now a test rather than a comment. Labels, `groupmates`, `adults`, and
+  `nearestDistance` are all conspecific, and the sharpest reason is one the section
+  did not have: `mobbing.minMobbers` counts `adults` off the same summary, so
+  counting associates there would let a herd of the wrong species talk an animal
+  into turning and facing a predator none of them will help with.
+- ⚠ **A second half the section did not propose: an associate's alarm carries.**
+  The section names "better vigilance" as the *reason* the association exists and
+  then builds only the attraction — but standing beside an animal whose warnings
+  you cannot hear buys nothing. It rides the existing wave (same hops, same
+  `maxAlarmHops` cap) and has its **own switch**, `association.sharesAlarm`, so the
+  two halves can be measured apart. That switch is phase 11's lesson applied in
+  advance: two mechanisms shipped together confound each other, and the uncontrolled
+  comparison there read backwards while both were working perfectly.
+
+**Predator dilution needed nothing and got nothing**, which is worth recording as a
+saving: perception reports the *nearest* eligible prey (A58), so a predator entering
+a mixed aggregation takes what is closest and the odds of that being any one species
+fall as the mixture grows. No term, no code.
+
+⚠ **Inert, and byte-identically so**: no species declares an association, the
+declaring-species map is empty, and the demo's entity state is identical across
+seeds 1/2/42 at 1500 ticks to the tree without the mechanism (1.92 MB). The
+wildebeest and zebra arrive at phase 13 and are what the weights get tuned against.
+
+### 3.16 The section as written
 
 The `herd` action scores the centre of mass of **same-species** neighbours.
 Gazelles associating with wildebeest and zebra — better vigilance, predator
@@ -1604,7 +1698,7 @@ Each phase leaves the suite green and the demo runnable, in this repo's usual
 shape. Phases 0–6 are groundwork with no new species at all; species land from
 phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 
-**⚠ Ten of eighteen phases have shipped, and the world has four species.** The
+**⚠ Twelve of eighteen phases have shipped, and the world has six species.** The
 table is a *chart*, not a record: a done row states what landed, when, and the one
 thing worth carrying out of it. The reasoning, the measurements, and every place a
 phase's own prediction turned out wrong live in that phase's **"As built"** block
@@ -1624,8 +1718,8 @@ in the section it links to — read those before repeating any of this work.
 | **9** | Forage guilds (§3.3): grass-maturity preference; `habitat` weights, closing A49's habitat half (§3.4) | ✅ **2026-07-29** | Decision / Migration. ⚠⚠ **Two gates failed first**: `biomass / capacity` as the axis, then a symmetric window. What shipped is **absolute standing crop** with a one-sided falloff, and a cue whose *direction* is scored but whose *strength* is not. `npm run sweep --set=` added so a config A/B is one command |
 | **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | ✅ **2026-07-30** | Decision / Hunting. ⚠ **No new action**: mobbing turned out to be the unimplemented groupmate half of `defend`. Both mechanisms ship **inert and byte-identical**; ⚠⚠ **the A32 fix failed** — removing the clause entirely moves nothing, and the measured blocker is that only 6–9% of hunts commit to a juvenile at all. Opened **A59** |
 | **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | ✅ **2026-07-30** | config + one correction to phase 10. ⚠⚠ **The gate failed first, exactly as predicted** — a carrion-subsidised pride ate the buffalo out (5/10 seeds) until `minHungerToHunt` went 0.3 → 0.45. ⚠ Every other difficulty was **density**: both mechanisms count neighbours, so `herdDistance` is a parameter of both. Closed **A33**, narrowed **A59**, opened **A60** (territory is an individual claim, so a pride cannot hold ground) |
-| **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | ← **next** | low — Social / Reproduction |
-| **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | planned | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring |
+| **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | ✅ **2026-07-30** | Social / Reproduction. Both ship **inert and byte-identical**, and the risk estimate ("low") held. ⚠ The one thing measured wrong first was scaling the herd *pull* by the association weight as well as the centroid — the phase-9 double-count again, and it made every weight below ~0.58 inert. Opened **A61**. ⚠ Association grew a half the plan did not propose (an associate's alarm carries) because the plan's own reason for the mechanism was *vigilance* |
+| **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | ← **next** | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring, and where **both of phase 12's mechanisms get their first declaring species** |
 | **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`; optionally ambush concealment (§3.12) | planned | med — config (+ perception). The last `supersededBy` entry is deleted here |
 | **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | planned | high — large. §5.7 must move in the same commit |
 | **16** | **Batch 5 — black rhino.** | planned | high — config only |
@@ -1990,6 +2084,26 @@ limitation for both species.
 | `herbivore.wildebeest` |  200 | open plain, large loose herds, mid-maturity regrowth, strong forage-tracking, compressed rut and synchronized calving | forage guilds (§3.3), breeding windows (§3.11) |
 | `herbivore.zebra`      |  300 | tolerates tall coarse grass and crops it down; high water need                                                        | forage guilds (§3.3)                           |
 
+✅ **Every gate in that last column now exists**, and two of the three were built
+for this batch specifically and are **inert until it declares them** (phase 12).
+Four notes for whoever writes these two species files:
+
+- **A breeding window is `reproduction.breedingWindow`**, fractions of the year,
+  and it may wrap the boundary. ⚠ Start **wide**: a species that misses a window
+  loses a year of recruitment and a 15k sweep holds only two windows (§3.11).
+- **An association is `association: { 'herbivore.wildebeest': 0.5 }`** on the
+  *gazelle*, not on the wildebeest — it is directional, and the small species is
+  the one that benefits (§3.16). ⚠ Its weight only bites in mixed company (A61).
+- ⚠ **Both are density mechanisms in the §10.2 sense.** Association counts
+  neighbours within `groupRadius`; a window concentrates every conception into a
+  quarter of the year, which concentrates the *births*, which is a density spike by
+  construction. `behavior.herdDistance` and the founding counts are parameters of
+  both, exactly as they were of cooperation and mobbing.
+- ⚠ **They will confound each other**, and phase 12 left the switches to separate
+  them: `association.enabled`, `association.sharesAlarm`, and `breeding.enabled`
+  are three independent arms over the same seeds, which is what `npm run sweep
+  --set=` exists for.
+
 These two are a competitive pair and must land together — building either alone
 means tuning it twice. With the gazelle already present they complete the
 **three-tier grazing succession** (§3.3): zebra open the sward, wildebeest take
@@ -2104,8 +2218,11 @@ Per E4 discipline, and all lists must stay in step:
   Parenting gained "The hidden-fawn stage"** at phase 8, and ✅ §7 Decision now
   lists `hide`/`tend` and says why two new actions were allowed; ✅ **§9 Hunting and
   §7 Decision again at phase 10** (cooperative action, and why it added no action);
-  §9 Feeding at phase 9; §7 Vegetation at phase 9; §5 lifespan
-  compression at phase 13 (§11.6); ✅ §19 configuration map at phase 2 and phase 10
+  ✅ **§9 Sociality gained "Heterospecific association" and §9 Reproduction
+  "Seasonal breeding windows" at phase 12**, and the Sociality table went from two
+  mechanisms to three; §9 Feeding at phase 9; §7 Vegetation at phase 9; §5 lifespan
+  compression at phase 13 (§11.6); ✅ §19 configuration map at phase 2, phase 10,
+  and phase 12
 - `ACTION-ITEMS.md` — ✅ **A55 closed at phase 7**; ✅ **A56 opened at phase 7** (a
   two-member clan flaps) and ✅ **A57 at phase 8** (concealment needs cover); ✅ A34
   was *tested* by phase 8 and its diagnosis held — it stays open, for the sharper
@@ -2113,7 +2230,9 @@ Per E4 discipline, and all lists must stay in step:
   by phase 8 and did not improve**, so its remaining lever was the "nearer the
   predator than I am" test; ⚠ **that lever was built and measured at phase 10 and it
   is not the constraint** — A32 stays open with a new diagnosis, ✅ A33 is
-  implemented-but-inert, and **A59** opened; ✅ **A49's habitat half
+  implemented-but-inert, and **A59** opened; ✅ **A61 opened at phase 12** (an
+  association weight only bites in mixed company, and the obvious fix measured
+  inert); ✅ **A49's habitat half
   closed at phase 9** (its activity-pattern half stays open, with no diurnal cycle to
   hang one on); A35
   revisited by sex-specific territory (phase 15); A51 in phase 15 — ⚠ and A57 is
