@@ -37,14 +37,32 @@ they are not re-opened by accident.
 - **⚠ A34 — Patrolling / site fidelity.** Ramped over six range radii
   (`patrolSpanFactor: 6`) so it never fires during normal foraging, because
   patrol competes with wandering and wandering is how an animal finds its next
-  meal. The named lever is giving patrol a _reason_ — food worth returning to, or
-  a den — rather than making it compete with foraging on equal terms.
+  meal. ✅ **The named lever — give it a reason — was tested 2026-07-29 and the
+  diagnosis held**: `tend` (a mother returning to a hungry hidden calf) is
+  patrol's shape with a reason attached, and it fired **1045–1455 adult-ticks per
+  3000** where `patrol` fired **0–1** in the same worlds. Still open, now for a
+  sharper reason: `patrol`'s target is a *place* rather than a *purpose*, so
+  giving it a den means giving it something at the den to want.
 
 - **A32 — Juvenile defense fires about once in 12 000 ticks.** The geometry it
   needs (an adult with a living juvenile of its own, that juvenile nearer the
-  predator than the parent and inside `defendRange`) almost never arises. The
-  named lever is relaxing "nearer the predator than I am" to "near enough to
-  interpose".
+  predator than the parent and inside `defendRange`) almost never arises. ⚠ **The
+  hidden-fawn stage was expected to help and did not** (2026-07-29): a stationary
+  calf with a mother that returns to it moved `entity.defended` 0→0, 1→1, 0→1
+  across three seeds. Both hoped-for fixes (territory, then concealment) have now
+  failed, which leaves the **"nearer the predator than I am" test itself** as the
+  only remaining lever.
+
+- **⚠ A57 — A hidden fawn is concealed only if it was born on cover (~8–10%).**
+  The hidden-fawn stage's `hide` half applies to every fawn; the *invisibility*
+  half applies only on sheltering ground, and nothing makes a mother choose such
+  ground to give birth on — so the concealed fraction (7.6–11.1%) tracks the
+  sheltering fraction of the map (7.2–9.9%) almost exactly. Implemented, tested,
+  correct, and rarely doing visible work. Named lever: **birth-site selection** (a
+  female near term preferring cover), which is a new pull on the existing
+  `shelter` action but changes reproduction placement, so it wants its own measured
+  step. Also the strongest argument yet for A51 — more cover raises this with no
+  behavioural change at all.
 
 - **⚠ A56 — A two-member clan flaps between founding and dissolution.**
   `groups.minMembers: 2` makes a pair a clan and a lone animal not one, so a pair

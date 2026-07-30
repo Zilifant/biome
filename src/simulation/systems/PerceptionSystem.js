@@ -20,6 +20,7 @@
 import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode } from '../world/TerrainGrid.js';
 import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
+import { isConcealed } from '../parenting/hiding.js';
 
 export class PerceptionSystem extends SimulationSystem {
   /**
@@ -28,7 +29,7 @@ export class PerceptionSystem extends SimulationSystem {
    * @param {number} [options.foodMinLevel] vegetation level that counts as food
    * @param {number} [options.updateInterval]
    */
-  constructor({ defaultRadius = 5, foodMinLevel = 1, maxMateCandidates = 6, lineOfSight = true, updateInterval = 1 } = {}) {
+  constructor({ defaultRadius = 5, foodMinLevel = 1, maxMateCandidates = 6, lineOfSight = true, concealment = true, updateInterval = 1 } = {}) {
     super({ id: 'perception', phase: 'perception', priority: 0, updateInterval });
     this.defaultRadius = defaultRadius;
     this.foodMinLevel = foodMinLevel;
@@ -38,6 +39,12 @@ export class PerceptionSystem extends SimulationSystem {
     // concealment is about who can see whom, and the cell scan is the engine's
     // hottest loop (§1.4 C6). Off restores sight through everything.
     this.lineOfSight = lineOfSight;
+    // Neonatal concealment (PLAN-SPECIES.md §3.14): whether a hidden calf lying on
+    // sheltering ground is invisible to a hunter. ⚠ The world-level control for
+    // the whole stage, from `config.parenting.concealment` — *not*
+    // `aging.hiddenUntil: 0`, which a species overrides (DOCS §8). Off skips the
+    // test entirely, so the neighbour loop is exactly what it was.
+    this.concealment = concealment;
   }
 
   update(world, context) {
@@ -168,11 +175,19 @@ export class PerceptionSystem extends SimulationSystem {
       // per tick — and its linear `includes` was measured rather than assumed
       // (D24), so the species relation stays exactly as cheap as it was and the
       // extra comparisons only run on its rare true case.
+      // ⚠ `isConcealed` sits last in this chain for the same reason the mass gate
+      // sits after `hunts()`: it is the most expensive test (an age check, then a
+      // terrain lookup) and it is only ever reached on the rare true case of a
+      // hunter looking at eligible prey. A hidden fawn lying in cover is not
+      // *seen*, so it is not prey — which is what finally makes cover a refuge
+      // (A18) rather than only a speed modifier. One lying in the open is still
+      // taken; concealment needs something to conceal it.
       if (
         world.species.hunts(entity.speciesId, other.speciesId) &&
         (nearestPrey === null || distance < nearestPrey.distance) &&
         other.bodyMass <= maxPreyMass &&
-        other.bodyMass >= minPreyMass
+        other.bodyMass >= minPreyMass &&
+        !(this.concealment && isConcealed(world, other, world.species.get(other.speciesId)))
       ) {
         // `fleeing` is visible to the hunter: prey that has bolted is running,
         // and a predator that keeps walking will never close the gap again.

@@ -25,7 +25,7 @@
  * fought the existing two head-on would only tell us the demo is a knife edge,
  * which §1.4 D14 already established.
  *
- * ⚠ **Was `scavenger.vulture` until 2026-07-29** (PLAN-SPECIES.md phase 7). The
+ * ⚠ **Was `scavenger.corvid` until 2026-07-29** (PLAN-SPECIES.md phase 7). The
  * rename carried no biology with it — the id changed and nothing else, proved
  * byte-identical across seeds.
  *

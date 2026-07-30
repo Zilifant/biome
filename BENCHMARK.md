@@ -134,6 +134,27 @@ result is that the hyena arm is slower in **all three rounds**, each measured
 seconds after its own control. That is the whole argument for interleaving, and
 it is why this table has three rounds rather than one reading each.
 
+### The hidden-fawn stage (2026-07-29, PLAN-SPECIES.md phase 8)
+
+Interleaved medium-1k, three rounds alternating `parenting.concealment` off and
+on — the same roster and the same seed, so only the mechanism differs:
+
+| arm | medium-1k (3 rounds) | mean | animals alive |
+| --- | --- | ---: | ---: |
+| concealment off | 8.82, 8.65, 8.71 | 8.73 | 1193 |
+| concealment on | 8.56, 8.71, 8.66 | 8.64 | 1190 |
+
+**Flat** (−1.0%, ranges overlapping completely). ⚠ And note the difference from
+the hyena measurement above: there the arm was slower in **all three** rounds,
+which is what a real cost looks like; here the "on" arm is faster in two rounds
+and slower in one, which is what **no effect** looks like. The ordering across
+interleaved rounds is the signal — not the means.
+
+Expected, and worth saying why rather than only recording it: the per-animal work
+is one `hiddenUntilFor` read that returns 0 for every species but the gazelle, and
+`#hiddenWard` early-outs on that same read before it ever touches the `offspring`
+list. The two new utility slots are in the object every animal already builds.
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

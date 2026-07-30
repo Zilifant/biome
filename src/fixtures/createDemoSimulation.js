@@ -64,7 +64,16 @@ export function registerDemoSystems(engine) {
   // Priority 20 in `environment`: last of the environment systems, and before
   // the `movement` phase whose results it reads next tick.
   engine.registerSystem(new EngineeringSystem(engine.config.engineering));
-  engine.registerSystem(new PerceptionSystem(engine.config.perception));
+  engine.registerSystem(
+    new PerceptionSystem({
+      ...engine.config.perception,
+      // Whether a hidden calf on sheltering ground is invisible to a hunter
+      // (PLAN-SPECIES.md §3.14). Wired from `config.parenting`, its one home, and
+      // read by this system and the decision system — ⚠ **not** expressible as
+      // `aging.hiddenUntil: 0`, which a species overrides (DOCS §8).
+      concealment: engine.config.parenting.concealment,
+    }),
+  );
   engine.registerSystem(new MemorySystem(engine.config.memory));
   // Runs at priority -10 in the `decision` phase, i.e. ahead of the decision
   // system, which consumes the group summary it builds.
@@ -108,6 +117,13 @@ export function registerDemoSystems(engine) {
       possessionEnabled: engine.config.carcass.possessionEnabled,
       possessionRange: engine.config.carcass.possessionRange,
       possessionShare: engine.config.carcass.possessionShare,
+      // Neonatal concealment (PLAN-SPECIES.md §3.14): the `tend` action asks
+      // whether a mother is close enough to feed her hidden calf and whether she
+      // has anything to give, and both answers belong to `ParentingSystem`. Wired
+      // from their one home rather than restated, exactly as `drinkRange` is.
+      provisionRange: engine.config.parenting.provisionRange,
+      parentMinEnergyFraction: engine.config.parenting.parentMinEnergyFraction,
+      concealment: engine.config.parenting.concealment,
       // Weather machinery: the °C thresholds stay global, and `shelterRelief` is
       // shared with metabolism through the `thermalStress` chokepoint so the
       // system that charges for stress and the one that walks out of it cannot

@@ -814,6 +814,18 @@ export const defaultSimulationConfig = Object.freeze({
   // Care is a real cost to the parent — the transfer is lossy and the parent
   // stops giving at its own reserve floor.
   parenting: Object.freeze({
+    // ⚠ **The reproducible control for neonatal concealment** (§3.14), in the
+    // pattern every mechanism since migration ships. It has to live *here*, at
+    // world level, and not be `aging.hiddenUntil: 0` — because a species block
+    // **beats** the config (DOCS §8), so zeroing the config default leaves the
+    // gazelle's own 120 standing and the "off" arm silently stays on. That is
+    // exactly what happened on the first attempt to measure this, and the guard
+    // that caught it is the reason this switch exists.
+    //
+    // False makes the whole stage vanish regardless of what any species declares:
+    // no calf hides, no mother tends, and perception never asks whether anything
+    // is concealed.
+    concealment: true,
     weaningAge: 250, // ticks; provisioning ends here (well before independence)
     provisionRange: 2.0, // guardian must be this close to feed the juvenile
     provisionRate: 0.5, // energy drawn from the guardian per tick
@@ -836,6 +848,19 @@ export const defaultSimulationConfig = Object.freeze({
     mortalityRamp: 8, // prob grows to base×(1+ramp) by maxAge
     maxAge: 12000, // death certain by here
     edibleMassFraction: 0.6,
+    // Neonatal concealment (2026-07-29, PLAN-SPECIES.md §3.14). Age below which
+    // a still-bonded, still-unweaned juvenile **lies hidden** instead of
+    // following its guardian: it stays put, does not forage, and — if it is on
+    // sheltering ground — is not reported as prey at all. See
+    // `parenting/hiding.js` for the predicates and the `tend` action in
+    // `DecisionSystem` for the other half, which is the mother's reason to come
+    // back (A34).
+    //
+    // ⚠ **0 means no hidden stage, and it is exactly the identity** rather than
+    // approximately it: `age < 0` is false for every animal that has ever
+    // existed, so a species that says nothing here is untouched by any of it,
+    // and the whole mechanism is one species' opt-in (D16, D30).
+    hiddenUntil: 0,
   }),
   // Hydration / thirst (see systems/HydrationSystem.js). Animals dehydrate
   // each tick and drink at water cells; sustained dehydration damages health
@@ -940,6 +965,24 @@ export const defaultSimulationConfig = Object.freeze({
     explorationRate: 0.05, // chance to wander regardless of utilities
     mateWeight: 0.55, // seeking a mate when reproductively ready
     followWeight: 0.7, // a dependent juvenile keeping up with its guardian
+    // Neonatal concealment (2026-07-29, PLAN-SPECIES.md §3.14). The two halves of
+    // the hidden-fawn stage, and they pull in opposite directions on purpose.
+    //
+    // `hideWeight` is how strongly a hidden calf stays put. It must clear every
+    // discretionary want (wander 0.35, herd 0.6, rest ~0.3) and every *directed*
+    // one it would otherwise have, because lying still is the whole behaviour —
+    // but it must lose to `flee`, because a fawn that has actually been found
+    // should bolt rather than die where it lies.
+    //
+    // ⚠ `tendWeight` is the interesting one: it is the **A34 experiment**. DOCS
+    // A34 records that site fidelity is near-inert because it competes with
+    // foraging and has no reason, and names the lever — "give patrol a reason:
+    // food worth returning to, or a den." A hungry hidden calf is that reason,
+    // and the weight is deliberately *scaled by how hungry the calf is*, so it
+    // is zero for a full calf and urgent for a starving one. That is what stops
+    // it becoming another behaviour that either never fires or always wins.
+    hideWeight: 1.0,
+    tendWeight: 1.6,
     // Predation (Step 16). Fleeing outranks everything — a grazing animal that
     // spots a predator stops grazing — and grows more urgent the closer the
     // threat. Hunting is gated on real hunger and a usable sprint budget, so a

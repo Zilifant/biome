@@ -9,7 +9,7 @@
  * baseline"; the interesting reading is what the *other* species change about it
  * (see `config/species/schema.js` for how the blocks fall back to the config).
  *
- * ⚠ **Was `herbivore.gazelle` until 2026-07-29** (PLAN-SPECIES.md phase 7). The
+ * ⚠ **Was `herbivore.grazer` until 2026-07-29** (PLAN-SPECIES.md phase 7). The
  * conversion was deliberately a **rename and nothing else** — every number below
  * is the grazer's, unchanged, and the demo is byte-identical across seeds to the
  * tree before it. That was the point: the plan put the gazelle rather than the
@@ -50,6 +50,22 @@ export const herbivoreGazelle = Object.freeze({
   // scalar — a *third* config pattern beside the global sections and the
   // per-species blocks. Now a block like every other.
   perception: Object.freeze({ radius: 6 }),
+  // ⚠ **The hidden-fawn stage** (2026-07-29, PLAN-SPECIES.md §3.14, phase 8), and
+  // the one block this species overrides that is not simply inherited. A gazelle
+  // fawn does not follow its mother from birth: it lies hidden while she forages
+  // nearby and comes back to nurse it, and only then begins to follow and join
+  // the herd. `hiddenUntil` is where that stage ends.
+  //
+  // 120 ticks against `parenting.weaningAge: 250` and `aging.juvenileUntil: 400`
+  // — so a fawn hides for roughly the first half of its nursing period and then
+  // spends the rest of it following, which is the real progression (hidden →
+  // nursed → following → herd → weaned) expressed in the one number the engine
+  // needs to know.
+  //
+  // ⚠ Every other species leaves this at the config's 0 and is completely
+  // unaffected. This is the only species in the world with a hidden stage, and it
+  // is the animal the mechanism was built for.
+  aging: Object.freeze({ hiddenUntil: 120 }),
   // Thermal comfort band (Step 19), °C. Outside it the animal pays energy to
   // hold its body temperature; cover takes the edge off.
   comfortMin: 2,

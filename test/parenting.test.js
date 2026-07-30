@@ -171,8 +171,16 @@ describe('parenting: dependent juveniles follow and do not graze', () => {
       seed: 5,
       config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
     });
-    engine.registerSystem(new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1 }));
-    engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));
+    engine.registerSystem(new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1, concealment: false }));
+    // ⚠ **Concealment off for this fixture**, which is about `followParent` — the
+    // stage *after* hiding. It cannot simply age the animal past the gazelle's
+    // `aging.hiddenUntil` (120), because this fixture's accelerated
+    // `weaningAge: 50` is lower than that: an animal old enough to have stopped
+    // hiding has already been weaned, and a weaned juvenile grazes instead of
+    // following. So there is no age at which this test's subject exists with the
+    // stage on, and the world-level switch is the honest way to say so
+    // (PLAN-SPECIES.md §3.14; the stage itself is tested in `hiding.test.js`).
+    engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1, concealment: false }));
     engine.registerSystem(new MovementSystem());
     engine.registerSystem(new FeedingSystem(engine.config.feeding));
     engine.registerSystem(new ParentingSystem(PARENTING));

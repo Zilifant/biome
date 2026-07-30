@@ -48,7 +48,7 @@ npm run sweep -- --founding=a:1,b:2 --control=a:1   # ...and the same seeds with
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 821 passing / 0 failing, 208 suites _(2026-07-29)_     |
+| Tests                 | 838 passing / 0 failing, 213 suites _(2026-07-29)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
 | Benchmark (large-5k)  | **75.7 ms/tick** _(2026-07-29)_ — ⚠ on a roster that gained the hyena, so **not** comparable to any earlier figure here. Interleaved A/B put the species at ~+1.6% per animal. See BENCHMARK.md; ⚠ the machine drifted ~10% across 2026-07-28 on identical code, which is why every arm is measured against a same-session control |
@@ -128,6 +128,20 @@ terms. ⚠ Check the ramp value before theorizing about site fidelity; a wrong
 diagnosis has already been built and reverted once on the assumption that patrol
 was pinning stalkers to empty ground when it was ramped almost out of existence.
 
+✅ **The lever was tested on 2026-07-29, and the diagnosis was right.** The
+hidden-fawn stage (§9 Parenting) added `tend`, a behaviour of exactly patrol's
+shape — walk back to a place you left — but with a reason attached: a hungry
+hidden calf. In the same worlds on the same tick budget, `tend` fired **1045–1455
+adult-ticks per 3000** while `patrol` fired **0–1**.
+
+So A34 stays open as a statement about *patrol*, and it is now open for a sharper
+reason than before: it is not that returning-home behaviour cannot pay for itself
+in this world — one does — it is that **`patrol`'s target is a place rather than a
+purpose**. Home-range fidelity for its own sake still has nothing to offer a
+grazing animal, and giving patrol a den would mean giving it something at the den
+to want. The mechanism that proves the point is already built and available to
+copy.
+
 **A32 — Juvenile defense fires about once in 12 000 ticks** _(from Step 23)_
 
 A parent interposing between a predator and its own calf is implemented and unit
@@ -140,6 +154,16 @@ Territory did **not** fix it as hoped: grazers turned out not to be able to
 afford site fidelity at all (A34), so families are no more co-located than
 before. The named lever is relaxing "nearer the predator than I am" to "near
 enough to interpose".
+
+⚠ **The hidden-fawn stage did not fix it either, and that prediction is now
+tested** _(2026-07-29)_. PLAN-SPECIES §3.14 expected it to help — "a stationary
+calf is far easier geometry for an interposing parent" — and it is a reasonable
+expectation: the calf now stays put and the mother now comes back to it. Measured
+over 3000 ticks on three seeds, `entity.defended` went **0→0, 1→1, and 0→1**. So
+the second of the two hoped-for fixes has also failed, which moves the diagnosis:
+the blocker is not that families are scattered, it is the **"nearer the predator
+than I am" test itself**. That remains the named lever, and it is now the only one
+left standing.
 
 **⚠ A55 — CLOSED 2026-07-29. The persistent-group registry now fires in the
 demo** _(opened 2026-07-28, PLAN-SPECIES.md §3.8; closed by phase 7)_
@@ -181,6 +205,34 @@ before dissolving — which costs one field on the record and is the same shape 
 size distribution from a hyena clan, and tuning a dissolution delay against the
 only clan-forming species in the world would fit it to a case the mechanism is
 about to outgrow.
+
+**⚠ A57 — A hidden fawn is concealed only if it was born on cover, which is
+~8–10% of the time** _(from 2026-07-29, PLAN-SPECIES.md §3.14)_
+
+The hidden-fawn stage has two halves and they are not equally effective. Lying
+still (`hide`) applies to **every** hidden fawn. Being *invisible* applies only to
+one on sheltering ground — and nothing in the world makes a mother choose such
+ground to give birth on, so whether a fawn is concealed is essentially the
+question of where she happened to be standing. Measured over 2000 ticks:
+
+| seed | hiding calf-ticks | of which concealed | sheltering ground |
+| ---: | ---: | ---: | ---: |
+| 1 | 6170 | 686 (11.1%) | 9.9% of map |
+| 2 | 4954 | 377 (7.6%) | 7.7% of map |
+| 42 | 5410 | 583 (10.8%) | 7.2% of map |
+
+⚠ **The concealed fraction tracks the sheltering fraction almost exactly**, which
+is the tell: concealment is not being *chosen*, it is being sampled. So the
+perception half of §3.14 is near-inert in the sense of §1.2 — implemented, tested,
+correct, and rarely doing visible work.
+
+The named lever is **birth-site selection**: a female near term preferring
+sheltering ground, which would make cover a thing mothers seek rather than a thing
+they stumble onto. That is a new pull on an existing action (`shelter` already
+walks to cover) rather than a new mechanism, but it is a change to *reproduction*
+timing and placement, so it wants its own measured step rather than being smuggled
+in here. ⚠ It is also the strongest argument yet for A51 (a dynamic shrub layer):
+more cover would raise this number without any behavioural change at all.
 
 ### 1.3 Deferred scope
 
@@ -1006,12 +1058,22 @@ demo ticks down each path and asserts the serialized states match byte for byte.
 The scored candidate set is:
 
 `flee` · `chase` · `stalk` · `eat` · `seekFood` · `drink` · `seekWater` ·
-`recallFood` · `recallWater` · `followParent` · `seekMate` · `leaveThicket` ·
-`herd` · `defend` · `shelter` · `patrol` · `retreat` · `rest` · `wander`
+`recallFood` · `recallWater` · `followParent` · `hide` · `tend` · `seekMate` ·
+`leaveThicket` · `herd` · `defend` · `shelter` · `patrol` · `retreat` · `rest` ·
+`wander`
 
 Inputs are hunger, thirst, readiness, dependency, perception, memory,
 temperament, threat, thermal stress, and the social summary. A small
 `explorationRate` chance wanders regardless; ties break by fixed order.
+
+⚠ **`hide` and `tend` (2026-07-29) are the first new actions in six steps**, and
+the bar they had to clear is the rule below: a new movement behaviour competes
+with foraging, and foraging must win. Neither does. `hide` belongs to an unweaned
+calf that does not forage at all, and `tend` fires only for a parent whose hidden
+calf is actually hungry — so both are additions to animals that had no competing
+agenda, rather than new claims on a foraging animal's attention. Both are gated on
+`aging.hiddenUntil`, which is 0 for every species that does not ask for them.
+See §9 Parenting.
 
 ⚠ **The weights live in two config sections, and the split is about ownership,
 not about which system reads them** (2026-07-28). Both are consumed here:
@@ -1119,6 +1181,16 @@ determinism hold. `fleeWallMargin` (0 disables, restoring straight-away flight),
 - _Trail attraction_ rides **migration's channel**.
 
 The answer has been to give existing behaviour a cause.
+
+⚠ **Two actions were added on 2026-07-29, and the rule above is what decided
+their shape.** `hide` and `tend` (§9 Parenting) exist because the hidden-fawn
+stage cannot be expressed as a bias on something else: an animal lying still is
+not a modified wander, and a mother crossing the map to a calf is not a modified
+graze. What made them acceptable is that **neither competes with foraging** —
+`hide` belongs to an animal that does not forage, and `tend` to one whose calf is
+hungry, which is a *cause* in exactly the sense this section means. And `tend` is
+also the proof of the principle in the other direction: it is `patrol` with a
+reason attached, and it fires a thousand times where `patrol` fires never (A34).
 
 ### Movement
 
@@ -1346,6 +1418,60 @@ provisioning as a top-up on a juvenile that also grazed; measured, it delivered
 ~2.5 energy per juvenile — parenting existed but did nothing. Under real
 dependency it delivers **~29.5**, a genuine parental investment on top of the 37
 already spent on mating and birth.
+
+#### The hidden-fawn stage (2026-07-29, PLAN-SPECIES.md §3.14)
+
+**A gazelle fawn does not follow its mother from birth.** It lies hidden for its
+first `aging.hiddenUntil` ticks while she forages nearby and comes back to nurse
+it, and only then begins to follow and join the herd. Three parts, and it is worth
+separating them because two are nearly free and the third is the whole reason the
+phase exists:
+
+- **The calf lies still** (`hide`). A suppression, not a mechanism: while hiding
+  it scores no `followParent`, and a positive `hideWeight` outranks wander,
+  herding, resting, and leaving a thicket. ⚠ It sits **below `flee`** on purpose —
+  a fawn that has actually been found should bolt rather than die where it lies.
+- **A calf on sheltering ground is not seen** (`isConcealed` in perception). It
+  reuses `world.isShelteredAt`, so cover, thicket, and a burrow all work and
+  perception never learns what shelters. ⚠ Concealment requires *cover*, not
+  merely hiding: a fawn in the open is still taken. See **A57** for how often that
+  actually bites, which is less than it sounds.
+- ⚠ **The mother comes back** (`tend`). This is the expensive half and the one
+  without which the other two are lethal: an unweaned calf eats only what its
+  guardian provisions, so a calf that stops following starves unless she returns.
+
+**`tend` is DOCS A34's named lever, cashed in — and it worked.** A34 records that
+routine site fidelity is near-inert because it competes with foraging and has *no
+reason*, and names the fix: "give patrol a reason — food worth returning to, or a
+den." A hungry hidden calf is that reason. Measured over 3000 demo ticks on three
+seeds (2026-07-29):
+
+| | seed 1 | seed 2 | seed 42 |
+| --- | ---: | ---: | ---: |
+| `tend` adult-ticks | 1455 | 1045 | 1061 |
+| `patrol` adult-ticks | 0 | 1 | 0 |
+
+Two behaviours of the same shape — walk back to a place you left — in the same
+worlds, on the same tick budget. The one with a reason fires a thousand times; the
+one without fires never. ⚠ That is the clearest evidence in the project for A34's
+diagnosis being right, and it is why the pull is **scaled by the calf's hunger**
+rather than being a constant: a full calf exerts none, so `tend` can neither be
+inert nor always win. A mother below her own provisioning floor does not go, since
+she would arrive with nothing to give.
+
+⚠ **The reproducible control is `config.parenting.concealment`, and it has to be**
+— `aging.hiddenUntil: 0` in the config **cannot** switch this off, because a
+species block beats the config (§8) and the gazelle's own 120 would stand. The
+first attempt to measure the mechanism used exactly that and would have compared
+the arm against itself; a guard in the measurement script caught it. Any future
+per-species mechanism needing a control switch has this shape.
+
+**Measured effect on the demo** (3000 ticks, three seeds, against the switched-off
+control): gazelle population 164→163, 128→135, 151→147 and kills 41→39, 45→41,
+33→33. **Population-neutral, and that is the finding** — concealment saves a few
+fawns while a tending mother forages less, and the two roughly cancel. It ships
+because it is a fidelity improvement that costs the demo nothing, not because it
+rescued anything.
 
 ### Reproduction, mate choice, and dominance
 
@@ -2505,7 +2631,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-819 tests, 208 suites. Layers:
+838 tests, 213 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol

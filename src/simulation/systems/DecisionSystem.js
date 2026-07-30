@@ -20,8 +20,18 @@
  *   - shelter      — the weather is biting; head for cover
  *   - seekMate     — reproductively ready; close on the best candidate in sight
  *   - followParent — a dependent juvenile keeping up with its guardian
+ *   - hide         — a newborn too young to follow; lie still and wait (§3.14)
+ *   - tend         — go back to a hidden calf that is getting hungry (§3.14)
  *   - rest         — stay put (attractive when satiated, never near danger)
  *   - wander       — undirected exploration with a committed heading
+ *
+ * ⚠ `hide` and `tend` are the **first new actions in six steps**, and the bar
+ * they had to clear is DOCS §9 Decision's rule that four consecutive steps
+ * deliberately added none — a new movement behaviour competes with foraging, and
+ * foraging must win. These two do not compete with it: `hide` belongs to an
+ * unweaned calf that does not forage at all, and `tend` fires only for a parent
+ * whose calf is actually hungry. Both are gated on `aging.hiddenUntil`, which is
+ * 0 for every species that does not ask for them.
  *
  * Runs in the `decision` phase (after perception, before movement). Ownership:
  * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
@@ -43,6 +53,7 @@ import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo } from '../predation/possession.js';
+import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -109,6 +120,24 @@ export class DecisionSystem extends SimulationSystem {
     mateDistanceWeight = 0.04,
     followWeight = 0.7,
     followDistance = 1.5,
+    // Neonatal concealment (PLAN-SPECIES.md §3.14). `hideWeight` is how firmly a
+    // hidden calf stays put; `tendWeight` is how hard a hungry one pulls its
+    // mother back.
+    hideWeight = 1.0,
+    tendWeight = 1.6,
+    // ⚠ Both belong to `config.parenting` and are wired in from there, never
+    // restated — the same D11 discipline as `drinkRange` and `carcassRange`.
+    // `provisionRange` is how close she must get to feed it, so it is exactly
+    // the distance at which `tend` has nothing left to close;
+    // `parentMinEnergyFraction` is the floor below which she would not provision
+    // even if she arrived, so below it the trip is pointless.
+    provisionRange = 2.0,
+    parentMinEnergyFraction = 0.35,
+    // ⚠ The world-level off switch, from `config.parenting.concealment`. It is
+    // *not* `aging.hiddenUntil: 0`, because a species block beats the config
+    // (DOCS §8) — so the config default cannot switch off a species that declares
+    // its own. Held as an instance field so an off world pays nothing at all.
+    concealment = true,
     fleeWeight = 2.0,
     herdWeight = 0.5,
     herdDistance = 3.0,
@@ -202,6 +231,11 @@ export class DecisionSystem extends SimulationSystem {
     this.mateDistanceWeight = mateDistanceWeight;
     this.followWeight = followWeight;
     this.followDistance = followDistance;
+    this.hideWeight = hideWeight;
+    this.tendWeight = tendWeight;
+    this.provisionRange = provisionRange;
+    this.parentMinEnergyFraction = parentMinEnergyFraction;
+    this.concealment = concealment;
     this.fleeWeight = fleeWeight;
     this.herdWeight = herdWeight;
     this.herdDistance = herdDistance;
@@ -330,11 +364,36 @@ export class DecisionSystem extends SimulationSystem {
       // outranks aimless wandering but never outranks real hunger or thirst.
       // Only a guardian it can currently perceive counts (Step 13).
       const guardian = perceived?.guardian ?? null;
-      const followPull = guardian && guardian.distance > this.followDistance ? this.#followUtility(guardian, perceived, behavior) : 0;
+      // Neonatal concealment (2026-07-29, PLAN-SPECIES.md §3.14). A calf young
+      // enough to hide does not follow, does not wander, and does not seek: it
+      // lies still and waits to be nursed. ⚠ **A suppression, not a new
+      // mechanism** — `hiding` switches three existing behaviours off, and the
+      // only positive term is staying put. Inert for every species that leaves
+      // `aging.hiddenUntil` at 0, which is all of them but the gazelle.
+      const hiding = this.concealment && isHiding(entity, species);
+      const followPull =
+        !hiding && guardian && guardian.distance > this.followDistance
+          ? this.#followUtility(guardian, perceived, behavior)
+          : 0;
       // An unweaned juvenile lives on its guardian's provisioning and does not
       // graze at all — that is what makes the dependency real rather than
       // decorative. Its whole agenda is drinking, resting, and keeping up.
       const nursing = entity.guardianId !== null && !entity.weaned;
+      // ⚠ The mother's half, and the whole reason this phase is separate: an
+      // unweaned calf eats **only** what its guardian provisions, so a calf that
+      // no longer follows starves unless she comes back to it. This is DOCS A34's
+      // named lever — "give patrol a reason" — cashed in: the reason is a hungry
+      // dependent, and the pull is scaled by *its* hunger rather than being a
+      // constant, so a full calf exerts none and a starving one outranks her own
+      // foraging. She will not walk to a calf she cannot feed (her own energy
+      // floor is the same one `ParentingSystem` provisions above), because that
+      // would be a trip that helps neither of them.
+      // ⚠ Named `hiddenCalf`, not `ward`: `ward` in this scope is already the
+      // juvenile an adult is *interposing over* (`#wardToDefend`, below), and two
+      // different dependents under one name in one 300-line scope is how D9-style
+      // bugs are written.
+      const hiddenCalf = this.#hiddenWard(world, entity, species);
+      const tendPull = hiddenCalf ? behavior.tendWeight * hiddenCalf.need : 0;
 
       // Memory (Step 15): when nothing edible or drinkable is in sight, an
       // animal falls back on where it has been. Recall is strictly weaker than
@@ -491,6 +550,11 @@ export class DecisionSystem extends SimulationSystem {
         recallFood: recalledFood ? hungerDrive * behavior.recallWeight : 0,
         shelter: wantsShelter ? behavior.shelterWeight * clamp01(stress / this.shelterStressSpan) : 0,
         followParent: followPull,
+        // Lying still, and going back to one that is. Both are gated on
+        // `aging.hiddenUntil`, so both are exactly 0 for every species that does
+        // not declare a hidden stage.
+        hide: hiding ? behavior.hideWeight : 0,
+        tend: tendPull,
         seekMate: mateCandidate ? behavior.mateWeight : 0,
         leaveThicket: thicketExit ? this.leaveThicketWeight : 0,
         rest: nearDanger ? 0 : behavior.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
@@ -506,27 +570,23 @@ export class DecisionSystem extends SimulationSystem {
       // The prey this predator has committed to — the hunting system reads it
       // to resolve capture attempts, and only ever reads it.
       entity.huntTargetId = action === 'chase' || action === 'stalk' ? prey.id : null;
-      // seekMate, followParent, chase/stalk, and defend steer toward another
-      // animal's position rather than a cell; herding steers at the group's
-      // centre of mass, which is a position but nobody's in particular.
-      const followed =
-        action === 'seekMate'
-          ? mateCandidate.candidate
-          : action === 'followParent'
-            ? guardian
-            : action === 'chase' || action === 'stalk'
-              ? prey
-              : action === 'defend'
-                ? threat
-                : action === 'herd'
-                  ? { ...social.centroid, heading: social.heading, drift }
-                  : action === 'patrol' || action === 'retreat'
-                    ? // Both head for its own ground: patrolling because it has
-                      // drifted off it, retreating because it is on somebody
-                      // else's. An animal with no range yet simply has nowhere
-                      // to retreat to, and the utilities above never fire.
-                      homeRange
-                    : null;
+      // seekMate, followParent, tend, chase/stalk, and defend steer toward
+      // another animal's position rather than a cell; herding steers at the
+      // group's centre of mass, which is a position but nobody's in particular.
+      // ⚠ `hide` is deliberately absent: it is stationary, so it has no target
+      // at all (see `#intentFor`).
+      let followed = null;
+      if (action === 'seekMate') followed = mateCandidate.candidate;
+      else if (action === 'tend') followed = hiddenCalf;
+      else if (action === 'followParent') followed = guardian;
+      else if (action === 'chase' || action === 'stalk') followed = prey;
+      else if (action === 'defend') followed = threat;
+      else if (action === 'herd') followed = { ...social.centroid, heading: social.heading, drift };
+      // Both `patrol` and `retreat` head for the animal's own ground: patrolling
+      // because it has drifted off it, retreating because it is standing on
+      // somebody else's. An animal with no range yet simply has nowhere to
+      // retreat to, and the utilities above never fire for it.
+      else if (action === 'patrol' || action === 'retreat') followed = homeRange;
       const target = followed
         ? // Spread rather than rebuild: `herd` carries the group's mean heading
           // and this animal's drift alongside the position, and a literal that
@@ -647,11 +707,69 @@ export class DecisionSystem extends SimulationSystem {
     return behavior.followWeight * (0.5 + 0.5 * drift);
   }
 
+  /**
+   * The hidden dependent this animal should go back to, or null.
+   *
+   * ⚠ **This is knowledge beyond perception, and it is a stated stand-in rather
+   * than an oversight** — the same shape as A42 (the forage cue reaching 18 units
+   * against a perception radius of 6) and declared here for the same reason. A
+   * mother knows where she left her fawn, and since a hiding fawn does not move,
+   * the place she left it *is* where it is. Reading its live position is
+   * therefore the cheapest honest expression of a remembered place: no new field,
+   * no new memory kind, nothing to serialize, and nothing that can go stale.
+   * The one case where the two diverge is a fawn that has been found and bolted,
+   * and a mother tracking a bolting calf is not the objectionable part.
+   *
+   * ⚠ It is **not** a scan. `offspring` is a bounded sparse list already on the
+   * entity, and each lookup is O(1) by id — the same access `ParentingSystem`
+   * and kin recognition already make, so no new traversal enters the hot path.
+   * The whole method returns immediately for the overwhelming majority of
+   * animals, which have no offspring at all.
+   *
+   * @returns {{x: number, y: number, need: number} | null}
+   */
+  #hiddenWard(world, entity, species) {
+    // ⚠ First: does this species even have a hidden stage? One field read, and
+    // it makes the whole method free for every species that says nothing — the
+    // same "ask the cheapest disqualifying question first" shape as
+    // `GroupSystem`'s no-group-forming-species early-out.
+    if (!this.concealment || hiddenUntilFor(species) <= 0) return null;
+    const offspring = entity.offspring;
+    if (!offspring || offspring.length === 0) return null;
+    // A parent below its own provisioning floor cannot feed anyone; walking to a
+    // calf it must refuse would be a trip that helps neither of them.
+    if (entity.maxEnergy > 0 && entity.energy / entity.maxEnergy <= this.parentMinEnergyFraction) return null;
+    let best = null;
+    for (const childId of offspring) {
+      const child = world.entities.get(childId);
+      if (!child || child.kind !== 'animal' || !child.alive) continue;
+      // Its guardian must be *this* animal — an offspring being raised by the
+      // other parent is not this one's responsibility.
+      if (child.guardianId !== entity.id) continue;
+      if (!isHiding(child, world.species.get(child.speciesId) ?? species)) continue;
+      const distance = Math.hypot(child.x - entity.x, child.y - entity.y);
+      // Already close enough to provision: there is nothing to close, exactly as
+      // `followDistance` means for a following juvenile.
+      if (distance <= this.provisionRange) continue;
+      const need = child.maxEnergy > 0 ? clamp01(1 - child.energy / child.maxEnergy) : 0;
+      // The hungriest one wins; ties by ascending id, which `offspring` already is.
+      if (best === null || need > best.need) best = { x: child.x, y: child.y, need };
+    }
+    return best;
+  }
+
   #intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom, behavior) {
     switch (action) {
       case 'eat':
       case 'drink':
       case 'rest':
+      // ⚠ `hide` belongs here and nowhere else: lying still *is* the behaviour,
+      // so it must produce a non-moving intent. Putting it in the fallthrough
+      // group below — which is the natural-looking place for a bond action
+      // beside `followParent` — would make a hidden calf walk, which is the
+      // exact opposite of the mechanism (and is D9's shape: a `case` added to
+      // the wrong fallthrough chain).
+      case 'hide':
         // Stationary: keep a heading for facing, but do not move.
         return { heading: entity.moveIntent?.heading ?? candidateHeading, ttl: 0, moving: false, sprint: false };
       case 'flee': {
@@ -719,6 +837,9 @@ export class DecisionSystem extends SimulationSystem {
       case 'seekWater':
       case 'seekMate':
       case 'followParent':
+      // Walking back to a hidden calf is an ordinary directed walk toward a
+      // position, exactly like following a guardian in the other direction.
+      case 'tend':
       case 'recallFood':
       case 'recallWater':
       case 'shelter':
@@ -1002,7 +1123,14 @@ function argmaxUtility(utilities) {
     // hunger, thirst, or a predator.
     'shelter',
     'stalk',
+    // The two halves of the hidden-fawn stage sit with `followParent`, because
+    // all three are the parental bond expressing itself: keeping up, lying still,
+    // and coming back. ⚠ `tend` is above `followParent` on purpose — an adult
+    // with a starving hidden calf and a guardian of its own (a subadult still
+    // bonded) should go to the calf.
+    'tend',
     'followParent',
+    'hide',
     'seekMate',
     // Getting out of a thicket beats every discretionary/idle behaviour below
     // (an animal should not sit crawling in cover once the danger has passed),

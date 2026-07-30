@@ -1,24 +1,42 @@
 # PLAN — Multiple species per animal type
 
 A plan for going from **three species filling three roles** to **several species
-per role**, each with its own behaviour, food, and water needs. Nothing here is
-implemented. Written 2026-07-24 against the code as it stands (protocol v28,
-725 tests); revised 2026-07-28 to adopt a concrete African savanna roster (§0),
-again to record the six settled decisions (§11), and again to put the **gazelle**
-rather than the wildebeest in the first batch.
+per role**, each with its own behaviour, food, and water needs. Written
+2026-07-24 against the code as it stands (protocol v28, 725 tests); revised
+2026-07-28 to adopt a concrete African savanna roster (§0), again to record the
+six settled decisions (§11), and again to put the **gazelle** rather than the
+wildebeest in the first batch.
 
-The short version: **the species system is already good enough to declare new
-species, and not yet good enough to make them behave differently.** The work is
-not "build a species system" — it is closing the places where behaviour is still
-global, breaking the one-species-per-role assumptions outside the engine, and
-making sure the animals occupy different niches rather than competing to
-extinction.
+> ### ⚠ Status: phases 0–8 are done (last updated 2026-07-29)
+>
+> **This document is no longer a plan for unimplemented work.** Phases 0–8 have
+> shipped — see the table in §8 — and the world now has **four species**
+> (gazelle, stalker, vulture, hyena) at protocol v29 and 838 tests.
+>
+> A section marked ✅ has an **"As built"** block recording where its own
+> prediction was wrong; those blocks are the most useful part of the document now,
+> and they sit *above* the original text, which is kept unedited as "the section as
+> written". ⚠ Read the two together and prefer the As-built block: the plan was
+> right about shape far more often than about consequence.
+>
+> **Next: phase 9** (forage guilds and the `habitat` block). Everything from §3.3,
+> §3.4, §3.7, §3.11, §3.12, §3.13, and §3.16 is still ahead.
+
+The short version, still true of what remains: **the species system is already
+good enough to declare new species, and not yet good enough to make them behave
+differently.** The work is not "build a species system" — it is closing the places
+where behaviour is still global, breaking the one-species-per-role assumptions
+outside the engine, and making sure the animals occupy different niches rather
+than competing to extinction.
 
 **All six open decisions are settled** — see §11. The consequences run through
-§3.8 (a full persistent-group registry, not the cheap cut), §3.1 (a curated
-`behavior` block, not the whole of `decision`), and above all §8, where lions in
-the first batch pull the group registry and cooperative hunting from "optional
-depth" to "prerequisite".
+§3.8 (a full persistent-group registry, not the cheap cut) and §3.1 (a curated
+`behavior` block, not the whole of `decision`). ⚠ The third consequence this
+paragraph used to name — "lions in the first batch pull the group registry and
+cooperative hunting from optional depth to prerequisite" — **was superseded before
+either shipped**: the hyena and lion swapped batches (§0), so batch 1 pulled the
+registry forward and left cooperative hunting in phase 10. The registry is still a
+prerequisite; the reason is now the clan rather than the pride.
 
 ---
 
@@ -129,15 +147,24 @@ toward **forage sources**, not toward an omnivore (§3.2).
   `preySpeciesIds`, `territory.defends`, `migration.tracksForage`.
 - **`demo.founding` is already a list** of `{ speciesId, count }`, walked in
   order — adding a cohort is a line, not a new spawn slot.
-- **The corvid is the existence proof:** a whole trophic level added as one
-  config file, zero engine code.
+- **The vulture (then the corvid) is the existence proof:** a whole trophic level
+  added as one config file, zero engine code. ✅ **The hyena proved it a second
+  time on 2026-07-29** — a net-new species, and the renderer needed nothing at all
+  because phase 6 had assigned its glyph in advance.
 - **Metrics bucket by species dynamically** and sort by id; the renderer's
   legend is generated from the appearance registry.
 - **Persistent groups exist as of 2026-07-28** (§3.8, phase 3). `world.groups` is
   a bounded record store and `groupRecordId` is the membership; a species opts in
-  with `groups: { forms: true }`. ⚠ **No shipped species does**, so it is inert
-  and the demo is byte-identical without it — the schema ahead of the roster
-  again. The herd label is untouched and is what the grazer still uses.
+  with `groups: { forms: true }`. ⚠ **This bullet used to say "no shipped species
+  does, so it is inert".** That stopped being true on 2026-07-29: the **hyena**
+  declares it, the demo founds real clans, and DOCS A55 closed. The herd label is
+  untouched and is what the gazelle still uses — the two mechanisms now run side
+  by side in one world, which is what §3.8 designed for.
+- **Neonatal concealment exists as of 2026-07-29** (§3.14, phase 8): a fawn lies
+  hidden (`hide`) and its mother returns to it (`tend`), gated on
+  `aging.hiddenUntil` and switchable at `parenting.concealment`. ⚠ Its `tend` half
+  is the working example of DOCS A34's lever, and worth copying rather than
+  reinventing the next time something needs a reason to return to a place.
 - **Sexes, lineage, dominance, and injury all already exist**, which matters more
   for this roster than for the old one: sex-structured behaviour (§3.10),
   kin-based defense, and contest resolution are extensions of shipped
@@ -185,7 +212,7 @@ is only which of them the engine can express.
 | **Cooperative action**         | ❌                      | defense is passive; no group hunt, no mobbing        | lion, hyena, buffalo            |
 | ~~**Contested carcasses**~~    | ✅ **since 2026-07-28** | `carcass.possessorId`, contested through `resolveContest` (§3.9, phase 4) | lion vs hyena vs vulture        |
 | ~~**Escape by agility**~~      | ✅ **since 2026-07-28** | `hunting.agility`, prey-resolved, one divide in `captureChance` (§3.15) | gazelle                         |
-| **Concealed newborns**         | ❌                      | a juvenile follows its guardian from birth           | gazelle                         |
+| ~~**Concealed newborns**~~     | ✅ **since 2026-07-29** | `aging.hiddenUntil` + the `hide`/`tend` actions and concealment in perception (§3.14, phase 8). ⚠ The *invisibility* half only bites for a fawn born on cover — DOCS A57 | gazelle |
 | **Heterospecific association** | ❌                      | herding is conspecific-only                          | gazelle with wildebeest / zebra |
 
 **Six ❌ rows closed on 2026-07-28**, across phases 2–4: `behavior` became a
@@ -193,9 +220,12 @@ species block (§3.1), which is what makes "a skittish gazelle" and "a pride
 versus a solitary cat" expressible at all; the group registry landed (§3.8),
 which is what makes a pride a thing that exists between sightings; and phase 4
 closed prey eligibility (§3.6), carcass possession (§3.9), and the agility term
-(§3.15). What remains is **forage** — what food it eats, which grass, where it
-lives — plus cooperative action, concealed newborns, and heterospecific
-association.
+(§3.15). **A seventh closed on 2026-07-29** — concealed newborns, at phase 8.
+
+What remains is **forage** — what food it eats, which grass, where it lives —
+plus cooperative action and heterospecific association. ⚠ Three of those four are
+phase 9's or phase 10's, so the ❌ column is nearly spent: after phase 10 the only
+unrepresentable axis left in this table is heterospecific association.
 
 ⚠ **Prior art from this repo:** adding the corvid read as a balance problem
 (3/10 seeds vs a 6/10 control) until the real cause turned up — `fleshIntakeRate`
@@ -800,7 +830,40 @@ elevation dimension threaded through perception, movement, and predation, and a
 protocol change. Revisit only after §3.9 ships, at which point "cached out of
 reach" is one more possession state rather than a new axis.
 
-### 3.14 Neonatal concealment — the hidden-fawn phase (new, gazelle)
+### 3.14 ✅ Neonatal concealment — the hidden-fawn phase (shipped 2026-07-29, phase 8)
+
+✅ **Built as three parts, and the section below predicted the shape of all three
+correctly.** What it got wrong, and what it could not have known:
+
+- ⚠ **The `hide` half is fully effective; the *concealment* half is not.** The
+  section says "cover should reduce detection of a hidden calf", and it does — but
+  nothing makes a mother give birth on cover, so only **7.6–11.1%** of hiding
+  calf-ticks are actually concealed, tracking the 7.2–9.9% of the map that is
+  sheltering ground almost exactly. Concealment is sampled, not chosen. Recorded as
+  **DOCS A57**, with birth-site selection as the named lever.
+- ✅ **The A34 bet paid off, and this is the phase's real result.** The section
+  called a hidden calf "the first genuine reason this world has ever had" and
+  said §3.14 was worth building as the honest test of A34. Measured over 3000 ticks
+  on three seeds: `tend` fired **1045–1455** adult-ticks against `patrol`'s
+  **0–1** — two behaviours of identical shape in the same worlds, separated only
+  by whether there was a reason at the far end.
+- ⚠ **A32 did not improve, contradicting the section's expectation** that "a
+  stationary calf is far easier geometry for an interposing parent".
+  `entity.defended` moved 0→0, 1→1, 0→1. Both hoped-for fixes for A32 have now
+  failed, which relocates the blame to the "nearer the predator than I am" test.
+- ⚠ **The control switch had to be world-level, and the section did not say so.**
+  `aging.hiddenUntil: 0` in the config **cannot** switch this off, because a
+  species block beats the config — so the off arm silently stayed on. Caught by a
+  guard in the measurement script, fixed by `config.parenting.concealment`. Any
+  future per-species mechanism needing a reproducible control has this shape.
+
+**Gate:** 10 seeds × 15 000 ticks against the phase-7 baseline on the same seeds.
+Survival held or improved for every species — gazelle 10/10 → 10/10, stalker
+**7/10 → 9/10**, hyena 9/10 → 10/10, vulture 10/10 → 10/10 — while the means moved
+within the noise band the demo is known to have. It ships as a fidelity
+improvement that costs nothing, not as a rescue.
+
+### 3.14 The section as written
 
 A gazelle fawn lies hidden for its first days rather than following its mother:
 **hidden → periodically nursed → begins following → joins the herd → weans.**
@@ -1064,11 +1127,17 @@ starts adding blocks these tests are supposed to be guarding.
 
 ### 5.7 ⏳ STILL OPEN — the measurement harness itself reads `diet === 'carnivore'`
 
-`src/scripts/ethologist.js:190` does
+`src/scripts/ethologist.js:226` (was :190 when this was written — ⚠ don't trust
+the number, grep for the comparison) does
 `world.species.get(entity.speciesId)?.diet === 'carnivore'`. Everything else in
 that script already buckets by `speciesId` dynamically, so it survives a growing
 roster — but §3.2 replaces `diet` with a forage-source structure, and that one
 line silently reclassifies every carnivore as a herbivore when it does.
+
+✅ **The newer harness is clean.** `src/scripts/sweep.js` (phase 7) reads no
+`diet` at all — it buckets deaths, carrion, and populations by `speciesId` and
+counts events — so the §9 gate itself is outside this blast radius. Only the
+anomaly finder is inside it.
 
 ⚠ **The harness that measures the plan is inside the plan's blast radius.** A
 broken ethologist does not fail a test; it reports confidently wrong anomaly
@@ -1235,14 +1304,26 @@ consecutive phases means two fixture regenerations for no reason.
   `undefined` slot for a sample that did not mention a species and the new one
   omits it, and a test proves the sparkline is identical either way.
 
-- **The rename in phase 7 touches 42 files.** Measured 2026-07-28: the three
-  species ids appear in ~30 test files, `src/scripts/benchmark.js` (all four
-  benchmark scenarios hardcode the roster and its ratios), the demo config, the
-  appearance registry, both renderer docs, and three committed fixture JSONs at
-  **138 occurrences each**. The fixtures regenerate automatically
-  (`npm run fixtures:renderer`) and the rest is mechanical, but it is a wide,
-  boring diff — worth doing as its own commit so that phase 7's real change (the
-  hyena) is reviewable on its own.
+- ✅ **The rename in phase 7 touched 48 files** (predicted 42). Measured
+  2026-07-28: the species ids appear in ~30 test files,
+  `src/scripts/benchmark.js`, the demo config, the appearance registry, both
+  renderer docs, and three committed fixture JSONs. The fixtures regenerate
+  (`npm run fixtures:renderer`) and the rest is mechanical — but ⚠ **"mechanical"
+  turned out to be the trap, in two ways a find-and-replace cannot see:**
+
+  - The renderer's **superseded appearance entries had to be *deleted*, not
+    renamed.** Substituting the ids turned each into a duplicate key of its own
+    successor in one object literal, where the later silently wins. Phase 6 had
+    added `supersededBy` precisely so the answer was "delete this"; the pass did
+    not know that. **Treat the `supersededBy` entries as a delete list.**
+  - **The dotted id is not the only form of the id.** `#ctl-founding-herbivore-grazer`
+    in `tests-ui/` is the species id with dots turned to hyphens, and it survived
+    the pass. `npm test` stayed green; Playwright caught it (D32).
+  - It also rewrote two docstrings that meant to name the *old* id, producing
+    "Was `herbivore.gazelle` until…". Caught by reading, not by a test.
+
+  Still worth doing as its own commit so the real change (the hyena) is reviewable
+  on its own.
 
 - **Founding balance.** D14 says five seeds cannot resolve a one-seed difference
   in the founding counts. With ten species the interaction surface is far larger;
@@ -1280,7 +1361,15 @@ species measurements if they land afterwards.
 > the consequence understood and accepted — species gates taken before they land
 > will need re-running afterwards. Recorded so a future session treats the
 > re-measure as budgeted rather than as a surprise, and does not re-open the
-> question as though it were an oversight. **Item 2 (the stale benchmark
+> question as though it were an oversight.
+>
+> ⚠ **The bill is now four sweeps, not one** (2026-07-29): the phase-1/2 energy
+> sweep, phase 4's possession sweep, phase 7's batch-1 gate, and phase 8's
+> concealment measurement all pre-date those Tier-1 items and would all need
+> re-running. It is still the right call — `npm run sweep` (built at phase 7) makes
+> a re-run one command per arm, which it was not when the debt was taken on — but
+> the number grows by one per gated phase, so the longer this waits the more it
+> costs. **Item 2 (the stale benchmark
 > baseline) was done** — see below.
 
 **1. `NOTES.md` has unaddressed Tier-1 items that change the world this plan
@@ -1327,6 +1416,15 @@ meaningful.
 > from drift. Take the *distributions*: HEAD 69.2–72.1 against a tree at 78.2–79.4
 > do not overlap, which is a result; two single readings a few percent apart are
 > not.
+>
+> ⚠ **Refined at phases 7–8, and the refinement is what to copy.** `git stash`
+> stops working once several phases are uncommitted — it reverts to HEAD, not to
+> the previous phase. Both arms were instead run **in one process**, alternating
+> A/B/A/B/A/B, which removes drift entirely and needs no git at all (see
+> `BENCHMARK.md`). And read the **ordering across rounds**, not the means: the
+> hyena was slower in all three rounds (a real +1.6%/animal), while the hidden-fawn
+> stage won two rounds and lost one (no effect) — even though in both cases the
+> within-arm spread was larger than the gap.
 
 ---
 
@@ -1334,45 +1432,56 @@ Each phase leaves the suite green and the demo runnable, in this repo's usual
 shape. Phases 0–6 are groundwork with no new species at all; species land from
 phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 
-| Phase     | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Risk | Change surface                    |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------- |
-| ~~**0**~~ | ✅ **Done 2026-07-28.** Guard rails: comment-stripping fixed in all three scans (§5.5); the two "every species differs" assertions rewritten (§5.6); benchmark re-baselined                                                                                                                                                                                                                                                                                                                        | none | test only                         |
-| ~~**1**~~ | ✅ **Done 2026-07-28.** §5.1 mass-scaled `intakeRate`; §5.2 carcass nutrient return; §5.3 per-species `foodMinLevel`; §5.4 `drinkRange` dedupe; §5.8 load-time speciesId check; the §4 audit with a written verdict per constant. `feeding` + `hunting` added to `SPECIES_BLOCKS`. ⚠ §5.7 (the ethologist's `diet === 'carnivore'`) is **deliberately not** fixed here — it only breaks when `diet` stops being a string, and it must move in that same commit (phase 15) or the fix is untestable | low  | schema + real fixes               |
-| ~~**2**~~ | ✅ **Done 2026-07-28.** `config.decision` split into `config.behavior` (22 fields, a species block) + `config.decision` (14, global); `behavior` added to `SPECIES_BLOCKS`; `carcassRange` deduped — a **third** D11 duplicate, found during the split. ⚠ Cost one real hot-path regression (12%) and its fix; see D28                                                                                                                                                                             | med  | schema + 3 test fixes             |
-| ~~**3**~~ | ✅ **Done 2026-07-28.** Persistent group registry (§3.8): `GroupRegistry` (bounded at 64, refuses rather than evicts), `GroupSystem` (founding, joining, guardian inheritance, sex-biased departure, dissolution), `groupRecordId` on the entity, `SAVE_FORMAT_VERSION` 27 → 28, DOCS §9 Sociality rewritten to record the decision it overrides. ⚠ Inert by construction — no shipped species forms groups, and the demo is byte-identical across three seeds. ⚠ The protocol projection is **deliberately deferred** to phase 5's v29 (now DOCS A54) | high | new subsystem + save bump         |
-| ~~**4**~~ | ✅ **Done 2026-07-28.** `predation` added to `SPECIES_BLOCKS` and gated in perception **both ways** — what I commit to and what I fear (§3.6); the `agility` divide in `captureChance`, prey-resolved (§3.15); `riskyMassRatio` replacing a hardcoded `2`; **carcass possession and theft** via one `possessorId` field and `resolveContest` on its own stream (§3.9). ⚠ The first three are **exactly inert** — the control arm is state-identical to phase 3 on every entity field — so possession is the single attributable change and is the only one swept. ⚠ Protocol projection again **deferred** to phase 5 (DOCS A54) | med  | Perception / Hunting / Feeding    |
-| ~~**5**~~ | ✅ **Done 2026-07-28.** Protocol **v29** (§6): `founding: [{speciesId, count}]` replacing the three role counts (kept as deprecated aliases), the host publishing its roster on `/api/status`, renderer fields generated from it, ethologist `--founding=`. Plus the **whole A54 debt** from phases 3–4 in the same bump: the `group` block and `possessorId` on inspection, a `groups` aggregate in metrics, and `entity.robbed` / `entity.grouped` / `entity.ungrouped`. ⚠ The bump left the renderer and all three fixtures on 28 with the suite green — now guarded mechanically | med  | protocol bump, fixtures           |
-| ~~**6**~~ | ✅ **Done 2026-07-28.** Renderer scale (§7): all ten roster species have a glyph/colour/priority entry, with `supersededBy` naming each rename so a shared letter is a stated transition rather than a collision; per-species collapsible metrics sections with a remembered open-set; the quadratic sparkline lookup indexed once per render; the v29 `groups` aggregate finally rendered. ⚠ Driven in a browser (`tests-ui/metrics.spec.js`), per D32 | low  | renderer only                     |
-| ~~**7**~~ | ✅ **Done 2026-07-29. Batch 1 — gazelle + hyena.** `herbivore.grazer` → `herbivore.gazelle` and `scavenger.corvid` → `scavenger.vulture`, **proved byte-identical**; vulture 4 → 6 kg as a separate measured change; `scavenger.hyena` added behind the ten-seed gate; `predator.stalker` stays generic. Closed **A55** (the group registry fires in the demo) and opened **A56**. ⚠ The gate **failed first** and the reason is the finding of the phase — see §10.1 | med  | config + a new sweep harness      |
-| **8**     | **Hidden-fawn phase** (§3.14) — its own measured change, per A12 discipline; carries the A34 "give patrol a reason" experiment                                                                                                                                                                                                                                                                                                                                                                     | med  | Decision / Parenting / Perception |
-| **9**     | Forage guilds (§3.3): grass-maturity preference from `biomass / capacity`; `habitat` block, closing A49 (§3.4)                                                                                                                                                                                                                                                                                                                                                                                     | med  | Feeding / Decision / Migration    |
-| **10**    | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix                                                                                                                                                                                                                                                                                                                                                                                             | med  | Decision / Hunting                |
-| **11**    | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing                                                                                                                                                                                                                                                                                                                                                                                                   | high | config only                       |
-| **12**    | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11)                                                                                                                                                                                                                                                                                                                                                                                                       | low  | Social / Reproduction             |
-| **13**    | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession                                                                                                                                                                                                                                                                                                                                                                                                         | high | config + re-tune                  |
-| **14**    | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`; optionally ambush concealment (§3.12)                                                                                                                                                                                                                                                                                                                                                                                       | med  | config (+ perception)             |
-| **15**    | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10)                                                                                                                                                                                                                                                                                                                                                                            | high | large                             |
-| **16**    | **Batch 5 — black rhino.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | high | config only                       |
-| **17**    | **Batch 6 — elephant** (§11.1: _may never happen_). Needs everything above plus musth and woody-floor damage                                                                                                                                                                                                                                                                                                                                                                                       | high | large                             |
+**⚠ Nine of eighteen phases have shipped, and the world has four species.** The
+table is a *chart*, not a record: a done row states what landed, when, and the one
+thing worth carrying out of it. The reasoning, the measurements, and every place a
+phase's own prediction turned out wrong live in that phase's **"As built"** block
+in the section it links to — read those before repeating any of this work.
 
-**Ordering rationale.**
+| Phase | What | Status | Landed with / risk |
+| ----- | ---- | ------ | ------------------ |
+| **0** | Guard rails: comment-stripping in all three source scans (§5.5); the two "every species differs" assertions rewritten (§5.6); benchmark re-baselined | ✅ **2026-07-28** | test-only. ⚠ Fixing the scanner immediately caught a live violation it had been hiding |
+| **1** | Mass-scaled `intakeRate` (§5.1); carcass nutrient spread (§5.2); per-species `foodMinLevel` (§5.3); `drinkRange` dedupe (§5.4); load-time speciesId check (§5.8); the §4 mass audit, with a written verdict per constant | ✅ **2026-07-28** | `feeding` + `hunting` became species blocks. ⚠ §5.7 deliberately **not** fixed — it only breaks when `diet` does (phase 15) |
+| **2** | `config.decision` split into `config.behavior` (22 fields, a species block) and `config.decision` (14, global) — §3.1 | ✅ **2026-07-28** | ⚠⚠ Cost a **12% hot-path regression** and its fix: `#perceive` is arity-sensitive (D28) |
+| **3** | Persistent group registry: `GroupRegistry`, `GroupSystem`, `groupRecordId` — §3.8 | ✅ **2026-07-28** | `SAVE_FORMAT_VERSION` 27 → **28**. Shipped **inert** and byte-identical; DOCS §9 Sociality rewritten to record the decision it overrode |
+| **4** | `predation` mass gating in perception both ways (§3.6); the `agility` divide (§3.15); `riskyMassRatio`; **carcass possession and theft** (§3.9) | ✅ **2026-07-28** | `SAVE_FORMAT_VERSION` 28 → **29**. ⚠ The first three are *exactly* inert, so possession was the single attributable change and the only one swept |
+| **5** | Protocol **v29** (§6): a founding roster by species, the host publishing its roster, renderer fields generated from it — plus the whole A54 projection debt from phases 3–4 | ✅ **2026-07-28** | `PROTOCOL_VERSION` 28 → **29**. ⚠ The bump left the renderer and all three fixtures on 28 **with the suite green**; now guarded (D31) |
+| **6** | Renderer scale (§7): the full ten-species glyph/colour/priority scheme, collapsible per-species metrics, the quadratic sparkline fixed | ✅ **2026-07-28** | Renderer only. `supersededBy` makes a shared glyph a stated transition; ⚠ it is a **delete list**, which phase 7's rename pass did not know |
+| **7** | **Batch 1 — gazelle + hyena** (§10.1). Two renames proved byte-identical, vulture 4 → 6 kg as its own arm, then the hyena behind the ten-seed gate | ✅ **2026-07-29** | **`npm run sweep`** (the §9 gate harness) built here. Closed **A55**, opened **A56**. ⚠ The gate **failed first**: a carrion-subsidised predator is not limited by its prey |
+| **8** | **Hidden-fawn stage** (§3.14): `aging.hiddenUntil`, the `hide` and `tend` actions, concealment in perception | ✅ **2026-07-29** | Benchmark flat. ✅ **A34's lever proved** (`tend` 1000×, `patrol` 0×); ⚠ **A32 did not improve**; opened **A57** |
+| **9** | Forage guilds (§3.3): grass-maturity preference from `biomass / capacity`; `habitat` block, closing A49 (§3.4) | ← **next** | med — Feeding / Decision / Migration. ⚠ Makes forage preference **non-monotonic** for the first time |
+| **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | planned | med — Decision / Hunting |
+| **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | planned | high — config only. ⚠ Expect phase 7's failure mode again: check `minHungerToHunt` first |
+| **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | planned | low — Social / Reproduction |
+| **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | planned | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring |
+| **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`; optionally ambush concealment (§3.12) | planned | med — config (+ perception). The last `supersededBy` entry is deleted here |
+| **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | planned | high — large. §5.7 must move in the same commit |
+| **16** | **Batch 5 — black rhino.** | planned | high — config only |
+| **17** | **Batch 6 — elephant** (§11.1: _may never happen_). Needs everything above plus musth and woody-floor damage | planned | high — large |
 
-- Phases 0–2 come first because everything downstream is measured, and §5's bugs
-  would corrupt those measurements. §5.2 is _already a live defect at 45 kg_ —
-  fixing it afterwards means a new species gets blamed for it, which is precisely
-  how the corvid cost 3/10 seeds.
-- **Phases 3 and 4 moved up sharply.** In the first draft the group registry was
-  optional depth at the very end. Putting a clan-forming carnivore in batch 1
-  makes it a prerequisite — and, unlike the earlier lion-first ordering, batch 1
-  now _proves_ it: a hyena clan holding and losing carcasses exercises group
-  membership, group-held possession, and dissolution within one batch.
-- **Carcass possession sits in phase 4, cooperative hunting in phase 10.** They
-  swapped places when the hyena moved to batch 1. Each is now adjacent to the
-  batch that both needs _and_ validates it.
-- Phase 5 before phase 7 so a new species is spawnable without a renderer edit.
-- **Phase 8 is deliberately separate from phase 7.** Both change juvenile
-  survival, and A12 exists specifically so that two such changes are never made
-  together (§3.14).
+**Ordering rationale** — ✅ marks a decision the shipped phases have now tested.
+
+- ✅ Phases 0–2 came first because everything downstream is measured, and §5's
+  bugs would have corrupted those measurements. §5.2 was _already a live defect at
+  45 kg_ — fixing it afterwards would have meant a new species getting blamed for
+  it, which is precisely how the corvid cost 3/10 seeds. **Vindicated at phase 7**,
+  where the hyena's gate failure had to be diagnosed against a clean baseline and
+  was.
+- ✅ **Phases 3 and 4 moved up sharply.** In the first draft the group registry was
+  optional depth at the very end. Putting a clan-forming carnivore in batch 1 made
+  it a prerequisite — and, unlike the earlier lion-first ordering, batch 1 _proved_
+  it: 41 kill thefts in 4000 demo ticks, with clans founding, spanning separate
+  herd labels, and dissolving.
+- ✅ **Carcass possession in phase 4, cooperative hunting in phase 10.** They
+  swapped when the hyena moved to batch 1, and the swap paid: possession is what
+  kept the vulture alive at 10/10 seeds beside a 60 kg competitor.
+- ✅ **Phase 5 before phase 7 so a new species is spawnable without a renderer
+  edit** — and phase 6 extended the same idea to glyphs. Measured outcome: the
+  hyena needed **no renderer change at all**.
+- ✅ **Phase 8 deliberately separate from phase 7.** Both change juvenile survival,
+  and A12 exists so two such changes are never made together (§3.14). Worth the
+  extra phase: batch 1's numbers stayed attributable to the hyena, and phase 8's
+  own A34/A32 results stayed attributable to concealment.
 - Phase 9 (forage guilds) sits **before** batch 2 even though the buffalo does not
   strictly need it: without maturity preference, a 600 kg buffalo and a 30 kg
   gazelle compete for identical cells, separated only by mass-scaled intake and
@@ -1381,10 +1490,12 @@ phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 - Each batch is gated on a mechanic, not on appetite. Batch 2 needs mobbing and
   carcass possession; batch 3 needs forage guilds; batch 5 needs browse. A species
   shipped before its mechanic is a palette swap that gets re-tuned twice.
-- **A reasonable stopping point is after phase 13** — seven species (gazelle,
+- **A reasonable stopping point is after phase 13** — eight species (gazelle,
   wildebeest, zebra, buffalo, hyena, lion, vulture, plus the still-generic
   stalker) with clans, prides, cooperative hunting, contested carcasses, mobbing,
   and a three-tier grazing succession. Everything past that is refinement.
+  ⚠ Four of those eight already exist, so the stopping point is **five phases
+  away**, not thirteen.
 
 ---
 
@@ -1406,32 +1517,38 @@ species added cost 3/10 seeds until the real bug surfaced.
   diff → raise the count → sweep **10 seeds × 15 000 ticks** against the
   pre-species control.
 - **Gate:** every species alive at 15k on ≥6/10 seeds, the control's survival not
-  materially worse, `npm run benchmark` re-baselined (large-5k, ~67 ms/tick;
-  ≤1% is noise), and `hunts()` re-measured once rosters get long (§7).
-- ⚠ **Phase 7 splits into a no-op half and a real half, and they must be measured
-  separately.** The grazer → gazelle conversion should be provable as **literally
-  byte-identical** (a rename, a docstring, and an appearance label; mass and every
-  block unchanged) — if it is not, something is wrong and the diff is the answer.
-  The lion is the real change and takes the full ten-seed gate. Run the rename
-  alone first and assert the determinism test still matches the pre-rename
-  serialized state modulo the id string; only then add the lion.
-- **What batch 1 must actually demonstrate** is the group registry, and it can:
-  clans form, persist through separation, hold and lose carcasses, and dissolve
-  when their members die. Assert those directly rather than inferring them from
-  populations — a registry that quietly never founds a second clan would still
-  pass a survival gate.
+  materially worse, `npm run benchmark` re-baselined (⚠ **not** against the ~67
+  ms/tick this line used to name — the roster changed at phase 7, so large-5k is
+  75.7 and nothing earlier is comparable), and `hunts()` re-measured once rosters
+  get long (§7).
+- ✅ **Phase 7 split into a no-op half and a real half, measured separately, and
+  both halves came out as this bullet demanded.** The grazer → gazelle conversion
+  was provable as **literally byte-identical** — 6.28 MB across three seeds modulo
+  the two id strings. ⚠ Two corrections to the original wording: the real change is
+  the **hyena**, not the lion (they swapped batches in §0 and this bullet was never
+  updated), and there turned out to be a **third** half — the vulture's 4 → 6 kg,
+  which is neither a rename nor the new species and so took an arm of its own.
+- ✅ **What batch 1 had to demonstrate was the group registry, and it does:** clans
+  form, persist through separation (a clan spanning two herd labels), hold and lose
+  carcasses (41 thefts in 4000 ticks), and dissolve. ⚠ Asserted **directly** in
+  `test/groups.test.js` against the demo world rather than inferred from
+  populations — a registry that quietly never founded a second clan would still
+  pass a survival gate. ⚠ The one thing this bullet did not anticipate: dissolution
+  is *seed-dependent* in the demo and on some seeds becomes flapping (A56).
 - ⚠ **Batch 1 cannot demonstrate cooperative _hunting_, and does not try to.** A
   hyena takes a 30 kg gazelle solo, as a real one does, so `attackersFor` is not
   built until phase 10 and not proved until the 600 kg buffalo arrives in batch 2.
   Do **not** tune `hunting.cooperationWeight` against gazelle — that would fit a
   parameter to a case it was not built for.
-- ⚠ **Watch the vulture in batch 1.** A 60 kg facultative scavenger entering a
-  world that already has a 6 kg obligate one is the tightest interaction in the
-  batch, and DOCS notes that _"old remains being barely worth crossing the map for
-  is what keeps scavenging from replacing hunting."_ Carcass possession (§3.9) is
-  what gives the vulture its "arrive first, leave when the big animals come"
-  niche. Report vulture population and carcass-share per seed explicitly; a
-  surviving-but-halved vulture is a result, not a pass.
+- ⚠ **"Watch the vulture in batch 1" was right to ask and wrong about the
+  answer.** The reasoning stands — a 60 kg facultative scavenger entering a world
+  with a 6 kg obligate one is the tightest interaction in the batch, and carcass
+  possession (§3.9) is what gives the vulture its "arrive first, leave when the big
+  animals come" niche. Measured: the vulture survived **10/10** seeds at a mean of
+  116.3 against the control's 201.3, still taking 50.6% of all carrion — squeezed
+  but not displaced, so possession did its job. ⚠ **The species that actually paid
+  was the stalker**, 10/10 → 7/10, because the hyena competes with it for the same
+  prey while not depending on that prey. Watch the stalker in batch 2.
 - **Before blaming the new species' own numbers**, grep for constants that ought
   to scale with whatever dimension it differs in by an order of magnitude. §4 and
   §5 are that grep, done in advance.
@@ -1664,6 +1781,13 @@ Recorded 2026-07-28. Re-opening one needs a new reason, not a reminder.
    hyena is the ecologically correct partner for a 30 kg gazelle (ratio 0.5
    against the lion's 0.17), and its group behaviour — kill theft — is provable in
    batch 1, which the lion's cooperative hunting is not. See §0.
+   ✅ **Batch 1 shipped 2026-07-29 and the swap was the right call**: kill theft
+   fired 41 times in 4000 demo ticks, so the registry was proved inside its own
+   batch exactly as intended. ⚠ But the batch was **not** free the way the "keeps
+   essentially all of its biology" phrasing suggests — the gazelle half was free
+   (byte-identical), while the hyena cost the stalker three seeds in ten and needed
+   a failed gate to find its `minHungerToHunt` (§10.1). Budget a failed gate per
+   net-new species, not per batch.
 2. ✅ **Persistent social groups — build the full registry, and build it early.**
    Not the cheap sticky-label cut. A clan-forming carnivore in batch 1 makes it a
    prerequisite rather than optional depth, so it lands in phase 3 — and batch 1
@@ -1700,19 +1824,26 @@ Recorded 2026-07-28. Re-opening one needs a new reason, not a reminder.
 
 Per E4 discipline, and all lists must stay in step:
 
-- `DOCS.md` — §8 "The three species" table, the schema block list, the invariants;
-  ✅ **§9 Sociality was rewritten** at phase 3 (§11.2) — it now opens by recording
-  the decision it overrode, with the label mechanism kept whole underneath and a
-  new "Persistent groups" subsection beside it; §9 Hunting at phases 4
-  and 10; §9 Carcasses at phase 4 (possession); §9 Feeding at phases 4 and 9; §9
-  Parenting at phase 8; §7 Vegetation at phase 9; §5
-  lifespan compression at phase 13 (§11.6); §19 configuration map at phase 2
-- `ACTION-ITEMS.md` — A34 is tested by phase 8 (a hidden calf is the first real
-  "reason to return"); A12 and A32 are both touched by phase 8; A32 and A33 close
-  in phase 10; A49 in phase 9; A35 revisited by sex-specific territory (phase 15);
-  A51 in phase 15; A18 by §3.12; A3 and A37 remain open
-- `src/renderer/DOCS-RENDERER.md` + `README-RENDERER.md` — appearance scheme,
-  metrics panel, restart controls, protocol version
+- `DOCS.md` — ✅ **§8's table became "The four species"** at phase 7, with the
+  rename and its byte-identity proof recorded beside it; ✅ **§9 Sociality was
+  rewritten** at phase 3 (§11.2) — it now opens by recording the decision it
+  overrode, with the label mechanism kept whole underneath and a new "Persistent
+  groups" subsection beside it; ✅ §9 Carcasses at phase 4 (possession); ✅ **§9
+  Parenting gained "The hidden-fawn stage"** at phase 8, and ✅ §7 Decision now
+  lists `hide`/`tend` and says why two new actions were allowed; §9 Hunting at
+  phase 10; §9 Feeding at phase 9; §7 Vegetation at phase 9; §5 lifespan
+  compression at phase 13 (§11.6); ✅ §19 configuration map at phase 2
+- `ACTION-ITEMS.md` — ✅ **A55 closed at phase 7**; ✅ **A56 opened at phase 7** (a
+  two-member clan flaps) and ✅ **A57 at phase 8** (concealment needs cover); ✅ A34
+  was *tested* by phase 8 and its diagnosis held — it stays open, for the sharper
+  reason that patrol's target is a place rather than a purpose; ⚠ **A32 was touched
+  by phase 8 and did not improve**, so its remaining lever is the "nearer the
+  predator than I am" test; A32 and A33 close in phase 10; A49 in phase 9; A35
+  revisited by sex-specific territory (phase 15); A51 in phase 15 — ⚠ and A57 is
+  now an extra argument for it; A18 by §3.12; A3, A12, and A37 remain open
+- `src/renderer/DOCS-RENDERER.md` + `README-RENDERER.md` — ✅ appearance scheme and
+  metrics panel at phase 6, ✅ the two superseded glyph entries deleted at phase 7;
+  restart controls and protocol version as they change
 - ✅ `tests-ui/controls.spec.js` — done at phase 5. It now asserts the founder
   fields are **generated from the host's roster** rather than merely present; a
   panel that hardcoded the same three species would pass a presence check
@@ -1728,9 +1859,18 @@ Per E4 discipline, and all lists must stay in step:
   runtime. Both are now asserted by `test/protocol-v29.test.js`; see DOCS D31
 - `src/scripts/benchmark.js` — all four scenarios hardcode the roster and its
   ratios; they must move with every rename and every added species, or the
-  benchmark stops describing the demo
-- `BENCHMARK.md` — the large-5k baseline is stale (see §8) and is re-measured at
-  phase 0
+  benchmark stops describing the demo. ✅ Done at phase 7 (the hyena joined all
+  four at the demo's 120:8:10:6 ratio) — ⚠ which means **every figure taken before
+  2026-07-29 describes a different population** and is not comparable
+- `BENCHMARK.md` — ✅ re-baselined at phase 0, again at phase 7 (large-5k 75.7
+  ms/tick on the new roster), and phase 8 measured flat. ⚠ The rule that matters is
+  recorded there: interleave the arms in one session and read the **ordering across
+  rounds**, not the means — a real cost is slower in every round, and an arm that
+  wins two and loses one is noise
+- ✅ `src/scripts/sweep.js` + `npm run sweep` — **new at phase 7**, and the thing
+  §9's gate is actually run with. Every future batch is measured through it, and a
+  species-count or roster change wants `--control=` rather than two hand-compared
+  runs
 - `african-species.md` — its biology is now folded into §10 and its mechanics into
   §3, including the gazelle model added 2026-07-28. Either delete it or mark it
   explicitly as the source analysis, so nobody implements its proposals directly
