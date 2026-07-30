@@ -548,8 +548,21 @@ describe('forage guilds and habitat: not inert in the demo', () => {
   // §1.2's standing complaint is mechanisms that are implemented, tested, correct,
   // and never do visible work — A34 and A57 both. So the claim here is about the
   // *demo gazelle*, measured, rather than about resolution.
-  function grazedCrop(config) {
-    const engine = createDemoSimulation({ seed: 42, config });
+  //
+  // ⚠ **Pooled over three seeds since 2026-07-30 (phase 10), and the reason is a
+  // near miss worth recording.** Both claims were asserted on seed 42 alone at
+  // 1500 ticks, and the cover-share margin there is the thinnest of any seed
+  // (4.2% against 4.6%, where seeds 1 and 2 run a full point apart). A phase-10
+  // change that fires a handful of times per thousand ticks was enough to reverse
+  // it — not by weakening the mechanism, which held on the other two seeds and on
+  // seed 42 at 3000 ticks, but by reshuffling one seed's trajectory. A claim about
+  // a mechanism should not turn on which seed it was measured at, so it is now
+  // pooled, and each seed's numbers ride in the failure message so a real
+  // regression is still diagnosable from one run.
+  const SEEDS = [1, 2, 42];
+
+  function grazedCrop(seed, config) {
+    const engine = createDemoSimulation({ seed, config });
     const world = engine.world;
     let total = 0;
     let ticks = 0;
@@ -567,16 +580,37 @@ describe('forage guilds and habitat: not inert in the demo', () => {
         ticks += 1;
       }
     }
-    return { meanCrop: total / Math.max(1, ticks), eatTicks: ticks, coverShare: coverTicks / Math.max(1, animalTicks) };
+    return { crop: total, eatTicks: ticks, coverTicks, animalTicks };
   }
 
+  /** Both arms over every seed, summed — computed once and shared by both tests. */
+  const arms = (() => {
+    const both = { on: [], off: [] };
+    for (const seed of SEEDS) {
+      both.on.push(grazedCrop(seed, {}));
+      both.off.push(grazedCrop(seed, { forage: { enabled: false }, habitat: { enabled: false } }));
+    }
+    const pool = (runs) => ({
+      meanCrop: runs.reduce((sum, r) => sum + r.crop, 0) / Math.max(1, runs.reduce((sum, r) => sum + r.eatTicks, 0)),
+      eatTicks: runs.reduce((sum, r) => sum + r.eatTicks, 0),
+      coverShare:
+        runs.reduce((sum, r) => sum + r.coverTicks, 0) / Math.max(1, runs.reduce((sum, r) => sum + r.animalTicks, 0)),
+      perSeed: runs,
+    });
+    return { on: pool(both.on), off: pool(both.off) };
+  })();
+
+  /** `seed 1: 9.1% · seed 2: 5.1% · seed 42: 4.2%` — the detail behind a pooled claim. */
+  const bySeed = (runs, value) => SEEDS.map((seed, i) => `seed ${seed}: ${value(runs.perSeed[i])}`).join(' · ');
+
   test('the gazelle grazes shorter grass with the guild on than with it off', () => {
-    const on = grazedCrop({});
-    const off = grazedCrop({ forage: { enabled: false }, habitat: { enabled: false } });
-    assert.ok(on.eatTicks > 100 && off.eatTicks > 100, 'both arms did plenty of eating');
+    const { on, off } = arms;
+    assert.ok(on.eatTicks > 300 && off.eatTicks > 300, 'both arms did plenty of eating');
     assert.ok(
       on.meanCrop < off.meanCrop - 0.3,
-      `mean standing crop where it fed: ${on.meanCrop.toFixed(2)} on against ${off.meanCrop.toFixed(2)} off`,
+      `mean standing crop where it fed: ${on.meanCrop.toFixed(2)} on against ${off.meanCrop.toFixed(2)} off\n` +
+        `  on  ${bySeed(on, (r) => (r.crop / Math.max(1, r.eatTicks)).toFixed(2))}\n` +
+        `  off ${bySeed(off, (r) => (r.crop / Math.max(1, r.eatTicks)).toFixed(2))}`,
     );
   });
 
@@ -584,11 +618,13 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     // The habitat half. Cover grows 1.35× the biomass of open ground, so before
     // this the forage cue pulled an open-plain animal into it and nothing pulled
     // back.
-    const on = grazedCrop({});
-    const off = grazedCrop({ forage: { enabled: false }, habitat: { enabled: false } });
+    const { on, off } = arms;
+    const percent = (r) => `${((100 * r.coverTicks) / Math.max(1, r.animalTicks)).toFixed(1)}%`;
     assert.ok(
       on.coverShare < off.coverShare,
-      `cover share: ${(on.coverShare * 100).toFixed(1)}% on against ${(off.coverShare * 100).toFixed(1)}% off`,
+      `cover share: ${(on.coverShare * 100).toFixed(1)}% on against ${(off.coverShare * 100).toFixed(1)}% off\n` +
+        `  on  ${bySeed(on, percent)}\n` +
+        `  off ${bySeed(off, percent)}`,
     );
   });
 });

@@ -180,6 +180,36 @@ scored maturity as `biomass / capacity`, which would have added a second grid re
 sample; it was rejected for ecological reasons (DOCS §9 Feeding) and would have cost
 here too.
 
+### Cooperative action (2026-07-30, PLAN-SPECIES.md phase 10)
+
+Interleaved medium-1k, three rounds alternating all three phase-10 switches
+(`cooperation.enabled` + `mobbing.enabled` + `decision.defendTargeted`) off and
+on — same roster, same seed, 400 ticks per run:
+
+| arm | medium-1k (3 rounds) | mean | entities alive |
+| --- | --- | ---: | ---: |
+| phase 10 off | 9.143, 9.561, 8.982 | 9.229 | 1147 |
+| phase 10 on | 9.206, 9.142, 9.221 | 9.190 | 1147 |
+
+**Flat** (−0.4%, and the "on" arm is slower in **2 of 3** rounds with the ranges
+overlapping completely — the ordering says no effect either way). Entity counts are
+**identical**, so this is not quietly measuring a population difference.
+
+Expected, and by construction rather than by luck: **every shipped species leaves
+`hunting.cooperationWeight` and `behavior.mobWeight` at 0**, and both mechanisms ask
+that question first — so a hunt pays one property read before skipping the
+co-attacker count, a prey animal pays one before skipping the mob query, and neither
+ever reaches a grid query. The only work that actually runs in this world is
+`defendTargeted`'s single `huntTargetId` lookup, taken by an adult that has both a
+perceived threat and living young — measured at **0.8–1.5%** of adult-ticks having a
+threat at all, before the offspring test.
+
+**Standing figure with phase 10 in place:** large-5k **80.86 ms/tick**
+(2026-07-30, 5983→7546 entities; demo-default 1.3337, small-100 0.8825, medium-1k
+11.1659). ⚠ Not comparable to phase 9's 79.06 either — the interleaved A/B above
+measured phase 10 **flat**, and this reading is a different session on a machine
+known to drift ~10% on identical code.
+
 **Standing figure with phase 9 in place:** large-5k **79.06 ms/tick**
 (2026-07-29, 5983→7579 entities). ⚠ **Do not read that against phase 7's 75.7 as a
 regression.** It is a different session — the machine drifted ~10% across a single day

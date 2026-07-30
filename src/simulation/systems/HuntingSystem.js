@@ -24,6 +24,12 @@
  * grown). A fresh adult grazer with a head start usually gets away; a tired or
  * half-grown one usually does not.
  *
+ * ⚠ Since phase 10 the same product carries **who is standing with each animal**,
+ * from both sides: co-attackers raise the odds (`predation/cooperation.js`) and a
+ * mob lowers them and makes the attempt dangerous (`predation/mobbing.js`). Both
+ * are gated on a per-species weight that is 0 for every shipped species, so both
+ * are exactly the identity — the demo is byte-identical with them switched off.
+ *
  * Runs in the `interaction` phase at priority 5 — after feeding (0) and before
  * reproduction (10), so a kill this tick is available to eat and a killed
  * animal cannot also mate. Exactly three draws per attempt on the `hunting`
@@ -41,6 +47,8 @@ import { killAnimal } from './death.js';
 import { recordMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 import { applyInjury, InjuryKinds, MAX_INJURIES } from '../injury/injuries.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
+import { attackersFor, cooperationBonus, DEFAULT_COOPERATION } from '../predation/cooperation.js';
+import { mobbersFor, DEFAULT_MOBBING } from '../predation/mobbing.js';
 
 export class HuntingSystem extends SimulationSystem {
   /**
@@ -85,6 +93,15 @@ export class HuntingSystem extends SimulationSystem {
     defenderWeight = 0.12,
     maxDefenders = 4,
     defenderInjuryBonus = 2.5,
+    // Cooperative action (phase 10). Both are world-level sections of their own
+    // — `config.cooperation` and `config.mobbing` — rather than fields of the
+    // `hunting` species block, because a species block beats the config and an
+    // off switch inside one cannot switch anything off (DOCS §8). The per-species
+    // halves are `hunting.cooperationWeight` and `behavior.mobWeight`, both 0.
+    cooperationEnabled = DEFAULT_COOPERATION.enabled,
+    cooperationRange = DEFAULT_COOPERATION.range,
+    mobbingEnabled = DEFAULT_MOBBING.enabled,
+    mobbingRange = DEFAULT_MOBBING.range,
     maxInjuries = MAX_INJURIES,
     maxMemories = MAX_MEMORIES,
     updateInterval = 1,
@@ -112,6 +129,10 @@ export class HuntingSystem extends SimulationSystem {
     this.defenderWeight = defenderWeight;
     this.maxDefenders = maxDefenders;
     this.defenderInjuryBonus = defenderInjuryBonus;
+    // Held as frozen objects so the predicates take one argument rather than
+    // three, exactly as `possession` is in the decision and feeding systems.
+    this.cooperation = Object.freeze({ ...DEFAULT_COOPERATION, enabled: cooperationEnabled, range: cooperationRange });
+    this.mobbing = Object.freeze({ ...DEFAULT_MOBBING, enabled: mobbingEnabled, range: mobbingRange });
     this.maxInjuries = maxInjuries;
     this.maxMemories = maxMemories;
   }
@@ -164,6 +185,10 @@ export class HuntingSystem extends SimulationSystem {
       // attempt harder for everyone (collective vigilance — a stalker cannot
       // watch six directions), while an adult that has actively chosen to
       // `defend` this particular animal is worth more than any of them.
+      // ⚠ Since phase 10 this also carries the **mob**: the animals that have
+      // actively chosen to stand over this one, which is `defend` reached by a
+      // groupmate trigger rather than a kin one (see predation/mobbing.js). Empty
+      // for every shipped species, since all four leave `behavior.mobWeight` at 0.
       const defenders = this.defendersFor(world, prey);
       // ⚠ Two blocks, two owners. `params` is the **hunter's** — how you capture
       // is your biology. `preyParams` is the **prey's**, and carries the two
@@ -172,7 +197,14 @@ export class HuntingSystem extends SimulationSystem {
       // from 2026-07-28, `agility` (how well it turns). Resolved once here
       // rather than twice below, since an attempt needs both.
       const preyParams = world.species.get(prey.speciesId)?.hunting ?? this;
-      const chance = this.captureChance(entity, prey, defenders, params, preyParams);
+      // Cooperative hunting (phase 10, PLAN-SPECIES.md §3.7) — the mirror of the
+      // defense above, counted from the hunter's side. ⚠ Gated on the hunter's own
+      // weight first, so a species that does not cooperate never touches the grid:
+      // every shipped species leaves `cooperationWeight` at 0, which makes this
+      // exactly the identity and exactly free.
+      const attackers =
+        (params.cooperationWeight ?? 0) > 0 ? attackersFor(world, entity, prey, this.cooperation) : 0;
+      const chance = this.captureChance(entity, prey, defenders, params, preyParams, attackers);
       const captured = random.next() < chance;
       const preyRoll = random.next();
       const predatorRoll = random.next();
@@ -190,9 +222,26 @@ export class HuntingSystem extends SimulationSystem {
         defenders: defenders.count,
         guarded: defenders.guardian !== null,
       });
+      // ⚠ **A mobber reports through `entity.defended`, and that is not a
+      // stretched meaning of the event — it is the one it was given.** The type
+      // means "an adult putting itself between a predator and a groupmate or its
+      // own young", and the renderer labels it "an adult defending another": a
+      // buffalo standing over a herdmate is exactly that. So mobbing needs no new
+      // event type and no protocol bump, which is the opposite of the
+      // `entity.contested` case, where reusing a type *would* have made the UI
+      // lie (a carcass fight is not a fight over a mate).
       if (defenders.guardian !== null) {
         context.emit(EventTypes.ENTITY_DEFENDED, {
           entityId: defenders.guardian.id,
+          wardId: prey.id,
+          threatId: entity.id,
+        });
+      }
+      // Bounded by the number that actually moved the odds, so a crowd cannot
+      // turn one attempt into an event storm (§1.4 C3).
+      for (let i = 0; i < defenders.mob.length && i < params.maxDefenders; i += 1) {
+        context.emit(EventTypes.ENTITY_DEFENDED, {
+          entityId: defenders.mob[i].id,
           wardId: prey.id,
           threatId: entity.id,
         });
@@ -223,7 +272,13 @@ export class HuntingSystem extends SimulationSystem {
         // young is far likelier to hurt the attacker than the young itself is.
         // Same roll, so the draw budget stays at three.
         const guardian = defenders.guardian;
-        const defenderMass = guardian ? Math.max(prey.bodyMass, guardian.bodyMass) : prey.bodyMass;
+        // The heaviest animal standing in the way, which since phase 10 may be a
+        // mobber rather than a parent — a lion that presses a hunt into a buffalo
+        // herd is answering to the *herd's* mass, not to the calf's.
+        let defenderMass = guardian ? Math.max(prey.bodyMass, guardian.bodyMass) : prey.bodyMass;
+        for (const mobber of defenders.mob) {
+          if (mobber.bodyMass > defenderMass) defenderMass = mobber.bodyMass;
+        }
         // ⚠ The cap on that ratio was a bare `2` until 2026-07-28 and is now
         // `predation.riskyMassRatio`, resolved off the **hunter** — how much
         // risk this predator's build lets it take on. Default 2, so this is a
@@ -231,10 +286,17 @@ export class HuntingSystem extends SimulationSystem {
         // a lion taking buffalo raises, and the hook PLAN-SPECIES.md §3.6 named
         // rather than a new mechanism.
         const riskCap = world.species.get(entity.speciesId)?.predation?.riskyMassRatio ?? this.riskyMassRatio;
+        // ⚠ One active defender is **exactly** `defenderInjuryBonus`, which is
+        // what this expression was before mobbing existed — written this way
+        // rather than as `1 + (bonus − 1) × n` precisely so the single-guardian
+        // case stays bit-identical (that form is only exact for some values of
+        // `bonus`, and an inertness proof cannot rest on which).
+        const active = Math.min(params.maxDefenders, (guardian ? 1 : 0) + defenders.mob.length);
+        const injuryBonus = active === 0 ? 1 : params.defenderInjuryBonus + (active - 1) * (params.defenderInjuryBonus - 1);
         const trampleChance =
           this.predatorInjuryChance *
           Math.min(riskCap, defenderMass / Math.max(entity.bodyMass, 1e-6)) *
-          (guardian ? params.defenderInjuryBonus : 1);
+          injuryBonus;
         this.#wound(entity, InjuryKinds.TRAMPLE, trampleChance, this.predatorInjurySeverity, guardian ?? prey, context, predatorRoll);
       }
     }
@@ -248,8 +310,15 @@ export class HuntingSystem extends SimulationSystem {
    * and the active guardian is found by walking the prey's own sparse `parents`
    * list — kin recognition through the authoritative lineage, not a search.
    *
+   * ⚠ **The third field is the mob** (phase 10): animals with no kin claim on
+   * this one that have chosen to stand over it anyway. It is found by the one
+   * signal a mob has — `defendingId`, which the decision system already writes —
+   * and it costs a radius query around the prey **only** when the prey's species
+   * declares `behavior.mobWeight`. Every shipped species leaves that at 0, so this
+   * returns the same two fields it always did, from the same two reads.
+   *
    * @param {import('../world/World.js').World} world @param {object} prey
-   * @returns {{count: number, guardian: object|null}}
+   * @returns {{count: number, guardian: object|null, mob: object[]}}
    */
   defendersFor(world, prey) {
     const summary = world.social?.get(prey.id) ?? null;
@@ -265,7 +334,9 @@ export class HuntingSystem extends SimulationSystem {
         break;
       }
     }
-    return { count, guardian };
+    const mobs = (world.species?.get(prey.speciesId)?.behavior?.mobWeight ?? 0) > 0;
+    const mob = mobs ? mobbersFor(world, prey, guardian, this.mobbing) : EMPTY_MOB;
+    return { count, guardian, mob };
   }
 
   /**
@@ -288,9 +359,12 @@ export class HuntingSystem extends SimulationSystem {
    * @param {object} [preyParams] the same block resolved for the **prey**, which
    *        is where `agility` lives; defaults to the hunter's, so a direct
    *        caller that supplies neither still gets the system's own numbers
+   * @param {number} [attackers] other hunters committed to the same quarry
+   *        (phase 10). 0 — the default, and what every shipped species produces —
+   *        makes the cooperation term exactly 1
    * @returns {number} probability in [minCaptureChance, maxCaptureChance]
    */
-  captureChance(predator, prey, defenders = { count: 0, guardian: null }, params = this, preyParams = params) {
+  captureChance(predator, prey, defenders = NO_DEFENDERS, params = this, preyParams = params, attackers = 0) {
     // Raw speed, before either has spent anything.
     const speedRatio = prey.speed > 0 ? predator.speed / prey.speed : 2;
 
@@ -311,9 +385,14 @@ export class HuntingSystem extends SimulationSystem {
     // the min/max clamps exist to prevent. A parent actively interposing counts
     // for more than a bystander, because it is between the predator and the
     // prey rather than merely present.
+    // ⚠ A **mobber counts exactly as an interposing parent does** (phase 10), and
+    // for the same reason: it is between the predator and the prey rather than
+    // merely present. The capped `active` count is what keeps a herd of forty
+    // from being untouchable, and with an empty mob this is the expression it was
+    // before mobbing existed, term for term.
     const bystanders = Math.min(params.maxDefenders, defenders.count ?? 0);
-    const guarding = defenders.guardian ? 1 : 0;
-    const shielding = 1 / (1 + params.defenderWeight * (bystanders + 2 * guarding));
+    const active = Math.min(params.maxDefenders, (defenders.guardian ? 1 : 0) + (defenders.mob?.length ?? 0));
+    const shielding = 1 / (1 + params.defenderWeight * (bystanders + 2 * active));
 
     // Agility (PLAN-SPECIES.md §3.15). Everything above this line is about
     // *speed*: the raw ratio, who has sprint left, whether the prey is sound.
@@ -324,7 +403,19 @@ export class HuntingSystem extends SimulationSystem {
     // (`x / 1 === x`), which is the guarantee D16 asks of any "at zero it does
     // nothing" claim.
     const agility = preyParams.agility ?? 1;
-    const chance = (params.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding) / agility;
+    // Company on the hunter's side (phase 10, PLAN-SPECIES.md §3.7) — the mirror
+    // of `shielding`, and the term that makes a pride different from several
+    // adjacent independent predators. ⚠ Exactly 1 at `cooperationWeight: 0` or
+    // with nobody else on the quarry, which is every hunt in the shipped world, so
+    // the product is bit-identical until a species asks for it.
+    const cooperation = cooperationBonus(attackers, params);
+    const chance =
+      (params.baseCaptureChance * speedRatio * staminaEdge * vulnerability * shielding * cooperation) / agility;
     return Math.min(params.maxCaptureChance, Math.max(params.minCaptureChance, chance));
   }
 }
+
+/** One shared empty mob, so the common answer allocates nothing. */
+const EMPTY_MOB = Object.freeze([]);
+/** The default for a direct caller that supplies no defenders at all. */
+const NO_DEFENDERS = Object.freeze({ count: 0, guardian: null, mob: EMPTY_MOB });

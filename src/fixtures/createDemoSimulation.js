@@ -137,6 +137,17 @@ export function registerDemoSystems(engine) {
       possessionEnabled: engine.config.carcass.possessionEnabled,
       possessionRange: engine.config.carcass.possessionRange,
       possessionShare: engine.config.carcass.possessionShare,
+      // Cooperative action (PLAN-SPECIES.md §3.7, phase 10). Two switches from
+      // the two global sections that own them — ⚠ *not* from `hunting` or
+      // `behavior`, which are species blocks a species overrides, so a switch
+      // inside one is not a switch (DOCS §8). This system reads the joining half
+      // of cooperation and the whole trigger for mobbing; `HuntingSystem` below
+      // reads the halves that change the odds.
+      cooperationEnabled: engine.config.cooperation.enabled,
+      cooperationJoinRange: engine.config.cooperation.joinRange,
+      mobbingEnabled: engine.config.mobbing.enabled,
+      mobbingMinMobbers: engine.config.mobbing.minMobbers,
+      mobbingRange: engine.config.mobbing.range,
       // Neonatal concealment (PLAN-SPECIES.md §3.14): the `tend` action asks
       // whether a mother is close enough to feed her hidden calf and whether she
       // has anything to give, and both answers belong to `ParentingSystem`. Wired
@@ -203,6 +214,15 @@ export function registerDemoSystems(engine) {
       // From `config.predation`, its one home. The hunting system only needs the
       // risk cap; the mass ratios are read per-species by perception.
       riskyMassRatio: engine.config.predation.riskyMassRatio,
+      // Cooperative action, the odds half (phase 10): how many other hunters
+      // count as being in on this kill, and how far around the prey a mob is
+      // gathered from. The weights themselves are per-species —
+      // `hunting.cooperationWeight` here and `behavior.mobWeight` in the decision
+      // system — and both are 0 for every species in this world.
+      cooperationEnabled: engine.config.cooperation.enabled,
+      cooperationRange: engine.config.cooperation.range,
+      mobbingEnabled: engine.config.mobbing.enabled,
+      mobbingRange: engine.config.mobbing.range,
     }),
   );
   engine.registerSystem(

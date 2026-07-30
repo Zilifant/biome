@@ -7,9 +7,9 @@ per role**, each with its own behaviour, food, and water needs. Written
 six settled decisions (§11), and again to put the **gazelle** rather than the
 wildebeest in the first batch.
 
-> ### ⚠ Status: phases 0–9 are done (last updated 2026-07-29)
+> ### ⚠ Status: phases 0–10 are done (last updated 2026-07-30)
 >
-> **This document is no longer a plan for unimplemented work.** Phases 0–9 have
+> **This document is no longer a plan for unimplemented work.** Phases 0–10 have
 > shipped — see the table in §8 — and the world now has **four species**
 > (gazelle, stalker, vulture, hyena) at protocol v29.
 >
@@ -19,10 +19,12 @@ wildebeest in the first batch.
 > written". ⚠ Read the two together and prefer the As-built block: the plan was
 > right about shape far more often than about consequence.
 >
-> **Next: phase 10** (cooperative hunting, mobbing, and the A32 geometry fix).
-> Everything from §3.7, §3.11, §3.12, §3.13, and §3.16 is still ahead; §3.3 and §3.4
-> landed at phase 9, and ⚠ **both landed differently from how they were proposed** —
-> read their As-built blocks before touching either.
+> **Next: phase 11** (batch 2 — lion + buffalo), which is where phase 10's two
+> mechanisms are finally *tuned*: both shipped inert by design, so nothing about
+> `hunting.cooperationWeight` or `behavior.mobWeight` has been measured in a world
+> yet. Everything from §3.11, §3.12, §3.13, and §3.16 is still ahead; §3.3, §3.4,
+> and §3.7 have landed, and ⚠ **all three landed differently from how they were
+> proposed** — read their As-built blocks before touching any of them.
 
 The short version, still true of what remains: **the species system is already
 good enough to declare new species, and not yet good enough to make them behave
@@ -172,6 +174,14 @@ toward **forage sources**, not toward an omnivore (§3.2).
   a species block beats the config, so an off switch inside one cannot switch
   anything off. Any future per-species mechanism needing a reproducible control has
   this shape.
+- **Cooperative action exists as of 2026-07-30** (§3.7, phase 10): a species may
+  state `hunting.cooperationWeight` (co-attackers raise the capture odds, and a
+  predator joins a conspecific's committed chase) or `behavior.mobWeight` (adults
+  turn on a predator that has gone for a groupmate). ⚠ **Mobbing is not a new
+  action** — it is the groupmate half of `defend`, which DOCS §7 has described
+  since Step 23 while only the kin half was built. ⚠ Both are 0 for every shipped
+  species and the demo is byte-identical with them off; the lion and the buffalo
+  (phase 11) are what they will be tuned against.
 - **Neonatal concealment exists as of 2026-07-29** (§3.14, phase 8): a fawn lies
   hidden (`hide`) and its mother returns to it (`tend`), gated on
   `aging.hiddenUntil` and switchable at `parenting.concealment`. ⚠ Its `tend` half
@@ -221,7 +231,7 @@ is only which of them the engine can express.
 | ~~**Where it lives**~~          | ✅ **since 2026-07-29** | a per-species `habitat` weight per terrain, read by the long-range cue (§3.4, phase 9) — ⚠ needs a `cueRadius` to act through, which three of four species set to 0 | leopard, buffalo, rhino         |
 | ~~**Which individuals it eats**~~ | ✅ **since 2026-07-28** | `predation.maxPreyMassRatio` / `minPreyMassRatio`, gated in perception on `bodyMass` (§3.6, phase 4) | lion, leopard, hyena            |
 | ~~**Persistent social identity**~~ | ✅ **since 2026-07-28** | `world.groups` + `groupRecordId`, gated by `groups.forms` (§3.8, phase 3) | lion, hyena, zebra, elephant    |
-| **Cooperative action**         | ❌                      | defense is passive; no group hunt, no mobbing        | lion, hyena, buffalo            |
+| ~~**Cooperative action**~~     | ✅ **since 2026-07-30** | `hunting.cooperationWeight` + `attackersFor`, and mobbing as the groupmate half of `defend` (§3.7, phase 10) — ⚠ both inert until a species declares a weight | lion, hyena, buffalo            |
 | ~~**Contested carcasses**~~    | ✅ **since 2026-07-28** | `carcass.possessorId`, contested through `resolveContest` (§3.9, phase 4) | lion vs hyena vs vulture        |
 | ~~**Escape by agility**~~      | ✅ **since 2026-07-28** | `hunting.agility`, prey-resolved, one divide in `captureChance` (§3.15) | gazelle                         |
 | ~~**Concealed newborns**~~     | ✅ **since 2026-07-29** | `aging.hiddenUntil` + the `hide`/`tend` actions and concealment in perception (§3.14, phase 8). ⚠ The *invisibility* half only bites for a fawn born on cover — DOCS A57 | gazelle |
@@ -233,13 +243,14 @@ versus a solitary cat" expressible at all; the group registry landed (§3.8),
 which is what makes a pride a thing that exists between sightings; and phase 4
 closed prey eligibility (§3.6), carcass possession (§3.9), and the agility term
 (§3.15). **Three more closed on 2026-07-29** — concealed newborns at phase 8, then
-grass maturity and habitat at phase 9.
+grass maturity and habitat at phase 9. **Cooperative action closed on 2026-07-30**
+(phase 10), ⚠ *expressible* but not yet exercised: no shipped species declares
+either weight, so the row records a schema rather than a behaviour until phase 11.
 
-What remains is **three rows**: what food it eats (the `diet` string, phase 15),
-cooperative action (phase 10), and heterospecific association (phase 12). ⚠ So the
-❌ column is nearly spent, and after phase 12 this table has nothing left in it —
-which means the *next* unrepresentable axis will have to be found rather than looked
-up.
+What remains is **two rows**: what food it eats (the `diet` string, phase 15) and
+heterospecific association (phase 12). ⚠ So the ❌ column is nearly spent, and after
+phase 12 this table has nothing left in it — which means the *next* unrepresentable
+axis will have to be found rather than looked up.
 
 ⚠ **Prior art from this repo:** adding the corvid read as a balance problem
 (3/10 seeds vs a 6/10 control) until the real cause turned up — `fleshIntakeRate`
@@ -644,7 +655,48 @@ Two notes:
 600 kg predator bothering with something it cannot profit from, and it is why a
 batch-1 lion on gazelle-only prey needs care (§10.1).
 
-### 3.7 Cooperative action: group hunting, mobbing, calf defense
+### 3.7 ✅ Cooperative action (shipped 2026-07-30, phase 10 — closes A33, and settles A32)
+
+✅ **Built, and the section below was right about the hooks and wrong about the
+shape of one of them.** Four deltas, and the third is the phase's real result:
+
+- ⚠⚠ **Mobbing is not a `flee` alternative — it is the unimplemented half of
+  `defend`.** The section calls it "a `flee` alternative, not a `wander`
+  alternative", and the reasoning behind that (it must not compete with foraging)
+  is exactly right. But it led to an action that did not need to exist: DOCS §7
+  has described `defend` as *"a predator is on kin **or a groupmate**; stand and
+  face it"* since Step 23, and only the kin half was ever built. So mobbing shipped
+  as a second **trigger** for an existing action, with its own weight
+  (`behavior.mobWeight`) because a herdmate is a different risk from your own calf.
+  The candidate set is the size it always was. ⚠ The transferable rule: **before
+  adding an action, check whether the one you want is already described by an
+  existing action and merely unimplemented on one branch.**
+- ✅ **`attackersFor` landed exactly as proposed** — the mirror of `defendersFor`,
+  feeding `captureChance` from the other side, plus a joining rule (a predator with
+  no prey of its own adopts a conspecific's `huntTargetId`). ⚠ Only a committed
+  `chase` is joinable, never a `stalk`: a stalk is not yet a hunt, and a chase
+  bounds the geometry for free. "Conspecific" tightens to "same group record" when
+  the hunter has one, as the section hoped.
+- ⚠⚠ **The A32 fix failed, and its failure is the useful part.** The section names
+  the lever — relax "nearer the predator than I am" to "near enough to interpose" —
+  and it was built (`decision.interposeSlack`), measured, and **ships at 0**: with
+  the clause removed *entirely*, `entity.defended` measured 0/1/1 over 2000 ticks
+  on three seeds against the strict test's 1/1/0. Measuring the whole chain instead
+  of the last link relocated the problem: predators commit to a **juvenile** in only
+  6–9% of hunter-ticks, and in **1–4 of those per 2000 ticks** is a living parent
+  within perception of the hunt. There are one to four opportunities before any
+  geometry test runs, so no ward-selection rule can be the fix. Full table in DOCS
+  §1.2 A32; the remaining levers are prey selection and perception radius, both
+  species biology, both for phase 11.
+- ⚠ **Both mechanisms ship inert and byte-identical**, since no species declares
+  `cooperationWeight` or `mobWeight` — and one thing cooperation *cannot* express
+  is recorded as **A59**: prey eligibility is resolved per animal in perception, so
+  "prey no single hunter would commit to, that a pride will" needs a second,
+  cooperative mass ceiling. A lion therefore needs a ceiling high enough to commit
+  alone, and cooperation supplies the odds rather than the eligibility. Decide in
+  phase 11 with the buffalo in front of it.
+
+### 3.7 The section as written
 
 Three of the roster's headline behaviours (lion and hyena group hunts, buffalo
 mobbing) do not exist. `african-species.md` proposes four new actions; this
@@ -1570,8 +1622,8 @@ in the section it links to — read those before repeating any of this work.
 | **7** | **Batch 1 — gazelle + hyena** (§10.1). Two renames proved byte-identical, vulture 4 → 6 kg as its own arm, then the hyena behind the ten-seed gate | ✅ **2026-07-29** | **`npm run sweep`** (the §9 gate harness) built here. Closed **A55**, opened **A56**. ⚠ The gate **failed first**: a carrion-subsidised predator is not limited by its prey |
 | **8** | **Hidden-fawn stage** (§3.14): `aging.hiddenUntil`, the `hide` and `tend` actions, concealment in perception | ✅ **2026-07-29** | Benchmark flat. ✅ **A34's lever proved** (`tend` 1000×, `patrol` 0×); ⚠ **A32 did not improve**; opened **A57** |
 | **9** | Forage guilds (§3.3): grass-maturity preference; `habitat` weights, closing A49's habitat half (§3.4) | ✅ **2026-07-29** | Decision / Migration. ⚠⚠ **Two gates failed first**: `biomass / capacity` as the axis, then a symmetric window. What shipped is **absolute standing crop** with a one-sided falloff, and a cue whose *direction* is scored but whose *strength* is not. `npm run sweep --set=` added so a config A/B is one command |
-| **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | ← **next** | med — Decision / Hunting |
-| **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | planned | high — config only. ⚠ Expect phase 7's failure mode again: check `minHungerToHunt` first |
+| **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | ✅ **2026-07-30** | Decision / Hunting. ⚠ **No new action**: mobbing turned out to be the unimplemented groupmate half of `defend`. Both mechanisms ship **inert and byte-identical**; ⚠⚠ **the A32 fix failed** — removing the clause entirely moves nothing, and the measured blocker is that only 6–9% of hunts commit to a juvenile at all. Opened **A59** |
+| **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | ← **next** | high — config only. ⚠ Expect phase 7's failure mode again: check `minHungerToHunt` first. ⚠ Also where A59 is settled (does a pride need its own mass ceiling?) and where A32's remaining levers are decided |
 | **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | planned | low — Social / Reproduction |
 | **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | planned | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring |
 | **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`; optionally ambush concealment (§3.12) | planned | med — config (+ perception). The last `supersededBy` entry is deleted here |
@@ -1955,15 +2007,18 @@ Per E4 discipline, and all lists must stay in step:
   overrode, with the label mechanism kept whole underneath and a new "Persistent
   groups" subsection beside it; ✅ §9 Carcasses at phase 4 (possession); ✅ **§9
   Parenting gained "The hidden-fawn stage"** at phase 8, and ✅ §7 Decision now
-  lists `hide`/`tend` and says why two new actions were allowed; §9 Hunting at
-  phase 10; §9 Feeding at phase 9; §7 Vegetation at phase 9; §5 lifespan
-  compression at phase 13 (§11.6); ✅ §19 configuration map at phase 2
+  lists `hide`/`tend` and says why two new actions were allowed; ✅ **§9 Hunting and
+  §7 Decision again at phase 10** (cooperative action, and why it added no action);
+  §9 Feeding at phase 9; §7 Vegetation at phase 9; §5 lifespan
+  compression at phase 13 (§11.6); ✅ §19 configuration map at phase 2 and phase 10
 - `ACTION-ITEMS.md` — ✅ **A55 closed at phase 7**; ✅ **A56 opened at phase 7** (a
   two-member clan flaps) and ✅ **A57 at phase 8** (concealment needs cover); ✅ A34
   was *tested* by phase 8 and its diagnosis held — it stays open, for the sharper
   reason that patrol's target is a place rather than a purpose; ⚠ **A32 was touched
-  by phase 8 and did not improve**, so its remaining lever is the "nearer the
-  predator than I am" test; A32 and A33 close in phase 10; ✅ **A49's habitat half
+  by phase 8 and did not improve**, so its remaining lever was the "nearer the
+  predator than I am" test; ⚠ **that lever was built and measured at phase 10 and it
+  is not the constraint** — A32 stays open with a new diagnosis, ✅ A33 is
+  implemented-but-inert, and **A59** opened; ✅ **A49's habitat half
   closed at phase 9** (its activity-pattern half stays open, with no diurnal cycle to
   hang one on); A35
   revisited by sex-specific territory (phase 15); A51 in phase 15 — ⚠ and A57 is
@@ -1977,7 +2032,12 @@ Per E4 discipline, and all lists must stay in step:
 - ⚠ `src/renderer/app/state/EventCatalog.js` — **every new event type needs an
   entry** (label, group, retention tier) or `test/renderer-*.test.js` fails
   against the protocol's type list. ✅ Kill theft and group formation/dissolution
-  landed at phase 5; mobbing (phase 10) still implies at least one more
+  landed at phase 5. ⚠ **Mobbing needed none after all**, which is the payoff of it
+  being `defend` rather than a new action: a mobber is reported through
+  `entity.defended` — "an adult putting itself between a predator and a groupmate or
+  its own young", which is exactly what it is — so phase 10 took **no protocol bump
+  and no fixture regeneration**. (Contrast `entity.contested`, where reuse *would*
+  have made the UI lie.)
 - ⚠ `npm run fixtures:renderer` — mandatory on **every** protocol bump (done at
   phase 5; due again if §3.2's `diet` change lands).
   ⚠⚠ **And bump `SUPPORTED_PROTOCOL_VERSION` with it.** At v29 both were missed

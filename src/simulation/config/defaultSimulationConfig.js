@@ -674,6 +674,68 @@ export const defaultSimulationConfig = Object.freeze({
     // species declares otherwise, which is the point: a gazelle's agility is a
     // fact about the gazelle and arrives with it (phase 7).
     agility: 1,
+    // Cooperative hunting (see predation/cooperation.js). PLAN-SPECIES.md §3.7,
+    // phase 10 — the mirror of the cooperative-defense weights above: each other
+    // hunter committed to the same quarry raises the capture odds, capped, as
+    // each defender lowers them.
+    //
+    // ⚠ **0 is exactly the identity** (`1 + 0 × n === 1`) and it switches the
+    // whole mechanism off for the species, adoption included, so nothing is
+    // walked and nothing is scored. That is deliberate and it is what §9 demands:
+    // a cooperative capture only pays when the prey is too large for one hunter,
+    // so the term is **built at phase 10 and tuned at phase 11** against the lion
+    // and the 600 kg buffalo that justify it. A single hyena takes a 30 kg
+    // gazelle solo, as a real one does — fitting this number to that case would
+    // mean re-tuning it twice.
+    //
+    // ⚠ The world-level off switch is `config.cooperation.enabled`, **not** a
+    // field in here: this is a species block, and a species block beats the
+    // config (DOCS §8), so an `enabled` here could not switch off a species that
+    // declared its own.
+    cooperationWeight: 0,
+    maxAttackers: 3, // diminishing returns by cap, exactly as `maxDefenders` is
+  }),
+  // Cooperative hunting — the world-level half (see predation/cooperation.js).
+  // PLAN-SPECIES.md §3.7, phase 10.
+  //
+  // The biology (`hunting.cooperationWeight`) is per-species; the switch and the
+  // geometry are here, for the phase-8 reason that a species block beats the
+  // config and an off switch inside one cannot switch anything off. Same shape as
+  // `forage` and `habitat` (phase 9), and now the standing pattern for any
+  // per-species mechanism that needs a reproducible control.
+  cooperation: Object.freeze({
+    // False ⇒ no bonus and no adoption whatever any species declares: the
+    // measured control. Costs nothing when true either, since every shipped
+    // species leaves `cooperationWeight` at 0.
+    enabled: true,
+    range: 6, // how close another hunter must be to the quarry to be in on the kill
+    // How far a joining hunter will commit to a quarry it has not necessarily
+    // seen itself. ⚠ A stated stand-in of the same kind as A42 (the forage cue
+    // reaching 18 units against a perception radius of 6): an animal that watches
+    // a clanmate break into a run knows roughly what it is running at.
+    joinRange: 12,
+  }),
+  // Mobbing — prey that turns on the predator (see predation/mobbing.js). DOCS
+  // A33, PLAN-SPECIES.md §3.7, phase 10.
+  //
+  // ⚠⚠ **There is no `mob` action.** Mobbing is the *groupmate* half of `defend`,
+  // which DOCS §7 Decision has described as "a predator is on kin or a groupmate"
+  // since Step 23 while only the kin half was implemented. So the candidate set
+  // is exactly the size it was, the effect lands on `shielding` and
+  // `trampleChance` (products that already exist), and nothing new competes with
+  // foraging — which is the most expensive lesson in this project, applied in
+  // advance rather than paid for again.
+  //
+  // Inert until a species declares `behavior.mobWeight`, which is 0 for all four.
+  // The buffalo is what this is for, and it arrives in phase 11.
+  mobbing: Object.freeze({
+    enabled: true, // false ⇒ no ward is ever looked for: the measured control
+    // How many adult groupmates an animal needs nearby before it will turn on a
+    // predator. One buffalo facing a lion is a dead buffalo; a mob is a *number*
+    // of animals, and this is the threshold that makes it collective. Read off
+    // the social summary, so it costs no walk.
+    minMobbers: 2,
+    range: 6, // how close the animal under attack must be to be worth going to
   }),
   // Prey eligibility (see predation/predation.js). Which *individuals* a
   // predator will commit to, as opposed to which species it hunts —
@@ -1073,6 +1135,18 @@ export const defaultSimulationConfig = Object.freeze({
     herdDistance: 2.0, // inside this there is nothing to close
     defendWeight: 2.6,
     defendRange: 5.0, // how far an adult will go to interpose
+    // Mobbing (A33, phase 10): how urgently an adult turns on a predator that has
+    // committed to a *groupmate*, as opposed to `defendWeight`, which is the same
+    // action triggered by its own young. Two numbers because they are two
+    // different risks — a parent's calf is worth more to it than a herdmate is —
+    // and one action, because standing and facing a predator is one behaviour.
+    //
+    // ⚠ **0 for every shipped species, and 0 means the mechanism never runs**:
+    // no ward is looked for and no grid is touched. A mobbing species wants this
+    // *above* `fleeWeight` (2.0) or it will run instead, which is the whole
+    // point — mobbing competes with fleeing, never with foraging. The buffalo
+    // arrives in phase 11 and is what it will be tuned against.
+    mobWeight: 0,
     // Territory (Step 24). Patrolling is what an animal does *instead of*
     // wandering aimlessly, so it sits just above wander and below everything
     // else; retreating off a rival's ground beats settling down on it but never
@@ -1109,6 +1183,43 @@ export const defaultSimulationConfig = Object.freeze({
     // marginally better one at the edge of perception is not.
     mateDistanceWeight: 0.04,
     followDistance: 1.5, // inside this distance there is nothing to close
+    // ⚠⚠ **A32's last named lever, built, measured, and shipped at zero —
+    // because it is not the lever** (phase 10). An adult only interposes for a
+    // juvenile *nearer the predator than it is*; DOCS A32 named relaxing that
+    // test as the one remaining candidate after territory and the hidden-fawn
+    // stage both failed to move it. This is the relaxation, in world units: how
+    // much further from the predator than itself a parent will tolerate its calf
+    // being and still step in.
+    //
+    // Measured 2026-07-30, demo, 2000 ticks × seeds 1/2/42, `entity.defended`
+    // events: strict 1/1/0 · slack 2 → 0/1/0 · slack 6 → 0/1/1 · **no test at
+    // all** (slack ∞) → 0/1/1. Removing the clause outright does not move the
+    // thing it was blamed for, so relaxing it part-way certainly does not — and
+    // slack 2 still perturbed the demo enough to flip a phase-9 single-seed
+    // assertion. A knob that changes the world and buys nothing ships at its
+    // identity.
+    //
+    // The measurement that replaced the diagnosis is in DOCS §1.2 A32: predators
+    // commit to a juvenile in only 6–9% of hunter-ticks, and in **1–4 of those
+    // per 2000 ticks** is a living parent within the 6 units it would need to
+    // perceive the predator at all. The ceiling is a handful of opportunities per
+    // 2000 ticks before any geometry test runs, so no geometry test can be the
+    // fix. Kept as a knob, at 0, because a slow heavy species (buffalo, phase 11)
+    // has a real reason to want one and this is now the measured way to ask.
+    interposeSlack: 0,
+    // ⚠ **Which calf a parent defends: the one the predator is actually going
+    // for** (phase 10). Nothing checked this before, so a mother could stand over
+    // the calf nearest the threat while the hunter closed on a different animal —
+    // a defense with no attempt to affect. One O(1) read of the hunter's
+    // `huntTargetId`, and it is the *same* predicate mobbing uses to pick its
+    // ward, which is what keeps the two halves of `defend` consistent.
+    //
+    // ⚠ Measured effect in the demo: **within noise** (2000 ticks × 3 seeds moved
+    // one gazelle on one seed), for the reason above — the case it corrects is
+    // itself rare. It ships on anyway because it is the more correct rule and
+    // because the species it will matter for is the buffalo cow in phase 11.
+    // `false` is the pre-phase-10 behaviour and the control it was swept against.
+    defendTargeted: true,
     // Edge-aware fleeing. A prey driven toward a world edge runs ALONG it rather
     // than smearing into the corner (`fleeWallMargin` is how close to an edge
     // that kicks in); a prey walled into a true corner or terrain pocket judges

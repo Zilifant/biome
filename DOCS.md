@@ -49,14 +49,14 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 860 passing / 0 failing, 218 suites _(2026-07-29)_     |
+| Tests                 | 886 passing / 0 failing, 225 suites _(2026-07-30)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | **79.06 ms/tick** _(2026-07-29, phase 9)_ — ⚠ **not** comparable to phase 7's 75.7: different session, and phase 9 changes the population trajectory. Phase 9's own interleaved A/B measured **flat**. See BENCHMARK.md; ⚠ the machine drifted ~10% across 2026-07-28 on identical code, which is why every arm is measured against a same-session control |
+| Benchmark (large-5k)  | **80.86 ms/tick** _(2026-07-30, phase 10)_ — ⚠ **not** comparable to phase 9's 79.06 or phase 7's 75.7: each is a different session, and the machine drifted ~10% across a single day on identical code. Phase 10's own interleaved A/B measured **flat**, as phase 9's did. See BENCHMARK.md; every arm is measured against a same-session control for exactly this reason |
 | Species               | **4** (gazelle, stalker, vulture, hyena) — all pure config |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus seven always-per-species **fields**, two of them new on 2026-07-29: `forage` and `habitat` (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat` |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus seven always-per-species **fields**, two of them new on 2026-07-29: `forage` and `habitat` (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat`. ⚠ `hunting.cooperationWeight` and `behavior.mobWeight` (2026-07-30) are the newest fields and **no species uses either yet** — the lion and buffalo, phase 11 |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
-| Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
+| Git                   | Steps 26–30 and species phases 5–10 are **uncommitted** (the user handles git) |
 
 The renderer is a fully separate subsystem with its own reference documentation,
 [`src/renderer/DOCS-RENDERER.md`](src/renderer/DOCS-RENDERER.md) (and its own
@@ -147,24 +147,54 @@ copy.
 
 A parent interposing between a predator and its own calf is implemented and unit
 tested (both the decision and its effect on capture odds), but the geometry it
-needs — an adult with a living juvenile of its own, that juvenile nearer the
-predator than the parent and inside `defendRange` — almost never arises. Grazers
-flee readily and juveniles disperse early.
+needs almost never arises. Grazers flee readily and juveniles disperse early.
 
-Territory did **not** fix it as hoped: grazers turned out not to be able to
-afford site fidelity at all (A34), so families are no more co-located than
-before. The named lever is relaxing "nearer the predator than I am" to "near
-enough to interpose".
+Three fixes have now been tried and **all three failed**, which is worth reading
+as a sequence, because each one narrowed where the problem could be:
 
-⚠ **The hidden-fawn stage did not fix it either, and that prediction is now
-tested** _(2026-07-29)_. PLAN-SPECIES §3.14 expected it to help — "a stationary
-calf is far easier geometry for an interposing parent" — and it is a reasonable
-expectation: the calf now stays put and the mother now comes back to it. Measured
-over 3000 ticks on three seeds, `entity.defended` went **0→0, 1→1, and 0→1**. So
-the second of the two hoped-for fixes has also failed, which moves the diagnosis:
-the blocker is not that families are scattered, it is the **"nearer the predator
-than I am" test itself**. That remains the named lever, and it is now the only one
-left standing.
+1. _Territory_ (Step 24) did not fix it: grazers cannot afford site fidelity at
+   all (A34), so families are no more co-located than before.
+2. _The hidden-fawn stage_ (2026-07-29) did not either, though PLAN-SPECIES §3.14
+   expected it to — the calf now stays put and the mother comes back to it, and
+   `entity.defended` still went **0→0, 1→1, 0→1** over 3000 ticks on three seeds.
+3. ⚠⚠ _Relaxing "nearer the predator than I am"_ — the lever this item has named
+   since Step 23 — **was built at phase 10 (`decision.interposeSlack`), measured,
+   and does nothing.** Over 2000 ticks on seeds 1/2/42 the `entity.defended` count
+   was 1/1/0 with the strict test, 0/1/0 at slack 2, and **0/1/1 with the clause
+   removed entirely.** A relaxation that changes nothing when taken to infinity is
+   not the constraint, so the knob ships at 0 (its identity) rather than
+   perturbing a knife-edge demo for nothing.
+
+⚠ **What phase 10 did buy is a diagnosis, from measuring the chain instead of the
+last link** (2026-07-30, demo, 2000 ticks, seeds 1/2/42):
+
+| | seed 1 | seed 2 | seed 42 |
+| --- | ---: | ---: | ---: |
+| hunter-ticks with a committed target | 1513 | 1587 | 1466 |
+| …on a **juvenile** | 119 (7.9%) | 141 (8.9%) | 93 (6.3%) |
+| …whose parent is still alive | 88 | 45 | 38 |
+| …and within 6 units of the hunter (what a gazelle can perceive) | **4** | **2** | **1** |
+| capture attempts on a juvenile at all | 4 | 3 | 4 |
+
+So there are **one to four opportunities per 2000 ticks before any geometry test
+runs**, and only three or four attempts on a juvenile happen at all. No ward-selection
+rule can be the fix, because the rule is not what is scarce. The two real
+constraints are that predators commit to adults **91–94%** of the time, and that a
+mother is almost never inside her own perception radius of the hunt when it happens.
+
+The levers that remain are therefore about **what a predator chooses** and **how
+far a parent can sense**, not about the interpose test: prey selection that favours
+juveniles (`predation.minPreyMassRatio` runs the other way today), or a wider
+`perception.radius` / `defendRange` for a species whose defense is supposed to
+matter. ⚠ Both are species biology, and tuning either against the gazelle — the only
+species with young in the demo — would fit it to the one case it was not built for.
+The buffalo cow in phase 11 is the animal to settle it against.
+
+One change did ship from this pass, on correctness rather than on measurement:
+`decision.defendTargeted` makes a parent defend **the calf the hunter has actually
+committed to** rather than whichever calf is nearest the predator. Before it, a
+mother could stand over a calf nothing was hunting. Measured effect in the demo:
+within noise, for exactly the reason above.
 
 **⚠ A55 — CLOSED 2026-07-29. The persistent-group registry now fires in the
 demo** _(opened 2026-07-28, PLAN-SPECIES.md §3.8; closed by phase 7)_
@@ -206,6 +236,46 @@ before dissolving — which costs one field on the record and is the same shape 
 size distribution from a hyena clan, and tuning a dissolution delay against the
 only clan-forming species in the world would fit it to a case the mechanism is
 about to outgrow.
+
+**⚠ A33 — Mobbing is built and nothing mobs** _(implemented 2026-07-30,
+PLAN-SPECIES.md §3.7, phase 10; opened Step 23)_
+
+Prey collectively turning on a predator exists as of phase 10, and **no shipped
+species declares `behavior.mobWeight`**, so it is inert by construction — the
+schema arriving one phase ahead of the roster, exactly as `disease` did at Step 29
+(A38) and the group registry did at phase 3 (A55). The demo is asserted
+**byte-identical** with the mechanism switched off, which is the only honest way to
+ship a mechanism nothing uses yet.
+
+⚠ It is **not a new action**: mobbing is the *groupmate* half of `defend`, which
+§7 Decision has described as "kin or a groupmate" since Step 23 while only the kin
+half was implemented. The candidate set is the size it always was, and the effect
+lands on `shielding` and the injury-bonus term of `trampleChance` — products that
+already exist. That is what made it safe to add at all, because a new movement
+behaviour competes with foraging and foraging must win (§9 Decision).
+
+The animal this is for is the **buffalo**, in phase 11, and this item closes when
+it arrives and the mechanism is measured in a world. ⚠ Until then, do not tune
+`mobWeight` against the gazelle: a Thomson's gazelle does not mob, and a weight
+fitted to the only prey species in the demo would be re-tuned twice.
+
+**⚠ A59 — Cooperative hunting is built, and cannot yet make a pride take prey a
+lion would not** _(from 2026-07-30, PLAN-SPECIES.md §3.7, phase 10)_
+
+`attackersFor` and target-joining ship with `hunting.cooperationWeight: 0` for every
+species, so — like A33 above — the mechanism is inert and the demo is byte-identical
+with it off. The lion arrives in phase 11 and is what it will be tuned against.
+
+⚠ **The stated limit, and it is a real one:** prey eligibility
+(`predation.maxPreyMassRatio`, §3.6) is resolved **per animal in perception**, where
+it cannot know whether help is at hand. So "prey no single hunter would commit to,
+that a pride will" is not expressible: somebody has to start the hunt, so a
+cooperative species needs a ceiling high enough to commit **alone**, and cooperation
+then supplies the odds rather than the eligibility. That is a modelling gap rather
+than a bug — a lion at `maxPreyMassRatio: 3.5` will single-handedly commit to a
+buffalo and usually fail, where the truth is that it would not try. The named fix is
+a second, cooperative ceiling, and the honest place to decide whether it is needed is
+phase 11, with the buffalo in front of it.
 
 **⚠ A57 — A hidden fawn is concealed only if it was born on cover, which is
 ~8–10% of the time** _(from 2026-07-29, PLAN-SPECIES.md §3.14)_
@@ -260,7 +330,6 @@ reminder.
 | A22 | **Tombstones are bounded at 256**, so ancestry cannot be walked further back than that                                                                                         | Open. Lineage _depth_ is carried on the entity as `generation` and needs no lookup, so this only bites a query that walks ancestry                                                                                                                                                                                                               |
 | A24 | **No per-cell microclimate.** Temperature is global; cover is the only spatial modifier                                                                                        | Open — needs terrain elevation, which does not exist. This is also why migration has no "warmer south" to steer toward                                                                                                                                                                                                                           |
 | A28 | **Bottleneck detection is left to the caller.** The bounded history carries population per species over time, but nothing computes a minimum or flags a crash                  | Open. Detecting one is a judgement about what counts as a crash; inventing that threshold would be guessing                                                                                                                                                                                                                                      |
-| A33 | **Mobbing** — prey collectively attacking a predator — is not implemented                                                                                                      | Open. Cooperative defense is passive (vigilance) plus a parent interposing, which is what a herd actually buys                                                                                                                                                                                                                                   |
 | A35 | **Territory is a predator-only phenomenon** at ~9 individuals. Grazers get a home range but no site fidelity and no claims                                                     | Open. A genuinely territorial third species would be the demonstration                                                                                                                                                                                                                                                                           |
 | A36 | **The claim layer is not drawn on the grid.** The home-range ring is drawn from inspection, for the selected animal only                                                       | Open. A per-cell ownership layer in every snapshot would rival vegetation for something that changes far more slowly and matters for one animal at a time                                                                                                                                                                                        |
 | A37 | **Disease does not cross species.** A pathogen adapted to a grazer is not the one adapted to a stalker                                                                         | Open — a shared or zoonotic pathogen is its own subject                                                                                                                                                                                                                                                                                          |
@@ -911,7 +980,10 @@ the biology in an always-per-species field.**
 species**, exactly as `disease` did not when it landed (A38). They are the schema
 arriving ahead of the roster that needs it: a 6 kg animal and a 600 kg one
 currently eat at the same declared rate, two predators cannot differ in how they
-capture, and nothing states a prey mass ratio. Three notes on how they resolve,
+capture, and nothing states a prey mass ratio. ⚠ **Phase 10 added two more fields
+of exactly that kind** — `hunting.cooperationWeight` (with `maxAttackers`) and
+`behavior.mobWeight`, both 0 for every shipped species, with their off switches in
+the new global `cooperation` and `mobbing` sections per the rule above. Three notes on how they resolve,
 all modelling choices rather than plumbing:
 
 - **`hunting` resolves off the _hunter_** — how you capture is your biology —
@@ -1087,6 +1159,10 @@ The scored candidate set is:
 `leaveThicket` · `herd` · `defend` · `shelter` · `patrol` · `retreat` · `rest` ·
 `wander`
 
+`defend` covers two triggers with two weights: an adult's **own juvenile**
+(`defendWeight`), and — since phase 10 — a **groupmate the predator has committed
+to** (`mobWeight`, A33). Kin win when both apply.
+
 Inputs are hunger, thirst, readiness, dependency, perception, memory,
 temperament, threat, thermal stress, and the social summary. A small
 `explorationRate` chance wanders regardless; ties break by fixed order.
@@ -1206,6 +1282,18 @@ determinism hold. `fleeWallMargin` (0 disables, restoring straight-away flight),
 - _Trail attraction_ rides **migration's channel**.
 
 The answer has been to give existing behaviour a cause.
+
+⚠ **Phase 10 (2026-07-30) added none at all, and that was the design.** Mobbing
+looked like a new action and PLAN-SPECIES §3.7 proposed it as one — but `defend`
+already *was* that action: this section has read "a predator is on kin or a
+groupmate; stand and face it" since Step 23, while only the kin half was ever
+implemented. So mobbing became the groupmate trigger for an action that already
+existed, with its own weight (`behavior.mobWeight`) because a herdmate is a
+different risk from your own calf, and cooperative hunting became a different
+*target* for the `stalk`/`chase` a predator already had. Both effects land on
+products that already exist (§9 Hunting). ⚠ The one rule worth carrying: **before
+adding an action, check whether the action you want is already described by one of
+these and merely unimplemented on one branch.**
 
 ⚠ **Two actions were added on 2026-07-29, and the rule above is what decided
 their shape.** `hide` and `tend` (§9 Parenting) exist because the hidden-fawn
@@ -1370,11 +1458,43 @@ Two bugs found by measuring rather than by tests:
    in 4 of 5 seeds. Fixed by making a **fleeing target force the sprint
    regardless of range**, with `fleeing` exposed on the perceived prey record.
 
-**Cooperative defense** is split in two: adult groupmates shave the capture
-chance with diminishing returns and a cap (collective vigilance), and an
+**Cooperative defense** is split in three since phase 10: adult groupmates shave
+the capture chance with diminishing returns and a cap (collective vigilance), an
 interposing parent counts double and makes the attempt genuinely dangerous for
-the hunter. Which calf is _its own_ comes from the lineage lists directly —
-recognition here is ancestry, not a scent.
+the hunter, and a **mob** — animals with no kin claim that have chosen to stand
+over this one anyway — counts exactly as an interposing parent does. Which calf is
+_its own_ comes from the lineage lists directly; who is in the mob comes from
+`defendingId`, which the decision system already writes and the save already
+carries. Recognition here is ancestry, not a scent.
+
+**Cooperative action** (2026-07-30, PLAN-SPECIES.md §3.7) is two mechanisms with
+one shape, and the shape is the deliverable: **neither adds an action, a heading,
+or a competitor in the utility table.**
+
+- **Group hunting.** `attackersFor` counts the other hunters committed to the same
+  quarry — same species, and the same group record when the hunter belongs to one,
+  so a pride hunts as a pride rather than as several adjacent predators — and
+  multiplies `captureChance` by `1 + cooperationWeight × attackers`, capped at
+  `maxAttackers`. It is the exact mirror of `shielding`, feeding the same product
+  from the other side. A predator with **no prey of its own in sight** also joins a
+  conspecific's committed chase, which is what makes several hunters converge on one
+  animal; joining can only ever *add* a hunter to a hunt, never take one off a hunt
+  it could have won alone. ⚠ Only a `chase` is joinable, never a `stalk` — a stalk is
+  not yet a hunt, and a chase bounds the geometry for free.
+- **Mobbing** (A33) is the groupmate half of `defend`, triggered when a perceived
+  predator has **committed to** a groupmate and `minMobbers` adults are standing
+  nearby. A mobber is reported through `entity.defended`, which is what that event
+  has always meant ("an adult putting itself between a predator and a groupmate or
+  its own young") — so no new event type and no protocol bump, the opposite of the
+  `entity.contested` case where reuse would have made the UI lie.
+
+⚠ **Both ship inert**: every species leaves `hunting.cooperationWeight` and
+`behavior.mobWeight` at 0, and the demo is asserted **byte-identical** with the two
+world switches (`config.cooperation`, `config.mobbing`) off. Both are built now and
+*tuned* in phase 11, against the lion and the 600 kg buffalo that justify them —
+tuning either against a 30 kg gazelle a single hyena takes solo would fit a
+parameter to the case it was not built for. See A33 and A59 for the open halves,
+including the one thing cooperation cannot yet express.
 
 ### Feeding
 
@@ -3072,10 +3192,10 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `config` sections in `defaultSimulationConfig.js`: `world`, `time`, `terrain`,
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
 `engineering`, `disturbance`, `migration`, `disease`, `social`, `groups`,
-`environment`, `carcass`, `lineage`, `injury`, `hunting`, `locomotion`,
-`memory`, `metrics`, `genetics`, `traits`, `parenting`, `aging`, `hydration`,
-`feeding`, `forage`, `habitat`, `behavior`, `decision`, `predation`,
-`demo`.
+`environment`, `carcass`, `lineage`, `injury`, `hunting`, `cooperation`,
+`mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`, `parenting`,
+`aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`, `decision`,
+`predation`, `demo`.
 
 **Twelve** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
 `genetics`, `disease`, `reproduction`, and — from 2026-07-28 — `feeding`,
@@ -3092,6 +3212,14 @@ positional, recomputed every tick, owned by `SocialSystem`. `groups` is the
 persistent group *record* — an identity that survives separation, owned by
 `GroupSystem`. See §9 Sociality, which opens with the design decision this
 overrode.
+
+⚠ **`cooperation` and `mobbing` (2026-07-30) are switches with no section of
+their own to sit in.** Cooperative hunting's weight belongs in `hunting` and
+mobbing's in `behavior` — both species blocks — so their off switches had to live
+somewhere a species cannot override, and that is these two sections. They hold an
+`enabled` plus the geometry (`range`, `joinRange`, `minMobbers`) and nothing a
+species would ever want to state. Same shape as `forage` and `habitat`, and by now
+the standing pattern rather than a one-off.
 
 ⚠ **`groups`, `migration`, `territory`, `forage`, and `habitat` are the five
 sections that are half-global and half-per-species**, and none of them is a species

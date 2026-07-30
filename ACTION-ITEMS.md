@@ -44,14 +44,37 @@ they are not re-opened by accident.
   sharper reason: `patrol`'s target is a *place* rather than a *purpose*, so
   giving it a den means giving it something at the den to want.
 
-- **A32 — Juvenile defense fires about once in 12 000 ticks.** The geometry it
-  needs (an adult with a living juvenile of its own, that juvenile nearer the
-  predator than the parent and inside `defendRange`) almost never arises. ⚠ **The
-  hidden-fawn stage was expected to help and did not** (2026-07-29): a stationary
-  calf with a mother that returns to it moved `entity.defended` 0→0, 1→1, 0→1
-  across three seeds. Both hoped-for fixes (territory, then concealment) have now
-  failed, which leaves the **"nearer the predator than I am" test itself** as the
-  only remaining lever.
+- **⚠ A33 — Mobbing is built and nothing mobs** (implemented 2026-07-30, phase
+  10). Prey collectively turning on a predator exists, as the *groupmate* half of
+  `defend` rather than as a new action — no new candidate in the utility table, and
+  the effect lands on `shielding` and `trampleChance`. No shipped species declares
+  `behavior.mobWeight`, so it is inert by construction and the demo is asserted
+  byte-identical with it off. The buffalo (phase 11) is the animal it was built
+  for; ⚠ do not tune the weight against the gazelle before then.
+
+- **⚠ A59 — Cooperative hunting is built, and cannot yet make a pride take prey a
+  lion would not** (from 2026-07-30, phase 10). `attackersFor` and target-joining
+  ship inert (`hunting.cooperationWeight: 0` everywhere). ⚠ The stated limit: prey
+  eligibility is resolved per animal in perception, which cannot know whether help
+  is at hand, so a cooperative species needs a mass ceiling high enough to commit
+  **alone** and cooperation supplies the odds rather than the eligibility. A second
+  cooperative ceiling is the named fix; phase 11, with the buffalo in front of it,
+  is where to decide whether it is needed.
+
+- **A32 — Juvenile defense fires about once in 12 000 ticks.** ⚠⚠ **All three
+  named fixes have now been tried and measured, and all three failed** — territory
+  (Step 24), the hidden-fawn stage (2026-07-29), and, at phase 10, relaxing the
+  "nearer the predator than I am" test itself (`decision.interposeSlack`, measured
+  2026-07-30: `entity.defended` 1/1/0 strict, 0/1/0 at slack 2, **0/1/1 with the
+  clause removed entirely**, so the knob ships at its identity). The diagnosis has
+  moved off ward selection altogether: predators commit to a **juvenile** in only
+  6–9% of hunter-ticks, and in **1–4 of those per 2000 ticks** is a living parent
+  within the 6 units it needs to perceive the hunt at all. The remaining levers are
+  therefore about *what a predator chooses* and *how far a parent can sense* —
+  species biology, to be settled against the buffalo cow in phase 11 rather than
+  against the gazelle. `decision.defendTargeted` (a parent defends the calf the
+  hunter actually committed to) shipped from this pass on correctness, not on
+  measured effect.
 
 - **⚠ A57 — A hidden fawn is concealed only if it was born on cover (~8–10%).**
   The hidden-fawn stage's `hide` half applies to every fawn; the *invisibility*
@@ -122,10 +145,6 @@ they are not re-opened by accident.
 
 - **A37 — Disease does not cross species.** The two species carry it
   independently; a shared or zoonotic pathogen is unbuilt.
-
-- **A33 — Mobbing is not implemented.** Cooperative defense is passive
-  (vigilance) plus a parent interposing; prey collectively attacking a predator
-  does not exist.
 
 - **A12 — Orphan mercy.** An orphaned unweaned juvenile is weaned early rather
   than facing a real dependency crisis. Left in place deliberately, so that

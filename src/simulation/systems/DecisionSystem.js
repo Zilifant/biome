@@ -7,6 +7,8 @@
  * WHAT to do and set the movement intent; the movement system merely executes
  * it. Actions:
  *   - defend       — a predator is on kin or a groupmate; stand and face it
+ *                    (the groupmate half is mobbing, added phase 10 — see
+ *                    predation/mobbing.js for why it is not its own action)
  *   - flee         — a predator is in sight; sprint away (outranks everything)
  *   - herd         — drifted from the herd's centre; close up and fall in line
  *   - retreat      — standing on a rival's marked ground; get off it
@@ -30,6 +32,15 @@
  * is non-monotonic in biomass: more grass is no longer automatically better. It
  * scales the hunger drive rather than the whole utility, so hunger still overrides
  * it.
+ *
+ * ⚠ Phase 10 added **no action at all**, deliberately, and the two mechanisms it
+ * did add are the reason the list above is unchanged: mobbing became the
+ * groupmate half of `defend` (which DOCS §7 has described as "kin *or a
+ * groupmate*" since Step 23), and cooperative hunting became a different *target*
+ * for the `stalk`/`chase` a predator already had. Both effects land on products
+ * that already exist — `shielding`, `trampleChance`, `captureChance` — which is
+ * the phase-9 rule generalized: a preference chooses a direction and a need sets
+ * the strength; nothing new gets a seat at the utility table.
  *
  * ⚠ `hide` and `tend` are the **first new actions in six steps**, and the bar
  * they had to clear is DOCS §9 Decision's rule that four consecutive steps
@@ -60,6 +71,8 @@ import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo } from '../predation/possession.js';
+import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
+import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
 import { forageOf, forageQualityAt, NEUTRAL_QUALITY } from '../habitat/forage.js';
 
@@ -151,6 +164,14 @@ export class DecisionSystem extends SimulationSystem {
     herdDistance = 3.0,
     defendWeight = 2.6,
     defendRange = 5.0,
+    // A32's last named lever (phase 10): how much further from the predator than
+    // itself an adult will tolerate its calf being and still interpose. ⚠ Ships
+    // at **0** — the strict test it has always had — because removing the clause
+    // entirely was measured not to move A32 at all. See the config for the
+    // numbers. `defendTargeted` is the change that did ship: defend the calf the
+    // hunter has actually committed to.
+    interposeSlack = 0,
+    defendTargeted = true,
     patrolWeight = 0.55,
     patrolSpanFactor = 1.5,
     retreatWeight = 0.7,
@@ -201,6 +222,18 @@ export class DecisionSystem extends SimulationSystem {
     possessionEnabled = DEFAULT_POSSESSION.enabled,
     possessionRange = DEFAULT_POSSESSION.range,
     possessionShare = DEFAULT_POSSESSION.share,
+    // Cooperative action (phase 10, PLAN-SPECIES.md §3.7). Two world-level
+    // switches, wired from `config.cooperation` and `config.mobbing` — ⚠ *not*
+    // from `hunting` or `behavior`, which are species blocks a species overrides
+    // (DOCS §8), so a switch inside one could not switch anything off. The
+    // per-species halves (`hunting.cooperationWeight`, `behavior.mobWeight`) are
+    // 0 for every shipped species, which makes both mechanisms cost one property
+    // read and nothing else.
+    cooperationEnabled = DEFAULT_COOPERATION.enabled,
+    cooperationJoinRange = DEFAULT_COOPERATION.joinRange,
+    mobbingEnabled = DEFAULT_MOBBING.enabled,
+    mobbingMinMobbers = DEFAULT_MOBBING.minMobbers,
+    mobbingRange = DEFAULT_MOBBING.range,
     shelterWeight = 0.9,
     shelterStressThreshold = 2,
     shelterStressSpan = 10,
@@ -255,6 +288,8 @@ export class DecisionSystem extends SimulationSystem {
     this.herdDistance = herdDistance;
     this.defendWeight = defendWeight;
     this.defendRange = defendRange;
+    this.interposeSlack = interposeSlack;
+    this.defendTargeted = defendTargeted;
     this.patrolWeight = patrolWeight;
     this.patrolSpanFactor = patrolSpanFactor;
     this.retreatWeight = retreatWeight;
@@ -280,6 +315,17 @@ export class DecisionSystem extends SimulationSystem {
       enabled: possessionEnabled,
       range: possessionRange,
       share: possessionShare,
+    });
+    this.cooperation = Object.freeze({
+      ...DEFAULT_COOPERATION,
+      enabled: cooperationEnabled,
+      joinRange: cooperationJoinRange,
+    });
+    this.mobbing = Object.freeze({
+      ...DEFAULT_MOBBING,
+      enabled: mobbingEnabled,
+      minMobbers: mobbingMinMobbers,
+      range: mobbingRange,
     });
     this.shelterWeight = shelterWeight;
     this.shelterStressThreshold = shelterStressThreshold;
@@ -478,12 +524,6 @@ export class DecisionSystem extends SimulationSystem {
       // flag, since panic with no direction is just milling about.
       const alarmed = entity.alarmedUntil !== null && context.tick < entity.alarmedUntil && entity.alarmSource !== null;
       const alarmFlee = !threat && alarmed ? behavior.fleeWeight * 0.75 : 0;
-      // Defense (§1.4 A11). An adult stands its ground when the predator is
-      // going for its own young or a groupmate's, rather than saving itself.
-      // It never outranks its own direct danger by much, and juveniles never do
-      // it — a half-grown animal facing a stalker is not brave, it is prey.
-      const ward = this.#wardToDefend(world, entity, perceived, behavior);
-      const defendUrgency = ward ? behavior.defendWeight : 0;
       // Herding: close up when the animal has drifted off the local centre of
       // its group. Scaled by (2 − boldness) exactly as `rest` is, so the same
       // trait that makes an animal roam also makes it a looser herd member —
@@ -496,6 +536,25 @@ export class DecisionSystem extends SimulationSystem {
         social?.centroid && drift > behavior.herdDistance
           ? behavior.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - behavior.herdDistance) / Math.max(behavior.herdDistance, 1e-6))
           : 0;
+
+      // Defense (§1.4 A11). An adult stands its ground when the predator is
+      // going for its own young or a groupmate's, rather than saving itself.
+      // It never outranks its own direct danger by much, and juveniles never do
+      // it — a half-grown animal facing a stalker is not brave, it is prey.
+      //
+      // ⚠ **Mobbing is the second half of this action, not a new one** (A33,
+      // phase 10). DOCS §7 has described `defend` as "kin *or a groupmate*" since
+      // Step 23 and only the kin half was ever built; `mobWardFor` is the other
+      // half, and it reuses the intent, the field, and the slot in the utility
+      // table. Two weights because they are two different risks — a parent's own
+      // calf is worth more to it than a herdmate is — and kin wins when both
+      // apply, so a mother never abandons her calf for the herd. `mobWeight` is 0
+      // for every shipped species, which makes the second call free (it leaves on
+      // its first comparison) and this line exactly what it was.
+      const kinWard = this.#wardToDefend(world, entity, perceived, behavior);
+      const mobWard = kinWard ? null : mobWardFor(world, entity, threat, behavior, this.mobbing, social);
+      const ward = kinWard ?? mobWard;
+      const defendUrgency = kinWard ? behavior.defendWeight : mobWard ? behavior.mobWeight : 0;
 
       // Territory (Step 24). Two pulls, both read from state the territory
       // system already wrote — one O(1) grid lookup and four numbers on the
@@ -552,7 +611,17 @@ export class DecisionSystem extends SimulationSystem {
       // newborn standing on a claim steered at a null target and crashed the
       // tick; rare enough that only a 16 000-tick run found it.)
       const retreatPull = intruding && homeRange && !acuteNeed ? behavior.retreatWeight * (territory.defends ? 1 : 0.5) : 0;
-      const prey = perceived?.nearestPrey ?? null;
+      // Cooperative hunting (phase 10, PLAN-SPECIES.md §3.7). A predator with
+      // nothing of its own in sight joins a hunt a conspecific has already
+      // committed to — which is what makes several hunters converge on **one**
+      // animal instead of each picking its own, and is the half of "lions hunt
+      // together" that is about *which* quarry rather than about the odds.
+      //
+      // ⚠ Gated on the species' own `cooperationWeight`, which is 0 for all four
+      // shipped species: this is one property read and then nothing. And gated on
+      // having no prey of its own, so joining can only ever *add* a hunter to a
+      // hunt, never take one off a hunt it could have won alone.
+      const prey = perceived?.nearestPrey ?? this.#joinedHunt(world, entity, context, carnivore ? species : null);
       const recovering = entity.lastHuntTick !== null && context.tick - entity.lastHuntTick < this.huntCooldownTicks;
       const willHunt =
         prey !== null && !recovering && hunger >= behavior.minHungerToHunt && entity.stamina > behavior.minHuntStamina;
@@ -677,6 +746,18 @@ export class DecisionSystem extends SimulationSystem {
    * what "interpose" means, and it is also what keeps an adult from abandoning
    * its own escape for a cub that is already behind it.
    *
+   * ⚠⚠ **That ordering test is A32's named lever, and phase 10 measured it not to
+   * be the constraint.** `interposeSlack` widens it — the calf may be that much
+   * *further* from the predator than the parent and still be defended — and it
+   * ships at **0**, the strict test, because removing the clause entirely moved
+   * nothing: `entity.defended` measured 0/1/1 over 2000 ticks on seeds 1/2/42
+   * against the strict test's 1/1/0, while still perturbing the demo. The real
+   * scarcity is upstream of this method: predators commit to a **juvenile** in
+   * only 6–9% of hunter-ticks, and in 1–4 of those per 2000 ticks is a living
+   * parent within perception of the hunt (DOCS §1.2 A32). The knob stays because a
+   * slow, heavy species has a real reason to want one, and this is the measured
+   * way to ask for it.
+   *
    * Only adults do this. A half-grown animal facing a stalker is not brave.
    *
    * @param {import('../world/World.js').World} world
@@ -689,6 +770,12 @@ export class DecisionSystem extends SimulationSystem {
     if (entity.lifeStage !== 'adult' && entity.lifeStage !== 'senescent') return null;
     if (!Array.isArray(entity.offspring) || entity.offspring.length === 0) return null;
 
+    // ⚠ **Which animal the predator has actually committed to** (phase 10). The
+    // whole of A32 turned out to hinge on this: a parent could defend a calf
+    // nothing was hunting while the predator closed on something else, and the
+    // defense then had no attempt to affect. One O(1) lookup, and only for an
+    // adult that has a threat in view and young of its own.
+    const hunted = this.defendTargeted ? (world.entities.get(threat.id)?.huntTargetId ?? null) : null;
     const ownDistance = Math.hypot(entity.x - threat.x, entity.y - threat.y);
     let best = null;
     let bestDistance = Infinity;
@@ -697,13 +784,43 @@ export class DecisionSystem extends SimulationSystem {
       if (!child || !child.alive || child.kind !== 'animal') continue;
       if (child.lifeStage !== 'juvenile') continue;
       const exposure = Math.hypot(child.x - threat.x, child.y - threat.y);
-      if (exposure > behavior.defendRange || exposure >= ownDistance) continue;
+      if (exposure > behavior.defendRange) continue;
+      // A calf the predator is *going for* is defended whatever the geometry
+      // says; any other calf still has to be about as exposed as the parent.
+      if (childId !== hunted && exposure >= ownDistance + this.interposeSlack) continue;
+      if (childId === hunted) return child;
       if (exposure < bestDistance) {
         bestDistance = exposure;
         best = child;
       }
     }
     return best;
+  }
+
+  /**
+   * The quarry a conspecific is already chasing, for a predator that has none of
+   * its own — or null (phase 10, PLAN-SPECIES.md §3.7).
+   *
+   * ⚠ **Three disqualifying questions before any work happens**, in cheapening
+   * order, which is what keeps this free for the whole shipped roster: is this a
+   * carnivore, does its species cooperate at all, and did perception publish a
+   * neighbourhood *this* tick. Only then is the neighbour walk read — and it is
+   * the walk perception already made (§1.4 C6), never a new grid query, exactly
+   * as the sociality system reuses it.
+   *
+   * The staleness check is a skip rather than a fallback: joining a hunt is
+   * discretionary, so an engine that staggers perception simply does not join on
+   * the ticks it has no fresh neighbourhood, which is a far better answer than a
+   * second grid walk for an optional behaviour.
+   *
+   * @param {import('../world/World.js').World} world @param {object} entity
+   * @param {object} context @param {object|null} species resolved, or null for a herbivore
+   */
+  #joinedHunt(world, entity, context, species) {
+    if (species === null || !this.cooperation.enabled) return null;
+    if (!((species.hunting?.cooperationWeight ?? 0) > 0)) return null;
+    if (world.neighbourhoodTick !== context.tick) return null;
+    return adoptedPrey(world, entity, world.neighbourhood.get(entity.id), this.cooperation);
   }
 
   /**
