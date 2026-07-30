@@ -226,7 +226,15 @@ export class VegetationGrid {
     this.#revision += 1;
   }
 
-  /** Raw biomass at a cell (0 when out of bounds). */
+  /**
+   * Raw biomass at a cell (0 when out of bounds).
+   *
+   * ⚠ Since phase 9 this is read as **two** facts rather than one: how much forage
+   * a cell holds, and — because standing crop *is* grass height — how mature and
+   * coarse that forage is. `habitat/forage.js` turns the second reading into a
+   * per-species preference, so the whole forage-guild mechanism needed no new
+   * storage and no new grid read (PLAN-SPECIES.md §3.3).
+   */
   biomassAt(cellX, cellY) {
     if (!this.#inBounds(cellX, cellY)) return 0;
     return this.#biomass[this.#index(cellX, cellY)];

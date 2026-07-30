@@ -29,14 +29,20 @@
  *     is how an animal migrates without a map — and it is why no part of this
  *     file searches, plans, or routes (the step's explicit out-of-scope).
  *
- * Two drives, both expressed through that one channel:
+ * Three drives, all expressed through that one channel:
  *
  *   1. **Forage gradient** — sample a fixed ring of directions, walk toward the
  *      better ground. Recolonization falls out of this rather than being built:
  *      an emptied region is ungrazed, so its biomass climbs back to capacity and
  *      it becomes the *best* thing on the compass. Nothing anywhere knows a
- *      region was emptied.
- *   2. **Natal dispersal** — a juvenile that has outgrown its guardian leaves,
+ *      region was emptied. ⚠ Since phase 9 the ring is scored through the species'
+ *      **grass-maturity preference**, so "better ground" is no longer the same
+ *      thing as "more grass" (`habitat/forage.js`).
+ *   2. **Habitat gradient** (phase 9) — the same ring shape asking which *terrain*
+ *      this species prefers, so an open-plain animal drifts out of cover. Its own
+ *      function, because it is normalized in different units and throttled by a
+ *      different thing; see `habitatGradient`.
+ *   3. **Natal dispersal** — a juvenile that has outgrown its guardian leaves,
  *      holding an outward heading for a bounded spell whatever the forage says.
  *      That override is the point: dispersal is not foraging, it is leaving.
  *
@@ -46,6 +52,9 @@
  * fixed-draw-budget convention, and it means migration cannot shift another
  * system's sequence even in principle.
  */
+
+import { forageQuality } from '../habitat/forage.js';
+import { habitatWeightForCode } from '../habitat/habitat.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -102,13 +111,124 @@ export function migrationOf(species) {
  * @param {object} options
  * @param {number} options.cueRadius how far out the coarse cue reaches
  * @param {number} options.reference biomass difference that counts as a full-strength signal
+ * @param {{preferredBiomass: number, span: number} | null} [options.forage]
+ *        the species' grass-maturity preference (phase 9), or null for none
+ * @param {number} [options.qualityFloor] worst-matched forage as a fraction of the best
  * @returns {{heading: number, strength: number} | null} null when nowhere is better
  */
-export function forageGradient(world, entity, { cueRadius, reference }) {
+export function forageGradient(world, entity, { cueRadius, reference, forage = null, qualityFloor = 0 }) {
   if (!(cueRadius > 0) || !(reference > 0)) return null;
 
+  // Grass maturity (phase 9, PLAN-SPECIES.md §3.3). ⚠ **This is the reader the
+  // plan warned about**: a gradient scored on raw biomass steers a short-grass
+  // grazer at exactly the rank sward it does not want, and an animal steering
+  // toward maximum biomass while preferring less of it oscillates.
+  //
+  // ⚠⚠ **The preference chooses the direction; raw biomass sets the strength**,
+  // and the split is the correction of a first cut that scored both from
+  // `biomass × quality`. That version inverted the animal's motivation: quality is
+  // ≤ 1, so it *shrank* the difference between here and there, and an animal
+  // surrounded by grass it disliked ended up with almost no reason to move — when
+  // it is precisely the animal that should be moving. Measured 2026-07-29, it took
+  // the gazelle's drift from 0.35 to 0.105 in `test/migration.test.js`'s sandbox
+  // and the demo's gazelle to **3/10 seeds** on the ten-seed gate.
+  //
+  // So the two questions are answered separately, in the units each belongs in:
+  //
+  //   - **which way** — the best *effective* forage (`biomass × quality`), which
+  //     is what makes the cue non-monotonic in biomass at all;
+  //   - **how hard** — the raw biomass difference, in the units `reference` was
+  //     always stated in, so a species with a preference is pulled toward better
+  //     ground exactly as strongly as one without.
+  //
+  // With no preference the quality is exactly 1, the two scores coincide, and the
+  // whole ring is arithmetically identical to what it was — which is what makes
+  // the phase-8 world reproducible from `config.forage.enabled: false` (D16, D30).
+  // ⚠ And because maturity *is* the standing crop, the scoring needs **no extra
+  // grid read**: the biomass this loop already reads is both terms.
   const here = world.cellOf(entity.x, entity.y);
-  const hereValue = world.vegetation.biomassAt(here.cellX, here.cellY);
+  const hereRaw = world.vegetation.biomassAt(here.cellX, here.cellY);
+  const hereValue = hereRaw * forageQuality(hereRaw, forage, qualityFloor);
+
+  let bestValue = hereValue;
+  let bestRaw = hereRaw;
+  let bestHeading = null;
+  for (let i = 0; i < SAMPLE_DIRECTIONS; i += 1) {
+    const heading = (i * TWO_PI) / SAMPLE_DIRECTIONS;
+    const dx = Math.cos(heading);
+    const dy = Math.sin(heading);
+    let total = 0;
+    let raw = 0;
+    for (let step = 1; step <= SAMPLES_PER_RAY; step += 1) {
+      // Sample at cueRadius/2 and cueRadius. `cellOf` clamps to the grid, so a
+      // ray pointing off the edge reads the edge cell — no invented wall, and
+      // no invented attraction either.
+      const distance = (cueRadius * step) / SAMPLES_PER_RAY;
+      const cell = world.cellOf(entity.x + dx * distance, entity.y + dy * distance);
+      const cellRaw = world.vegetation.biomassAt(cell.cellX, cell.cellY);
+      raw += cellRaw;
+      total += cellRaw * forageQuality(cellRaw, forage, qualityFloor);
+    }
+    const value = total / SAMPLES_PER_RAY;
+    if (value > bestValue) {
+      bestValue = value;
+      bestRaw = raw / SAMPLES_PER_RAY;
+      bestHeading = heading;
+    }
+  }
+
+  // Nowhere on the compass beats the ground underfoot: no pull. This is the
+  // common case in a uniformly green spring, and it is why the mechanism costs
+  // the demo nothing when there is nothing to migrate toward.
+  if (bestHeading === null) return null;
+  // ⚠ And a known, stated limit of splitting the two questions: the best-*quality*
+  // direction can hold less grass than the ground underfoot, in which case there
+  // is no pull. That is a grazer standing on a rank patch with the flush nearby,
+  // and what moves it is the other half of the mechanism — `eat` is discounted, so
+  // it wanders rather than grazing (see `habitat/forage.js`).
+  const strength = clamp01((bestRaw - hereRaw) / reference);
+  return strength > 0 ? { heading: bestHeading, strength } : null;
+}
+
+/**
+ * The direction of more suitable *ground*, judged from the same ring of samples
+ * (habitat preference — DOCS A49, PLAN-SPECIES.md §3.4, phase 9).
+ *
+ * The forage gradient's sibling, and deliberately a **second** ring rather than
+ * one more factor inside the first. Three reasons, in order of how much they
+ * matter:
+ *
+ *   - **They are normalized in different units.** A forage difference is measured
+ *     in biomass against `cueReference: 4`; a habitat difference is measured in
+ *     dimensionless weights against a reference of a few tenths. Multiplying them
+ *     into one score would have made one arm's tuning depend on the other's.
+ *   - **They are throttled differently, and that is the biology.** The forage and
+ *     water cues are scaled by hunger and thirst, so they fall silent for a
+ *     satisfied animal — which is exactly the animal that acts on where it would
+ *     rather *be*. Habitat is therefore not need-gated (see `MigrationSystem`).
+ *   - **A species can have one without the other.** Every carnivore in the roster
+ *     tracks no forage at all.
+ *
+ * ⚠ The cost is 16 more O(1) grid reads per evaluation for a species that states
+ * a preference, on a system whose `updateInterval` is 10 — and exactly nothing for
+ * one that does not, since the caller does not call this at all. Still no spatial
+ * query, still no randomness.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} entity
+ * @param {object} options
+ * @param {number} options.cueRadius how far out the coarse cue reaches
+ * @param {number} options.reference weight difference that counts as full strength
+ * @param {Record<string, number>} options.weights the species' per-terrain weights
+ * @returns {{heading: number, strength: number} | null} null when nowhere is better
+ */
+export function habitatGradient(world, entity, { cueRadius, reference, weights }) {
+  if (!(cueRadius > 0) || !(reference > 0) || weights === null) return null;
+
+  const terrain = world.terrain;
+
+  const here = world.cellOf(entity.x, entity.y);
+  const hereValue = habitatWeightForCode(terrain.codeAt(here.cellX, here.cellY), weights);
 
   let bestValue = hereValue;
   let bestHeading = null;
@@ -118,12 +238,9 @@ export function forageGradient(world, entity, { cueRadius, reference }) {
     const dy = Math.sin(heading);
     let total = 0;
     for (let step = 1; step <= SAMPLES_PER_RAY; step += 1) {
-      // Sample at cueRadius/2 and cueRadius. `cellOf` clamps to the grid, so a
-      // ray pointing off the edge reads the edge cell — no invented wall, and
-      // no invented attraction either.
       const distance = (cueRadius * step) / SAMPLES_PER_RAY;
       const cell = world.cellOf(entity.x + dx * distance, entity.y + dy * distance);
-      total += world.vegetation.biomassAt(cell.cellX, cell.cellY);
+      total += habitatWeightForCode(terrain.codeAt(cell.cellX, cell.cellY), weights);
     }
     const value = total / SAMPLES_PER_RAY;
     if (value > bestValue) {
@@ -132,9 +249,8 @@ export function forageGradient(world, entity, { cueRadius, reference }) {
     }
   }
 
-  // Nowhere on the compass beats the ground underfoot: no pull. This is the
-  // common case in a uniformly green spring, and it is why the mechanism costs
-  // the demo nothing when there is nothing to migrate toward.
+  // Already standing on the best ground the compass can see: no pull at all,
+  // which for an animal on its preferred terrain is most of the time.
   if (bestHeading === null) return null;
   return { heading: bestHeading, strength: clamp01((bestValue - hereValue) / reference) };
 }

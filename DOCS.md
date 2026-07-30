@@ -41,6 +41,7 @@ npm run benchmark                           # performance + a determinism check
 npm run headless -- --ticks=2000 --seed=42  # advance the engine as fast as possible
 npm run sweep                               # the species gate: 10 seeds x 15k ticks
 npm run sweep -- --founding=a:1,b:2 --control=a:1   # ...and the same seeds without b
+npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # a config A/B
 ```
 
 ### Current state (measured 2026-07-24)
@@ -48,12 +49,12 @@ npm run sweep -- --founding=a:1,b:2 --control=a:1   # ...and the same seeds with
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 838 passing / 0 failing, 213 suites _(2026-07-29)_     |
+| Tests                 | 860 passing / 0 failing, 218 suites _(2026-07-29)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | **75.7 ms/tick** _(2026-07-29)_ — ⚠ on a roster that gained the hyena, so **not** comparable to any earlier figure here. Interleaved A/B put the species at ~+1.6% per animal. See BENCHMARK.md; ⚠ the machine drifted ~10% across 2026-07-28 on identical code, which is why every arm is measured against a same-session control |
+| Benchmark (large-5k)  | **79.06 ms/tick** _(2026-07-29, phase 9)_ — ⚠ **not** comparable to phase 7's 75.7: different session, and phase 9 changes the population trajectory. Phase 9's own interleaved A/B measured **flat**. See BENCHMARK.md; ⚠ the machine drifted ~10% across 2026-07-28 on identical code, which is why every arm is measured against a same-session control |
 | Species               | **4** (gazelle, stalker, vulture, hyena) — all pure config |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28; the hyena is the first species to *use* `predation` and `groups` |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus seven always-per-species **fields**, two of them new on 2026-07-29: `forage` and `habitat` (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat` |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Steps 26–30 are **uncommitted** (the user handles git) |
 
@@ -226,6 +227,14 @@ is the tell: concealment is not being *chosen*, it is being sampled. So the
 perception half of §3.14 is near-inert in the sense of §1.2 — implemented, tested,
 correct, and rarely doing visible work.
 
+⚠ **Phase 9 made this slightly worse, and knowingly.** The gazelle's habitat
+preference (§9 Migration) is open-plain — `cover: 0.8` — so a mother is now
+marginally *less* likely to be standing on sheltering ground when she gives birth.
+The two mechanisms genuinely pull against each other, and folding A57 into `habitat`
+is not the answer: a flat per-terrain weight cannot express a preference that
+changes with the animal's state, which is exactly what "a female **near term**
+prefers cover" is.
+
 The named lever is **birth-site selection**: a female near term preferring
 sheltering ground, which would make cover a thing mothers seek rather than a thing
 they stumble onto. That is a new pull on an existing action (`shelter` already
@@ -264,8 +273,9 @@ reminder.
 | A46 | **Disturbance mortality is rare in the demo** — 0–12 deaths across ten seeds, against **852 burns** over the same runs                                                         | _Settled._ A region covers ~1% of the map and animals walk out of it, so the cost is local and **sublethal** rather than demographic — the same shape disease turned out to have. The lethal path is exercised in a controlled test. Making it demographically significant means bigger or more frequent events, which breaks recovery (see D18) |
 | A47 | **Animals do not seek other animals' burrows.** A burrow shelters whoever stands on it, but only trails exert a pull                                                           | Open. Giving burrows one means teaching the perception hot loop about features                                                                                                                                                                                                                                                                   |
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
-| A49 | **"Activity pattern" and "habitat preference" are not schema blocks**                                                                                                          | Open. There is no diurnal cycle for a pattern to exist in, and habitat preference is expressed through `migration.tracksForage` plus the comfort band rather than as a field                                                                                                                                                                     |
+| A49 | **"Activity pattern" is not a schema field** — ⚠ half of this item **closed 2026-07-29**                                                                                        | Open, and now only half of what it was: there is still no diurnal cycle for an activity pattern to exist in. **Habitat preference closed** as a per-species `habitat` field consumed by the long-range cue (§9 Migration); it is no longer expressed only through `migration.tracksForage` and the comfort band                                    |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
+| A58 | **Perception reports the _nearest_ food cell, not the best-scoring one** _(from 2026-07-29, phase 9)_                                                                       | Open, and a stated bargain rather than an oversight. Forage preference (§9 Feeding) discounts a cell once the animal is standing on it, but perception still picks the nearest cell with anything on it — so a grazer walks to ordinary grass with a better patch two cells further off. Ranking cells by preference means scoring every candidate instead of only cells nearer than the best so far, in the hottest loop in the engine (D28: one extra _argument_ there cost 12% of a tick). Harmless at one grazer; re-examine at batch 3, when three species disagree about what a good cell is |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
@@ -799,6 +809,13 @@ system (regrowth), by feeding (`consumeAt`), and by carcass nutrient return
 (`addAt`). Every mutation bumps a `revision`, which is what makes the snapshot
 projection and per-tick deltas cheap to gate.
 
+⚠ **Since 2026-07-29 the biomass field is read as two facts, not one.** How much
+forage a cell holds, and — because standing crop is grass height — how mature and
+coarse that forage is. The second reading is the whole of the forage-guild mechanism
+(§9 Feeding): no new layer, no new field, no new grid read, and no change to this
+section's storage. The `capacity` field stayed out of it on purpose; see there for
+the measurement that rejected `biomass / capacity` as the axis.
+
 ⚠ **Season scales the ceiling, not the growth rate.** Scaling the rate alone
 looked correct and changed almost nothing — biomass moved 91k↔96k across a whole
 year — because logistic growth toward a _fixed_ capacity means a field already at
@@ -880,7 +897,15 @@ Twelve blocks fall back to the same-named global config section:
 Alongside them sit fields that were always per-species: `matePreference`,
 `territory`, `migration`, `diet`, `preySpeciesIds` — and `groups`, which joined
 them the same day rather than becoming a block, because its config section also
-carries world-level machinery (see §19).
+carries world-level machinery (see §19). **`forage` and `habitat` joined that list
+on 2026-07-29** (§9 Feeding), for the same reason plus a sharper one:
+
+⚠ **An off switch cannot live in a species block.** A species block *beats* the
+config, so `config.forage.enabled: false` would be overridden by any species stating
+its own — the "off" arm silently stays on. Phase 8 lost an afternoon to exactly this
+with `aging.hiddenUntil`, and the shape of the fix is now a rule: **any per-species
+mechanism that needs a reproducible control puts the switch in a global section and
+the biology in an always-per-species field.**
 
 ⚠ **`feeding`, `hunting`, `behavior`, and `predation` do not yet _vary_ by
 species**, exactly as `disease` did not when it landed (A38). They are the schema
@@ -1358,6 +1383,99 @@ and assimilates it at `energyPerBiomass × efficiency`, capped by its own energy
 deficit so it never overeats. Carnivores eat carrion instead, at a rate scaled
 by body mass and by the carcass's decay stage.
 
+#### Forage guilds — grass maturity as a preference _(2026-07-29)_
+
+**More grass is no longer automatically better.** A species may state
+`forage: { preferredBiomass, span }` — the tallest sward it still does well on —
+and `eat` and `seekFood` are discounted by how far past that a cell has grown.
+That is the niche axis three grazers need to coexist (§2 of `PLAN-SPECIES.md`):
+zebra take the tall coarse sward, wildebeest the regrowth behind them, gazelle the
+short green flush behind _them_, and each tier's grazing creates the next tier's
+habitat. Only the **gazelle** states one today (`preferredBiomass: 3, span: 4`);
+its partners arrive in batch 3.
+
+⚠ **Standing crop _is_ maturity, so the mechanism has no storage and not one extra
+grid read.** The biomass field already carried the axis; nobody had read it twice.
+
+⚠ **`PLAN-SPECIES.md` §3.3 proposed the ratio `biomass / capacity` instead, and
+that version was built, measured, and rejected.** The reasoning for a ratio was
+good — it normalizes away per-cell fertility — and it fails for a reason the plan
+could not have seen: a ratio knows nothing about absolute abundance, so **in a
+low-capacity world every ungrazed cell reads as rank grass**. The sparse-forage
+selection sandbox (`vegetation.capacity: 1.0`) holds at most one biomass unit per
+cell, which is a lawn; under the ratio the gazelle discounted the only food in that
+world and went **extinct inside 5000 ticks**, breaking a shipped scenario. Standing
+crop degrades the safe way: a poor world contains no coarse grass, so nothing in it
+is discounted.
+
+Two more shape decisions, both corrections of a first cut that measured worse:
+
+- ⚠ **The falloff is one-sided** — ideal at and below `preferredBiomass`, and only
+  coarser growth is discounted. A symmetric window reads better on paper (a mown
+  lawn has no bite for a gazelle either) and **double-counts scarcity**: a
+  nearly-bare cell already hands an animal almost nothing, because `consumeAt` can
+  only return the biomass that is there. Measured, it punished exactly the ground a
+  food-limited herd lives on — its own grazing halo — and the ten-seed gate came
+  back **gazelle 3/10 seeds against the control's 10/10**, taking the stalker and
+  the hyena down with it. The other side of the succession needs no term anyway: a
+  300 kg zebra cannot live on a cropped sward because **mass-scaled intake** already
+  says so.
+- ⚠ **Preference is a discount, never a veto.** It scales the *hunger drive*, not
+  the whole utility, and bottoms out at `forage.qualityFloor` (0.3) rather than 0 —
+  so a comfortable animal walks off rank grass and a starving one eats it. At the
+  shipped floor of 0.55, an animal a fifth down scores `0.2 + 0.2 × 0.55 = 0.31` on
+  the world's rankest grass against wander's ~0.35 and walks on; at hunger 0.4 it
+  scores 0.42 and eats. A hard window would be a cliff, not a preference.
+
+**No protocol change, and that is a check rather than an omission** (invariant 19).
+The mechanism stores nothing, so there is no new entity state to project — and the
+behaviour it changes is *already* inspectable: `action` rides in the bulk snapshot and
+`utilityBreakdown` in entity inspection, so a discounted `eat` score is visible in the
+renderer's inspector beside the action it lost to.
+
+**Not applied to `recallFood`**, deliberately: a memory records *where* the animal
+fed, not what the grass was like, and the patch has been growing or being grazed
+ever since. Discounting a remembered place by today's crop would be reading the
+world through a memory.
+
+**Known limit, stated rather than discovered later:** perception reports the
+*nearest* cell with food on it, not the best-scoring one, so an animal walks to
+ordinary grass and then decides whether it is worth eating. Ranking cells by
+preference would mean computing a quality for every candidate rather than only for
+cells nearer than the best so far — in the hottest loop in the engine, where D28
+records one extra *argument* costing 12% of a tick. The same shallow-perception
+bargain the nearest-carcass rule makes.
+
+_Measured 2026-07-29, seeds 1 and 42 at 3000 ticks_ — the mechanism fires: the mean
+standing crop of the cell a gazelle is **eating on** falls from 3.31 / 4.25 (off) to
+1.93 / 2.88 (on). It is choosing shorter grass, which is the whole claim, and it is
+asserted against the demo world rather than left as prose.
+
+**The gate — 10 seeds × 15 000 ticks, three arms, because two designs failed it**
+_(2026-07-29; the arm and its control run over the same seeds in one process)_:
+
+| Arm | gazelle | stalker | hyena | vulture |
+| --- | ------- | ------- | ----- | ------- |
+| ratio + symmetric window | **3/10**, mean 0.6 | 3/10, 0.4 | **0/10**, 0.0 | 9/10, 19.4 |
+| standing crop, `qualityFloor: 0.30` | 9/10, mean 59.8 | 8/10, 4.9 | 7/10, 1.9 | 10/10, 102.6 |
+| **shipped** — `qualityFloor: 0.55` | 8/10, mean **94.3** | 9/10, 4.8 | 9/10, 3.0 | 10/10, 119.1 |
+| control (mechanism off) | 10/10, mean 81.5 | 9/10, 5.4 | 10/10, 3.4 | 10/10, 133.5 |
+
+The shipped arm puts the gazelle _above_ the control's mean and the two carnivores
+level with it; the vulture is down 11%. ⚠ What the softer floor does not buy back is
+the last seed or two of gazelle survival — it loses seeds 7 and 10 late (t13291,
+t14275) where the 0.30 arm lost seed 8 — and D14 applies: on a population whose
+control range is 15–184, one seed is noise rather than the parameter. Recorded rather
+than tuned against.
+
+**Performance: flat.** Interleaved medium-1k with the mechanism off and on, three
+rounds alternating in one process: 9.664 vs 9.693 ms/tick, with "on" slower in
+**1 of 3 rounds** — which is what no effect looks like by the rule BENCHMARK.md
+records (a real cost is slower in every round). Both arms hold identical entity
+counts at that horizon, so the comparison is not smuggling a population difference.
+Expected: the forage half reads nothing the gradient was not already reading, and the
+habitat half is one extra ring of terrain reads every ten ticks for one species.
+
 ⚠ **Herbivore intake is mass-scaled too, since 2026-07-28** — it was flat until
 then, which is the corvid's `fleshIntakeRate` bug (D22) left standing on the
 herbivore side because every herbivore was 30 kg.
@@ -1743,10 +1861,70 @@ Three properties follow, and they are why the shape was chosen:
    one that remembers food still runs `recallFood`. Migration only ever replaces
    a _random_ heading with a _directed_ one.
 2. **At zero strength the behaviour is bit-identical** to the world without it.
+   ⚠ Since 2026-07-29 the gradient is **scored through the species' grass-maturity
+   preference** (§9 Feeding), which is the one reader `PLAN-SPECIES.md` predicted
+   would break: a cue that always steers toward *more* grass fights a species that
+   wants short grass, and the animal oscillates. The split that made it work is
+   worth copying — **the preference chooses the direction, raw biomass sets the
+   strength.** Scoring both from `biomass × quality` inverts the animal's
+   motivation, because quality is ≤ 1 and therefore shrinks the difference between
+   here and there: an animal surrounded by grass it disliked ended up with almost
+   no reason to move, when it is precisely the animal that should be moving.
+   Measured, that cost the drift 0.35 → 0.105 in a sandbox and the demo gazelle
+   **3/10 seeds** on the ten-seed gate.
 3. **Distance comes from commitment, not range.** The cue is shallow and local —
    eight directions sampled, no search, no route, no map — but a heading is held
    for 8–24 ticks and re-chosen the same way while the gradient persists, so a
    weak preference integrated over a long walk carries an animal a long way.
+
+#### Habitat preference — the third drive _(2026-07-29, closing A49's habitat half)_
+
+A species may state `habitat: { ground, cover, water, thicket }` — one weight per
+terrain name, 1 neutral, above attracts, below repels, unnamed neutral — and the
+same sampled ring that finds better forage also finds more suitable *ground*. The
+gazelle is the first to declare one (`ground: 1.15, cover: 0.8, water: 0.9,
+thicket: 0.3`): an open-plain animal, mildly stated.
+
+Three things about how it composes, each a correction of something simpler that was
+tried first:
+
+- ⚠ **It bends another cue's heading rather than competing with it.** Competing on
+  strength made it near-inert the moment the forage cue was fixed to keep its full
+  strength (cover occupancy moved 6.9% → 6.3%, where the same weights had moved it
+  to 4.9% while the forage cue was accidentally weakened). It is also the A34
+  mistake in miniature: a preference that has to *beat* foraging either never fires
+  or starves the animal. Blending is the shape the trail drift already uses — bend
+  the heading, never touch the magnitude.
+- ⚠ **It is the one cue not throttled by a need**, because hunger and thirst silence
+  the other two for a satisfied animal, and a satisfied animal is exactly the one
+  that acts on where it would rather be.
+- ⚠ **It needs a `cueRadius` to act through.** Three of the four shipped species set
+  that to 0 deliberately (they track no forage either), so a habitat preference on
+  the stalker, vulture, or hyena would have nowhere to act. A cover-loving predator
+  needs a cue radius first — batch-4 work.
+
+**Two candidate consumers `PLAN-SPECIES.md` §3.4 named were declined on
+measurement**, and the reasons matter more than the decision. Scaling `rest` by the
+ground underfoot — "linger where you like it" — is the obvious local half and would
+have been **born near-inert**: `rest` is 0.8–1.6% of animal-ticks in the demo
+(measured 2026-07-29 across four species over 2000 ticks) and is already gated to
+satisfied animals. That is A34's shape exactly. And weighting the **home range**
+would turn a running average of where an animal has actually been into a statement
+of preference, breaking what makes it a measurement; its only consumer, `patrol`, is
+near-inert anyway.
+
+_Measured 2026-07-29, seeds 1 and 42 at 3000 ticks:_ gazelle time on cover
+**9.2% → 8.4%** and **6.9% → 4.3%**, against cover's 2.8% of the map — and with the
+*forage* half switched off on its own, 8.1% / 4.9%, so this is the habitat half's
+doing rather than a side effect of where the maturity preference sends the animal. Before this
+the animal was on cover at roughly twice its availability, because cover grows 1.35×
+the biomass of open ground and the forage cue could see nothing else about it.
+
+⚠ **One tension recorded rather than dodged:** A57 wants gazelle *mothers* near
+cover, since a fawn is concealed only if born on sheltering ground. An open-plain
+preference makes that rarer. The named fix stays birth-site selection — a preference
+that changes with the animal's state, which a flat per-terrain weight cannot
+express.
 
 **The same channel carries a thirst cue** (`tracksWater`). Water is one lake,
 too far to perceive (radius 6) or even recall (`recallRange` 60) across most of
@@ -2631,7 +2809,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-838 tests, 213 suites. Layers:
+860 tests, 218 suites. Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol
@@ -2683,6 +2861,8 @@ populations for stochastic runs.
 | —   | Shared-walk equivalence      | the two neighbour paths agree                             | 400 demo ticks byte-identical                                            |
 | —   | Clan sandbox                 | an invented group-forming species founds, joins, separates, and dissolves | membership outlives a separation the herd label does not; a clan-forming world and a control are identical animal for animal |
 | —   | Carcass-possession sandbox   | two carnivores, one body: the holder eats, the weaker waits, the stronger takes it | the weaker gains no energy while the claim stands; a clanmate does; the disabled control is the exact id-ordered queue |
+| —   | Forage-guild sandbox         | a short-grass grazer settles on the flush and walks off the rank sward; a tolerant one stays | the same two cells rank oppositely for the two species; a starving animal eats either; the demo gazelle feeds on visibly shorter grass than a preference-off control |
+| —   | Habitat sandbox              | a cover-liking animal drifts toward cover; a satisfied one still does | the drift exists where no need-cue would produce one; the demo gazelle spends less of its life on cover than a preference-off control |
 
 **Scenario 11 is the pattern to copy** whenever a step adds a _second_ force
 acting on something already being measured: run the same seeded world with the
@@ -2691,7 +2871,11 @@ rose" proves nothing when the trait also drifts on its own; "it rose further tha
 the control did" isolates the mechanism.
 
 Every mechanism from migration onward ships an `enabled` switch, so the control
-is reproducible rather than hand-assembled.
+is reproducible rather than hand-assembled. ⚠ **And the switch must sit outside
+anything a species can override** — see §8; an `enabled` inside a species block is
+not a switch at all. Since 2026-07-29 `npm run sweep --set= / --controlSet=` runs a
+*config* A/B over the same seeds in one process, so flipping such a switch for ten
+seeds is one command rather than two runs compared by hand.
 
 ---
 
@@ -2890,7 +3074,7 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `engineering`, `disturbance`, `migration`, `disease`, `social`, `groups`,
 `environment`, `carcass`, `lineage`, `injury`, `hunting`, `locomotion`,
 `memory`, `metrics`, `genetics`, `traits`, `parenting`, `aging`, `hydration`,
-`feeding`, `behavior`, `decision`, `predation`,
+`feeding`, `forage`, `habitat`, `behavior`, `decision`, `predation`,
 `demo`.
 
 **Twelve** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
@@ -2909,14 +3093,18 @@ persistent group *record* — an identity that survives separation, owned by
 `GroupSystem`. See §9 Sociality, which opens with the design decision this
 overrode.
 
-⚠ **`groups`, `migration`, and `territory` are the three sections that are
-half-global and half-per-species**, and none of them is a species block. Each
-has a same-named field on the species record holding that animal's biology
-(`groups.forms`, `migration.tracksForage`, `territory.defends`), while the config
-section holds world-level machinery — for `groups` that is `enabled`,
-`updateInterval`, and the store bound `maxGroups`. They are not blocks precisely
-*because* of that mixture: a species inheriting `maxGroups` would be inheriting a
-knob on a store it does not own.
+⚠ **`groups`, `migration`, `territory`, `forage`, and `habitat` are the five
+sections that are half-global and half-per-species**, and none of them is a species
+block. Each has a same-named field on the species record holding that animal's
+biology (`groups.forms`, `migration.tracksForage`, `territory.defends`,
+`forage.preferredBiomass`, `habitat.cover`), while the config section holds
+world-level machinery — for `groups` that is `enabled`, `updateInterval`, and the
+store bound `maxGroups`; for `forage` and `habitat` (2026-07-29) it is `enabled`
+plus the shared shape of the effect (`qualityFloor`, `biasWeight`, `cueReference`).
+They are not blocks precisely *because* of that mixture: a species inheriting
+`maxGroups` would be inheriting a knob on a store it does not own, and — the sharper
+reason, learned at phase 8 — **an `enabled` inside a species block is not an off
+switch at all**, because a species block beats the config (§8).
 
 ⚠ **A value must have exactly one home.** Three constants were restated in a second
 section with a comment saying they matched the first, which is the D11 shape

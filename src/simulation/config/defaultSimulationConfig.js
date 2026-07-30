@@ -938,6 +938,82 @@ export const defaultSimulationConfig = Object.freeze({
     carnivoreEfficiency: 0.75,
     carcassRange: 1.5, // how far a carnivore reaches for a carcass
   }),
+  // Forage guilds — grass maturity (see habitat/forage.js).
+  // PLAN-SPECIES.md §3.3, phase 9.
+  //
+  // A species states `forage: { preferredBiomass, span }` — the tallest grass it
+  // still does well on, in the same biomass units as `feeding.intakeRate` — and the
+  // three grazers of the African roster stack into the real grazing succession from
+  // two numbers apiece: zebra take the tall coarse sward, wildebeest the regrowth
+  // behind them, gazelle the short green flush behind them. Zero new state, and not
+  // even a new grid read: **standing crop is grass height**, so the biomass field
+  // already carries the axis.
+  //
+  // ⚠ PLAN-SPECIES §3.3 proposed the *ratio* `biomass / capacity` instead. It was
+  // built, measured, and rejected — a ratio knows nothing about absolute abundance,
+  // so in a low-capacity world every ungrazed cell reads as rank grass, and the
+  // sparse-forage selection sandbox lost the gazelle outright. See
+  // `habitat/forage.js`.
+  //
+  // ⚠ **The off switch has to live here and not in `feeding`.** `feeding` is a
+  // species block, and a species block *beats* the config (DOCS §8) — so an
+  // `enabled: false` inside one would leave the gazelle's own preference standing
+  // and the "off" arm would silently stay on. That is exactly what happened to
+  // phase 8's first A/B (`aging.hiddenUntil`), and it is why `forage` is an
+  // always-per-species *field* beside this global section, in the shape of
+  // `migration` and `groups` rather than of a block.
+  forage: Object.freeze({
+    // False makes every cell exactly neutral whatever any species declares: no
+    // quality is computed and the world is the phase-8 world. The measured control
+    // this change was gated against — twice, since the first two designs failed it.
+    enabled: true,
+    // Quality of the coarsest forage in the world, as a fraction of the best.
+    //
+    // ⚠ **A floor rather than 0, deliberately: preference is a discount, never a
+    // veto.** The utility it multiplies is already scaled by hunger, so a
+    // comfortable animal moves on from rank grass and a starving one eats it — at
+    // 0 a short-grass grazer would starve standing on food in a green spring, which
+    // is a cliff, not a preference.
+    //
+    // ⚠ **0.55 rather than 0.3, and the difference was measured** — two ten-seed
+    // gates against the same mechanism-off control (2026-07-29):
+    //
+    //   floor 0.30   gazelle  9/10 seeds, mean 59.8 · stalker 8/10 · hyena 7/10 · vulture 102.6
+    //   floor 0.55   gazelle  8/10 seeds, mean 94.3 · stalker 9/10 · hyena 9/10 · vulture 119.1
+    //   control      gazelle 10/10 seeds, mean 81.5 · stalker 9/10 · hyena 10/10 · vulture 133.5
+    //
+    // At 0.55 the gazelle mean is *above* the control's and the two carnivores are
+    // level with it; at 0.30 every species is materially down. ⚠ The one thing the
+    // softer setting does not buy back is the last seed or two of gazelle survival —
+    // it lost seeds 7 and 10 late (t13291, t14275) where 0.30 lost seed 8 — and D14's
+    // rule is that a one-seed difference on a population whose control range is
+    // 15–184 is the signature of noise, not of the parameter. Recorded rather than
+    // tuned against.
+    qualityFloor: 0.55,
+  }),
+  // Habitat preference (see habitat/habitat.js). DOCS A49, PLAN-SPECIES.md §3.4,
+  // phase 9. One weight per terrain name — 1 neutral, above attracts, below
+  // repels, unnamed neutral — declared as an always-per-species `habitat` field
+  // for the same reason `forage` is (see above).
+  //
+  // ⚠ Consumed at **one** chokepoint, the long-range cue, and the two others §3.4
+  // named were declined on measurement rather than on taste: scaling `rest` by the
+  // ground underfoot would have been born near-inert (rest is 0.8–1.6% of
+  // animal-ticks, measured 2026-07-29), and weighting the home range would turn a
+  // measurement into a preference. See habitat/habitat.js.
+  habitat: Object.freeze({
+    enabled: true, // false = every terrain neutral for every species (the control)
+    // How hard the habitat drift may bend a wander heading, and the weight
+    // difference that counts as a full-strength signal. ⚠ It **bends** whichever
+    // need-cue won rather than competing with it (see systems/MigrationSystem.js),
+    // so the pull toward food keeps exactly the strength it had and only its
+    // direction leans; the cap is how far it may lean. Unlike the forage and water
+    // cues this one is *not* throttled by a need — habitat preference is what an
+    // animal acts on when nothing is urgent, which is precisely the case those two
+    // cues fall silent in.
+    biasWeight: 0.35,
+    cueReference: 0.3,
+  }),
   // ⚠ **`behavior` and `decision` are one mechanism split in two** (2026-07-28,
   // PLAN-SPECIES.md §3.1). Both are consumed by `systems/DecisionSystem.js`; the
   // split is about *ownership*, not about which system reads them.

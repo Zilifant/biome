@@ -25,6 +25,12 @@
  *   - rest         — stay put (attractive when satiated, never near danger)
  *   - wander       — undirected exploration with a committed heading
  *
+ * ⚠ Since phase 9 the two food actions are discounted by the species' **grass
+ * maturity** preference (`habitat/forage.js`) — the first thing in this system that
+ * is non-monotonic in biomass: more grass is no longer automatically better. It
+ * scales the hunger drive rather than the whole utility, so hunger still overrides
+ * it.
+ *
  * ⚠ `hide` and `tend` are the **first new actions in six steps**, and the bar
  * they had to clear is DOCS §9 Decision's rule that four consecutive steps
  * deliberately added none — a new movement behaviour competes with foraging, and
@@ -35,7 +41,8 @@
  *
  * Runs in the `decision` phase (after perception, before movement). Ownership:
  * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
- * `world.perception`, physiology, vegetation, bounded `memories` (Step 15),
+ * `world.perception`, physiology, vegetation (its standing crop, as both food and
+ * maturity — phase 9), bounded `memories` (Step 15),
  * and the `boldness` / `caution` / `exploration` / `choosiness` traits (the last
  * via mating/mateChoice.js, which the reproduction system shares), plus
  * `world.social` and alarm state (Step 23). It also writes `defendingId`, the
@@ -54,6 +61,7 @@ import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo } from '../predation/possession.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
+import { forageOf, forageQualityAt, NEUTRAL_QUALITY } from '../habitat/forage.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -206,6 +214,12 @@ export class DecisionSystem extends SimulationSystem {
     commitTickSpan = 16,
     wanderJitter = 0.5,
     foodMinLevel = 1,
+    // Forage guilds (phase 9, PLAN-SPECIES.md §3.3). ⚠ Both wired from
+    // `config.forage`, which is *not* a species block — an off switch inside one
+    // could not switch anything off (DOCS §8). `foragePreference: false` restores
+    // the phase-8 world exactly: no cell is scored and no quality is computed.
+    foragePreference = true,
+    forageQualityFloor = 0.55,
     // How close to a world edge (world units) a fleeing animal starts running
     // ALONG the wall rather than straight into it (option 3). A few steps, so
     // the correction only bites when pinning is imminent and open-field flight
@@ -280,6 +294,8 @@ export class DecisionSystem extends SimulationSystem {
     this.commitTickSpan = commitTickSpan;
     this.wanderJitter = wanderJitter;
     this.foodMinLevel = foodMinLevel;
+    this.foragePreference = foragePreference;
+    this.forageQualityFloor = forageQualityFloor;
     this.fleeWallMargin = fleeWallMargin;
     this.fleeLookahead = fleeLookahead;
   }
@@ -337,6 +353,36 @@ export class DecisionSystem extends SimulationSystem {
         ? carcass !== null && carcass.distance <= carcassRange
         : world.vegetation.levelAt(cellX, cellY) >= (species?.perception?.foodMinLevel ?? this.foodMinLevel);
       const nearestFood = carnivore ? carcass : (perceived?.nearestFood ?? null);
+      // Forage guilds (2026-07-29, PLAN-SPECIES.md §3.3, phase 9). **Which
+      // maturity of grass this animal wants**, as a discount on how much it wants
+      // to eat — one for the cell underfoot and one for the cell it can see.
+      //
+      // ⚠ It scales the **hunger drive** and not the whole utility, which is what
+      // makes it a preference rather than a refusal: `eatBias` still stands, the
+      // drive it discounts already rises with hunger, and the floor is above zero,
+      // so a comfortable animal walks off rank grass and a starving one eats it.
+      // Measured shape at the shipped `qualityFloor: 0.55`: on the rankest grass in
+      // the world, an animal a fifth down (hunger 0.2) scores `0.2 + 0.2 × 0.55 =
+      // 0.31` against wander's ~0.35 and walks on, while one at hunger 0.4 scores
+      // 0.42 and eats. So the preference decides where a comfortable animal grazes
+      // and stops mattering as the animal gets hungry. That is the whole mechanism.
+      //
+      // ⚠ Deliberately **not** applied to `recallFood`: a memory records *where*
+      // the animal fed, not what the grass was like, and the patch has been growing
+      // or being grazed ever since. Discounting a remembered place by today's crop
+      // would be reading the world through a memory, which is precisely the thing
+      // memory is not (DOCS §9 Memory).
+      //
+      // Carnivores are exempt by construction — their food is a carcass, and
+      // `forageOf` is null for a species that declares no preference, which is
+      // every species but the gazelle.
+      const forage = this.foragePreference && !carnivore ? forageOf(species) : null;
+      const forageQualityHere =
+        forage !== null && onFood ? forageQualityAt(world, cellX, cellY, forage, this.forageQualityFloor) : NEUTRAL_QUALITY;
+      const forageQualityThere =
+        forage !== null && nearestFood !== null
+          ? forageQualityAt(world, nearestFood.cellX, nearestFood.cellY, forage, this.forageQualityFloor)
+          : NEUTRAL_QUALITY;
       const nearestWater = perceived?.nearestWater ?? null;
       // ⚠ Read from the **`hydration`** block, which is where `drinkRange`
       // actually lives and what `HydrationSystem` reads. It used to be declared
@@ -544,8 +590,8 @@ export class DecisionSystem extends SimulationSystem {
         stalk: willHunt && !chasing ? behavior.huntWeight * hunger * behavior.stalkDiscount : 0,
         drink: atWater ? this.drinkBias + thirstDrive : 0,
         seekWater: nearestWater && !atWater ? thirstDrive : 0,
-        eat: onFood && !nursing ? this.eatBias + hungerDrive : 0,
-        seekFood: nearestFood && !onFood && !nursing ? hungerDrive : 0,
+        eat: onFood && !nursing ? this.eatBias + hungerDrive * forageQualityHere : 0,
+        seekFood: nearestFood && !onFood && !nursing ? hungerDrive * forageQualityThere : 0,
         recallWater: recalledWater ? thirstDrive * behavior.recallWeight : 0,
         recallFood: recalledFood ? hungerDrive * behavior.recallWeight : 0,
         shelter: wantsShelter ? behavior.shelterWeight * clamp01(stress / this.shelterStressSpan) : 0,

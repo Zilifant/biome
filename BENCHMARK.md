@@ -155,6 +155,38 @@ is one `hiddenUntilFor` read that returns 0 for every species but the gazelle, a
 `#hiddenWard` early-outs on that same read before it ever touches the `offspring`
 list. The two new utility slots are in the object every animal already builds.
 
+### Forage guilds and habitat preference (2026-07-29, PLAN-SPECIES.md phase 9)
+
+Interleaved medium-1k, three rounds alternating both switches
+(`forage.enabled` + `habitat.enabled`) off and on — same roster, same seed:
+
+| arm | medium-1k (3 rounds) | mean | entities alive |
+| --- | --- | ---: | ---: |
+| preference off | 9.68, 9.58, 9.74 | 9.664 | 1167 |
+| preference on | 9.67, 9.78, 9.62 | 9.693 | 1167 |
+
+**Flat** (+0.3%): the "on" arm is slower in **1 of 3 rounds**, which by the rule
+above is what no effect looks like. ⚠ Note the entity counts are **identical at this
+horizon**, so the comparison is not quietly measuring a population difference — worth
+checking whenever a behavioural change is benchmarked, because a mechanism that
+changes how many animals are alive changes ms/tick for a reason that has nothing to
+do with its own cost.
+
+Expected, and the reason is a design choice rather than luck: **maturity is the
+standing crop**, so scoring the forage ring reads nothing it was not already reading
+(one multiply per sample), and the habitat cue is a second ring of *terrain* reads
+paid every ten ticks by the one species that declares a preference. A first design
+scored maturity as `biomass / capacity`, which would have added a second grid read per
+sample; it was rejected for ecological reasons (DOCS §9 Feeding) and would have cost
+here too.
+
+**Standing figure with phase 9 in place:** large-5k **79.06 ms/tick**
+(2026-07-29, 5983→7579 entities). ⚠ **Do not read that against phase 7's 75.7 as a
+regression.** It is a different session — the machine drifted ~10% across a single day
+on identical code, which is why this file's rule is to interleave — and phase 9
+changes the population trajectory, so the end-entity counts differ. The interleaved
+A/B above is the measurement; this is only the dated reading.
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

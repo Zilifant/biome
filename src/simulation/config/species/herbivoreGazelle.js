@@ -25,10 +25,10 @@
  * - Every dated measurement taken against "the grazer" still describes this
  *   animal. A reading is not invalidated by the animal being renamed.
  *
- * What a real gazelle additionally wants is scheduled rather than missing:
- * short-grass preference waits for forage guilds (phase 9, since it is the only
- * herbivore in batch 1 and has nothing to prefer *against*), the hidden-fawn
- * stage waits for phase 8 (A12 — never two juvenile-survival changes at once),
+ * What a real gazelle additionally wants is scheduled rather than missing: the
+ * hidden-fawn stage arrived at phase 8 (`aging.hiddenUntil`) and **short-grass
+ * preference plus open-plain habitat at phase 9** (`forage` and `habitat` below,
+ * which make this the first species to state either);
  * male rut territory waits for sex-restricted territory (phase 15), and
  * heterospecific association waits for a second herbivore (phase 12). The rest
  * of the model — loose fission–fusion herds, alarm propagation, forage-tracking
@@ -115,5 +115,48 @@ export const herbivoreGazelle = Object.freeze({
   // lake is otherwise unreachable knowledge from most of the map (see
   // world/World.js `nearestWater` and the migration system's thirst cue).
   migration: Object.freeze({ tracksForage: true, tracksWater: true, cueRadius: 18, dispersalTicks: 400 }),
+  // ⚠ **Forage guild — the short green flush** (2026-07-29, PLAN-SPECIES.md §3.3,
+  // phase 9), and the first species in the world to state a maturity preference.
+  // `preferredBiomass` is standing crop, in the same biomass units as
+  // `feeding.intakeRate`, and it is the *tallest* grass this animal still does well
+  // on: at or below 3 the forage is ideal, and quality grades down to the floor 4
+  // units above that (see `habitat/forage.js` — the falloff is one-sided, because
+  // scarcity below is already modelled by there being less to eat).
+  //
+  // That makes this the bottom tier of the Serengeti grazing succession: zebra open
+  // the tall coarse sward, wildebeest take the regrowth, gazelle maintain the flush
+  // behind them. The other two arrive in batch 3, and the succession only exists
+  // once all three do — until then this is one species with a taste.
+  //
+  // The numbers are measured, on seed 42 with the mechanism off: this animal stands
+  // on 4.4–6.4 biomass and feeds at 3.2–5.5 (median 4.4) against a per-cell ceiling
+  // whose median is 6.2. So 3 sits just under where it already grazes and 7 (=3+4)
+  // is the ungrazed sward — the preference bites on rank growth and leaves the
+  // cropped halo it actually lives in untouched.
+  //
+  // ⚠ Expect this to be **re-tuned in batch 3** and treat that as planned work:
+  // it is the only herbivore in the world, so nothing yet constrains where its
+  // preference sits relative to anybody else's.
+  forage: Object.freeze({ preferredBiomass: 3, span: 4 }),
+  // ⚠ **Habitat — an open-plain animal** (DOCS A49, PLAN-SPECIES.md §3.4, phase
+  // 9). One weight per terrain, 1 neutral. It acts through the long-range cue
+  // (`habitat/habitat.js`), which this species has because it already carries a
+  // `cueRadius` for forage; a species with `cueRadius: 0` would state a preference
+  // that has nowhere to act, which is why no other species declares one yet.
+  //
+  // Measured before this shipped (3000 ticks): gazelle spent 6.9% of their time on
+  // cover on seed 42 and 9.2% on seed 1, against cover's 2.8% of the map — two to
+  // three times its availability, because cover grows 1.35× the biomass of open
+  // ground and the forage cue could see nothing else about it. A gazelle is not a
+  // cover animal, and the weights say so mildly rather than sharply: cover is
+  // still worth using, thicket is not (which the movement and `leaveThicket`
+  // rules already say in their own way), and open ground is home.
+  //
+  // ⚠ There is a real tension here and it is recorded rather than dodged: A57
+  // wants gazelle *mothers* near cover, because a fawn is only concealed if it is
+  // born on sheltering ground. Preferring the open makes that rarer. The named fix
+  // is birth-site selection — a female near term wanting cover — which is a
+  // preference that changes with state, and this field cannot express one.
+  habitat: Object.freeze({ ground: 1.15, cover: 0.8, water: 0.9, thicket: 0.3 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

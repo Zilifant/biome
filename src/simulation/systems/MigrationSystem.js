@@ -9,7 +9,8 @@
  * `migrationStrength`, which the decision system folds into the heading it
  * picks when an animal has nothing better to do than wander.
  *
- * Two drives feed those two numbers, and they are strictly ordered:
+ * Three drives feed those two numbers (the third arrived with phase 9), and the
+ * first of them is strictly ordered above the rest:
  *
  *   1. **Natal dispersal wins outright.** A juvenile that has just left its
  *      guardian holds an outward heading for a bounded spell regardless of what
@@ -21,25 +22,40 @@
  *      not — which is what keeps this inert in a green spring and makes it bite
  *      in a grazed-out winter, with no seasonal branch anywhere in the file.
  *      The season acts through the vegetation ceiling (Step 19) and the herd's
- *      own grazing; migration only reads the result.
+ *      own grazing; migration only reads the result. ⚠ Since phase 9 the gradient
+ *      is scored through the species' **grass-maturity preference** rather than
+ *      raw biomass (PLAN-SPECIES.md §3.3), because a forage cue that always
+ *      steers toward *more* grass would fight a species that wants short grass.
+ *   3. **Habitat preference alongside** (phase 9, DOCS A49) — a lean toward the
+ *      terrain this species prefers. The one cue *not* scaled by a need, since
+ *      where an animal would rather be is what it acts on when nothing is urgent;
+ *      and the one that **bends** another cue's heading rather than replacing it,
+ *      so the pull toward food keeps exactly the strength it had.
  *
  * Runs in the `decision` phase at priority −5: after sociality (−10), so a herd
  * summary is current, and before the decision system (0), which is the only
  * consumer. Ownership: writes `migrationHeading`, `migrationStrength`, and the
  * `settledX`/`settledY` relocation marks; reads positions, energy, the
- * vegetation field, and the species' `migration` block. Emits `entity.migrated`.
+ * vegetation field, terrain, and the species' `migration`, `forage`, and `habitat`
+ * fields. Emits `entity.migrated`.
  *
  * Randomness: **none.** Not one draw on any stream (see migration.js).
  *
  * Cost: `SAMPLE_DIRECTIONS × 2` O(1) vegetation reads per animal per evaluation,
- * divided by `updateInterval`. No spatial query — §1.4 C6 already owes Step 30
- * the folding of perception and sociality, and this step deliberately does not
- * add a third neighbour walk.
+ * divided by `updateInterval` — ⚠ **unchanged by the maturity preference**, which
+ * reads nothing the ring was not already reading (standing crop is the axis), and
+ * plus a second ring of *terrain* reads for a species with a habitat preference.
+ * Nothing at all for a species with neither, which is the whole roster bar the
+ * gazelle. No spatial query — §1.4 C6 already owes Step 30 the folding of
+ * perception and sociality, and this step deliberately does not add a third
+ * neighbour walk.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
-import { forageGradient, isDispersing, migrationOf } from '../migration/migration.js';
+import { blendHeadings, forageGradient, habitatGradient, isDispersing, migrationOf } from '../migration/migration.js';
 import { territoryOf } from './TerritorySystem.js';
+import { forageOf } from '../habitat/forage.js';
+import { habitatOf } from '../habitat/habitat.js';
 
 export class MigrationSystem extends SimulationSystem {
   /**
@@ -49,19 +65,41 @@ export class MigrationSystem extends SimulationSystem {
    * @param {number} [options.dispersalWeight] how hard a disperser holds its outward heading
    * @param {number} [options.updateInterval] habitat evaluation cadence (staggered)
    */
-  constructor({ cueReference = 4, biasWeight = 0.5, waterBiasWeight = 0.5, dispersalWeight = 0.9, updateInterval = 10 } = {}) {
+  constructor({
+    cueReference = 4,
+    biasWeight = 0.5,
+    waterBiasWeight = 0.5,
+    dispersalWeight = 0.9,
+    // Grass maturity and habitat (phase 9). ⚠ All four are wired from
+    // `config.forage` and `config.habitat`, their one home each, and both
+    // `*Enabled` flags are the world-level controls this phase was measured
+    // against — they cannot live in a species block, because a species block beats
+    // the config (DOCS §8, and phase 8's `aging.hiddenUntil` trap).
+    foragePreference = true,
+    forageQualityFloor = 0.55,
+    habitatPreference = true,
+    habitatBiasWeight = 0.35,
+    habitatCueReference = 0.3,
+    updateInterval = 10,
+  } = {}) {
     super({ id: 'migration', phase: 'decision', priority: -5, updateInterval });
     this.cueReference = cueReference;
     this.biasWeight = biasWeight;
     this.waterBiasWeight = waterBiasWeight;
     this.dispersalWeight = dispersalWeight;
+    this.foragePreference = foragePreference;
+    this.forageQualityFloor = forageQualityFloor;
+    this.habitatPreference = habitatPreference;
+    this.habitatBiasWeight = habitatBiasWeight;
+    this.habitatCueReference = habitatCueReference;
   }
 
   update(world, context) {
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
-      const species = migrationOf(world.species.get(entity.speciesId));
+      const resolved = world.species.get(entity.speciesId);
+      const species = migrationOf(resolved);
       if (!species) {
         entity.migrationHeading = null;
         entity.migrationStrength = 0;
@@ -82,8 +120,21 @@ export class MigrationSystem extends SimulationSystem {
         // goes nowhere, whatever the compass says, and because it scales with
         // hunger exactly as `seekFood` does the two never contend — seekFood only
         // fires with food in sight, this only steers a wander when there is not.
+        //
+        // ⚠ **Scored through the species' grass-maturity preference** since phase
+        // 9 (PLAN-SPECIES.md §3.3), which is the one place the plan predicted this
+        // change would bite: a gradient measured on raw biomass aims a short-grass
+        // grazer at the rank sward it is trying to avoid, and it oscillates. ⚠ The
+        // preference decides the *direction* only — the strength stays a raw biomass
+        // difference, for the reason written up in `forageGradient`. With no
+        // preference declared the scoring is arithmetically identical.
         const gradient = species.tracksForage
-          ? forageGradient(world, entity, { cueRadius: species.cueRadius, reference: this.cueReference })
+          ? forageGradient(world, entity, {
+              cueRadius: species.cueRadius,
+              reference: this.cueReference,
+              forage: this.foragePreference ? forageOf(resolved) : null,
+              qualityFloor: this.forageQualityFloor,
+            })
           : null;
         const hunger = entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0;
         const forageStrength = gradient ? gradient.strength * this.biasWeight * Math.max(0, hunger) : 0;
@@ -100,15 +151,62 @@ export class MigrationSystem extends SimulationSystem {
         const water = species.tracksWater && thirst > 0 ? world.nearestWater(entity.x, entity.y) : null;
         const waterStrength = water ? this.waterBiasWeight * thirst : 0;
 
-        if (waterStrength <= 0 && forageStrength <= 0) {
+        // Habitat preference (phase 9, DOCS A49). A third drive through the same
+        // one field, so it needs no new entity state and no save-format change.
+        //
+        // ⚠ **Not throttled by a need, unlike the two above, and that asymmetry is
+        // the biology.** Hunger and thirst silence the forage and water cues for a
+        // satisfied animal — and a satisfied animal is exactly the one that acts on
+        // where it would rather *be*. So habitat fills the silence rather than
+        // competing for it.
+        //
+        // ⚠ It needs a `cueRadius` to act through, since a coarse long-range sense
+        // is what a cue *is*. Three of the four shipped species set it to 0
+        // deliberately (they track no forage either), so their habitat preference,
+        // if they declared one, would have nowhere to act — stated in
+        // `habitat/habitat.js` rather than left to be discovered.
+        const weights = this.habitatPreference ? habitatOf(resolved) : null;
+        const habitat =
+          weights === null
+            ? null
+            : habitatGradient(world, entity, {
+                cueRadius: species.cueRadius,
+                reference: this.habitatCueReference,
+                weights,
+              });
+        const habitatStrength = habitat ? habitat.strength * this.habitatBiasWeight : 0;
+
+        // Whichever *need* is more urgent sets the drift, exactly as before.
+        const needStrength = Math.max(waterStrength, forageStrength);
+        const needHeading = needStrength <= 0 ? null : waterStrength >= forageStrength ? water.heading : gradient.heading;
+
+        if (needStrength <= 0 && habitatStrength <= 0) {
           entity.migrationHeading = null;
           entity.migrationStrength = 0;
-        } else if (waterStrength >= forageStrength) {
-          entity.migrationHeading = water.heading;
-          entity.migrationStrength = waterStrength;
+        } else if (needHeading === null) {
+          // Nothing urgent: go where you would rather be, at habitat's own weight.
+          entity.migrationHeading = habitat.heading;
+          entity.migrationStrength = habitatStrength;
+        } else if (habitatStrength <= 0) {
+          // No preference, or nowhere better to be: the phase-8 behaviour exactly.
+          entity.migrationHeading = needHeading;
+          entity.migrationStrength = needStrength;
         } else {
-          entity.migrationHeading = gradient.heading;
-          entity.migrationStrength = forageStrength;
+          // ⚠ **Habitat bends the need's heading rather than competing with it**,
+          // and the first cut had them competing on strength — which made habitat
+          // near-inert the moment the forage cue was fixed to keep its full
+          // strength (cover occupancy moved 6.9% → 6.3%, measured 2026-07-29, when
+          // the same weights had moved it to 4.8% while the forage cue was
+          // accidentally weakened). Competing was also the A34 mistake in
+          // miniature: a preference that has to *beat* foraging either never fires
+          // or starves the animal.
+          //
+          // Blending is the shape the decision system already uses for the trail
+          // drift — bend the heading, never touch the magnitude — so the pull toward
+          // food is exactly as strong as it was in phase 8 and only its direction
+          // leans toward the ground this species prefers.
+          entity.migrationHeading = blendHeadings(needHeading, habitat.heading, habitatStrength);
+          entity.migrationStrength = needStrength;
         }
       }
 

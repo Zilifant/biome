@@ -357,6 +357,12 @@ describe('the hidden stage in the demo world', () => {
       engine.step(1);
       for (const e of engine.world.entities.all()) {
         if (e.kind !== 'animal' || !e.alive || e.speciesId === 'herbivore.gazelle') continue;
+        // ⚠ A newborn flushed after `cleanup` has not been through the decision
+        // system yet, so it has no utilities at all. Skipping it is the honest
+        // reading of "nothing scored `hide`"; asserting on it read a null and threw,
+        // which is a latent fragility that only fired once a later phase moved a
+        // birth by a tick.
+        if (e.utilityBreakdown === null) continue;
         assert.equal(e.utilityBreakdown.hide, 0, `${e.speciesId} #${e.id} scored hide`);
         assert.equal(e.utilityBreakdown.tend, 0, `${e.speciesId} #${e.id} scored tend`);
         assert.notEqual(e.action, 'hide');

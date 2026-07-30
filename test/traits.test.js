@@ -209,7 +209,14 @@ describe('traits: behavioural consequences', () => {
     const engine = sandbox({
       systems: [
         new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1 }),
-        new DecisionSystem({ ...config.decision, foodMinLevel: 1 }),
+        // ⚠ `foragePreference: false` on purpose. This block pins *trait* arithmetic
+        // — that a multiplier of 1.0 leaves a utility exactly where the config put
+        // it — and from phase 9 the gazelle also discounts `eat` by how coarse the
+        // grass under it is (PLAN-SPECIES.md §3.3). Leaving that on would fold a
+        // second, unrelated factor into every golden number here; it has its own
+        // suite in `test/habitat.test.js`. The same reason the flat-world tests pass
+        // `ridges: 0`.
+        new DecisionSystem({ ...config.decision, foodMinLevel: 1, foragePreference: false }),
       ],
     });
     const id = spawnIndividual(engine, { x: 22, y: 22, energy, individual });

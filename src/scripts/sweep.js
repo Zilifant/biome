@@ -24,10 +24,18 @@
  *   npm run sweep -- --founding=herbivore.gazelle:120,predator.stalker:8,scavenger.vulture:10,scavenger.hyena:6 \
  *                    --control=herbivore.gazelle:120,predator.stalker:8,scavenger.vulture:10
  *   npm run sweep -- --seeds=1,2,3 --ticks=5000 --json
+ *   npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false
  *
  * Flags: --seeds=a,b,c | --seedCount=N (from --seedBase, default 1);
  *   --ticks, --checkpoints=5000,10000,15000, --founding=, --control=,
+ *   --set=section.key=value,…, --controlSet=…,
  *   --width, --height, --rocks, --thickets, --json, --quiet.
+ *
+ * ⚠ `--set` / `--controlSet` are the **config** A/B, added at phase 9 (see
+ * `parseConfigOverrides`). Before them a config change had to be measured as two
+ * separate invocations compared by hand; a roster change could be one command and a
+ * weight change could not, for no reason other than that nobody had written the
+ * flag.
  *
  * ⚠ A sweep is a *reading taken on a date*, like every number in this project
  * (DOCS "How to read this document"). Record the date and the world beside the
@@ -44,9 +52,50 @@ function fail(message) {
   console.error(
     'usage: sweep.js [--seeds=a,b,c | --seedCount=N] [--ticks=N] [--checkpoints=a,b,c]\n' +
       '                [--founding=id:count,...] [--control=id:count,...]\n' +
+      '                [--set=section.key=value,...] [--controlSet=section.key=value,...]\n' +
       '                [--width=N] [--height=N] [--rocks=N] [--thickets=N] [--json] [--quiet]',
   );
   process.exit(1);
+}
+
+/**
+ * `forage.enabled=false,habitat.biasWeight=0.2` → a config override object.
+ *
+ * ⚠ **Added at phase 9 because the harness could not measure that phase.** A
+ * sweep's `--control=` compares two *rosters* in one process; PLAN-SPECIES §9 says
+ * plainly that "a config change (a mass, a weight) still needs two runs", and
+ * phases 4, 7, and 8 each paid that by hand-comparing two invocations. Since a
+ * sweep is deterministic, a config arm is exactly as comparable as a roster arm —
+ * there was no reason for one to be a flag and the other a chore. `--set=` is the
+ * arm and `--controlSet=` the control, so the phase-9 gate (mechanism on against
+ * mechanism off, same seeds) is one command.
+ *
+ * Dotted paths are two levels deep, which is what a config section is. Values are
+ * parsed as JSON when they can be (`false`, `0.2`, `null`) and kept as strings
+ * otherwise, so `--set=forage.enabled=false` is a boolean rather than the string
+ * "false" — a distinction that would otherwise turn an "off" arm silently on,
+ * which is exactly the class of mistake phase 8 lost an afternoon to.
+ */
+function parseConfigOverrides(value) {
+  const config = {};
+  for (const pair of value.split(',')) {
+    const eq = pair.indexOf('=');
+    if (eq < 1) fail(`--set entries must be section.key=value, got "${pair}"`);
+    const path = pair.slice(0, eq).split('.');
+    if (path.length !== 2 || path.some((part) => part.length === 0)) {
+      fail(`--set paths are section.key (two levels), got "${pair.slice(0, eq)}"`);
+    }
+    const raw = pair.slice(eq + 1);
+    let parsed = raw;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      /* a bare string, e.g. a species id — keep it as written */
+    }
+    const [section, key] = path;
+    config[section] = { ...(config[section] ?? {}), [key]: parsed };
+  }
+  return config;
 }
 
 /** `herbivore.gazelle:120,predator.stalker:8` → `[{ speciesId, count }]`. */
@@ -69,6 +118,8 @@ function parseArgs(argv) {
     quiet: false,
     founding: null,
     control: null,
+    set: null,
+    controlSet: null,
     world: {},
   };
   const worldKeys = new Set(['width', 'height', 'rocks', 'thickets']);
@@ -80,6 +131,8 @@ function parseArgs(argv) {
     const [, key, value] = m;
     if (key === 'founding') opts.founding = parseFoundingRoster(value);
     else if (key === 'control') opts.control = parseFoundingRoster(value);
+    else if (key === 'set') opts.set = parseConfigOverrides(value);
+    else if (key === 'controlSet') opts.controlSet = parseConfigOverrides(value);
     else if (key === 'seeds') opts.seeds = value.split(',').map(Number);
     else if (key === 'seedBase') opts.seedBase = Number(value);
     else if (key === 'seedCount') opts.seedCount = Number(value);
@@ -304,18 +357,47 @@ function printVerdict(arm, control, checkpoints) {
   );
 }
 
+/**
+ * Merge config overrides over a partial config, one section deep — the same shape
+ * `mergeConfig` uses, kept local because this merges two *partials* rather than a
+ * partial over the defaults.
+ * @param {object} base @param {object|null} overrides
+ */
+function mergeSections(base, overrides) {
+  if (!overrides) return base;
+  const merged = { ...base };
+  for (const [section, values] of Object.entries(overrides)) {
+    merged[section] = { ...(merged[section] ?? {}), ...values };
+  }
+  return merged;
+}
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
+  const hasControl = opts.control !== null || opts.controlSet !== null;
   const arms = [
-    { label: opts.founding ? 'arm' : 'demo defaults', founding: opts.founding },
-    ...(opts.control ? [{ label: 'control', founding: opts.control }] : []),
+    { label: opts.founding || opts.set ? 'arm' : 'demo defaults', founding: opts.founding, set: opts.set },
+    // ⚠ A control arm inherits the *arm's* roster unless it states its own, so
+    // `--set=… --controlSet=…` compares two configs over one roster and
+    // `--founding=… --control=…` compares two rosters over one config. Defaulting
+    // the roster the other way round would make a config A/B silently also be a
+    // roster A/B, which is two changes in one measurement.
+    ...(hasControl ? [{ label: 'control', founding: opts.control ?? opts.founding, set: opts.controlSet }] : []),
   ];
 
   const results = [];
   for (const arm of arms) {
-    const config = buildDemoConfig({ ...opts.world, ...(arm.founding ? { founding: arm.founding } : {}) });
+    const config = mergeSections(
+      buildDemoConfig({ ...opts.world, ...(arm.founding ? { founding: arm.founding } : {}) }),
+      arm.set,
+    );
     const roster = arm.founding ?? defaultSimulationConfig.demo.founding;
-    const label = `${arm.label}: ${roster.map((entry) => `${entry.speciesId}:${entry.count}`).join(' ')}`;
+    const overrides = arm.set
+      ? ` · ${Object.entries(arm.set)
+          .flatMap(([section, keys]) => Object.entries(keys).map(([key, value]) => `${section}.${key}=${JSON.stringify(value)}`))
+          .join(' ')}`
+      : '';
+    const label = `${arm.label}: ${roster.map((entry) => `${entry.speciesId}:${entry.count}`).join(' ')}${overrides}`;
     if (!opts.json && !opts.quiet) console.error(`running ${label} over ${opts.seeds.length} seeds × ${opts.ticks} ticks…`);
     const seedRecords = opts.seeds.map((seed) => {
       const record = runSeed(seed, config, opts.ticks, opts.checkpoints);

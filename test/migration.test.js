@@ -292,8 +292,14 @@ describe('migration: what steers a wander', () => {
     // updateInterval 1 so the system actually runs during the five ticks —
     // at the demo's stagger it would never fire and the test would pass by
     // measuring nothing (§1.4 D5).
+    // ⚠ `foragePreference: false`, and the reason is the guard below rather than the
+    // claim above. Phase 9 lets a species discount coarse grass, and in an unpainted
+    // sandbox the cell underfoot can out-score every ray once that discount applies
+    // — so the animal legitimately has nowhere better to go and the guard ("the
+    // system really did evaluate") stops meaning anything. The draw budget is what
+    // this test is about; the preference has its own suite in `habitat.test.js`.
     const withMigration = sandbox();
-    withMigration.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
+    withMigration.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1, foragePreference: false }));
     const migratingId = spawn(withMigration, { x: 32.5, y: 32.5, energy: 10 });
     withMigration.step(5);
     assert.notEqual(
@@ -332,11 +338,25 @@ describe('migration: what steers a wander', () => {
     // What is crisp, and what the code actually promises, is the direction an
     // aimless animal picks. Mean cos(heading) over many wander commitments is 0
     // for a random walk and positive when the gradient points east.
+    // ⚠ **`foragePreference: false` throughout, and that is a statement about what
+    // this test measures.** It asks how straight *east* an aimless animal aims when
+    // the good ground is due east — a single-spoke claim. From phase 9 the gazelle
+    // also prefers a grass *maturity*, and in this sandbox the painted band sits at
+    // full capacity, well past what a gazelle wants: so it still drifts eastward but
+    // spreads across the east, north-east and south-east rays, whichever holds the
+    // least rank grass. Measured 2026-07-29, that takes mean cos(heading) from ~0.2
+    // to 0.114 — a real and intended behavioural change, not a weaker mechanism, and
+    // it is asserted where it belongs in `test/habitat.test.js`. Folding it in here
+    // would turn a crisp claim about migration into a blurred claim about two things.
     function meanEastwardness(migrationEnabled) {
       const engine = sandbox({ seed: 11 });
       engine.registerSystem(new PerceptionSystem(CONFIG.perception));
-      if (migrationEnabled) engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
-      engine.registerSystem(new DecisionSystem({ ...CONFIG.decision, foodMinLevel: CONFIG.perception.foodMinLevel }));
+      if (migrationEnabled) {
+        engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1, foragePreference: false }));
+      }
+      engine.registerSystem(
+        new DecisionSystem({ ...CONFIG.decision, foodMinLevel: CONFIG.perception.foodMinLevel, foragePreference: false }),
+      );
 
       clearVegetation(engine);
       // Rich ground due east, inside the 18-unit cue and well outside the

@@ -93,7 +93,21 @@ export function registerDemoSystems(engine) {
   // entirely when migration is disabled, which (with `disperses` below) is the
   // Step 25 control the step was measured against.
   if (engine.config.migration.enabled) {
-    engine.registerSystem(new MigrationSystem(engine.config.migration));
+    engine.registerSystem(
+      new MigrationSystem({
+        ...engine.config.migration,
+        // Grass maturity and habitat (phase 9). Both cues are scored inside this
+        // system, and both switches are wired from the global sections that own
+        // them — ⚠ *not* from a species block, which a species overrides (DOCS §8).
+        // The forage half rescores the existing gradient; the habitat half is a
+        // third drift through the same `migrationHeading` field.
+        foragePreference: engine.config.forage.enabled,
+        forageQualityFloor: engine.config.forage.qualityFloor,
+        habitatPreference: engine.config.habitat.enabled,
+        habitatBiasWeight: engine.config.habitat.biasWeight,
+        habitatCueReference: engine.config.habitat.cueReference,
+      }),
+    );
   }
   engine.registerSystem(
     new DecisionSystem({
@@ -108,6 +122,12 @@ export function registerDemoSystems(engine) {
       // decision time. Wired from their real home so there is no second copy to
       // drift (D11) — the system's copy is only the unknown-species fallback.
       foodMinLevel: engine.config.perception.foodMinLevel,
+      // Forage guilds (PLAN-SPECIES.md §3.3): whether `eat` and `seekFood` are
+      // discounted by how well a cell's grass maturity suits the species, and how
+      // little the worst-matched grass is worth. From `config.forage`, which is
+      // global precisely so the off switch cannot be overridden by a species.
+      foragePreference: engine.config.forage.enabled,
+      forageQualityFloor: engine.config.forage.qualityFloor,
       drinkRange: engine.config.hydration.drinkRange,
       carcassRange: engine.config.feeding.carcassRange,
       // Carcass possession lives in `config.carcass` and is read by two systems

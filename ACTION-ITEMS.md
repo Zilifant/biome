@@ -62,7 +62,11 @@ they are not re-opened by accident.
   female near term preferring cover), which is a new pull on the existing
   `shelter` action but changes reproduction placement, so it wants its own measured
   step. Also the strongest argument yet for A51 — more cover raises this with no
-  behavioural change at all.
+  behavioural change at all. ⚠ **Phase 9 made it slightly worse, knowingly**: the
+  gazelle's new habitat preference is open-plain (`cover: 0.8`), so a mother is
+  marginally less likely to be standing on sheltering ground when she gives birth.
+  Folding A57 into `habitat` is not the answer — a flat per-terrain weight cannot
+  express "a female *near term* prefers cover".
 
 - **⚠ A56 — A two-member clan flaps between founding and dissolution.**
   `groups.minMembers: 2` makes a pair a clan and a lone animal not one, so a pair
@@ -141,9 +145,20 @@ they are not re-opened by accident.
 
 ## Engine — schema and configuration
 
-- **A49 — "Activity pattern" and "habitat preference" are not schema blocks.**
-  There is no diurnal cycle for a pattern to exist in, and habitat preference is
-  expressed through `migration.tracksForage` plus the comfort band.
+- **A49 — "Activity pattern" is not a schema field.** ⚠ Half of this item
+  **closed 2026-07-29**: habitat preference now exists as a per-species `habitat`
+  field (one weight per terrain name) consumed by the long-range cue, and the
+  gazelle uses it. What is still open is the *activity pattern* half — there is no
+  diurnal cycle for one to exist in. See [`DOCS.md`](DOCS.md) §9 Migration.
+
+- **A58 — Perception reports the *nearest* food cell, not the best-scoring one**
+  _(2026-07-29, phase 9)_. Forage preference discounts a cell once an animal is
+  standing on it, but perception still picks the nearest cell with anything on it, so
+  a grazer walks to ordinary grass with a better patch two cells further off.
+  Widening it means scoring every candidate instead of only cells nearer than the
+  best so far — in the hottest loop in the engine, where D28 records one extra
+  *argument* costing 12% of a tick. A stated bargain, harmless at one grazer;
+  re-examine at batch 3 when three species disagree about what a good cell is.
 
 - **B7 — Three mass-blind constants, found by the 2026-07-28 mass audit** and
   deliberately left until the species that exposes each one exists.

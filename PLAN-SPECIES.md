@@ -7,11 +7,11 @@ per role**, each with its own behaviour, food, and water needs. Written
 six settled decisions (§11), and again to put the **gazelle** rather than the
 wildebeest in the first batch.
 
-> ### ⚠ Status: phases 0–8 are done (last updated 2026-07-29)
+> ### ⚠ Status: phases 0–9 are done (last updated 2026-07-29)
 >
-> **This document is no longer a plan for unimplemented work.** Phases 0–8 have
+> **This document is no longer a plan for unimplemented work.** Phases 0–9 have
 > shipped — see the table in §8 — and the world now has **four species**
-> (gazelle, stalker, vulture, hyena) at protocol v29 and 838 tests.
+> (gazelle, stalker, vulture, hyena) at protocol v29.
 >
 > A section marked ✅ has an **"As built"** block recording where its own
 > prediction was wrong; those blocks are the most useful part of the document now,
@@ -19,8 +19,10 @@ wildebeest in the first batch.
 > written". ⚠ Read the two together and prefer the As-built block: the plan was
 > right about shape far more often than about consequence.
 >
-> **Next: phase 9** (forage guilds and the `habitat` block). Everything from §3.3,
-> §3.4, §3.7, §3.11, §3.12, §3.13, and §3.16 is still ahead.
+> **Next: phase 10** (cooperative hunting, mobbing, and the A32 geometry fix).
+> Everything from §3.7, §3.11, §3.12, §3.13, and §3.16 is still ahead; §3.3 and §3.4
+> landed at phase 9, and ⚠ **both landed differently from how they were proposed** —
+> read their As-built blocks before touching either.
 
 The short version, still true of what remains: **the species system is already
 good enough to declare new species, and not yet good enough to make them behave
@@ -135,13 +137,15 @@ toward **forage sources**, not toward an omnivore (§3.2).
 - **A species is data.** `config/species/*.js` files declare biology only;
   `SpeciesRegistry` resolves each against the global config once at engine
   construction and hands systems a deep-frozen record via one `Map.get`.
-- **Eleven blocks fall back to config:** `metabolism`, `hydration`, `aging`,
+- **Twelve blocks fall back to config:** `metabolism`, `hydration`, `aging`,
   `perception`, `traits`, `genetics`, `disease`, `reproduction` — plus
-  `feeding`, `hunting`, and `behavior`, added by phases 1–2 on 2026-07-28. Plus
-  always-per-species fields: `matePreference`, `territory`, `migration`, `diet`,
-  `preySpeciesIds`. ⚠ The three new blocks **do not yet vary by species**; they
-  are the schema arriving ahead of the roster, exactly as `disease` did at Step
-  29 (A38).
+  `feeding`, `hunting`, `behavior`, and `predation`, added by phases 1–4 on
+  2026-07-28. Plus always-per-species fields: `matePreference`, `territory`,
+  `migration`, `diet`, `preySpeciesIds`, `groups`, and — from phase 9 — `forage` and
+  `habitat`. ⚠ `feeding`, `hunting`, and `behavior` still barely vary by species —
+  the schema arriving ahead of the roster, exactly as `disease` did at Step 29 (A38)
+  — while `predation`, `groups`, `forage`, and `habitat` are all now *used* by a
+  shipped species.
 - **No system branches on a species name** — enforced by a source scan
   (`test/species-schema.test.js`), with behaviour driven by `diet`,
   `preySpeciesIds`, `territory.defends`, `migration.tracksForage`.
@@ -160,6 +164,14 @@ toward **forage sources**, not toward an omnivore (§3.2).
   declares it, the demo founds real clans, and DOCS A55 closed. The herd label is
   untouched and is what the gazelle still uses — the two mechanisms now run side
   by side in one world, which is what §3.8 designed for.
+- **Forage guilds and habitat preference exist as of 2026-07-29** (§3.3 and §3.4,
+  phase 9). A species states `forage: { preferredBiomass, span }` — how coarse a
+  sward it can still live on — and `habitat: { ground, cover, … }` — which terrain it
+  wants. Both are **always-per-species fields beside a global section**, not
+  `SPECIES_BLOCKS` blocks, and ⚠ that shape is now a *rule* rather than a preference:
+  a species block beats the config, so an off switch inside one cannot switch
+  anything off. Any future per-species mechanism needing a reproducible control has
+  this shape.
 - **Neonatal concealment exists as of 2026-07-29** (§3.14, phase 8): a fawn lies
   hidden (`hide`) and its mother returns to it (`tend`), gated on
   `aging.hiddenUntil` and switchable at `parenting.concealment`. ⚠ Its `tend` half
@@ -205,8 +217,8 @@ is only which of them the engine can express.
 | Sociality (herd vs solitary)   | ✅ **since 2026-07-28** | `behavior.herdWeight` — herding is automatic, its strength per-species | all herbivores, lion, hyena |
 | ~~**How it behaves**~~         | ✅ **since 2026-07-28** | `behavior`, a species block of 22 weights (§3.1)     | everyone |
 | **What food it eats**          | ❌ binary carnivore/not | `diet` is a string with two meanings                 | rhino, elephant (browse)        |
-| **Which grass it eats**        | ❌                      | one biomass field, no maturity                       | gazelle / wildebeest / zebra    |
-| **Where it lives**             | ❌                      | nothing; A49 is open                                 | leopard, buffalo, rhino         |
+| ~~**Which grass it eats**~~     | ✅ **since 2026-07-29** | `forage.preferredBiomass` / `span` — standing crop *is* maturity, so no new state (§3.3, phase 9) | gazelle / wildebeest / zebra    |
+| ~~**Where it lives**~~          | ✅ **since 2026-07-29** | a per-species `habitat` weight per terrain, read by the long-range cue (§3.4, phase 9) — ⚠ needs a `cueRadius` to act through, which three of four species set to 0 | leopard, buffalo, rhino         |
 | ~~**Which individuals it eats**~~ | ✅ **since 2026-07-28** | `predation.maxPreyMassRatio` / `minPreyMassRatio`, gated in perception on `bodyMass` (§3.6, phase 4) | lion, leopard, hyena            |
 | ~~**Persistent social identity**~~ | ✅ **since 2026-07-28** | `world.groups` + `groupRecordId`, gated by `groups.forms` (§3.8, phase 3) | lion, hyena, zebra, elephant    |
 | **Cooperative action**         | ❌                      | defense is passive; no group hunt, no mobbing        | lion, hyena, buffalo            |
@@ -220,12 +232,14 @@ species block (§3.1), which is what makes "a skittish gazelle" and "a pride
 versus a solitary cat" expressible at all; the group registry landed (§3.8),
 which is what makes a pride a thing that exists between sightings; and phase 4
 closed prey eligibility (§3.6), carcass possession (§3.9), and the agility term
-(§3.15). **A seventh closed on 2026-07-29** — concealed newborns, at phase 8.
+(§3.15). **Three more closed on 2026-07-29** — concealed newborns at phase 8, then
+grass maturity and habitat at phase 9.
 
-What remains is **forage** — what food it eats, which grass, where it lives —
-plus cooperative action and heterospecific association. ⚠ Three of those four are
-phase 9's or phase 10's, so the ❌ column is nearly spent: after phase 10 the only
-unrepresentable axis left in this table is heterospecific association.
+What remains is **three rows**: what food it eats (the `diet` string, phase 15),
+cooperative action (phase 10), and heterospecific association (phase 12). ⚠ So the
+❌ column is nearly spent, and after phase 12 this table has nothing left in it —
+which means the *next* unrepresentable axis will have to be found rather than looked
+up.
 
 ⚠ **Prior art from this repo:** adding the corvid read as a balance problem
 (3/10 seeds vs a 6/10 control) until the real cause turned up — `fleshIntakeRate`
@@ -371,7 +385,77 @@ carrion — needs no engine change at all: it is a carnivore with a non-empty
 `preySpeciesIds`, exactly as the stalker is. Only **grass vs. browse** is
 genuinely unbuilt.
 
-### 3.3 Forage guilds — and the half of it that is free
+### 3.3 ✅ Forage guilds — grass maturity (shipped 2026-07-29, phase 9)
+
+✅ **Built, and this section's central claim — that the maturity axis is free —
+held. Its central *proposal*, the ratio `biomass / capacity`, did not.** The
+section as written follows; four deltas, and the first is the phase's real result:
+
+- ⚠⚠ **The ratio was built, measured, and rejected in favour of absolute standing
+  crop.** The reasoning below for a ratio is good and it fails for a reason nothing
+  here could have seen: **a ratio knows nothing about absolute abundance**, so in a
+  low-capacity world every ungrazed cell reads as rank grass. The sparse-forage
+  selection sandbox (`vegetation.capacity: 1.0`) holds at most one biomass unit per
+  cell — a lawn — and under the ratio the gazelle discounted the only food in that
+  world and went **extinct inside 5000 ticks**, breaking a shipped scenario. What
+  shipped is `forage: { preferredBiomass, span }`, read straight off the biomass
+  field. It is cheaper still (no second grid read at all, since the gradient already
+  reads biomass) and physically truer: two cells holding the same standing crop are
+  the same height of grass whatever their potential.
+- ⚠ **The falloff is one-sided**, not a window: ideal at and below
+  `preferredBiomass`, discounted only above it. A symmetric window **double-counts
+  scarcity** — a nearly-bare cell already hands an animal almost nothing, because
+  `consumeAt` returns only what is there — and measured, it punished exactly the
+  ground a herd lives on (its own grazing halo): **gazelle 3/10 seeds against the
+  control's 10/10**, taking the stalker and hyena down with it. The other side of
+  the succession needs no term: a 300 kg zebra cannot live on a cropped sward
+  because mass-scaled intake already says so.
+- ⚠ **The section was right that the gradient needed rescoring, and the fix is
+  subtler than "score it".** Scoring direction *and* strength from
+  `biomass × quality` inverts the animal's motivation: quality ≤ 1 shrinks the
+  difference between here and there, so an animal surrounded by grass it disliked
+  had almost no reason to move — when it is precisely the animal that should move.
+  What shipped: **the preference chooses the direction, raw biomass sets the
+  strength.** (The section also names `world.nearestFood` as a reader. There is no
+  such method; the readers are perception's cell scan and this gradient.)
+- **Perception's nearest-food scan was left monotonic on purpose.** Making it pick
+  the best-scoring cell rather than the nearest means computing a quality for every
+  candidate instead of only for cells nearer than the best so far — in the hottest
+  loop in the engine, where D28 records one extra *argument* costing 12% of a tick.
+  So an animal walks to the nearest grass and then decides whether it is worth
+  eating. Recorded as a stated limit.
+
+**Preference is a discount, never a veto**: it scales the hunger drive and floors at
+`forage.qualityFloor`, so a comfortable animal walks off rank grass and a starving
+one eats it. Only the gazelle states a preference; its succession partners arrive in
+batch 3, and its numbers are expected to be re-tuned then.
+
+**The gate, and what it took** — 10 seeds × 15 000 ticks, mechanism on against off
+over the same seeds and in one process (2026-07-29). ⚠ **Three arms, because the
+first two are the record of the two design failures above:**
+
+| Arm | gazelle | stalker | hyena | vulture |
+| --- | --- | --- | --- | --- |
+| ratio + symmetric window | **3/10**, mean 0.6 | 3/10, 0.4 | **0/10**, 0.0 | 9/10, 19.4 |
+| standing crop, floor 0.30 | 9/10, mean 59.8 | 8/10, 4.9 | 7/10, 1.9 | 10/10, 102.6 |
+| **shipped** — floor 0.55 | 8/10, mean **94.3** | 9/10, 4.8 | 9/10, 3.0 | 10/10, 119.1 |
+| control (mechanism off) | 10/10, mean 81.5 | 9/10, 5.4 | 10/10, 3.4 | 10/10, 133.5 |
+
+The shipped arm puts the gazelle **above** the control's mean and the two carnivores
+level with it; the vulture is down 11%. ⚠ What it does not buy back is the last seed
+or two of gazelle survival — it loses seeds 7 and 10 *late* (t13291, t14275) where
+the 0.30 arm lost seed 8 — and D14's rule applies: on a population whose control
+range is 15–184, one seed is the signature of noise rather than of the parameter.
+Recorded rather than tuned against.
+
+**And it fires** (seeds 1 and 42, 3000 ticks): the mean standing crop of the cell a
+gazelle is *eating on* falls **3.31 → 1.93** and **4.25 → 2.88** — it is choosing
+shorter grass, which is the whole claim. (The habitat half's own number is in §3.4.)
+Asserted against the demo world in `test/habitat.test.js` rather than left as prose,
+because §1.2's standing complaint is mechanisms that are correct and never do visible
+work.
+
+### 3.3 The section as written
 
 `african-species.md` asks for four resources: short grass, tall/coarse grass,
 woody browse, and point fruit. Split them by cost, because they are not remotely
@@ -426,7 +510,43 @@ shrub layer is dynamic and saved.
 **Point fruit is dropped** unless something needs it. It is A3 (the reserved
 `plant` entity kind) and no species in this roster requires it.
 
-### 3.4 Habitat preference does not exist (A49)
+### 3.4 ✅ Habitat preference (shipped 2026-07-29, phase 9 — closes A49's habitat half)
+
+✅ **Built as per-terrain weights, as proposed — but at one chokepoint of the three
+named, and the two that were dropped were dropped on measurement.**
+
+- **It is a field, not a block**, for the phase-8 reason: a species block beats the
+  config, so an `enabled` inside one is not an off switch. `config.habitat` holds the
+  switch and the shape; `species.habitat` holds the weights, keyed by the terrain
+  legend's own names so a partial declaration ("avoids thicket, otherwise
+  indifferent") is one number.
+- ✅ **The migration cue was the right consumer** and is the only one built. It
+  reaches the animal through the wander heading, which is where **40–77% of all
+  animal-ticks** are spent (measured 2026-07-29) — the only place in this engine
+  where a preference of this size can do visible work.
+- ❌ **Scaling `rest` by the ground underfoot would have been born near-inert.**
+  `rest` is **0.8–1.6%** of animal-ticks in the demo and is already gated to
+  satisfied animals. That is A34's shape exactly, and measuring first is what kept
+  it from being built.
+- ❌ **Weighting the home range (settling) was declined on principle.** A home range
+  is a running average of where an animal has *been*; bending it toward liked ground
+  makes it a statement of preference rather than a measurement, and its only
+  consumer (`patrol`) is near-inert anyway.
+- ⚠ **It bends the need-cue's heading rather than competing with it.** Competing on
+  strength left it near-inert (cover occupancy 6.9% → 6.3%) once the forage cue was
+  fixed to keep full strength; blending — the shape the trail drift already uses —
+  moved it to 4.9%. And it is the **one cue not throttled by a need**, because
+  hunger and thirst silence the others for exactly the animal that acts on where it
+  would rather be.
+- ⚠ **A preference needs a `cueRadius` to act through**, and three of the four
+  shipped species set that to 0 deliberately. Only the gazelle declares habitat
+  weights; a cover-loving leopard needs a cue radius first (batch 4).
+
+Measured: gazelle time on cover **9.2% → 8.1%** and **6.9% → 4.9%** against cover's
+2.8% of the map — it was using cover at twice its availability, because cover grows
+1.35× the biomass and nothing else about it was visible to the cue.
+
+### 3.4 The section as written
 
 Nothing lets a species prefer thicket over open ground, or open plain over cover.
 This is the cheapest remaining niche axis and it is already an open action item.
@@ -1432,7 +1552,7 @@ Each phase leaves the suite green and the demo runnable, in this repo's usual
 shape. Phases 0–6 are groundwork with no new species at all; species land from
 phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 
-**⚠ Nine of eighteen phases have shipped, and the world has four species.** The
+**⚠ Ten of eighteen phases have shipped, and the world has four species.** The
 table is a *chart*, not a record: a done row states what landed, when, and the one
 thing worth carrying out of it. The reasoning, the measurements, and every place a
 phase's own prediction turned out wrong live in that phase's **"As built"** block
@@ -1449,8 +1569,8 @@ in the section it links to — read those before repeating any of this work.
 | **6** | Renderer scale (§7): the full ten-species glyph/colour/priority scheme, collapsible per-species metrics, the quadratic sparkline fixed | ✅ **2026-07-28** | Renderer only. `supersededBy` makes a shared glyph a stated transition; ⚠ it is a **delete list**, which phase 7's rename pass did not know |
 | **7** | **Batch 1 — gazelle + hyena** (§10.1). Two renames proved byte-identical, vulture 4 → 6 kg as its own arm, then the hyena behind the ten-seed gate | ✅ **2026-07-29** | **`npm run sweep`** (the §9 gate harness) built here. Closed **A55**, opened **A56**. ⚠ The gate **failed first**: a carrion-subsidised predator is not limited by its prey |
 | **8** | **Hidden-fawn stage** (§3.14): `aging.hiddenUntil`, the `hide` and `tend` actions, concealment in perception | ✅ **2026-07-29** | Benchmark flat. ✅ **A34's lever proved** (`tend` 1000×, `patrol` 0×); ⚠ **A32 did not improve**; opened **A57** |
-| **9** | Forage guilds (§3.3): grass-maturity preference from `biomass / capacity`; `habitat` block, closing A49 (§3.4) | ← **next** | med — Feeding / Decision / Migration. ⚠ Makes forage preference **non-monotonic** for the first time |
-| **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | planned | med — Decision / Hunting |
+| **9** | Forage guilds (§3.3): grass-maturity preference; `habitat` weights, closing A49's habitat half (§3.4) | ✅ **2026-07-29** | Decision / Migration. ⚠⚠ **Two gates failed first**: `biomass / capacity` as the axis, then a symmetric window. What shipped is **absolute standing crop** with a one-sided falloff, and a cue whose *direction* is scored but whose *strength* is not. `npm run sweep --set=` added so a config A/B is one command |
+| **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | ← **next** | med — Decision / Hunting |
 | **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | planned | high — config only. ⚠ Expect phase 7's failure mode again: check `minHungerToHunt` first |
 | **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | planned | low — Social / Reproduction |
 | **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | planned | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring |
@@ -1482,11 +1602,14 @@ in the section it links to — read those before repeating any of this work.
   and A12 exists so two such changes are never made together (§3.14). Worth the
   extra phase: batch 1's numbers stayed attributable to the hyena, and phase 8's
   own A34/A32 results stayed attributable to concealment.
-- Phase 9 (forage guilds) sits **before** batch 2 even though the buffalo does not
-  strictly need it: without maturity preference, a 600 kg buffalo and a 30 kg
-  gazelle compete for identical cells, separated only by mass-scaled intake and
-  the buffalo's water tie. That is defensible but thin, and forage guilds are
-  cheap enough that de-risking batch 2 with them is the better trade.
+- ✅ **Phase 9 (forage guilds) sat before batch 2 even though the buffalo does not
+  strictly need it**, on the argument that a 600 kg buffalo and a 30 kg gazelle
+  would otherwise compete for identical cells, separated only by mass-scaled intake
+  and the buffalo's water tie. The ordering was right and the "cheap enough" half was
+  **wrong**: the mechanism cost two failed ten-seed gates and two redesigns before it
+  passed. Better it happened here, with one herbivore to attribute it to, than in the
+  batch where a 600 kg one arrives — which is the argument for the ordering, restated
+  by what it cost.
 - Each batch is gated on a mechanic, not on appetite. Batch 2 needs mobbing and
   carcass possession; batch 3 needs forage guilds; batch 5 needs browse. A species
   shipped before its mechanic is a palette swap that gets re-tuned twice.
@@ -1511,8 +1634,10 @@ species added cost 3/10 seeds until the real bug surfaced.
   second founding roster **over the same seeds in the same process**, which is
   the A/B the gate is actually stated in — and, unlike the benchmark, a sweep is
   deterministic, so the two arms are exactly comparable and need no interleaving
-  against machine drift. A config change (a mass, a weight) still needs two runs;
-  only a roster change can be done in one.
+  against machine drift. ✅ **Phase 9 added `--set=` / `--controlSet=`**, so a config
+  change is one command too; the line this bullet used to end with ("a config change
+  still needs two runs; only a roster change can be done in one") was true only
+  because nobody had written the flag.
 - **Procedure per species:** add the definition with `count: 0` → confirm zero
   diff → raise the count → sweep **10 seeds × 15 000 ticks** against the
   pre-species control.
@@ -1838,7 +1963,9 @@ Per E4 discipline, and all lists must stay in step:
   was *tested* by phase 8 and its diagnosis held — it stays open, for the sharper
   reason that patrol's target is a place rather than a purpose; ⚠ **A32 was touched
   by phase 8 and did not improve**, so its remaining lever is the "nearer the
-  predator than I am" test; A32 and A33 close in phase 10; A49 in phase 9; A35
+  predator than I am" test; A32 and A33 close in phase 10; ✅ **A49's habitat half
+  closed at phase 9** (its activity-pattern half stays open, with no diurnal cycle to
+  hang one on); A35
   revisited by sex-specific territory (phase 15); A51 in phase 15 — ⚠ and A57 is
   now an extra argument for it; A18 by §3.12; A3, A12, and A37 remain open
 - `src/renderer/DOCS-RENDERER.md` + `README-RENDERER.md` — ✅ appearance scheme and
@@ -1870,7 +1997,10 @@ Per E4 discipline, and all lists must stay in step:
 - ✅ `src/scripts/sweep.js` + `npm run sweep` — **new at phase 7**, and the thing
   §9's gate is actually run with. Every future batch is measured through it, and a
   species-count or roster change wants `--control=` rather than two hand-compared
-  runs
+  runs. ✅ **Phase 9 added `--set=` / `--controlSet=`**, so a *config* A/B is one
+  command over the same seeds too — the limitation §9 used to state ("a config change
+  still needs two runs") is gone, and it existed only because nobody had written the
+  flag
 - `african-species.md` — its biology is now folded into §10 and its mechanics into
   §3, including the gazelle model added 2026-07-28. Either delete it or mark it
   explicitly as the source analysis, so nobody implements its proposals directly
