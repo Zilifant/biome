@@ -1,3 +1,25 @@
+> **⚠ Retired to `legacy-docs/` on 2026-07-31. This is now a historical record.**
+>
+> Phases 0–14 shipped and phases 15–17 were deferred, so nothing here is
+> scheduled work any more. **The implemented work has been folded into
+> [`DOCS.md`](../DOCS.md)** — §8 for the roster and schema, §9 for every
+> mechanism, §16 for the transferable failures, §20 for the measurement gate —
+> **and the unimplemented work into `DOCS.md` §1.3 and
+> [`ACTION-ITEMS.md`](../ACTION-ITEMS.md)** as **A65** (the `diet` string), **A66**
+> (sex-specific territory), **A67** (vertical refuge), **A68** (the rhino and the
+> elephant), and **A69** (stotting, settled). Do not add new phases here.
+>
+> **What this file still uniquely holds is provenance**, and it is the reason to
+> open it: each shipped section carries an **"As built"** block recording where
+> that phase's own prediction turned out wrong, sitting *above* the original text,
+> which is kept unedited as "the section as written". Read the two together — the
+> plan was right about shape far more often than about consequence, and `DOCS.md`
+> records the outcomes without the arguments that produced them.
+>
+> ⚠ Source comments and older passages across the repo cite this file by bare name
+> (`PLAN-SPECIES.md §3.12`). Those references were left alone rather than
+> rewritten across ~100 files; the file is here.
+
 # PLAN — Multiple species per animal type
 
 A plan for going from **three species filling three roles** to **several species

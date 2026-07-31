@@ -6,7 +6,10 @@ are repeated in §5. The 2026-07-23 handoff is at
 ranked ideas for the edge/corner congregation problem exist nowhere else, and that
 problem is still open (§7).
 
-**Phases 12, 13 and 14 of [`PLAN-SPECIES.md`](PLAN-SPECIES.md) are done.** Phase 12
+**Phases 12, 13 and 14 of
+[`PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) — retired to `legacy-docs/` on
+2026-07-31, with its implemented work folded into `DOCS.md` and its unimplemented
+work into `ACTION-ITEMS.md` as A65–A69 — are done.** Phase 12
 built the two batch-3 prerequisites — **heterospecific association** (§3.16) and
 **seasonal breeding windows** (§3.11) — and shipped both inert and byte-identical.
 Phase 13 shipped **batch 3: the wildebeest and the zebra**, which declare them.

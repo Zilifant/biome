@@ -37,15 +37,16 @@ stands, not a reading. A dated figure is a record of what was true when it was
 taken — the demo world it was measured in keeps changing underneath these
 numbers, so re-measure rather than inherit.
 
-### Current state (as of 2026-07-28)
+### Current state (as of 2026-07-31)
 
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 104, runner 18 (of 819 repo-wide); 28 in `tests-ui` |
+| Tests               | renderer 101, runner 18 (of 946 repo-wide); 28 in `tests-ui` |
 | Protocol understood | **29** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v29 is drawn or inspectable   |
-| Species scheme      | **all ten roster species have a glyph** (§9), four of them shipped |
+| Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four |
+| Fixtures            | current — v29, all **eight** shipped species including the leopard; ⚠ due on every **roster** change, not only a protocol bump (§10) |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
 | Git                 | uncommitted (the user handles git)                         |
 
@@ -150,13 +151,21 @@ present** (P5).
   offline, and the metrics panel is empty. Closing it means adding an
   `entity.inspection` fixture to `scripts/generateRendererFixtures.js`. More
   annoying now that collapsible sections are the bulk of the panel.
-- **P14 — The `/api/metrics` payload has never been measured against a long
-  roster** _(opened 2026-07-28 with the per-species sections)_. It carries a
-  histogram per trait per species and grows roughly linearly, and the open
-  question from PLAN-SPECIES §7 is whether it eventually needs a **server-side
-  species filter**. Collapsing the panel changed what is *drawn*, not what is
-  *fetched*, so the collapsible work did not touch this. Answerable only once
-  the roster is long — measure at batch 3, not before.
+- **⚠ P14 — The `/api/metrics` payload is 383 KB at eight species, and the
+  species dimension is not what makes it that** _(opened 2026-07-28 with the
+  per-species sections)_. ✅ **Measured 2026-07-30 at batch 3**, which is what this
+  item asked for. The report splits **347 KB of bounded history (91%) against
+  36 KB of current metrics (9%)**, and a species block is ~4.4 KB of which 3.2 KB
+  is eight trait histograms. ⚠ **So the server-side species filter the species plan
+  proposed is the wrong lever**: it attacks the 9%, and the client wants every
+  species' counts for its legend anyway. The payload is
+  `historyLength × species × ~355 bytes` plus `species × ~4.4 KB`, polled every
+  3 s — the history is 120 points of eight trait *means* per species, and its
+  levers are fewer points, fewer traits in `summarizeForHistory`, or a delta
+  encoding. Left open with the diagnosis corrected rather than fixed: on a
+  localhost poll it is not yet a defect, and the roster grows by two more species
+  at most (engine A68). Collapsing the panel changed what is *drawn*, not what is
+  *fetched*, so the collapsible work never touched this.
 
 - **E4 — Keep the three docs current _with_ each change**, not after it —
   `README-RENDERER.md` (what it is), `PLAN-RENDERER.md` (what was planned and
@@ -710,8 +719,10 @@ moment-to-moment condition) stay independent.
 
 ### The roster has glyphs before it has species (2026-07-28)
 
-`SPECIES_APPEARANCE` carries an entry for **all ten** species the engine plans to
-have, not only the three it ships (PLAN-SPECIES §7). Two reasons, and the second
+`SPECIES_APPEARANCE` carries an entry for **all ten** species the engine planned
+to have, which at the time was three shipped and seven imagined. **Eight now
+ship**; the two still unwritten are the rhino and the elephant, and both are
+deferred (engine A68). Two reasons for assigning them all at once, and the second
 is the load-bearing one:
 
 - **The scheme is coherent because it was assigned in one pass.** Glyph by common
@@ -746,6 +757,14 @@ was deleting the two superseded entries: the hyena arrived with a glyph, a
 colour, a legend row, a metrics section, and a restart field, and **not one line
 of renderer code was written for it**. That is what "a species batch is a config
 change" has to mean in practice.
+
+✅ **It then held for four more species and one more rename, which is the claim
+actually tested.** The lion and buffalo (phase 11), the wildebeest and zebra
+(phase 13), and the leopard (phase 14) each arrived with everything above already
+in place; the renderer's total share across those three batches was **deleting the
+stalker's `supersededBy` entry** and regenerating the fixtures. ⚠ The one thing
+that did *not* come for free is the fixtures — see §10, and note that unlike a
+missing glyph, a stale fixture fails nothing.
 
 **The legend is generated, never written.** `describeLegend()` reads the
 appearance registries, so adding a species updates it for free and it cannot drift
@@ -820,6 +839,18 @@ the sections above; collected here as a checklist.
   `SUPPORTED_PROTOCOL_VERSION` is checked on _every_ message, so a bump without
   `npm run fixtures:renderer` leaves fixture mode refusing everything as
   unsupported.
+- ⚠⚠ **So does a change to the demo _roster_, and that half of the rule was
+  unwritten until phase 13.** A fixture is a recording of a world, not only of a
+  message shape — so a species added or renamed without a regeneration leaves
+  fixture mode describing a world the engine no longer runs, and **nothing fails**,
+  because the fixtures still carry the right protocol version. It went unnoticed
+  for three batches: the committed fixtures still held the *batch-1* world (no
+  lion, no buffalo) while the demo shipped eight species, so offline development
+  could not see half of them — including two whose glyphs §9 had assigned in
+  advance precisely so a species batch would need nothing here. ⚠ Expect a UI spec
+  to move with the regeneration: `tests-ui/event-filters.spec.js` assumed the
+  fixtures contain no births or deaths, which stopped being true once eight
+  species and 24% more animals meant something dies inside the warm-up.
 - ⚠ **Verify against a live simulation, not only fixtures.** The committed
   fixtures predate several protocol layers, so `features[].wear` and
   `disturbances[].until` had never been exercised by a renderer test. Running the

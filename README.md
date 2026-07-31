@@ -16,6 +16,11 @@ the evidence and reasoning attached.
 produced the engine: a linear, numbered sequence of 30 steps with dated
 completion notes. **All 30 are done**, so it is now a historical record — read it
 for provenance (why and when a decision was made), not for current state.
+[`legacy-docs/PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) is its successor and
+is retired the same way (2026-07-31): eighteen phases that took the world from
+three species to **eight**, of which fourteen shipped and three were deferred. Its
+"As built" blocks — where each phase's own prediction turned out wrong — are the
+part worth reading; everything it built is described in `DOCS.md`.
 [`HANDOFF.md`](HANDOFF.md) is the current session handoff (open ideas and findings
 not yet built); [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md) is the
 superseded original.
@@ -362,8 +367,9 @@ to make, and a test will fail if you make one.
    raise the count and sweep **10 seeds × 15 000 ticks** against the roster without
    it: `npm run sweep -- --control=…`. Every species batch since phase 7 has done
    this, and three of the four found a real problem that way — see
-   [`PLAN-SPECIES.md`](PLAN-SPECIES.md) §9 for the procedure and what each batch
-   cost.
+   [`DOCS.md`](DOCS.md) §20 for the procedure, and
+   [`legacy-docs/PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) §9–§10 for what
+   each batch cost.
 
 The scavenger is the worked example — a carnivore with an empty `preySpeciesIds`,
 which is an entire trophic level expressed by leaving a field empty.

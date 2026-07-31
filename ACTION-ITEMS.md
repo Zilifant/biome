@@ -186,8 +186,61 @@ they are not re-opened by accident.
   tune density / slow factor / food value and enable. The **static `thicket`
   terrain type is the shipped MVP of this** (blocks sight, shelters,
   passable-but-avoided, placed like rock); the dynamic layer is the
-  growth/grazing/maturity superset. Relates to A18 (spatial refuge) and A3 (the
-  reserved `plant` entity kind — this uses a field, not entities).
+  growth/grazing/maturity superset. Relates to A18 (spatial refuge), A3 (the
+  reserved `plant` entity kind — this uses a field, not entities), and A65 (it is
+  also the browse a forage-source list would need a second source *for*).
+  ⚠ **Two shipped limitations now share this one lever**, which is the strongest
+  argument for it: A57 (a fawn is concealed only if born on cover) and the
+  leopard's ambush ceiling are the same finding from two directions — **cover is
+  3% of the map** — and more of it raises both with no behavioural change at all.
+
+- **⚠ A65 — `diet` is a two-valued string, and it is the last unrepresentable
+  niche axis.** Tested as `=== 'carnivore'`; everything else grazes. So there is
+  no browser, no distinction between grass and woody browse, and no way to say
+  "eats leaves off shrubs, not grass off the ground". The replacement is a
+  **forage-source list** — which sources a species can use, at what relative rate,
+  in what preference order — and it is the one species item that must touch
+  `FeedingSystem` and `DecisionSystem`, still data-driven and still with no
+  species-name branch. It needs **A51's woody layer first**, or there is nothing
+  for the second source to be, and it is what blocks the rhino (A68). ⚠ **The
+  measurement harness is inside the blast radius and is half-guarded**:
+  `foodModelOf()` in `src/scripts/ethologist.js` is the single place the
+  comparison lives and it **throws** on an unrecognised diet, naming the species,
+  so an unmigrated ethologist stops rather than silently reclassifying every
+  carnivore as a herbivore and reporting confidently wrong anomaly counts.
+  Migrating that function is the whole edit and **must land in the same commit**,
+  or the fix is untestable. Omnivory is not part of this — no species in this
+  roster eats plants and meat.
+
+- **A66 — Territory cannot be restricted by sex, life stage, or season.**
+  `territory.defends` is a species-wide boolean, so "bucks hold rut territories
+  that females and juveniles walk straight through" is not expressible — which is
+  why the gazelle ships with `defends: false` and its male competition runs
+  entirely through mate contests instead. The change is widening the field to
+  `false | true | 'male' | 'female'` and reading `entity.sex` in
+  `TerritorySystem`, plus a life-stage and breeding-window restriction. It is what
+  would finally make A35 interesting, and it is a *different* fix from A60, which
+  is about a group holding ground rather than an individual. ⚠ Sex-biased
+  **dispersal** is already built and is not this: `groups.leavingSex` filters the
+  existing dispersal event.
+
+- **A67 — Vertical refuge: trees, climbing, and cached kills.** Deferred, and
+  possibly permanently. A complete leopard rests above lions, caches kills above
+  scavengers, and ambushes from height; expressing it needs an entity elevation
+  dimension threaded through perception, movement, and predation, plus tree
+  entities (A3) and a protocol change. A ground-only leopard is a convincing
+  leopard — one shipped at phase 14 and hunts from cover instead. Revisit only if
+  "cached out of reach" can be one more possession state rather than a new axis.
+
+- **A68 — The species roster stops at eight; the rhino and the elephant are
+  deferred** _(decided 2026-07-30)_. Scope rather than work. The **black rhino**
+  is config-only but gated on A51 — without a woody layer it is a heavy
+  wildebeest. The **elephant may never be built**: it needs A51, matriarchal
+  families on the group registry, a `musthUntil` timed state (defensible — the
+  same shape as `alarmedUntil` — but it must modify *derived* dominance rather
+  than replace it), woody-floor damage, and it has no top-down control on a
+  128×128 map. A config-only elephant would be physiology without ecology, which
+  is worse than no elephant.
 
 - **A35 — Territory is a predator-only phenomenon** at ~9 individuals. Grazers
   get a home range but no site fidelity and no claims.
@@ -248,12 +301,20 @@ they are not re-opened by accident.
   `locomotion.maxOccupantsPerCell` (a headcount rather than a volume — the fix is
   an occupancy *cost*, on a knife edge). Every other candidate audited as scaled
   or correctly flat, with the verdict written into its config comment. Full
-  reasoning in [`DOCS.md`](DOCS.md) §1.4 and `PLAN-SPECIES.md` §4.
+  reasoning in [`DOCS.md`](DOCS.md) §1.4 and
+  [`legacy-docs/PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) §4.
 
-- **`feeding` and `hunting` are species blocks that do not yet vary by species**
-  _(2026-07-28)_. The schema landed ahead of the roster that needs it, exactly as
-  `disease` did at Step 29 (A38). Not a defect; recorded so the blocks are not
-  mistaken for dead weight.
+- **Four species blocks are still inherited unchanged by all eight species**
+  _(2026-07-28, narrowed 2026-07-31)_: `feeding`, `traits`, `genetics`, and
+  `disease`. No species varies what it gets out of a mouthful, how widely its
+  individuals differ, how fast it mutates, or how it takes an infection, so a
+  6 kg vulture and a 600 kg buffalo assimilate at the same declared rate with only
+  the mass scaling between them. That is A38's shape four blocks deep. ⚠ **The
+  other three blocks this item used to name have since been declared**: `hunting`
+  by the lion, `behavior` by five species, `predation` by the three carnivores —
+  so the pattern is "schema ahead of the roster", not dead weight, and it resolves
+  by a species arriving rather than by an engine change. Closing what remains is a
+  config edit apiece behind the [`DOCS.md`](DOCS.md) §20 species gate.
 
 - **B1 — `createDemoSimulation.js` was never renamed to `createEcosystem.js`.**
   Cosmetic; the rename is churn across server, scripts, and tests.
