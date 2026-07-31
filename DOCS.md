@@ -120,6 +120,40 @@ The test now asserts what the fixture genuinely shows and claims **no
 direction** — it has not been papered over. Closing this means _building_ a
 world that demonstrates selection, not tuning the existing one.
 
+**⚠ A64 — A dispersing animal join/leave-flaps its persistent group every other
+tick** _(found 2026-07-31 by the ethologist, on its first run after the
+eight-species recalibration)_
+
+`GroupSystem` releases a disperser in `#leavesAtDispersal` and then `continue`s,
+so it correctly does not rejoin in the same pass. But on the **next** tick that
+animal has `groupRecordId === null`, falls through to `#joinOrFound`, and rejoins
+the very group it is still standing inside — and the tick after that it is still
+dispersing, so it leaves again. The cycle runs for the whole dispersal window.
+`isDispersing` is a **window**, not an event, and nothing records that this
+animal has already walked out.
+
+Measured on the demo world (seed 2): one lion changed membership **901 times in
+2430 adult ticks — one every 2.7 ticks**, against its species'
+`migration.dispersalTicks: 900`, which is the window's exact length. The zebra
+and hyena show the same shape at their own window lengths (one every 4.5 and 5.0
+ticks). Over a 6000-tick demo run it costs **1720 `entity.grouped` + 1679
+`entity.ungrouped` events** across eight surviving groups.
+
+⚠ **The events are the visible half, and `GroupSystem`'s own comment states the
+invariant being broken**: "Membership changes are rare by construction (a group
+is joined once and left once), so these are milestone events rather than a
+per-tick stream" — and the renderer keeps them for as long as it keeps births
+and deaths. ⚠ It also means **`groupsFounded`/`groupsDissolved` in `sweep.js`
+and every group-churn figure taken from these events are inflated**, so any such
+number recorded before this date is suspect.
+
+The obvious fix — refuse to rejoin while `isDispersing` — is a small guard in
+`#joinOrFound`, but it is a **behavioural** change to a mechanism that the
+species plan gated, so it wants the PLAN-SPECIES §9 arm rather than a quiet
+edit: a disperser that stays unattached for its whole window is a different
+animal from one that flaps, and A56 ("a two-member clan flaps") may be the same
+finding seen from the other side.
+
 ### 1.2 Implemented, tested, and near-inert
 
 Real mechanisms that demonstrably almost never fire in the demo. Recorded

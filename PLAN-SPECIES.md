@@ -1459,7 +1459,29 @@ one species overrides each block — rather than the incidental fact that no two
 current species collide. **Phase 0**, alongside the scan fix, because phase 1
 starts adding blocks these tests are supposed to be guarding.
 
-### 5.7 ⏳ STILL OPEN — the measurement harness itself reads `diet === 'carnivore'`
+### 5.7 ⚠ HALF-CLOSED — the measurement harness itself reads `diet === 'carnivore'`
+
+✅ **The silent half is fixed (2026-07-31).** The comparison now lives in exactly
+one function, `foodModelOf()` in `src/scripts/ethologist.js`, which returns
+`{plants, carrion}` and **throws** — naming the species and pointing at this
+section — on any `diet` it does not recognise. It is called once per species at
+run start rather than per death, so an unmigrated ethologist stops before it has
+spent six thousand ticks assembling a wrong report. ⏳ **The migration itself is
+still open** and still belongs to phase 15: when `diet` becomes a forage-source
+list, that function is the whole edit.
+
+⚠ **The harness had a second, worse problem than this one, and nobody was
+looking for it.** The same 2026-07-31 pass found the tool reading
+`entity.lastMoveDistance` at a tick boundary — a scratch field the *metabolism*
+system zeroes after charging for it, and metabolism runs in a later phase than
+movement, so it is **always 0** by the time `engine.step(1)` returns. The tool's
+`pathLength` was therefore always zero (never read, so nobody noticed) and its
+"refused steps" counted every tick an animal held a moving intent: it reported
+**1241 refused steps in a 1500-tick life**. The lesson generalises past this
+file — ⚠ **a tick-boundary observer may only read fields that survive the whole
+tick**, and this engine has several that deliberately do not.
+
+### 5.7 The section as written
 
 `src/scripts/ethologist.js:226` (was :190 when this was written — ⚠ don't trust
 the number, grep for the comparison) does
