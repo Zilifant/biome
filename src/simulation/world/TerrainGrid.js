@@ -63,23 +63,47 @@ export function isPassableCode(code) {
 }
 
 /**
- * Which terrain codes block line of sight, indexed by code. Sight-blocking is a
- * property of its own, *not* the same as impassability: deep water stops
- * movement but you see straight across a lake, and (later) cover could conceal
- * without stopping anything. Only solid rock is opaque today — this array is the
- * single place the next opaque terrain gets added. Reads go through
- * `world.blocksSightAt`, the chokepoint built to fold in non-terrain blockers
- * (a fire's smoke, a future wall) the way `speedModifierAt` folds in
- * disturbances, so nothing was built specific to rock.
+ * How much each terrain code hides what is standing in it, 0 (plain sight) to 1
+ * (invisible), indexed by code.
+ *
+ * ⚠⚠ **This replaced a boolean array on 2026-07-30 (phase 14, PLAN-SPECIES.md
+ * §3.12), and the boolean is now derived from it.** The old comment here said
+ * sight-blocking was "a property of its own… and (later) cover could conceal
+ * without stopping anything" — this is that later. Opacity turns out to be the
+ * *end* of the concealment scale rather than a separate fact, so there is one
+ * table and `blocksSightAt` is `concealment >= 1`. Two things follow, and both
+ * are the reason it is shaped this way:
+ *
+ *   - **The boolean cannot drift from the scale**, because it is built from it
+ *     below rather than written twice.
+ *   - **The raycast keeps its boolean array**, so `hasLineOfSight` — the hottest
+ *     thing that reads any of this — does exactly the array read and branch it
+ *     did before. Grading sight cost the raycast nothing.
+ *
+ * ⚠ **Cover is 0.55, not 1**, and that is the whole mechanism: a stand of low
+ * brush does not stop you seeing *through* it, it stops you picking out the
+ * animal crouched *in* it. Thicket and rock are 1 — you see neither through nor
+ * into them — which is exactly what the booleans said before.
+ *
+ * Reads go through `world.concealmentAt`, the chokepoint built to fold in
+ * non-terrain concealment (a fire's smoke, a future shrub layer) the way
+ * `speedModifierAt` folds in disturbances, so nothing here is specific to brush.
  */
-const SIGHT_BLOCKING_BY_CODE = Object.freeze([
-  false, // ground
-  false, // water — see across a lake
-  true, //  rock — opaque
-  false, // cover — low brush; too short to hide a grazer
-  false, // deep water — see across it
-  true, //  thicket — tall, dense; blocks sight
+const CONCEALMENT_BY_CODE = Object.freeze([
+  0, //    ground — nothing to hide behind
+  0, //    water — a shallow margin hides nothing
+  1, //    rock — opaque
+  0.55, // cover — low brush: it hides a crouching cat, not a standing herd
+  0, //    deep water — see across it
+  1, //    thicket — tall, dense; opaque
 ]);
+
+/**
+ * Which terrain codes block line of sight, indexed by code. **Derived** from the
+ * concealment scale above: total concealment *is* opacity, so the two can never
+ * disagree. Kept as its own boolean array because the raycast reads it per cell.
+ */
+const SIGHT_BLOCKING_BY_CODE = Object.freeze(CONCEALMENT_BY_CODE.map((value) => value >= 1));
 
 /**
  * Whether a terrain code blocks line of sight, for callers that already have the
@@ -218,6 +242,22 @@ export class TerrainGrid {
   blocksSightAt(cellX, cellY) {
     if (!this.#inBounds(cellX, cellY)) return true;
     return SIGHT_BLOCKING_BY_CODE[this.#cells[this.#index(cellX, cellY)]];
+  }
+
+  /**
+   * How well the cell hides an animal standing in it, 0 (plain sight) to 1
+   * (invisible). Out-of-bounds is ROCK, which is 1 — so the world edge conceals
+   * exactly as it blocks sight, with no separate guard.
+   *
+   * ⚠ This is about being *seen in* a cell, not about seeing *through* one. The
+   * two coincide only at 1, which is why `blocksSightAt` is the `>= 1` end of
+   * this scale and not a separate fact (PLAN-SPECIES.md §3.12, phase 14).
+   * @param {number} cellX @param {number} cellY
+   * @returns {number}
+   */
+  concealmentAt(cellX, cellY) {
+    if (!this.#inBounds(cellX, cellY)) return 1;
+    return CONCEALMENT_BY_CODE[this.#cells[this.#index(cellX, cellY)]];
   }
 
   /** Count of cells per code, for tests and metrics. @returns {number[]} */

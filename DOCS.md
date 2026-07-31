@@ -49,14 +49,14 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 927 passing / 0 failing, 236 suites _(2026-07-30)_     |
+| Tests                 | 943 passing / 0 failing, 241 suites _(2026-07-30)_     |
 | `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | **112.83 ms/tick** _(2026-07-30, phase 12, 7774→9305 entities)_ — ⚠ **a dated reading, not a comparison.** Phase 12 measured **flat** interleaved against phase 11 at two scenarios, while HEAD itself read 85–90 ms/tick in those rounds an hour earlier: a single reading on this machine spans ±25%. Nothing earlier than phase 11 is comparable at all — that phase put the lion and buffalo into every scenario (~30% more animals, 100× the mass range). See BENCHMARK.md |
-| Species               | **6** (gazelle, buffalo, stalker, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg** |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eight** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` on 2026-07-30 (§8). The hyena is the first species to *use* `predation` and `groups`; the gazelle the first to use `aging.hiddenUntil`, `forage`, and `habitat`; the **lion** the first to use `hunting.cooperationWeight` and the **buffalo** the first to use `behavior.mobWeight` (2026-07-30). ⚠ **Nothing yet uses `association` or `reproduction.breedingWindow`** — batch 3 is what declares them |
+| Benchmark (large-5k)  | **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
+| Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eight** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` on 2026-07-30 (§8). ⚠ **Every block and field is now used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / **`association`**, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, and the **wildebeest `reproduction.breedingWindow`** (batch 3). The schema has stopped running ahead of the roster |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
-| Git                   | Species phases 0–11 are committed (`c8bfaff phase 11`); **phase 12 is uncommitted** (the user handles git) |
+| Git                   | Species phases 0–11 are committed (`c8bfaff phase 11`); **phases 12, 13 and 14 are uncommitted** (the user handles git) |
 
 The renderer is a fully separate subsystem with its own reference documentation,
 [`src/renderer/DOCS-RENDERER.md`](src/renderer/DOCS-RENDERER.md) (and its own
@@ -273,6 +273,54 @@ registry (§3.8) rather than a tuning change. ⚠ It also sharpens **A35**: terr
 is not merely predator-only, it is *solitary*-only, and the only species that can
 use it as built is one that defends ground against its own kind.
 
+**⚠ A63 — A perception gate is not a predation gate** _(from 2026-07-30, phase 14,
+PLAN-SPECIES.md §3.12)_
+
+Everything one animal knows about another comes through a **single** test in
+`PerceptionSystem`'s neighbour loop: line of sight, and now cover concealment. What
+passes it becomes prey, a threat, a **mate candidate**, a findable guardian, or a
+territorial rival — so a change written for one of those silently applies to all
+five.
+
+Phase 14 walked into it, and the species it broke was the one the change was for.
+A cryptic **solitary** leopard hid from its own kind as effectively as from its
+prey, stopped finding mates, and its population fell **27 → 19** over three seeds
+while the hunting half worked exactly as designed. The symptom is a population
+number; the cause is three subsystems away. Fixed by exempting conspecifics —
+camouflage is against other species, which is also true — and the population came
+back to 26.
+
+⚠ **The hazard has no guard on it.** Anything added to that gate gates reproduction
+too. The lever, if it bites again, is to separate "can I see it" from "can I find
+my own kind"; nothing has needed that yet, and inventing it in advance would be a
+second mechanism to keep in step.
+
+**⚠ A62 — A calendar mechanism meets the compressed lifespan** _(from 2026-07-30,
+phase 13, PLAN-SPECIES.md §3.11)_
+
+Two compressions that are each defensible alone (§5): the year is 8000 ticks so a
+run reaches winter, and lifespans are compressed beside it so every species stays
+measurable in a 15 000-tick sweep. Together they leave a large animal with **about
+one year of adult life** — so a mechanism keyed to the *calendar* rather than to
+the animal's own clock costs a female her whole remaining reproductive life the
+moment she falls out of phase with it.
+
+Measured at the wildebeest's first breeding window (0.30 of the year, which is a
+*wide* rut in life):
+
+| conception window | wildebeest alive at t15000 | mean |
+| --- | --- | ---: |
+| 0.30 of the year | **1/3 seeds** | 0.3 |
+| 0.50 | 3/3 | 6.7 |
+| 0.65 (shipped) | 3/3 | 10.7 |
+| none | 3/3 | 16.7 |
+
+⚠ **The lever is `ticksPerYear`, not the window.** Lengthening the year relative to
+lifespan is what would make a narrow rut affordable — and it re-bases every
+seasonal measurement in the project, which is why it was not done here. The shipped
+window is a seasonal restriction rather than the compressed rut the animal is
+famous for, and that is recorded as the distortion it is.
+
 **⚠ A61 — An association weight only bites in mixed company** _(from 2026-07-30,
 phase 12, PLAN-SPECIES.md §3.16)_
 
@@ -364,7 +412,7 @@ reminder.
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
 | A49 | **"Activity pattern" is not a schema field** — ⚠ half of this item **closed 2026-07-29**                                                                                        | Open, and now only half of what it was: there is still no diurnal cycle for an activity pattern to exist in. **Habitat preference closed** as a per-species `habitat` field consumed by the long-range cue (§9 Migration); it is no longer expressed only through `migration.tracksForage` and the comfort band                                    |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
-| A58 | **Perception reports the _nearest_ food cell, not the best-scoring one** _(from 2026-07-29, phase 9)_                                                                       | Open, and a stated bargain rather than an oversight. Forage preference (§9 Feeding) discounts a cell once the animal is standing on it, but perception still picks the nearest cell with anything on it — so a grazer walks to ordinary grass with a better patch two cells further off. Ranking cells by preference means scoring every candidate instead of only cells nearer than the best so far, in the hottest loop in the engine (D28: one extra _argument_ there cost 12% of a tick). ⚠ **Phase 11 found the same limit on the predator side, and there it was decisive:** perception reports the *nearest eligible prey*, so a lion that listed both gazelle and buffalo spent its life on gazelle (six times more numerous) and engaged a buffalo twice in 4000 ticks — batch 2 with neither of phase 10's mechanisms firing. That was solved by narrowing `preySpeciesIds` rather than by ranking candidates, but it is the same bargain and the same fix would close both. Re-examine at batch 3, when three grazers disagree about what a good cell is |
+| A58 | **Perception reports the _nearest_ food cell, not the best-scoring one** _(from 2026-07-29, phase 9)_                                                                       | Open, and a stated bargain rather than an oversight. Forage preference (§9 Feeding) discounts a cell once the animal is standing on it, but perception still picks the nearest cell with anything on it — so a grazer walks to ordinary grass with a better patch two cells further off. Ranking cells by preference means scoring every candidate instead of only cells nearer than the best so far, in the hottest loop in the engine (D28: one extra _argument_ there cost 12% of a tick). ⚠ **Phase 11 found the same limit on the predator side, and there it was decisive:** perception reports the *nearest eligible prey*, so a lion that listed both gazelle and buffalo spent its life on gazelle (six times more numerous) and engaged a buffalo twice in 4000 ticks — batch 2 with neither of phase 10's mechanisms firing. That was solved by narrowing `preySpeciesIds` rather than by ranking candidates, but it is the same bargain and the same fix would close both. ⚠ **Re-examined at batch 3 (2026-07-30), and it did not bite on the herbivore side.** Three grazers now disagree about what a good cell is, and the preference still moved each of them in its declared direction (gazelle −0.97/−1.64 standing crop against the mechanism off, wildebeest −0.51/−0.62, the two bulk feeders ~0) — because the *discount* does the work once the animal is standing there, and a grazer walks to the nearest grass often enough. It stays open on the predator side, where the lion's list went to three entries and the nearest-eligible rule is what decides which of them it lives on |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge)                                       |
 
 ### 1.4 Structural and configuration debt
@@ -711,6 +759,24 @@ completely and asserting the stream lands in the same state.
 grazer lives about a year and a half, and growth, stage transitions, and age
 death are all observable in a short run.
 
+⚠⚠ **The two compressions are not independent, and their ratio is a modelling
+choice nobody made deliberately.** Each was chosen on its own — the year so a run
+reaches winter, the lifespan so a species is measurable inside a 15 000-tick sweep
+(PLAN-SPECIES §11.6, which gave up life-history *ratios* to keep the *ordering*).
+Together they say something neither was meant to: **a large animal lives about one
+year.** The megafauna are worst affected, because compressing a 20-year lifespan
+and a 1-year cycle by the same factor leaves an animal with one or two breeding
+cycles in its life rather than fifteen.
+
+⚠ **It first cost something real at phase 13.** A wildebeest rut over 0.30 of the
+year — a *wide* rut in life — cost the species 2 seeds in 3, because a female whose
+refractory period ends just after the window closes waits nearly her whole
+remaining adult life for the next one. Nothing about the breeding-window mechanism
+was wrong; the interaction was. The shipped window is 0.65 of the year, and the
+distortion is recorded here rather than tuned around: **any mechanism keyed to the
+calendar rather than to the animal's own clock will meet this**, and the lever, if
+one is ever needed, is `ticksPerYear` rather than the mechanism.
+
 ### Units
 
 | Quantity                  | Unit                                        | Notes                                       |
@@ -1038,16 +1104,37 @@ held by a `SpeciesRegistry` on the world. A lookup in a hot loop is one
 singleton on purpose: resolution depends on the _config_, and every sweep and
 half the test suite runs engines with different configs in one process.
 
-### The six species
+### The eight species
 
-| Species             | Role                  | Mass | Perception radius | Notes                                                                                                      |
-| ------------------- | --------------------- | ---: | ----------------: | ---------------------------------------------------------------------------------------------------------- |
-| `herbivore.gazelle` | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; tracks forage; home range but no territory                               |
-| `herbivore.buffalo` | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
-| `predator.stalker`  | predator, carnivore   |   45 |                12 | Displays **speed**; holds, marks, and disputes ground; born at 8 kg, matures slower, lives to 14 000 ticks |
-| `predator.lion`     | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming; buffalo only |
-| `scavenger.vulture` | obligate scavenger    |    6 |                14 | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty                    |
-| `scavenger.hyena`   | facultative scavenger |   60 |                13 | Hunts gazelle **and** eats carrion; the first species to declare `groups.forms` or a `predation` ratio     |
+| Species                | Role                  | Mass | Perception radius | Notes                                                                                                      |
+| ---------------------- | --------------------- | ---: | ----------------: | ---------------------------------------------------------------------------------------------------------- |
+| `herbivore.gazelle`    | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; short-grass tier; the only species to declare an **`association`**        |
+| `herbivore.wildebeest` | prey, herbivore       |  200 |                 7 | The only species with a **breeding window** — a rut, and a calving season that emerges from it; mid tier   |
+| `herbivore.zebra`      | prey, herbivore       |  300 |                 8 | Coarse-grass tier; the first **prey animal** on the persistent group registry (a band, not a harem)        |
+| `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
+| `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory |
+| `predator.lion`        | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming           |
+| `scavenger.vulture`    | obligate scavenger    |    6 |                14 | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty                    |
+| `scavenger.hyena`      | facultative scavenger |   60 |                13 | Hunts gazelle, and wildebeest **calves** — by a mass ratio written two batches earlier that now binds       |
+
+⚠ **`predator.stalker` became `predator.leopard` on 2026-07-30** (phase 14), which
+is the rename §11.1 predicted from the start: the species' own file had described
+"a solitary ambush predator that holds ground" since Step 16, so the conversion was
+a name catching up with thirteen phases of biology. ⚠ The rename half was proved
+**byte-identical** first — 2.36 MB of state across three seeds with the two id
+strings normalized away — and only then did the mass go 45 → 60 kg and the ambush
+arrive, so the two halves are separately attributable (the discipline phase 7
+established for the grazer and the corvid).
+
+⚠ **The wildebeest and the zebra arrived together on 2026-07-30** (phase 13),
+and like the pair before them they only make sense together: they are a
+*competitive* pair, 200 kg and 300 kg on the same grass, and everything that keeps
+them from being one species is data — the maturity tier they graze
+(`forage.preferredBiomass` 5 against 9), the society they keep (a label against a
+persistent band), and the calendar they breed on (a window against year-round).
+They complete the **three-tier grazing succession** §9 Feeding describes, and they
+are what finally gives the lion a prey base — its `preySpeciesIds` went from one
+entry to three.
 
 ⚠ **The lion and the buffalo arrived together on 2026-07-30** (phase 11) and must
 be read as a pair: each is the only thing that makes the other interesting. A
@@ -1157,11 +1244,50 @@ behind an opaque obstacle is not a prey, a threat, a mate, or a guardian —
 `hasLineOfSight` raycasts the grid (Amanatides–Woo, one step per cell crossed, so
 it scales with the radius not the map) against `world.blocksSightAt`, and a
 blocked target is dropped from the summary. Opacity is its **own** terrain
-property, deliberately not passability: **only rock is opaque today** (deep water
+property, deliberately not passability: **rock and thicket are opaque** (deep water
 is impassable but you see across a lake), and the sight chokepoint is built to
-fold in non-terrain blockers — a fire's smoke, a future wall, cover if it is ever
-made concealing — the way `speedModifierAt` folds in disturbances, so nothing is
-specific to rock. Toggle: `perception.lineOfSight`.
+fold in non-terrain blockers — a fire's smoke, a future wall — the way
+`speedModifierAt` folds in disturbances, so nothing is specific to rock.
+Toggle: `perception.lineOfSight`.
+
+#### Cover concealment, and the ambush _(2026-07-30, phase 14)_
+
+⚠⚠ **Opacity turned out to be the end of a scale rather than a fact of its own.**
+Terrain now carries one concealment value per code — 0 open ground, **0.55 cover**,
+1 rock and thicket — and `blocksSightAt` is *derived* from it as `>= 1`. One table,
+so the boolean cannot drift from the scale; and the raycast keeps the boolean array
+it always read, so **grading sight cost `hasLineOfSight` nothing**. The two
+questions stay distinct and are asked in two places: `blocksSightAt` about the
+cells **between** two animals, `concealmentAt` about the cell a target is standing
+**on**. Low brush answers them differently — you see straight through a stand of it
+and still fail to pick out the cat inside.
+
+A concealed animal is detected only inside a **shortened radius**: at cover's 0.55
+an observer picks it out at 45% of its normal range. It is applied on the same line
+line of sight is, so it gates everything uniformly.
+
+⚠ **Scaled by a per-species `crypsis`, which is 0 by default and 1 for exactly one
+species.** Symmetric concealment was built first and made the leopard *worse* —
+27 → 19 over three seeds — because a mechanism that hides bodies helps whoever
+hides and hurts whoever **searches**, and a predator with twice its prey's sight
+radius is mostly searching. A motionless rosetted cat is hidden; a herd of
+wildebeest in the same brush is a herd of wildebeest.
+
+⚠ **Conspecifics are exempt** — see **A63**. Mate candidates come through this same
+gate, so a cryptic solitary species that hid from itself simply stopped breeding.
+
+⚠⚠ **There is no ambush term anywhere.** No bonus, no new action, nothing in
+`captureChance`. The advantage is emergent from *position*: the leopard weights
+cover 1.6 and the gazelle 0.8, so the cat waits where it cannot be seen and its
+prey grazes where it can. What the detection half needed to be more than a
+curiosity was a **reason to be there** (A34's lever again): `stalk` now steps
+through cover where cover lies toward the prey — a heading rule inside an existing
+action, exactly as `escapeHeading` is. Measured: attempts launched from concealment
+**21 → 34**, and gazelle sightings of a leopard down 24%.
+
+⚠ **Cover still does not shelter prey, so A18 stays open.** Every herbivore's
+crypsis is 0. Raising it changes every predator's living at once and wants its own
+gated phase.
 
 Two deliberate scope limits. It gates **animals and carcasses**, not the
 cell-feature scan — concealment is about who sees whom, and the cell scan is the
@@ -1476,7 +1602,15 @@ loop, in both directions — what I will commit to, and what I need fear.
 `bodyMass` is what the animal weighs *now*, walked up the growth curve, so
 age-structured prey selection falls out of a mass ratio for free: the calf is
 under the ceiling its mother is over, with no life-stage conditional anywhere
-and nothing new stored. ⚠ The test sits **after** `SpeciesRegistry.hunts()`,
+and nothing new stored.
+
+✅ **That became real on 2026-07-30** (batch 3) and it is the best return any
+number in this file has paid. The hyena's `maxPreyMassRatio: 1.0` was written at
+phase 7 with the note that it "bounds nothing today"; batch 3 put a wildebeest on
+its prey list, and because a wildebeest is born at 18 kg and grows to 200, a 60 kg
+hyena is admitted to the calves and refused the mothers. **Hyenas taking wildebeest
+calves** — the textbook case — cost one array entry and no mechanism, two batches
+after the ratio that expresses it was written down. ⚠ The test sits **after** `SpeciesRegistry.hunts()`,
 never inside it — that predicate is the busiest in the engine and its linear
 `includes` was measured rather than assumed (D24), so the species relation stays
 exactly as cheap as it was and the mass comparison only runs on its rare true
@@ -1579,8 +1713,31 @@ and `eat` and `seekFood` are discounted by how far past that a cell has grown.
 That is the niche axis three grazers need to coexist (§2 of `PLAN-SPECIES.md`):
 zebra take the tall coarse sward, wildebeest the regrowth behind them, gazelle the
 short green flush behind _them_, and each tier's grazing creates the next tier's
-habitat. Only the **gazelle** states one today (`preferredBiomass: 3, span: 4`);
-its partners arrive in batch 3.
+habitat.
+
+✅ **All three tiers exist as of 2026-07-30** (phase 13): gazelle 3, wildebeest 5,
+buffalo 8, zebra 9 — and the succession was measured rather than assumed.
+
+⚠⚠ **Measure the *shift* a preference causes, never the biomass an animal is
+standing on.** The raw number reads the succession backwards: the gazelle feeds at
+2.4 standing crop, the wildebeest 1.3, the zebra 1.2, the buffalo 0.6 — perfectly
+inverted, because **a big animal empties a cell in one bite**, so the biomass under
+it measures its own appetite rather than its taste. Against the mechanism switched
+off, on the same seeds, the tiers come out in exactly the declared order:
+
+| species (tier) | feeds on, cue on | cue off | shift |
+| --- | ---: | ---: | ---: |
+| gazelle (3) | 2.29 / 2.52 | 3.26 / 4.16 | **−0.97 / −1.64** |
+| wildebeest (5) | 1.14 / 1.51 | 1.65 / 2.13 | −0.51 / −0.62 |
+| zebra (9) | 0.99 / 1.43 | 0.93 / 1.96 | +0.05 / −0.53 |
+| buffalo (8) | 0.60 / 0.57 | 0.57 / 0.90 | +0.03 / −0.32 |
+
+_(seeds 1 and 42, 3000 ticks)_ The lower the tier, the further the preference moves
+the animal; the two bulk feeders barely move at all, which is what "tolerant of
+nearly everything" means under a one-sided falloff. ⚠ And the **gazelle needed no
+re-tune**, which `PLAN-SPECIES.md` §3.3 predicted it would: three more grazers did
+not shorten the sward enough to move it (it fed at 1.93/2.88 at phase 9 and
+2.29/2.52 now).
 
 ⚠ **Standing crop _is_ maturity, so the mechanism has no storage and not one extra
 grid read.** The biomass field already carried the axis; nobody had read it twice.
@@ -1868,6 +2025,34 @@ ecological result; the identity is the safe failure. And she enters each window 
 **full choosiness**, because the search clock stops while she is not receptive —
 that fell out, it was not built.
 
+⚠⚠ **The wildebeest declares one as of 2026-07-30 (phase 13), and the width had to
+be measured — a real rut is not survivable in this world.** The first draft ran
+conception over 0.30 of the year, which §3.11 had called deliberately wide. It cost
+the species its existence: **1 seed in 3** against 3/3 with the mechanism off. The
+dose–response is clean and it is the phase's sharpest result:
+
+| conception window | wildebeest at t15000 | mean |
+| --- | --- | ---: |
+| 0.30 of the year | **1/3 seeds** | 0.3 |
+| 0.50 | 3/3 | 6.7 |
+| **0.65 (shipped)** | 3/3 | **10.7** |
+| none at all | 3/3 | 16.7 |
+
+**The cause is an interaction between two compressions that are each individually
+defensible** (§5): the year is compressed to 8000 ticks and lifespans are
+compressed alongside it, so a wildebeest's whole adult life is ~7000 ticks — under
+one year. A female whose cooldown ends just after the window closes does not wait
+a season, she waits a *lifetime*. A narrow window therefore does not reduce the
+birth rate, it deletes most of the population's reproductive opportunities
+outright. The shipped window is 0.65 of the year — a seasonal restriction rather
+than the compressed rut the species is famous for, recorded as the honest limit
+rather than dressed up.
+
+⚠ **The switch is global but the *width* is species data**, so an on/off arm is
+`--set=breeding.enabled=false` and a width arm is a file edit. That asymmetry is
+the species-block rule working as intended, and it is worth knowing before trying
+to sweep a width from the command line.
+
 ### Sociality
 
 ⚠ **This section used to open "a herd is a label, not a roster — nothing
@@ -1913,6 +2098,22 @@ membership list. Animals in sight of each other converge on a shared `groupId`
 by local propagation — take the smallest label you can see — so herds form,
 merge on contact, and split apart, all from one grid-local neighbour query per
 animal and without a single structural operation.
+
+⚠⚠ **The label has no behavioural consumer at all, and that was measured rather
+than noticed** (2026-07-30, phase 13). Herding steers at a centroid built from
+*neighbours*; mobbing and collective defense count `adults` from the same
+neighbour summary; the alarm travels by proximity. **Nothing reads `groupId`
+except the metrics, the entity projection, and the propagation that writes it.**
+So the herd label is a **statistic**, not a mechanism — the sociality *behaviours*
+are all proximity-based, and the label is the name this world puts on what they
+produce.
+
+That is why `maxGroupSize` could be doubled (12 → 24) with every one of eight
+species' populations coming back **identical to the digit** over 3 seeds × 15 000
+ticks. It was raised on reporting grounds — at 12 a herd of thirty wildebeest was
+reported as three herds, with 13.7% of label samples sitting at the cap — and it
+stays a bound rather than being removed, because one label must not be able to
+swallow the population.
 
 ⚠ **`minGroupSize` counts groupmates, not members.** At the default of 2 an
 animal needs two *others* in range before it carries a label at all, so the
@@ -1990,11 +2191,14 @@ perception reports the nearest eligible prey (A58), so a predator entering a mix
 aggregation takes what is closest and the odds of that being any one species fall
 as the mixture grows.
 
-⚠ **No shipped species declares an association**, so this is inert by
-construction — `SocialSystem` builds the declaring-species map once per world and,
-when it is empty, its neighbour loop is the loop it has always been. The demo is
-byte-identical with `association.enabled: false`. The wildebeest and zebra of
-batch 3 are what the weights get tuned against.
+✅ **The gazelle declares one as of 2026-07-30** (phase 13) — `wildebeest: 0.5,
+zebra: 0.6` — and it is the only species that does, which is what "directional"
+buys: the big grazers say nothing about the gazelle, and the small animal is the
+one that gains. Measured in the demo, each gazelle has ~0.5 animals of another
+species inside its group radius at any moment, and their alarms reach it. Every
+other species takes the untouched branch, and **a world with no wildebeest and no
+zebra is still byte-identical with `association.enabled: false`** — which is what
+keeps batch 2's numbers comparable across the phase boundary.
 
 ### Persistent groups
 
@@ -2018,9 +2222,19 @@ across three seeds at 1500 ticks to the tree without it, and large-5k was flat.
 It was the schema arriving ahead of the roster, exactly as `disease` did at Step
 29 (A38).
 
-**The hyena (phase 7) is that roster, and the lion (phase 11) joined it.** They
-are the two species that declare `groups.forms` — a clan and a pride, run by one
-set of rules — so the early-out still fires for every other animal, and the demo
+**The hyena (phase 7) is that roster, the lion (phase 11) joined it, and the zebra
+(phase 13) made it three.** ⚠ The zebra is the first **prey animal** on the
+registry, which is what makes the label/record distinction visible between two
+species standing in the same field: a wildebeest herd is a label that reforms
+wherever bodies are, a zebra band is an identity that survives them walking apart.
+⚠ **What shipped is a band, not a harem**, and the difference is stated rather than
+glossed: the registry has one founding rule, so the zebra gets the persistent,
+female-cored, male-dispersing half exactly, and gets none of a resident stallion
+(there is no stored rank in this world at all), bachelor groups, or bands merging
+into a super-herd without losing identity (records never merge, by design).
+Measured at the batch-3 gate: **11 concurrent groups at peak against the batch-2
+world's 6.** The three species run by one set of rules, so the early-out still fires
+for every other animal, and the demo
 now founds real clans and prides — asserted directly in `test/groups.test.js`
 rather than inferred from a population number, because a registry that quietly
 never founded a second clan would pass any survival gate. ⚠ See **A56** for the
@@ -3360,7 +3574,8 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 
 `config` sections in `defaultSimulationConfig.js`: `world`, `time`, `terrain`,
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
-`engineering`, `disturbance`, `migration`, `disease`, `social`, `breeding`,
+`engineering`, `disturbance`, `migration`, `disease`, `social`, `concealment`,
+`breeding`,
 `association`, `groups`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
 `cooperation`, `mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`,
 `parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`,
@@ -3384,6 +3599,14 @@ with that is **not** its own kind, and it is neither a label nor a record: it is
 weight in the species file, read by `SocialSystem` where the herd centre is
 computed. See §9 Sociality, which opens with the design decision the second
 overrode and ends with what the third is allowed to touch.
+
+⚠⚠ **`concealment` and `parenting.concealment` are two different mechanisms with
+one word between them** (2026-07-30), and the systems name them apart so the code
+never has to be read twice: `coverConcealment` is the phase-14 **range discount**
+that applies to every cryptic animal, and `neonatalConcealment` is the phase-8
+**total exemption** for a hiding calf on sheltering ground. The first is graded and
+species-scaled; the second is a boolean. They share the English word because they
+are the same idea at different strengths, and nothing else.
 
 ⚠ **`cooperation`, `mobbing`, `breeding`, and `association` are switches with no
 section of their own to sit in.** Cooperative hunting's weight belongs in

@@ -158,5 +158,23 @@ export const herbivoreGazelle = Object.freeze({
   // is birth-site selection — a female near term wanting cover — which is a
   // preference that changes with state, and this field cannot express one.
   habitat: Object.freeze({ ground: 1.15, cover: 0.8, water: 0.9, thicket: 0.3 }),
+  // ⚠ **Heterospecific association** (§3.16, phase 12), and the first declaration
+  // of it in this world — the mechanism shipped inert one phase ago waiting for
+  // exactly these two species. A gazelle stands with wildebeest and zebra for
+  // three reasons this engine can express: more eyes on the plain (their alarms
+  // now carry to it), more bodies for a lion to choose between (which falls out of
+  // A58 with no term at all), and the short flush the bigger grazers leave behind
+  // it (§3.3 — the succession this batch completes).
+  //
+  // ⚠ **Directional, and only this species declares it.** The wildebeest and zebra
+  // say nothing about the gazelle: the small animal is the one that benefits, and
+  // mutual association would be two declarations rather than one.
+  //
+  // ⚠ The weight is an **exchange rate between bodies** in the herd's centre of
+  // mass — 0.5 means two wildebeest pull like one gazelle — and it does nothing at
+  // all when no gazelle is nearby (DOCS A61). Slightly higher for the zebra, whose
+  // perception radius is the sharpest among the grazers and so is genuinely the
+  // better animal to stand beside.
+  association: Object.freeze({ 'herbivore.wildebeest': 0.5, 'herbivore.zebra': 0.6 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

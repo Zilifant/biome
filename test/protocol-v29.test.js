@@ -143,13 +143,13 @@ describe('protocol v29: the founding roster', () => {
   test('a restarted world really is founded from the roster', () => {
     const engine = createDemoSimulation({
       seed: 11,
-      config: buildDemoConfig({ founding: [{ speciesId: 'predator.stalker', count: 4 }] }),
+      config: buildDemoConfig({ founding: [{ speciesId: 'predator.leopard', count: 4 }] }),
     });
     const living = {};
     for (const entity of engine.world.entities.all()) {
       if (entity.kind === 'animal') living[entity.speciesId] = (living[entity.speciesId] ?? 0) + 1;
     }
-    assert.deepEqual(living, { 'predator.stalker': 4 }, 'only what the roster named');
+    assert.deepEqual(living, { 'predator.leopard': 4 }, 'only what the roster named');
   });
 });
 
@@ -184,7 +184,7 @@ describe('protocol v29: the host publishes its roster', () => {
     });
     const roster = engine.getSpeciesRoster();
     assert.equal(roster.length, engine.species.ids().length);
-    assert.equal(roster.find((e) => e.id === 'predator.stalker').defaultCount, 0);
+    assert.equal(roster.find((e) => e.id === 'predator.leopard').defaultCount, 0);
   });
 
   test('the renderer names a species it has never seen, rather than hiding it', () => {

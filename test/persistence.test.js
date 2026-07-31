@@ -83,8 +83,13 @@ describe('persistence', () => {
     const engine = createDemoSimulation({ seed: 1 });
     const saved = captureSimulationState(engine);
     const victim = saved.entities.entities.find((e) => e.speciesId);
-    victim.speciesId = 'herbivore.wildebeest'; // a plausible future rename
-    assert.throws(() => restoreDemoSimulation(saved), /unknown species: herbivore\.wildebeest/);
+    // ⚠ A species id this build genuinely does not know — and it has to be
+    // re-picked when the roster grows into it. This read `herbivore.wildebeest`
+    // until batch 3 shipped one (2026-07-30), at which point the guard under test
+    // correctly stopped throwing and the test failed for the best possible reason.
+    // `herbivore.rhino` is the next name down PLAN-SPECIES §10.4's list.
+    victim.speciesId = 'herbivore.rhino'; // a plausible future rename
+    assert.throws(() => restoreDemoSimulation(saved), /unknown species: herbivore\.rhino/);
   });
 
   test('a save is a deep copy — mutating it never touches the live engine', () => {

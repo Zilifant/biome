@@ -735,7 +735,9 @@ renamed into. That field is why two entries may share a letter without it being 
 collision — they never coexist in a world — and `renderer-view.test.js` enforces
 both halves: a shared glyph must be a supersession, and a `supersededBy` must name
 an entry that exists. The old entry is **deleted** in the phase that does the
-rename, and the test is the checklist.
+rename, and the test is the checklist. ⚠ **As of 2026-07-30 (phase 14) there are no
+transitional entries left** — the stalker's went when it became the leopard, which
+was the last planned rename. Nothing about the scheme was removed with it.
 
 ⚠ **The scheme paid for itself one phase later, and the evidence is a
 non-event.** Phase 7 (2026-07-29) renamed the grazer to the gazelle and the

@@ -8,7 +8,7 @@
  * ⚠ **These are the raw definitions, not the resolved species.** From Step 29 a
  * species inherits most of its biology from the global config and overrides only
  * what differs (see `schema.js`), so the objects here are *incomplete* — reading
- * `SPECIES['predator.stalker'].metabolism.massScalingExponent` gives undefined.
+ * `SPECIES['predator.leopard'].metabolism.massScalingExponent` gives undefined.
  * Resolution needs the config, which is per-engine, so it happens once at engine
  * construction and the result is hung on the world:
  *
@@ -20,11 +20,13 @@
  * test suite does.
  */
 import { herbivoreGazelle } from './herbivoreGazelle.js';
-import { predatorStalker } from './predatorStalker.js';
+import { predatorLeopard } from './predatorLeopard.js';
 import { scavengerVulture } from './scavengerVulture.js';
 import { scavengerHyena } from './scavengerHyena.js';
 import { herbivoreBuffalo } from './herbivoreBuffalo.js';
 import { predatorLion } from './predatorLion.js';
+import { herbivoreWildebeest } from './herbivoreWildebeest.js';
+import { herbivoreZebra } from './herbivoreZebra.js';
 
 /**
  * The declared roster, in a fixed order. Iteration order is deterministic
@@ -34,8 +36,10 @@ import { predatorLion } from './predatorLion.js';
  */
 export const SPECIES_DEFINITIONS = Object.freeze([
   herbivoreGazelle,
+  herbivoreWildebeest,
+  herbivoreZebra,
   herbivoreBuffalo,
-  predatorStalker,
+  predatorLeopard,
   predatorLion,
   scavengerVulture,
   scavengerHyena,

@@ -147,7 +147,7 @@ describe('runner: restart', () => {
       if (entity.kind === 'animal') counts[entity.speciesId] = (counts[entity.speciesId] ?? 0) + 1;
     }
     assert.equal(counts['herbivore.gazelle'], 40);
-    assert.equal(counts['predator.stalker'], 5);
+    assert.equal(counts['predator.leopard'], 5);
     assert.equal(counts['scavenger.vulture'] ?? 0, 0, 'a zero count clears the role');
   });
 

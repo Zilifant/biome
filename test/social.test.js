@@ -18,7 +18,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
-const STALKER = getSpecies('predator.stalker');
+const STALKER = getSpecies('predator.leopard');
 
 function genomeWith(overrides = {}) {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [overrides[locus] ?? 1, overrides[locus] ?? 1]]));
@@ -834,6 +834,18 @@ describe('social: the shared neighbour walk (Step 30)', () => {
     const engine = demo({ fallback: false });
     engine.step(2);
     assert.equal(engine.world.neighbourhoodTick, engine.tick, 'perception stamps the neighbourhood it built');
+    // ⚠ **Rebuild the neighbourhood before comparing, or this compares two
+    // different instants.** Perception runs in its own phase and everything moves
+    // after it, so the list published during the tick describes where animals
+    // *were* while the grid query below describes where they are now — one
+    // neighbour crossing the radius boundary in between is enough to fail a test
+    // about something else entirely. It went unnoticed until batch 3 put 24% more
+    // animals in the world and made the crossing likely on the first animal at
+    // tick 2 (2026-07-30). Re-running perception on the settled positions puts
+    // both sides of the assertion at the same moment; it consumes no randomness
+    // and writes only the two transient maps it owns.
+    new PerceptionSystem({ ...CONFIG.perception, neonatalConcealment: CONFIG.parenting.concealment })
+      .update(engine.world, { tick: engine.tick });
     const animal = [...engine.world.entities.all()].find((e) => e.kind === 'animal' && e.alive);
     const shared = engine.world.neighbourhood.get(animal.id);
     assert.ok(Array.isArray(shared), 'every living animal gets a neighbour list');

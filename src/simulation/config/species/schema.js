@@ -203,6 +203,14 @@ export class SpeciesRegistry {
    * microbenchmark of the predicate itself. Revisit only with a roster large
    * enough to change the arithmetic, and re-measure when you do.
    *
+   * ✅ **Re-measured 2026-07-30 at batch 3, which is the roster PLAN-SPECIES §7
+   * said would force this**: the lion now lists three prey species and the hyena
+   * two. Same microbenchmark, 20M calls over all 64 species pairs, interleaved
+   * three rounds — `includes` **259/362/360 ms against the `Set`'s 372/368/368**,
+   * winning every round. The arithmetic has not changed: a linear scan of three
+   * strings still beats hashing one, and the answer is "false" often enough that
+   * the empty-array case dominates either way. Left exactly as it was.
+   *
    * @param {string} predatorSpeciesId @param {string} preySpeciesId
    */
   hunts(predatorSpeciesId, preySpeciesId) {

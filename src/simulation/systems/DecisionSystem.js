@@ -68,6 +68,7 @@ import { bestRemembered, isNearDanger, MemoryKinds } from '../memory/memories.js
 import { thermalStress } from '../world/Environment.js';
 import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateChoice.js';
 import { DEFAULT_BREEDING } from '../mating/breeding.js';
+import { DEFAULT_CONCEALMENT, concealedApproach, stalksFromCover } from '../perception/concealment.js';
 import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
@@ -159,7 +160,7 @@ export class DecisionSystem extends SimulationSystem {
     // *not* `aging.hiddenUntil: 0`, because a species block beats the config
     // (DOCS §8) — so the config default cannot switch off a species that declares
     // its own. Held as an instance field so an off world pays nothing at all.
-    concealment = true,
+    neonatalConcealment = true,
     fleeWeight = 2.0,
     herdWeight = 0.5,
     herdDistance = 3.0,
@@ -250,6 +251,11 @@ export class DecisionSystem extends SimulationSystem {
     // overrides, so the switch could not live there (DOCS §8). This system only
     // reads the answer: whether an animal is worth walking to a mate for.
     breedingEnabled = DEFAULT_BREEDING.enabled,
+    // Cover concealment (phase 14, PLAN-SPECIES.md §3.12). This system reads only
+    // the *approach* half — an ambush predator steps through cover on its way to
+    // prey — while perception reads the detection half. One switch, from
+    // `config.concealment`, so an off arm turns off both.
+    coverConcealment = DEFAULT_CONCEALMENT.enabled && DEFAULT_CONCEALMENT.approach,
     minCommitTicks = 8,
     commitTickSpan = 16,
     wanderJitter = 0.5,
@@ -289,7 +295,7 @@ export class DecisionSystem extends SimulationSystem {
     this.tendWeight = tendWeight;
     this.provisionRange = provisionRange;
     this.parentMinEnergyFraction = parentMinEnergyFraction;
-    this.concealment = concealment;
+    this.neonatalConcealment = neonatalConcealment;
     this.fleeWeight = fleeWeight;
     this.herdWeight = herdWeight;
     this.herdDistance = herdDistance;
@@ -344,6 +350,7 @@ export class DecisionSystem extends SimulationSystem {
     this.dangerRadius = dangerRadius;
     this.reproduction = reproduction;
     this.breedingEnabled = breedingEnabled;
+    this.coverConcealment = coverConcealment;
     this.minCommitTicks = minCommitTicks;
     this.commitTickSpan = commitTickSpan;
     this.wanderJitter = wanderJitter;
@@ -480,7 +487,7 @@ export class DecisionSystem extends SimulationSystem {
       // mechanism** — `hiding` switches three existing behaviours off, and the
       // only positive term is staying put. Inert for every species that leaves
       // `aging.hiddenUntil` at 0, which is all of them but the gazelle.
-      const hiding = this.concealment && isHiding(entity, species);
+      const hiding = this.neonatalConcealment && isHiding(entity, species);
       const followPull =
         !hiding && guardian && guardian.distance > this.followDistance
           ? this.#followUtility(guardian, perceived, behavior)
@@ -922,7 +929,7 @@ export class DecisionSystem extends SimulationSystem {
     // it makes the whole method free for every species that says nothing — the
     // same "ask the cheapest disqualifying question first" shape as
     // `GroupSystem`'s no-group-forming-species early-out.
-    if (!this.concealment || hiddenUntilFor(species) <= 0) return null;
+    if (!this.neonatalConcealment || hiddenUntilFor(species) <= 0) return null;
     const offspring = entity.offspring;
     if (!offspring || offspring.length === 0) return null;
     // A parent below its own provisioning floor cannot feed anyone; walking to a
@@ -1038,7 +1045,28 @@ export class DecisionSystem extends SimulationSystem {
         // position.
         const tx = target.x ?? target.cellX + 0.5;
         const ty = target.y ?? target.cellY + 0.5;
-        const heading = Math.atan2(ty - entity.y, tx - entity.x);
+        let heading = Math.atan2(ty - entity.y, tx - entity.x);
+        // ⚠⚠ **The concealed approach** (phase 14, PLAN-SPECIES.md §3.12). An
+        // ambush predator does not walk openly at its prey: it steps through cover
+        // where cover is on the way. Only for a species that declares it wants
+        // cover (`habitat.cover > 1`, which is the leopard and nothing else), only
+        // while stalking, and it falls straight back to the direct bearing when no
+        // sampled step is better hidden — so this is a handful of grid reads on the
+        // rare tick a cat is closing, and exactly nothing for everybody else.
+        //
+        // It is here rather than in `stalk`'s *utility* on purpose: what changes is
+        // which way the animal steps, not whether stalking is worth doing. That
+        // keeps it out of the utility table, which is the rule this project has
+        // paid for more than once (DOCS §9 Decision).
+        //
+        // ⚠ The species is looked up **here** rather than passed in: `#intentFor`
+        // already takes eight arguments, and D28 is this file's own record of what
+        // one more can cost. Inside the branch it is a single `Map.get` on the rare
+        // tick an ambush predator is actually stalking, and nothing at all on every
+        // other action — which is cheaper than a parameter every caller pays for.
+        if (action === 'stalk' && this.coverConcealment && stalksFromCover(world.species.get(entity.speciesId))) {
+          heading = concealedApproach(world, entity, heading, entity.speed);
+        }
         // A desperate animal pushes through a thin thicket band to reach water or
         // food just beyond it (the corner-lake case). Only for the resource-seeking
         // actions, only when the need is real and the resource is a few cells away

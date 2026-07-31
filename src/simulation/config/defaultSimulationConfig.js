@@ -434,7 +434,24 @@ export const defaultSimulationConfig = Object.freeze({
   // seed from an empty world.
   social: Object.freeze({
     groupRadius: 6, // how far conspecifics count each other as groupmates
-    maxGroupSize: 12, // cap, so one label cannot swallow the population
+    // ⚠⚠ **24 since 2026-07-30 (phase 13), and the decision took a measurement
+    // that reframed the question.** PLAN-SPECIES §7 asked "is 12 the wrong cap for
+    // wildebeest?" and deferred it to batch 3. Measured there, `maxGroupSize` 12
+    // against 24 over 3 seeds × 15 000 ticks left every one of the eight species'
+    // populations **identical to the digit** — because the herd label has *no
+    // behavioural consumer at all*. Herding steers at a centroid built from
+    // neighbours, mobbing and collective defense count `adults` from the same
+    // neighbour summary, and the alarm travels by proximity: none of them reads
+    // `groupId`. The label is a **statistic and a projection** (metrics' herd-size
+    // distribution, the entity inspector), so this cap decides what a herd is
+    // *reported* to be and nothing else.
+    //
+    // So it was raised on reporting grounds rather than tuned: at 12 a herd of
+    // thirty wildebeest was reported as three herds, and 13.7% of label samples
+    // sat at the cap (measured 2026-07-30, 3000 ticks × 2 seeds). It is still a
+    // bound rather than a licence — one label must not be able to swallow the
+    // population — which is why it is 24 and not removed.
+    maxGroupSize: 24,
     // Hops a label survives from its root. Not a size limit — it is what lets a
     // herd *split*: plain min-id propagation only moves labels downward, so the
     // half of a torn herd without the root would keep the old label forever.
@@ -453,6 +470,43 @@ export const defaultSimulationConfig = Object.freeze({
     // first cut left 106 of 119 grazers permanently fleeing. At 2 hops the wave
     // reaches ~3 herd-radii from the sighting and then dies.
     maxAlarmHops: 2,
+  }),
+  // Cover concealment (see perception/concealment.js). PLAN-SPECIES.md §3.12,
+  // phase 14 — the mechanism the leopard is built on, and DOCS A18's answer.
+  //
+  // ⚠⚠ **Not the same thing as `parenting.concealment`**, and the two are worth
+  // separating in your head before reading either. That one is *neonatal*
+  // concealment: a total exemption, a hiding calf on sheltering ground is not
+  // reported as prey at all. This one is a **range discount** that applies to
+  // every animal in the world: standing in brush, you are picked out at 45% of
+  // the distance you would be in the open. The systems call them
+  // `neonatalConcealment` and `coverConcealment` so the code never has to be
+  // read twice to tell which is which.
+  //
+  // ⚠ **No per-species half at all**, which is why this section holds a bare
+  // switch rather than following the field-beside-a-section shape: how well brush
+  // hides a body is a fact about the brush, not about the animal. The
+  // per-*terrain* values are terrain data and live in `TerrainGrid`. What makes
+  // this a leopard mechanism rather than a global nerf is that species *choose*
+  // where to stand (`habitat`), and the leopard is the only one that chooses cover.
+  concealment: Object.freeze({
+    // False restores the phase-13 world exactly: no cell is read, no range is
+    // discounted, and sight is binary again. The measured control.
+    enabled: true,
+    // How much of the terrain's concealment applies, 0–1. A dial on the mechanism
+    // rather than on any one terrain — the terrain table is a physical statement
+    // and this is the tuning layer on top of it. 1 takes cover's 0.55 at face
+    // value; 0 is the same world as `enabled: false` but still pays the lookup,
+    // which is why the switch exists as well.
+    strength: 1,
+    // ⚠ **The second half, on its own switch** — the lesson phase 11 paid for and
+    // phase 12 applied in advance: two mechanisms shipped together confound each
+    // other's measurement, so the cells are separable before anyone needs them to
+    // be. `enabled` is the *detection* half (a concealed animal is picked out at
+    // shorter range); this is the *approach* half (an ambush predator steps
+    // through cover on its way to prey, rather than walking straight at it).
+    // False keeps the discount and takes away the stalk's detour.
+    approach: true,
   }),
   // Seasonal breeding windows (see mating/breeding.js). PLAN-SPECIES.md §3.11,
   // phase 12.
@@ -1363,7 +1417,7 @@ export const defaultSimulationConfig = Object.freeze({
     // difference here, so re-measure on ten before changing any of them.
     founding: Object.freeze([
       Object.freeze({ speciesId: 'herbivore.gazelle', count: 120 }),
-      Object.freeze({ speciesId: 'predator.stalker', count: 8 }),
+      Object.freeze({ speciesId: 'predator.leopard', count: 8 }),
       // An obligate scavenger, added in Step 29 with no engine changes
       // whatsoever — a carnivore that declares no prey, so it can only eat what
       // is already dead. Small, because carrion is a thin and unreliable living.
@@ -1395,6 +1449,17 @@ export const defaultSimulationConfig = Object.freeze({
       // seeds, modulo the roster literal itself) before either was raised.
       Object.freeze({ speciesId: 'herbivore.buffalo', count: 35 }),
       Object.freeze({ speciesId: 'predator.lion', count: 8 }),
+      // Batch 3 (PLAN-SPECIES.md phase 13): the competitive pair that completes
+      // the three-tier grazing succession, and the batch that finally gives the
+      // lion a prey base.
+      //
+      // ⚠ **Herbivore intake is mass-scaled, so a count is not a headcount.** A
+      // 200 kg wildebeest eats 4.15× a gazelle and a 300 kg zebra 5.62×, so these
+      // two cohorts are worth ~211 gazelle against the existing roster's ~452 —
+      // adding a third again to the demand on one grass field. That, not the
+      // animal count, is why the numbers are small.
+      Object.freeze({ speciesId: 'herbivore.wildebeest', count: 30 }),
+      Object.freeze({ speciesId: 'herbivore.zebra', count: 15 }),
     ]),
   }),
 });

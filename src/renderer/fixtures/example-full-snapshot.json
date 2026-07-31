@@ -3,7 +3,7 @@
   "kind": "snapshot.full",
   "simulationId": "demo-42",
   "tick": 10,
-  "lastEventSeq": 1521,
+  "lastEventSeq": 2481,
   "world": {
     "width": 128,
     "height": 128
@@ -13,11 +13,11 @@
       "id": 1,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 125.38975144464588,
-      "y": 97.62264671549939,
-      "heading": 1.4630874954211652,
+      "x": 118.78831358261479,
+      "y": 97.92879906878323,
+      "heading": 5.449270103967837,
       "age": 255,
-      "energyFraction": 0.7699147303945939,
+      "energyFraction": 0.6536182433713802,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 10.624780380485578,
       "healthFraction": 1,
@@ -26,7 +26,7 @@
       "groupId": 1,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -34,11 +34,11 @@
       "id": 2,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 55.393371563933066,
-      "y": 99.64022050503573,
-      "heading": 3.3879938767326254,
+      "x": 66.11577694309888,
+      "y": 109.24065452749585,
+      "heading": 0.650902680191594,
       "age": 1112,
-      "energyFraction": 0.8673866041396313,
+      "energyFraction": 0.6984369969762244,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.01181131901685,
       "healthFraction": 1,
@@ -47,7 +47,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -55,9 +55,9 @@
       "id": 3,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 20.135329320599777,
-      "y": 95.86988361724448,
-      "heading": 1.323716881863815,
+      "x": 18.973903373972888,
+      "y": 96.01918156372437,
+      "heading": 1.8316846222151533,
       "age": 1257,
       "energyFraction": 0.8399142456996571,
       "hydrationFraction": 0.9965000000000004,
@@ -74,34 +74,34 @@
     },
     {
       "id": 4,
-      "kind": "animal",
+      "kind": "carcass",
       "speciesId": "herbivore.gazelle",
-      "x": 108.37454110424588,
-      "y": 53.259892347481525,
-      "heading": 5.102895431527671,
-      "age": 248,
-      "energyFraction": 0.9630185694971313,
-      "hydrationFraction": 0.9965000000000004,
-      "bodyMass": 11.84121252353862,
-      "healthFraction": 1,
+      "x": 107.92968693195765,
+      "y": 47.626302216707046,
+      "heading": 4.654297432633795,
+      "age": 247,
+      "energyFraction": 0.9617433099492015,
+      "hydrationFraction": 0.9968500000000003,
+      "bodyMass": 11.813626989169512,
+      "healthFraction": 0.9070157470877537,
       "lifeStage": "juvenile",
       "sex": "male",
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
-      "alive": true,
+      "action": "flee",
+      "alive": false,
       "decayStage": 0
     },
     {
       "id": 5,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 48.6291770961014,
-      "y": 6.171624752882367,
-      "heading": 3.444091243538837,
+      "x": 48.679565757513046,
+      "y": 7.012742400169373,
+      "heading": 0.6020529820603482,
       "age": 526,
-      "energyFraction": 0.7681643773732741,
+      "energyFraction": 0.670006846975453,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 17.76965100241243,
       "healthFraction": 1,
@@ -110,7 +110,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -118,9 +118,9 @@
       "id": 6,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 6.361756213715106,
-      "y": 47.77756263651356,
-      "heading": 3.383675754747888,
+      "x": 1.704801343872457,
+      "y": 52.946778664182844,
+      "heading": 0.9971572541183225,
       "age": 1429,
       "energyFraction": 0.9306890984172739,
       "hydrationFraction": 0.9965000000000004,
@@ -139,11 +139,11 @@
       "id": 7,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 92.79895941548722,
-      "y": 44.83401943050091,
-      "heading": 0.23924184098889612,
+      "x": 91.84394057041057,
+      "y": 37.94196611910905,
+      "heading": 5.13290261955247,
       "age": 1057,
-      "energyFraction": 0.7918959316770342,
+      "energyFraction": 0.6934286525602161,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 26.52235990469344,
       "healthFraction": 1,
@@ -152,7 +152,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -160,11 +160,11 @@
       "id": 8,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 31.649643619174274,
-      "y": 103.82565199649005,
-      "heading": 5.745638619739143,
+      "x": 34.650154677832425,
+      "y": 106.28087229630138,
+      "heading": 0.8651646126804726,
       "age": 388,
-      "energyFraction": 0.8861109389709143,
+      "energyFraction": 0.8862791216364811,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 14.391586795362365,
       "healthFraction": 1,
@@ -173,7 +173,7 @@
       "groupId": 8,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -181,17 +181,17 @@
       "id": 9,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 122.12239431720421,
-      "y": 97.66742179264779,
-      "heading": 4.71238898038469,
+      "x": 117.35901893693821,
+      "y": 116.2949651658579,
+      "heading": 1.9343222600441567,
       "age": 763,
-      "energyFraction": 0.9140096566421236,
+      "energyFraction": 0.9144738526341973,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.0048219231745,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 1,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -202,9 +202,9 @@
       "id": 10,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 72.5941142098147,
-      "y": 125.60170742529775,
-      "heading": 4.908960527652733,
+      "x": 71.42822775418824,
+      "y": 123.27211790985955,
+      "heading": 1.942984664180706,
       "age": 1414,
       "energyFraction": 0.8377928960366333,
       "hydrationFraction": 0.9965000000000004,
@@ -215,7 +215,7 @@
       "groupId": 10,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -223,11 +223,11 @@
       "id": 11,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 84.50555346465875,
-      "y": 74.56295897175353,
-      "heading": 5.026857383334983,
+      "x": 86.909815212868,
+      "y": 78.94252176224413,
+      "heading": 5.754543579839041,
       "age": 659,
-      "energyFraction": 0.802041534104914,
+      "energyFraction": 0.802186243860102,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 20.568429566233537,
       "healthFraction": 1,
@@ -244,9 +244,9 @@
       "id": 12,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 85.9190155514547,
-      "y": 11.600423898763932,
-      "heading": 1.6940302795702449,
+      "x": 86.27392905615257,
+      "y": 11.640634775534242,
+      "heading": 6.115925712089712,
       "age": 1127,
       "energyFraction": 0.6765870083729314,
       "hydrationFraction": 0.9965000000000004,
@@ -254,7 +254,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": null,
+      "groupId": 12,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "seekMate",
@@ -265,11 +265,11 @@
       "id": 13,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 92.37546997749736,
-      "y": 54.33194899217362,
-      "heading": 3.0653839422459903,
+      "x": 94.42892318343532,
+      "y": 53.40131020874923,
+      "heading": 0.9043851356453185,
       "age": 1104,
-      "energyFraction": 0.7846817002293744,
+      "energyFraction": 0.8136971000583655,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 30.23650855233427,
       "healthFraction": 1,
@@ -278,7 +278,7 @@
       "groupId": 13,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -286,17 +286,17 @@
       "id": 14,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 19.999071933155573,
-      "y": 120.62657360479389,
-      "heading": 1.4723819785580385,
+      "x": 23.039436712218222,
+      "y": 123.90656274633483,
+      "heading": 0.34745767883410217,
       "age": 725,
-      "energyFraction": 0.8036066495819789,
+      "energyFraction": 0.7178450365799617,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.898113830172804,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": 14,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -307,11 +307,11 @@
       "id": 15,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 123.9214421296714,
-      "y": 16.986677516174286,
-      "heading": 3.059944549815505,
+      "x": 125.09305319842045,
+      "y": 16.910611644592173,
+      "heading": 5.938358241759636,
       "age": 269,
-      "energyFraction": 0.7190100686457588,
+      "energyFraction": 0.7045955143328793,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 11.799177274020249,
       "healthFraction": 1,
@@ -320,7 +320,7 @@
       "groupId": 15,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -328,17 +328,17 @@
       "id": 16,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 125.24579784787645,
-      "y": 121.96224843469285,
-      "heading": 1.5707963267948966,
+      "x": 122.41448515919049,
+      "y": 122.48609693385725,
+      "heading": 2.4362262911463084,
       "age": 1240,
-      "energyFraction": 0.7477892430375622,
+      "energyFraction": 0.7559922572688541,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.93680102622602,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": 16,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -349,9 +349,9 @@
       "id": 17,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 2.976665556372052,
-      "y": 113.45275695245188,
-      "heading": 5.9487758868875895,
+      "x": 1.429563634768824,
+      "y": 111.82568620739356,
+      "heading": 3.226453699313142,
       "age": 254,
       "energyFraction": 0.9355276498552898,
       "hydrationFraction": 0.9965000000000004,
@@ -370,11 +370,11 @@
       "id": 18,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 121.34806725540264,
-      "y": 81.66059099662442,
-      "heading": 1.4499476205133321,
+      "x": 115.92522059116317,
+      "y": 71.75134593790038,
+      "heading": 4.002956431403685,
       "age": 1350,
-      "energyFraction": 0.8507141704368323,
+      "energyFraction": 0.8504343481493442,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.22676840343047,
       "healthFraction": 1,
@@ -383,7 +383,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -391,11 +391,11 @@
       "id": 19,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 34.2295938699207,
-      "y": 79.62097669853298,
-      "heading": 4.840668975263531,
+      "x": 36.56515606106701,
+      "y": 80.69291788077747,
+      "heading": 6.197678589483366,
       "age": 898,
-      "energyFraction": 0.8506334586264068,
+      "energyFraction": 0.8508606724193828,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 26.027517271554842,
       "healthFraction": 1,
@@ -412,9 +412,9 @@
       "id": 20,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 16.47875503035091,
-      "y": 81.56624693716971,
-      "heading": 2.3310874689456114,
+      "x": 17.791293818680067,
+      "y": 82.50762036775431,
+      "heading": 2.3085028381871098,
       "age": 1190,
       "energyFraction": 0.9647795410059871,
       "hydrationFraction": 0.9965000000000004,
@@ -433,17 +433,17 @@
       "id": 21,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 86.16871668540483,
-      "y": 9.584455011409439,
-      "heading": 4.835622933160037,
+      "x": 85.5705903958471,
+      "y": 11.759384356293673,
+      "heading": 2.9743330584999192,
       "age": 1183,
-      "energyFraction": 0.810568387954724,
+      "energyFraction": 0.8087564839016842,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 30.492258319328542,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 12,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "seekMate",
@@ -454,11 +454,11 @@
       "id": 22,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 56.61960295111083,
-      "y": 50.481536684501684,
-      "heading": 3.0765198710124455,
+      "x": 56.96681404752173,
+      "y": 51.08678225574496,
+      "heading": 4.376952406583037,
       "age": 928,
-      "energyFraction": 0.8936053327252883,
+      "energyFraction": 0.8935647229980154,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 24.802010659416766,
       "healthFraction": 1,
@@ -467,7 +467,7 @@
       "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -475,20 +475,20 @@
       "id": 23,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 81.69272951046831,
-      "y": 64.42303016562272,
-      "heading": 2.2081982130047852,
+      "x": 80.07177810617571,
+      "y": 65.88892060034351,
+      "heading": 2.6979909437347978,
       "age": 1441,
-      "energyFraction": 0.8891669936904407,
+      "energyFraction": 0.8096175892740841,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 30.02795453304425,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 23,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "rest",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -496,11 +496,11 @@
       "id": 24,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 11.179445332630802,
-      "y": 82.54090523997043,
-      "heading": 0.9242525440854666,
+      "x": 12.330971699699463,
+      "y": 79.28850977278294,
+      "heading": 5.057053947166866,
       "age": 617,
-      "energyFraction": 0.8772979080347093,
+      "energyFraction": 0.857903864779112,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 20.102071703255245,
       "healthFraction": 1,
@@ -517,11 +517,11 @@
       "id": 25,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 107.90928462803191,
-      "y": 27.38548938448857,
-      "heading": 0.8102140260605939,
+      "x": 102.19940800472804,
+      "y": 26.343110892114694,
+      "heading": 3.1448117142747822,
       "age": 561,
-      "energyFraction": 0.8691292307554128,
+      "energyFraction": 0.8138423840072381,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 20.03434155847698,
       "healthFraction": 1,
@@ -538,11 +538,11 @@
       "id": 26,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 15.180217967064312,
-      "y": 122.70012588263963,
-      "heading": 3.141592653589793,
+      "x": 22.778817917980668,
+      "y": 123.13456486571744,
+      "heading": 2.2796178223896284,
       "age": 1275,
-      "energyFraction": 0.8305818705731549,
+      "energyFraction": 0.7440138147108318,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.396893036924304,
       "healthFraction": 1,
@@ -559,11 +559,11 @@
       "id": 27,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 32.37562948552525,
-      "y": 55.674514739249915,
-      "heading": 4.319844439068729,
+      "x": 32.61363852563959,
+      "y": 56.35065676947192,
+      "heading": 4.1858606063426365,
       "age": 665,
-      "energyFraction": 0.6149950103252528,
+      "energyFraction": 0.6150587309301363,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 20.8144611930094,
       "healthFraction": 1,
@@ -580,11 +580,11 @@
       "id": 28,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 19.564945462649813,
-      "y": 95.12842479107881,
-      "heading": 2.078152696978481,
+      "x": 20.17626587631344,
+      "y": 94.09134078279968,
+      "heading": 4.164386107428203,
       "age": 19,
-      "energyFraction": 0.7910787422010909,
+      "energyFraction": 0.8011179939931022,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 5.499077836296684,
       "healthFraction": 1,
@@ -601,17 +601,17 @@
       "id": 29,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 65.29832459591442,
-      "y": 41.778145882301104,
-      "heading": 2.2015290123258078,
+      "x": 66.88190442747654,
+      "y": 44.612091847289555,
+      "heading": 1.9377802110895732,
       "age": 705,
-      "energyFraction": 0.8320783203461372,
+      "energyFraction": 0.8149813100571328,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 23.617486776863338,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 29,
+      "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "eat",
@@ -622,9 +622,9 @@
       "id": 30,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 0.7814696580969387,
-      "y": 16.483408265412734,
-      "heading": 0.9444266503487473,
+      "x": 0.7795810070334095,
+      "y": 16.484771980556616,
+      "heading": 0.9464121177306142,
       "age": 810,
       "energyFraction": 0.9849909368475801,
       "hydrationFraction": 0.9965000000000004,
@@ -643,20 +643,20 @@
       "id": 31,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 9.367964153221111,
-      "y": 56.197630073187796,
-      "heading": 4.277311889794248,
+      "x": 8.47971765347309,
+      "y": 57.311966069122306,
+      "heading": 0.39727386333176984,
       "age": 1236,
-      "energyFraction": 0.8348744730154724,
+      "energyFraction": 0.8162964542745825,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.906034171790814,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 31,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "seekMate",
       "alive": true,
       "decayStage": 0
     },
@@ -664,20 +664,20 @@
       "id": 32,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 71.69119209973746,
-      "y": 124.18793037490231,
-      "heading": 5.0402994362465385,
+      "x": 72.00254686922614,
+      "y": 124.94000145911915,
+      "heading": 4.661767168854909,
       "age": 769,
-      "energyFraction": 0.8040958902414502,
+      "energyFraction": 0.8327274835893883,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 23.172681205926533,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": 10,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -685,11 +685,11 @@
       "id": 33,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 6.771131758715857,
-      "y": 99.43236382776045,
-      "heading": 4.737759620240283,
+      "x": 10.82844934389573,
+      "y": 95.59284371839647,
+      "heading": 5.665506032569539,
       "age": 861,
-      "energyFraction": 0.9134541571824484,
+      "energyFraction": 0.9136489343739062,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 27.424905153610325,
       "healthFraction": 1,
@@ -698,7 +698,7 @@
       "groupId": 33,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -706,11 +706,11 @@
       "id": 34,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 32.96631742579232,
-      "y": 5.705004820682536,
+      "x": 37.02589296475357,
+      "y": 4.696868054856239,
       "heading": 0,
       "age": 938,
-      "energyFraction": 0.8005053914362125,
+      "energyFraction": 0.7653769221244973,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 25.6334485434792,
       "healthFraction": 1,
@@ -727,9 +727,9 @@
       "id": 35,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 48.64600078502864,
-      "y": 74.72584590548846,
-      "heading": 1.4917064970291243,
+      "x": 48.58446326451918,
+      "y": 74.72724774149785,
+      "heading": 1.6796660146720424,
       "age": 1390,
       "energyFraction": 0.6667593941390223,
       "hydrationFraction": 0.9965000000000004,
@@ -740,7 +740,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "leaveThicket",
       "alive": true,
       "decayStage": 0
     },
@@ -748,17 +748,17 @@
       "id": 36,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 16.825689040483585,
-      "y": 30.459764409466516,
-      "heading": 3.7741055626142526,
+      "x": 26.752165180935474,
+      "y": 37.153837878845,
+      "heading": 4.677446714876436,
       "age": 695,
-      "energyFraction": 0.8779134958487917,
+      "energyFraction": 0.8779370420292587,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 21.585756651760544,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": null,
+      "groupId": 36,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
@@ -769,11 +769,11 @@
       "id": 37,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 13.375336587429047,
-      "y": 0.5801557898521423,
-      "heading": 4.1847770567159985,
+      "x": 10.337737184272289,
+      "y": 2.7109921738775706,
+      "heading": 3.141592653589793,
       "age": 67,
-      "energyFraction": 0.8409980853330782,
+      "energyFraction": 0.8070866142601563,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 6.416328867821395,
       "healthFraction": 1,
@@ -782,7 +782,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -790,11 +790,11 @@
       "id": 38,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 12.8756475567581,
-      "y": 44.13692408163889,
-      "heading": 0.8735489982940692,
+      "x": 6.6656084325858656,
+      "y": 35.61211207042984,
+      "heading": 2.744848559284847,
       "age": 1208,
-      "energyFraction": 0.8318197290578414,
+      "energyFraction": 0.8405722483253755,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.75022204418201,
       "healthFraction": 1,
@@ -811,11 +811,11 @@
       "id": 39,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 27.98974462547813,
-      "y": 49.60976026421506,
-      "heading": 0.616320901679409,
+      "x": 25.70448537483541,
+      "y": 47.368240469502254,
+      "heading": 3.0286493021573264,
       "age": 739,
-      "energyFraction": 0.8636463957652629,
+      "energyFraction": 0.8259035401520979,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 23.027376098400936,
       "healthFraction": 1,
@@ -824,7 +824,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -832,9 +832,9 @@
       "id": 40,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 69.84843814829142,
-      "y": 110.38866439855508,
-      "heading": 2.8958422779829114,
+      "x": 73.63998707514068,
+      "y": 109.11463654657452,
+      "heading": 4.501953386562214,
       "age": 23,
       "energyFraction": 0.9256469206412019,
       "hydrationFraction": 0.9965000000000004,
@@ -853,11 +853,11 @@
       "id": 41,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 72.42901632559477,
-      "y": 122.24910181706925,
-      "heading": 1.5345852378164473,
+      "x": 73.73227697310575,
+      "y": 118.24526372048481,
+      "heading": 1.8358962077248009,
       "age": 938,
-      "energyFraction": 0.8179193044984961,
+      "energyFraction": 0.8749340627556316,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.59282285432587,
       "healthFraction": 1,
@@ -866,7 +866,7 @@
       "groupId": 10,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -874,9 +874,9 @@
       "id": 42,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 38.13109731406823,
-      "y": 11.759275448311952,
-      "heading": 2.7153124120568677,
+      "x": 38.17197667213083,
+      "y": 11.773914471985005,
+      "heading": 2.731898409506451,
       "age": 75,
       "energyFraction": 0.9960850453731867,
       "hydrationFraction": 0.9965000000000004,
@@ -895,11 +895,11 @@
       "id": 43,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 9.293358850274613,
-      "y": 84.27447986056663,
-      "heading": 2.019464861604412,
+      "x": 3.3890517190358453,
+      "y": 83.56322259278579,
+      "heading": 4.034953817064842,
       "age": 1495,
-      "energyFraction": 0.907374192182255,
+      "energyFraction": 0.9077022686172767,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 31.355549413547855,
       "healthFraction": 1,
@@ -916,17 +916,17 @@
       "id": 44,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 32.016094491741036,
-      "y": 43.83009853050352,
-      "heading": 2.397262225113444,
+      "x": 32.16555342179443,
+      "y": 43.98845419911206,
+      "heading": 2.3867498442801,
       "age": 418,
-      "energyFraction": 0.8689075369334569,
+      "energyFraction": 0.8689072627020468,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 16.651233260202595,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": 44,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -937,17 +937,17 @@
       "id": 45,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 32.00375986809522,
-      "y": 39.306277660109735,
-      "heading": 0.030728361889018174,
+      "x": 26.63060050830371,
+      "y": 41.667130616070835,
+      "heading": 2.5091710939661276,
       "age": 735,
-      "energyFraction": 0.9428778822615866,
+      "energyFraction": 0.9426758901911648,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.720650088427238,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 44,
+      "groupId": 36,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
@@ -958,11 +958,11 @@
       "id": 46,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 73.07956704191687,
-      "y": 108.559722460653,
-      "heading": 0.4574767021866287,
+      "x": 73.3754986414204,
+      "y": 109.19181998967834,
+      "heading": 1.404386327357848,
       "age": 163,
-      "energyFraction": 0.8455459965740854,
+      "energyFraction": 0.8308020538476261,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 9.104035567747825,
       "healthFraction": 1,
@@ -979,9 +979,9 @@
       "id": 47,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 8.298086350360737,
-      "y": 48.83673443967861,
-      "heading": 4.736133277248769,
+      "x": 0.5901448397505331,
+      "y": 53.82402803489979,
+      "heading": 1.8778507943230842,
       "age": 71,
       "energyFraction": 0.9762827714792794,
       "hydrationFraction": 0.9965000000000004,
@@ -1000,9 +1000,9 @@
       "id": 48,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 9.31790911150893,
-      "y": 56.0899339594663,
-      "heading": 4.277311889794249,
+      "x": 6.443496678765827,
+      "y": 56.45760141596524,
+      "heading": 3.5388665169215625,
       "age": 1402,
       "energyFraction": 0.7293623461947305,
       "hydrationFraction": 0.9965000000000004,
@@ -1010,7 +1010,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": null,
+      "groupId": 31,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "seekMate",
@@ -1021,9 +1021,9 @@
       "id": 49,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 51.45279375676974,
-      "y": 79.60998711705142,
-      "heading": 5.13377309354831,
+      "x": 48.98193478886196,
+      "y": 78.57450732626063,
+      "heading": 4.6156020093196926,
       "age": 925,
       "energyFraction": 0.8586630112366999,
       "hydrationFraction": 0.9965000000000004,
@@ -1034,7 +1034,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1042,11 +1042,11 @@
       "id": 50,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 39.60417966294354,
-      "y": 60.40536629093972,
-      "heading": 4.830582469732033,
+      "x": 39.44568147169131,
+      "y": 60.67881170047823,
+      "heading": 4.765380389024505,
       "age": 917,
-      "energyFraction": 0.6976390857664292,
+      "energyFraction": 0.69765122502245,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 24.84899452694813,
       "healthFraction": 1,
@@ -1063,11 +1063,11 @@
       "id": 51,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 5.577819665146719,
-      "y": 21.247961179895757,
-      "heading": 1.0901343972847402,
+      "x": 4.174392671420707,
+      "y": 20.89660434703257,
+      "heading": 2.355987667383811,
       "age": 246,
-      "energyFraction": 0.9355913682117418,
+      "energyFraction": 0.9353671331893118,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 10.635937440870748,
       "healthFraction": 1,
@@ -1084,11 +1084,11 @@
       "id": 52,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 86.79812007648695,
-      "y": 124.04535415972782,
-      "heading": 3.141592653589793,
+      "x": 100.16929313154125,
+      "y": 125.13280604291987,
+      "heading": 2.70505738977446,
       "age": 1365,
-      "energyFraction": 0.8678166479657845,
+      "energyFraction": 0.8682742785360474,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.357397747947832,
       "healthFraction": 1,
@@ -1097,7 +1097,7 @@
       "groupId": 52,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "seekMate",
       "alive": true,
       "decayStage": 0
     },
@@ -1105,9 +1105,9 @@
       "id": 53,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 1.1530821232757227,
-      "y": 114.8669296848007,
-      "heading": 1.92217169931466,
+      "x": 2.4842874414460288,
+      "y": 111.92279416817475,
+      "heading": 5.982682771292568,
       "age": 1365,
       "energyFraction": 0.9407749114138596,
       "hydrationFraction": 0.9965000000000004,
@@ -1126,11 +1126,11 @@
       "id": 54,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 74.56929039848254,
-      "y": 97.4717420106012,
-      "heading": 5.748251820846994,
+      "x": 79.29683527808967,
+      "y": 93.7572343154533,
+      "heading": 4.676486904802196,
       "age": 1412,
-      "energyFraction": 0.8668836619139875,
+      "energyFraction": 0.8660463189253726,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.684174900129438,
       "healthFraction": 1,
@@ -1139,7 +1139,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1147,11 +1147,11 @@
       "id": 55,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 57.700914831072,
-      "y": 49.12585447431238,
-      "heading": 6.199600108555612,
+      "x": 59.792499216625636,
+      "y": 50.49795667898173,
+      "heading": 6.276199689219678,
       "age": 69,
-      "energyFraction": 0.6827251722909294,
+      "energyFraction": 0.719389043308022,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 6.868281244016043,
       "healthFraction": 1,
@@ -1160,7 +1160,7 @@
       "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1168,17 +1168,17 @@
       "id": 56,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 76.16164871625894,
-      "y": 67.19201579895396,
-      "heading": 4.1063095718578895,
+      "x": 77.74144140287548,
+      "y": 67.35993474606569,
+      "heading": 5.530256709838043,
       "age": 14,
-      "energyFraction": 0.9555997277436603,
+      "energyFraction": 0.9555982847974,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 5.362506119325431,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "groupId": null,
+      "groupId": 23,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "rest",
@@ -1189,11 +1189,11 @@
       "id": 57,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 58.86683995295674,
-      "y": 64.71708971476264,
-      "heading": 2.039419499505163,
+      "x": 61.8528840061685,
+      "y": 61.534886545633704,
+      "heading": 5.171049161353674,
       "age": 388,
-      "energyFraction": 0.7956445563968054,
+      "energyFraction": 0.8364733858133618,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 13.979727304201573,
       "healthFraction": 1,
@@ -1202,7 +1202,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1210,17 +1210,17 @@
       "id": 58,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 27.466618551869278,
-      "y": 102.61456388276137,
-      "heading": 5.58999454309894,
+      "x": 27.147711814049345,
+      "y": 103.41724046109346,
+      "heading": 5.635684627979559,
       "age": 292,
-      "energyFraction": 0.7254805213599127,
+      "energyFraction": 0.7255545198389117,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 12.63426508156266,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "groupId": 8,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -1231,11 +1231,11 @@
       "id": 59,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 33.4470441181749,
-      "y": 88.04266910641424,
-      "heading": 1.7283807226017434,
+      "x": 26.577641300867167,
+      "y": 89.09564407784656,
+      "heading": 2.7703529576128787,
       "age": 526,
-      "energyFraction": 0.8513916408333219,
+      "energyFraction": 0.8751318429487418,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 17.930814393792673,
       "healthFraction": 1,
@@ -1244,7 +1244,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1252,11 +1252,11 @@
       "id": 60,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 59.12814424983072,
-      "y": 116.12888590008961,
-      "heading": 2.104788927220458,
+      "x": 62.36982477630607,
+      "y": 116.30743194283198,
+      "heading": 0.9933081737365397,
       "age": 80,
-      "energyFraction": 0.7780487929596989,
+      "energyFraction": 0.782003758801681,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 6.748013769622892,
       "healthFraction": 1,
@@ -1265,7 +1265,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1273,11 +1273,11 @@
       "id": 61,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 54.154467154945195,
-      "y": 52.49224288355895,
-      "heading": 5.520077697851258,
+      "x": 56.172861943227886,
+      "y": 50.24770658303375,
+      "heading": 5.351125637819674,
       "age": 1074,
-      "energyFraction": 0.923557751557236,
+      "energyFraction": 0.9237280766259363,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 31.51796891768463,
       "healthFraction": 1,
@@ -1286,7 +1286,7 @@
       "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "seekMate",
       "alive": true,
       "decayStage": 0
     },
@@ -1294,11 +1294,11 @@
       "id": 62,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 91.78894205849947,
-      "y": 53.15388943336148,
-      "heading": 3.1791118409694343,
+      "x": 96.7487688992061,
+      "y": 54.55528150985548,
+      "heading": 0.6216183225247569,
       "age": 133,
-      "energyFraction": 0.8766427366111281,
+      "energyFraction": 0.8766971370249486,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 8.275160720777185,
       "healthFraction": 1,
@@ -1307,7 +1307,7 @@
       "groupId": 13,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -1315,9 +1315,9 @@
       "id": 63,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 4.189417976432977,
-      "y": 29.28719496142439,
-      "heading": 4.19394884512022,
+      "x": 11.217824027248046,
+      "y": 32.16268002748408,
+      "heading": 5.570249981476898,
       "age": 813,
       "energyFraction": 0.8637407617513293,
       "hydrationFraction": 0.9965000000000004,
@@ -1325,7 +1325,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 38,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
@@ -1336,9 +1336,9 @@
       "id": 64,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 88.05520032529286,
-      "y": 56.112381167164045,
-      "heading": 4.180507147396355,
+      "x": 84.48650456929602,
+      "y": 57.963192483936325,
+      "heading": 4.2717271327883,
       "age": 1493,
       "energyFraction": 0.8943933599255104,
       "hydrationFraction": 0.9965000000000004,
@@ -1357,20 +1357,20 @@
       "id": 65,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 125.35359024765714,
-      "y": 96.30209842061998,
-      "heading": 2.1602340589771387,
+      "x": 123.58763083583437,
+      "y": 117.6337563225693,
+      "heading": 1.6754932121315251,
       "age": 482,
-      "energyFraction": 0.9638794743679323,
+      "energyFraction": 0.9630190929329768,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 16.34509678753102,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 1,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -1378,11 +1378,11 @@
       "id": 66,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 4.413998568242534,
-      "y": 68.77846000198129,
-      "heading": 4.6278888683422235,
+      "x": 3.4289126020814162,
+      "y": 70.38834764988071,
+      "heading": 3.8802147999155188,
       "age": 267,
-      "energyFraction": 0.7544614629373187,
+      "energyFraction": 0.7719057396676504,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 11.332975152420323,
       "healthFraction": 1,
@@ -1391,7 +1391,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1399,9 +1399,9 @@
       "id": 67,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 43.51956322526451,
-      "y": 99.33293303910065,
-      "heading": 0.8285780630271384,
+      "x": 46.08652642458432,
+      "y": 92.84322936168606,
+      "heading": 5.7157616094476325,
       "age": 1116,
       "energyFraction": 0.8042036474950187,
       "hydrationFraction": 0.9965000000000004,
@@ -1420,17 +1420,17 @@
       "id": 68,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 122.2106521697758,
-      "y": 119.56023671651386,
-      "heading": 1.5707963267948966,
+      "x": 121.92631067737031,
+      "y": 122.89815680263968,
+      "heading": 2.4479211410416646,
       "age": 1314,
-      "energyFraction": 0.6784943922563405,
+      "energyFraction": 0.6810549767640793,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.294422516738994,
-      "healthFraction": 0.8092622140137986,
+      "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": 16,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -1441,17 +1441,17 @@
       "id": 69,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 65.14396917052606,
-      "y": 43.21540222141746,
-      "heading": 3.8159449004791237,
+      "x": 63.2659243827644,
+      "y": 46.732242003725155,
+      "heading": 1.1095443333636623,
       "age": 1168,
-      "energyFraction": 0.7301057890490124,
+      "energyFraction": 0.8578371434005256,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.029191106720827,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": 29,
+      "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "eat",
@@ -1462,11 +1462,11 @@
       "id": 70,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 100.39343168972219,
-      "y": 121.51969514330604,
-      "heading": 2.0282582243157883,
+      "x": 115.81747836025112,
+      "y": 102.42955808321096,
+      "heading": 5.5353868369143155,
       "age": 354,
-      "energyFraction": 0.7921275750324847,
+      "energyFraction": 0.7920512653235299,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 13.517314573320977,
       "healthFraction": 1,
@@ -1483,17 +1483,17 @@
       "id": 71,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 93.03618963283611,
-      "y": 44.969852886578295,
-      "heading": 3.3052593492199698,
+      "x": 94.34705787842015,
+      "y": 50.17503158342208,
+      "heading": 1.183088186698349,
       "age": 361,
-      "energyFraction": 0.8854582411001712,
+      "energyFraction": 0.8853497273417865,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 13.903461177359915,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "groupId": null,
+      "groupId": 13,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
@@ -1504,11 +1504,11 @@
       "id": 72,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 67.36626007549022,
-      "y": 31.765555037242656,
-      "heading": 4.513489218643959,
+      "x": 68.01048035166768,
+      "y": 32.02236513416495,
+      "heading": 2.903711043341591,
       "age": 251,
-      "energyFraction": 0.9363055577168521,
+      "energyFraction": 0.9364222112351329,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 11.593769412905653,
       "healthFraction": 1,
@@ -1517,7 +1517,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "rest",
       "alive": true,
       "decayStage": 0
     },
@@ -1525,11 +1525,11 @@
       "id": 73,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 5.473227672847053,
-      "y": 96.57915424487382,
-      "heading": 5.947754147651117,
+      "x": 5.601427456296956,
+      "y": 96.36023257374559,
+      "heading": 6.0107247151726435,
       "age": 619,
-      "energyFraction": 0.7541558200045277,
+      "energyFraction": 0.7838889910640934,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 21.44155571791961,
       "healthFraction": 1,
@@ -1538,7 +1538,7 @@
       "groupId": 33,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1546,20 +1546,20 @@
       "id": 74,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 67.87433236879197,
-      "y": 41.978410811359964,
-      "heading": 2.6815906422828686,
+      "x": 71.16272487347898,
+      "y": 39.10766594532486,
+      "heading": 4.33906707812041,
       "age": 763,
-      "energyFraction": 0.6828004720498005,
+      "energyFraction": 0.7169666683332829,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.092375631126647,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": 29,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
@@ -1567,9 +1567,9 @@
       "id": 75,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 22.536647524721182,
-      "y": 50.744029162506735,
-      "heading": 0.8908705189565307,
+      "x": 12.476537617226962,
+      "y": 47.578940026084574,
+      "heading": 1.6439691215009287,
       "age": 247,
       "energyFraction": 0.9381759234466129,
       "hydrationFraction": 0.9965000000000004,
@@ -1580,7 +1580,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1588,11 +1588,11 @@
       "id": 76,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 122.55170180893329,
-      "y": 18.158489368967313,
-      "heading": 4.951183998725208,
+      "x": 121.29550626723234,
+      "y": 18.711479323619443,
+      "heading": 5.844749995659967,
       "age": 1355,
-      "energyFraction": 0.9302071150816659,
+      "energyFraction": 0.929708051416315,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.478477329714224,
       "healthFraction": 1,
@@ -1601,7 +1601,7 @@
       "groupId": 15,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "rest",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1609,11 +1609,11 @@
       "id": 77,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 67.3015916094468,
-      "y": 34.257757347959625,
-      "heading": 5.417222879906587,
+      "x": 70.19641083861717,
+      "y": 32.33551246678641,
+      "heading": 0.22522569325008934,
       "age": 1149,
-      "energyFraction": 0.9111013947592161,
+      "energyFraction": 0.9113674369709625,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 30.918537789629774,
       "healthFraction": 1,
@@ -1630,11 +1630,11 @@
       "id": 78,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 89.82125307366097,
-      "y": 125.05345102566127,
-      "heading": 3.141592653589793,
+      "x": 97.99078385134503,
+      "y": 126.02346853658857,
+      "heading": 5.825152830561454,
       "age": 793,
-      "energyFraction": 0.9072287332465426,
+      "energyFraction": 0.9077044040227645,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 24.43483147436937,
       "healthFraction": 1,
@@ -1643,7 +1643,7 @@
       "groupId": 52,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "rest",
       "alive": true,
       "decayStage": 0
     },
@@ -1651,17 +1651,17 @@
       "id": 79,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 25.398429997513134,
-      "y": 116.09709530480248,
-      "heading": 0.4512815056455626,
+      "x": 30.93268731625185,
+      "y": 111.6833904016771,
+      "heading": 6.071836846565849,
       "age": 979,
-      "energyFraction": 0.8014132374614867,
+      "energyFraction": 0.743552157931585,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 31.23739148182282,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 14,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -1672,11 +1672,11 @@
       "id": 80,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 17.893653019093374,
-      "y": 97.20006193518009,
-      "heading": 5.036077675519554,
+      "x": 20.538181107641872,
+      "y": 97.56093721138645,
+      "heading": 5.213458085337312,
       "age": 463,
-      "energyFraction": 0.7979771787032709,
+      "energyFraction": 0.7978832727678978,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 16.293122735900596,
       "healthFraction": 1,
@@ -1693,11 +1693,11 @@
       "id": 81,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 8.219655549929914,
-      "y": 96.35007519753793,
-      "heading": 2.317219200937849,
+      "x": 7.90394410376563,
+      "y": 94.76409536281295,
+      "heading": 3.628735012772968,
       "age": 464,
-      "energyFraction": 0.7398435894761216,
+      "energyFraction": 0.7831159908530543,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 16.373193794551863,
       "healthFraction": 1,
@@ -1712,40 +1712,40 @@
     },
     {
       "id": 82,
-      "kind": "animal",
+      "kind": "carcass",
       "speciesId": "herbivore.gazelle",
-      "x": 97.77882308744135,
-      "y": 52.68347664398398,
-      "heading": 3.3235598284621792,
-      "age": 287,
-      "energyFraction": 0.7780606078929471,
-      "hydrationFraction": 0.9965000000000004,
-      "bodyMass": 12.362573687627258,
-      "healthFraction": 0.9103157470877536,
+      "x": 103.27629791103139,
+      "y": 56.721175667697544,
+      "heading": 1.633275396028182,
+      "age": 279,
+      "energyFraction": 0.7832202911221613,
+      "hydrationFraction": 0.9993000000000001,
+      "bodyMass": 12.157345152780506,
+      "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "groupId": 13,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
-      "alive": true,
+      "alive": false,
       "decayStage": 0
     },
     {
       "id": 83,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 120.24640162076078,
-      "y": 99.32408218523862,
-      "heading": 5.7257982663075815,
+      "x": 117.01187758661433,
+      "y": 116.2616091615618,
+      "heading": 1.9478601548097263,
       "age": 1362,
-      "energyFraction": 0.84915201603549,
+      "energyFraction": 0.8494765911620932,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 30.356668993667704,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": 1,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -1756,11 +1756,11 @@
       "id": 84,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 61.346164857699044,
-      "y": 81.45578785681057,
-      "heading": 2.298440198049507,
+      "x": 61.09696023445429,
+      "y": 81.3380186723328,
+      "heading": 2.229028999783182,
       "age": 856,
-      "energyFraction": 0.9788337849477264,
+      "energyFraction": 0.9788339293419669,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 26.97095664289724,
       "healthFraction": 1,
@@ -1769,7 +1769,7 @@
       "groupId": 84,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "rest",
       "alive": true,
       "decayStage": 0
     },
@@ -1777,17 +1777,17 @@
       "id": 85,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 125.1017347252056,
-      "y": 122.02749493713917,
-      "heading": 1.8856101669416319,
+      "x": 123.14547329224825,
+      "y": 122.5156903574187,
+      "heading": 3.141592653589793,
       "age": 1103,
-      "energyFraction": 0.7297037525146767,
+      "energyFraction": 0.7301468495344584,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 30.3562830799492,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": 16,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -1798,11 +1798,11 @@
       "id": 86,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 90.60947108108876,
-      "y": 19.15662100536864,
-      "heading": 5.5986689909480365,
+      "x": 90.44661009311676,
+      "y": 20.816312849521637,
+      "heading": 3.7977207353180336,
       "age": 1003,
-      "energyFraction": 0.7653556260147758,
+      "energyFraction": 0.7657567025668637,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.280364995799026,
       "healthFraction": 1,
@@ -1811,7 +1811,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "rest",
       "alive": true,
       "decayStage": 0
     },
@@ -1819,11 +1819,11 @@
       "id": 87,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 43.07003899157262,
-      "y": 0.40086171735827136,
-      "heading": 3.6619985490595077,
+      "x": 45.41029493009406,
+      "y": 0.5400121561517752,
+      "heading": 5.9128078336638765,
       "age": 405,
-      "energyFraction": 0.8906283045205379,
+      "energyFraction": 0.8900864589219392,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 15.350789786516339,
       "healthFraction": 1,
@@ -1840,11 +1840,11 @@
       "id": 88,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 32.67267783165356,
-      "y": 105.20267424155666,
-      "heading": 5.818362169246627,
+      "x": 35.48564877394549,
+      "y": 106.7253300902591,
+      "heading": 0.5857019304371134,
       "age": 1463,
-      "energyFraction": 0.8683538332560985,
+      "energyFraction": 0.8685790300334142,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.358018143521623,
       "healthFraction": 1,
@@ -1853,7 +1853,7 @@
       "groupId": 8,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -1861,17 +1861,17 @@
       "id": 89,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 4.639199119272844,
-      "y": 58.58290309933715,
-      "heading": 0.14801654140029985,
+      "x": 3.395922771635768,
+      "y": 58.43924833404565,
+      "heading": 2.675712386669103,
       "age": 1457,
-      "energyFraction": 0.8513056750734314,
+      "energyFraction": 0.8510685155949005,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 26.477964765415525,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 31,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "seekMate",
@@ -1882,9 +1882,9 @@
       "id": 90,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 80.93382044782507,
-      "y": 115.66134456389624,
-      "heading": 4.4561018168899516,
+      "x": 76.41010587883008,
+      "y": 117.7288192570354,
+      "heading": 3.7789151575866633,
       "age": 785,
       "energyFraction": 0.9028843842731845,
       "hydrationFraction": 0.9965000000000004,
@@ -1895,7 +1895,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -1924,9 +1924,9 @@
       "id": 92,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 91.48275195169074,
-      "y": 16.91520429461692,
-      "heading": 0.413532465698804,
+      "x": 85.7545352034325,
+      "y": 10.764914938404868,
+      "heading": 2.8523965285222417,
       "age": 927,
       "energyFraction": 0.8468812509315999,
       "hydrationFraction": 0.9965000000000004,
@@ -1934,7 +1934,7 @@
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": null,
+      "groupId": 12,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
@@ -1945,11 +1945,11 @@
       "id": 93,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 97.96791863504974,
-      "y": 105.30037069997717,
-      "heading": 4.256454741378785,
+      "x": 96.6168837880945,
+      "y": 116.88559957293417,
+      "heading": 1.5384133606837729,
       "age": 1082,
-      "energyFraction": 0.8076188363610199,
+      "energyFraction": 0.8274044919671399,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.685581094003282,
       "healthFraction": 1,
@@ -1958,7 +1958,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "seekMate",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -1966,11 +1966,11 @@
       "id": 94,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 61.12791814600173,
-      "y": 83.38653350106432,
-      "heading": 0.5682856822597113,
+      "x": 60.32691476168131,
+      "y": 81.12079609798027,
+      "heading": 4.069722243649787,
       "age": 196,
-      "energyFraction": 0.7690259941017596,
+      "energyFraction": 0.7695731884641916,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 9.944279349360801,
       "healthFraction": 1,
@@ -1987,17 +1987,17 @@
       "id": 95,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 101.3543141133041,
-      "y": 117.66503024672943,
-      "heading": 2.876855769200237,
+      "x": 121.45796796776402,
+      "y": 122.57171339601858,
+      "heading": 2.0963345600467758,
       "age": 981,
-      "energyFraction": 0.9764559531383867,
+      "energyFraction": 0.9766146275349563,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 31.504921507507863,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": null,
+      "groupId": 9,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -2008,11 +2008,11 @@
       "id": 96,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 2.016226546565518,
-      "y": 71.5918760040999,
-      "heading": 2.4965312472330026,
+      "x": 3.8943677226474196,
+      "y": 71.74104310676961,
+      "heading": 0.33634418023616863,
       "age": 78,
-      "energyFraction": 0.8072644528978085,
+      "energyFraction": 0.8341963048007875,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 7.093781142615294,
       "healthFraction": 1,
@@ -2029,17 +2029,17 @@
       "id": 97,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 119.6066887059566,
-      "y": 94.54770342010922,
-      "heading": 5.478842947430634,
+      "x": 117.68246287448584,
+      "y": 96.5708179589404,
+      "heading": 5.335402875086945,
       "age": 662,
-      "energyFraction": 0.8957060239805513,
+      "energyFraction": 0.8962006958231903,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.510775551837032,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 1,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -2071,11 +2071,11 @@
       "id": 99,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 58.96185182593831,
-      "y": 81.36470832874312,
-      "heading": 0.29433396761438413,
+      "x": 60.1929873935367,
+      "y": 82.3994375912333,
+      "heading": 4.878143740662228,
       "age": 1266,
-      "energyFraction": 0.8801845325861053,
+      "energyFraction": 0.8647598010618625,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.237993776844817,
       "healthFraction": 1,
@@ -2084,7 +2084,7 @@
       "groupId": 84,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -2092,17 +2092,17 @@
       "id": 100,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 26.81741008199941,
-      "y": 113.75102847904314,
-      "heading": 0.08312035100387405,
+      "x": 33.84858282794558,
+      "y": 107.2508233686022,
+      "heading": 5.922808902252593,
       "age": 534,
-      "energyFraction": 0.8605421570130847,
+      "energyFraction": 0.7645282473665519,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 16.854033801442107,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": null,
+      "groupId": 8,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
@@ -2113,11 +2113,11 @@
       "id": 101,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 19.951170553019367,
-      "y": 24.76271503047583,
-      "heading": 1.5504708585204625,
+      "x": 13.059771081020955,
+      "y": 11.555724282690722,
+      "heading": 3.8258803055101014,
       "age": 643,
-      "energyFraction": 0.8895894820619761,
+      "energyFraction": 0.8896953287571016,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 20.50448371730726,
       "healthFraction": 1,
@@ -2134,20 +2134,20 @@
       "id": 102,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 65.09807170482317,
-      "y": 43.81217683875853,
-      "heading": 4.789147088511018,
+      "x": 71.26737101111284,
+      "y": 42.45150508483157,
+      "heading": 3.3124112908654517,
       "age": 1417,
-      "energyFraction": 0.6778295159480174,
+      "energyFraction": 0.8549065610333471,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 31.061727758031342,
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": 29,
+      "groupId": 102,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "seekMate",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -2155,17 +2155,17 @@
       "id": 103,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 74.74173454265363,
-      "y": 67.03629889548868,
-      "heading": 5.673266763393568,
+      "x": 77.96738359360954,
+      "y": 66.62422138497759,
+      "heading": 0.0646178867269569,
       "age": 255,
-      "energyFraction": 0.9565146016965363,
+      "energyFraction": 0.9561829564753391,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 11.279373959716759,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
-      "groupId": null,
+      "groupId": 23,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "rest",
@@ -2176,9 +2176,9 @@
       "id": 104,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 32.511361084857825,
-      "y": 37.22903852306455,
-      "heading": 1.6861875053415183,
+      "x": 32.28439285414197,
+      "y": 37.271907671734056,
+      "heading": 2.1522878296484294,
       "age": 1333,
       "energyFraction": 0.6965580975630544,
       "hydrationFraction": 0.9965000000000004,
@@ -2186,7 +2186,7 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": 44,
+      "groupId": 36,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "herd",
@@ -2197,11 +2197,11 @@
       "id": 105,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 6.099747325055846,
-      "y": 31.231643250009597,
-      "heading": 1.8711735132107687,
+      "x": 9.92880479876976,
+      "y": 29.132328933966033,
+      "heading": 4.758053245141582,
       "age": 134,
-      "energyFraction": 0.8401257516425702,
+      "energyFraction": 0.8343699844653303,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 8.8563803281819,
       "healthFraction": 1,
@@ -2218,17 +2218,17 @@
       "id": 106,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 29.744799482765533,
-      "y": 47.19742168555909,
-      "heading": 5.855467717585162,
+      "x": 27.914622927215344,
+      "y": 46.52592345265484,
+      "heading": 2.8956964485555066,
       "age": 680,
-      "energyFraction": 0.8334841256005752,
+      "energyFraction": 0.7967849761330682,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.911960169754924,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": 44,
+      "groupId": 36,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "eat",
@@ -2260,9 +2260,9 @@
       "id": 108,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 98.21759763936458,
-      "y": 105.80950911506145,
-      "heading": 1.1148620877889917,
+      "x": 91.09979741589802,
+      "y": 103.2217108513601,
+      "heading": 2.973861056227147,
       "age": 1204,
       "energyFraction": 0.8638263852904804,
       "hydrationFraction": 0.9965000000000004,
@@ -2273,7 +2273,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "seekMate",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -2281,18 +2281,18 @@
       "id": 109,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 119.30349555721321,
-      "y": 106.65225872665873,
-      "heading": 5.287991532058465,
+      "x": 115.5015647438877,
+      "y": 115.66011734197994,
+      "heading": 2.0132125130472502,
       "age": 997,
-      "energyFraction": 0.6807369301153413,
+      "energyFraction": 0.6793932969284987,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 27.793488670540718,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": null,
-      "diseaseState": "incubating",
+      "groupId": 9,
+      "diseaseState": "susceptible",
       "dispersing": false,
       "action": "flee",
       "alive": true,
@@ -2302,9 +2302,9 @@
       "id": 110,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 53.59343521092502,
-      "y": 53.02554050492554,
-      "heading": 2.370884417583518,
+      "x": 56.721595633758795,
+      "y": 49.01297104487492,
+      "heading": 5.116103875036963,
       "age": 1124,
       "energyFraction": 0.8641093789349682,
       "hydrationFraction": 0.9965000000000004,
@@ -2315,7 +2315,7 @@
       "groupId": 22,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "seekMate",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -2323,11 +2323,11 @@
       "id": 111,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 58.27741011081674,
-      "y": 65.232292559737,
-      "heading": 4.9502194397434085,
+      "x": 48.600751297551874,
+      "y": 57.46260144638518,
+      "heading": 4.6835350516080005,
       "age": 767,
-      "energyFraction": 0.8687759302871343,
+      "energyFraction": 0.8689777426483438,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 22.19712909570835,
       "healthFraction": 1,
@@ -2344,9 +2344,9 @@
       "id": 112,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 19.273380770056757,
-      "y": 91.16672927362237,
-      "heading": 4.201515934688587,
+      "x": 22.062865833004956,
+      "y": 91.31794549205031,
+      "heading": 5.503615650278013,
       "age": 410,
       "energyFraction": 0.7930203201969119,
       "hydrationFraction": 0.9965000000000004,
@@ -2365,11 +2365,11 @@
       "id": 113,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 4.9266215584200985,
-      "y": 5.659782252818965,
-      "heading": 3.46441775440246,
+      "x": 8.206453018187577,
+      "y": 5.643067728815257,
+      "heading": 3.0191218495552263,
       "age": 178,
-      "energyFraction": 0.8407350939572739,
+      "energyFraction": 0.7864189409242442,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 9.355068335371698,
       "healthFraction": 1,
@@ -2378,7 +2378,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "eat",
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     },
@@ -2386,9 +2386,9 @@
       "id": 114,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 62.83494517307319,
-      "y": 8.90736975030769,
-      "heading": 5.670211427961604,
+      "x": 46.33143459066038,
+      "y": 18.23905551830914,
+      "heading": 0.8555394675687822,
       "age": 167,
       "energyFraction": 0.8769872186847154,
       "hydrationFraction": 0.9965000000000004,
@@ -2407,11 +2407,11 @@
       "id": 115,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 91.18817693101636,
-      "y": 122.55136832067772,
-      "heading": 3.141592653589793,
+      "x": 100.6791194010482,
+      "y": 124.89494416880277,
+      "heading": 5.846650043364254,
       "age": 1279,
-      "energyFraction": 0.8168675897249551,
+      "energyFraction": 0.817906152920104,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.32355821740348,
       "healthFraction": 1,
@@ -2420,7 +2420,7 @@
       "groupId": 52,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "flee",
+      "action": "seekMate",
       "alive": true,
       "decayStage": 0
     },
@@ -2428,11 +2428,11 @@
       "id": 116,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 121.22839330376651,
-      "y": 16.940724693865285,
-      "heading": 0.1319611948119146,
+      "x": 124.37905653573436,
+      "y": 17.28600382359268,
+      "heading": 3.5667377537109175,
       "age": 579,
-      "energyFraction": 0.9126107873610806,
+      "energyFraction": 0.9126115978780363,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 19.434194009739066,
       "healthFraction": 1,
@@ -2441,7 +2441,7 @@
       "groupId": 15,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "herd",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -2449,9 +2449,9 @@
       "id": 117,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 2.5700440449522484,
-      "y": 18.881769130385123,
-      "heading": 4.120596064236089,
+      "x": 2.0331960773983067,
+      "y": 18.802431304051503,
+      "heading": 3.813595624475955,
       "age": 1507,
       "energyFraction": 0.8747357682049781,
       "hydrationFraction": 0.9965000000000004,
@@ -2470,9 +2470,9 @@
       "id": 118,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 2.273030958724624,
-      "y": 58.23009072403349,
-      "heading": 3.2896091949900925,
+      "x": 2.539934310047001,
+      "y": 59.17596868773908,
+      "heading": 2.4429360984931474,
       "age": 1155,
       "energyFraction": 0.8834757522416765,
       "hydrationFraction": 0.9965000000000004,
@@ -2480,10 +2480,10 @@
       "healthFraction": 1,
       "lifeStage": "adult",
       "sex": "male",
-      "groupId": null,
+      "groupId": 31,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "seekMate",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
@@ -2491,11 +2491,11 @@
       "id": 119,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 37.735166309936346,
-      "y": 3.859853589316741,
-      "heading": 5.676485590184569,
+      "x": 37.46992267432051,
+      "y": 4.232244851113555,
+      "heading": 5.839517048256254,
       "age": 997,
-      "energyFraction": 0.8958707586379826,
+      "energyFraction": 0.895613305907202,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 29.821486663539407,
       "healthFraction": 1,
@@ -2512,11 +2512,11 @@
       "id": 120,
       "kind": "animal",
       "speciesId": "herbivore.gazelle",
-      "x": 46.823226975112064,
-      "y": 117.27134749228522,
-      "heading": 0.9160400423449699,
+      "x": 43.42820971848924,
+      "y": 109.5883010009163,
+      "heading": 4.478054278321146,
       "age": 1367,
-      "energyFraction": 0.8393631774217237,
+      "energyFraction": 0.839363177421724,
       "hydrationFraction": 0.9965000000000004,
       "bodyMass": 28.814138572965746,
       "healthFraction": 1,
@@ -2532,39 +2532,39 @@
     {
       "id": 121,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 114.34357691630669,
-      "y": 102.83759524310763,
-      "heading": 5.7549570700775075,
+      "speciesId": "predator.leopard",
+      "x": 111.8976806303798,
+      "y": 107.22047506851806,
+      "heading": 0.46289648106636605,
       "age": 251,
-      "energyFraction": 0.7482428603992646,
+      "energyFraction": 0.7490229893941829,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 15.280622745583326,
+      "bodyMass": 18.18559223220634,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "chase",
+      "action": "wander",
       "alive": true,
       "decayStage": 0
     },
     {
       "id": 122,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 102.28051939358947,
-      "y": 52.2043558848067,
-      "heading": 4.533070226259683,
+      "speciesId": "predator.leopard",
+      "x": 104.3012462865694,
+      "y": 57.52766293078043,
+      "heading": 3.693950230088644,
       "age": 541,
-      "energyFraction": 0.6692562552682813,
+      "energyFraction": 0.7031318103955078,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 22.89369413335841,
+      "bodyMass": 28.88873503495407,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
-      "groupId": 122,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
@@ -2574,35 +2574,35 @@
     {
       "id": 123,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 104.12159578283222,
-      "y": 55.33223069057666,
-      "heading": 6.064935228699329,
+      "speciesId": "predator.leopard",
+      "x": 103.81126826014898,
+      "y": 56.7445780222773,
+      "heading": 3.18530992476183,
       "age": 799,
-      "energyFraction": 0.5348539138933464,
+      "energyFraction": 0.7339429943336321,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 28.85890620020635,
+      "bodyMass": 37.33377969551323,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
-      "groupId": 122,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "eat",
       "alive": true,
       "decayStage": 0
     },
     {
       "id": 124,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 34.57464621693198,
-      "y": 28.607029683634696,
-      "heading": 0.686606887844655,
+      "speciesId": "predator.leopard",
+      "x": 29.47657252110158,
+      "y": 31.954961646734333,
+      "heading": 4.353607892064179,
       "age": 1127,
-      "energyFraction": 0.846419841886977,
+      "energyFraction": 0.8474831232305495,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 40.085709431467,
+      "bodyMass": 52.92761257528933,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "male",
@@ -2616,14 +2616,14 @@
     {
       "id": 125,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 20.571119960323543,
-      "y": 112.85200781160164,
-      "heading": 6.0809484820622455,
+      "speciesId": "predator.leopard",
+      "x": 20.51682718169219,
+      "y": 118.22391270090907,
+      "heading": 0.6254602933940827,
       "age": 732,
-      "energyFraction": 0.8477535411467562,
+      "energyFraction": 0.8485058048402152,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 28.307211370858568,
+      "bodyMass": 36.47056754209714,
       "healthFraction": 1,
       "lifeStage": "subadult",
       "sex": "female",
@@ -2637,18 +2637,18 @@
     {
       "id": 126,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 106.40118836579265,
-      "y": 55.402028544847305,
-      "heading": 5.660429266734963,
+      "speciesId": "predator.leopard",
+      "x": 107.99143376476724,
+      "y": 48.688029129444296,
+      "heading": 4.654297432633795,
       "age": 284,
-      "energyFraction": 0.6347130594814412,
+      "energyFraction": 0.6350973334752357,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 16.549075410160135,
+      "bodyMass": 19.93971959449923,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
-      "groupId": 122,
+      "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "chase",
@@ -2658,14 +2658,14 @@
     {
       "id": 127,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 117.02376455912255,
-      "y": 109.10406027334858,
-      "heading": 0.12723755003898596,
+      "speciesId": "predator.leopard",
+      "x": 111.67220143694576,
+      "y": 105.8810375220519,
+      "heading": 5.330274613156956,
       "age": 228,
-      "energyFraction": 0.6362753302428455,
+      "energyFraction": 0.6460645866726675,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 13.888543797515865,
+      "bodyMass": 16.28567744430687,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "female",
@@ -2679,14 +2679,14 @@
     {
       "id": 128,
       "kind": "animal",
-      "speciesId": "predator.stalker",
-      "x": 124.95578055983177,
-      "y": 26.30330006222904,
-      "heading": 1.8523218601903224,
+      "speciesId": "predator.leopard",
+      "x": 120.22091217625196,
+      "y": 26.117763332298406,
+      "heading": 4.097883321122358,
       "age": 459,
-      "energyFraction": 0.7905300105403452,
+      "energyFraction": 0.7910184230252215,
       "hydrationFraction": 0.9971999999999994,
-      "bodyMass": 20.326443273663507,
+      "bodyMass": 25.30954341250372,
       "healthFraction": 1,
       "lifeStage": "juvenile",
       "sex": "male",
@@ -2701,9 +2701,9 @@
       "id": 129,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 96.49984557136882,
-      "y": 62.508423478524406,
-      "heading": 6.280542031256111,
+      "x": 96.04094348520843,
+      "y": 59.06249734188455,
+      "heading": 5.970225062373973,
       "age": 1331,
       "energyFraction": 0.5028387584785479,
       "hydrationFraction": 0.9969999999999999,
@@ -2714,7 +2714,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "seekFood",
       "alive": true,
       "decayStage": 0
     },
@@ -2722,9 +2722,9 @@
       "id": 130,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 6.871246125369,
-      "y": 56.805525570379366,
-      "heading": 5.796657472342503,
+      "x": 5.450985368723676,
+      "y": 55.57132348147768,
+      "heading": 4.764254924800497,
       "age": 429,
       "energyFraction": 0.897145100365353,
       "hydrationFraction": 0.9969999999999999,
@@ -2743,9 +2743,9 @@
       "id": 131,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 104.33482427552009,
-      "y": 122.90237358735466,
-      "heading": 3.5197392615591028,
+      "x": 105.72597774570639,
+      "y": 125.8262814048035,
+      "heading": 3.519716121303034,
       "age": 1346,
       "energyFraction": 0.6030196132511914,
       "hydrationFraction": 0.9969999999999999,
@@ -2764,9 +2764,9 @@
       "id": 132,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 99.8073809820566,
-      "y": 28.386338474057734,
-      "heading": 3.012720287020155,
+      "x": 103.99944858314845,
+      "y": 27.760729967847617,
+      "heading": 0.47631887378783233,
       "age": 1404,
       "energyFraction": 0.5784313468710882,
       "hydrationFraction": 0.9969999999999999,
@@ -2777,7 +2777,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "seekMate",
       "alive": true,
       "decayStage": 0
     },
@@ -2785,9 +2785,9 @@
       "id": 133,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 113.10481607349148,
-      "y": 112.90304901576313,
-      "heading": 2.9818497640582855,
+      "x": 113.0728793659004,
+      "y": 112.3903220681532,
+      "heading": 3.0687493703364517,
       "age": 1106,
       "energyFraction": 0.5933840766749924,
       "hydrationFraction": 0.9969999999999999,
@@ -2806,9 +2806,9 @@
       "id": 134,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 108.1801147072922,
-      "y": 6.574218264173801,
-      "heading": 4.05646474864275,
+      "x": 107.13571180516313,
+      "y": 10.744635355297532,
+      "heading": 3.2558329673012416,
       "age": 370,
       "energyFraction": 0.8390991141624718,
       "hydrationFraction": 0.9969999999999999,
@@ -2827,9 +2827,9 @@
       "id": 135,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 53.71558247866107,
-      "y": 31.79625135500599,
-      "heading": 3.5368367998792962,
+      "x": 54.06656467504549,
+      "y": 40.8722190559273,
+      "heading": 2.6213847237855745,
       "age": 928,
       "energyFraction": 0.6166515373341113,
       "hydrationFraction": 0.9969999999999999,
@@ -2848,9 +2848,9 @@
       "id": 136,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 71.74276950605713,
-      "y": 9.111930152978477,
-      "heading": 2.0783221017227653,
+      "x": 70.23575504258386,
+      "y": 8.23346966482797,
+      "heading": 2.4085982950528297,
       "age": 135,
       "energyFraction": 0.8455142556378518,
       "hydrationFraction": 0.9969999999999999,
@@ -2869,11 +2869,11 @@
       "id": 137,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 101.7723047973574,
-      "y": 29.717617353532233,
-      "heading": 4.732225017880971,
+      "x": 105.42833265553736,
+      "y": 27.446345218412876,
+      "heading": 6.068444405764399,
       "age": 578,
-      "energyFraction": 0.5517631245238184,
+      "energyFraction": 0.5516764478646083,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 6.061009920411743,
       "healthFraction": 1,
@@ -2890,9 +2890,9 @@
       "id": 138,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 70.57755272558684,
-      "y": 111.36213968879723,
-      "heading": 0.229000262232816,
+      "x": 69.85060191241814,
+      "y": 114.12828465140316,
+      "heading": 0.62187908835834,
       "age": 255,
       "energyFraction": 0.7679153438146398,
       "hydrationFraction": 0.9969999999999999,
@@ -2911,9 +2911,9 @@
       "id": 139,
       "kind": "animal",
       "speciesId": "scavenger.hyena",
-      "x": 31.099148236777175,
-      "y": 21.397650355887137,
-      "heading": 0.14827073838585214,
+      "x": 30.02490880213006,
+      "y": 17.467899095664748,
+      "heading": 5.580720445109774,
       "age": 1232,
       "energyFraction": 0.5774310185687669,
       "hydrationFraction": 0.9972999999999999,
@@ -2932,9 +2932,9 @@
       "id": 140,
       "kind": "animal",
       "speciesId": "scavenger.hyena",
-      "x": 41.448184021313715,
-      "y": 67.45037350748416,
-      "heading": 3.2012890704207244,
+      "x": 41.48686576111457,
+      "y": 68.3310963673539,
+      "heading": 2.7671035546042315,
       "age": 775,
       "energyFraction": 0.722086151898002,
       "hydrationFraction": 0.9972999999999999,
@@ -2953,9 +2953,9 @@
       "id": 141,
       "kind": "animal",
       "speciesId": "scavenger.hyena",
-      "x": 20.643324725129208,
-      "y": 3.229009510070571,
-      "heading": 5.024311581620221,
+      "x": 17.798941741839773,
+      "y": 3.2461903488410977,
+      "heading": 4.863592962262427,
       "age": 755,
       "energyFraction": 0.5759388225411941,
       "hydrationFraction": 0.9972999999999999,
@@ -2974,11 +2974,11 @@
       "id": 142,
       "kind": "animal",
       "speciesId": "scavenger.hyena",
-      "x": 42.41592948372496,
-      "y": 66.82239809126177,
-      "heading": 5.4381029006202155,
+      "x": 37.56480538037293,
+      "y": 68.3442963821266,
+      "heading": 2.1705210797840024,
       "age": 1055,
-      "energyFraction": 0.6834303233899469,
+      "energyFraction": 0.6832697139339315,
       "hydrationFraction": 0.9972999999999999,
       "bodyMass": 42.00419226391154,
       "healthFraction": 1,
@@ -2987,7 +2987,7 @@
       "groupId": null,
       "diseaseState": "susceptible",
       "dispersing": false,
-      "action": "wander",
+      "action": "herd",
       "alive": true,
       "decayStage": 0
     },
@@ -2995,9 +2995,9 @@
       "id": 143,
       "kind": "animal",
       "speciesId": "scavenger.hyena",
-      "x": 55.562680212683475,
-      "y": 19.681538595907437,
-      "heading": 5.5209726060129665,
+      "x": 55.5985669800736,
+      "y": 19.78421085386545,
+      "heading": 5.626914631327983,
       "age": 570,
       "energyFraction": 0.7462003957868147,
       "hydrationFraction": 0.9972999999999999,
@@ -3016,9 +3016,9 @@
       "id": 144,
       "kind": "animal",
       "speciesId": "scavenger.hyena",
-      "x": 26.024259386095633,
-      "y": 9.059073219172003,
-      "heading": 4.25182008664159,
+      "x": 33.156060278238996,
+      "y": 10.129663086943825,
+      "heading": 5.241193529358487,
       "age": 1415,
       "energyFraction": 0.8016153754755477,
       "hydrationFraction": 0.9972999999999999,
@@ -3030,6 +3030,1854 @@
       "diseaseState": "susceptible",
       "dispersing": false,
       "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 145,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 114.4086126257464,
+      "y": 70.10508091855662,
+      "heading": 4.9477407101289135,
+      "age": 18,
+      "energyFraction": 0.7853968128291428,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 43.42629659891315,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 146,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 21.920189533006287,
+      "y": 29.771239482546314,
+      "heading": 5.733081979647761,
+      "age": 618,
+      "energyFraction": 0.9854860130004447,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 148.85646112518663,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 147,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 31.161005931448226,
+      "y": 126.36710280955413,
+      "heading": 3.8105517211524678,
+      "age": 720,
+      "energyFraction": 0.9335934645033579,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 170.95295060705394,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 148,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 54.3280247695022,
+      "y": 15.437314979863645,
+      "heading": 2.18286149884037,
+      "age": 39,
+      "energyFraction": 0.8260228469711597,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 47.44346300625941,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 149,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 65.17563772896197,
+      "y": 32.15902500353556,
+      "heading": 2.3638573914804297,
+      "age": 39,
+      "energyFraction": 0.93998927781989,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 47.771491200840565,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 150,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 35.55870355581405,
+      "y": 21.951122321723997,
+      "heading": 2.6401953898922663,
+      "age": 1109,
+      "energyFraction": 0.953771135033085,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 246.89570083344898,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 151,
+      "kind": "carcass",
+      "speciesId": "herbivore.buffalo",
+      "x": 16.044896416709033,
+      "y": 120.31412605044729,
+      "heading": 5.746914860555571,
+      "age": 34,
+      "energyFraction": 0.6270021081013756,
+      "hydrationFraction": 0.9983333333333334,
+      "bodyMass": 45.9851982770587,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "herd",
+      "alive": false,
+      "decayStage": 0
+    },
+    {
+      "id": 152,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 11.476808565882004,
+      "y": 77.8727633293139,
+      "heading": 3.846222968595793,
+      "age": 461,
+      "energyFraction": 0.7244406848060477,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 123.94118528535063,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 153,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 30.749340256259504,
+      "y": 115.88369393107229,
+      "heading": 5.988108063479966,
+      "age": 609,
+      "energyFraction": 0.9878448284245901,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 149.05027410368947,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 154,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 95.68094494459383,
+      "y": 102.73033851482359,
+      "heading": 2.350933689052294,
+      "age": 796,
+      "energyFraction": 0.9386479034099742,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 194.90139221574242,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 155,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 72.59406667301775,
+      "y": 87.67784670736529,
+      "heading": 1.13182780455596,
+      "age": 1146,
+      "energyFraction": 0.8810995407319452,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 253.3987114571482,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 156,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 20.483298972432568,
+      "y": 108.82447576577981,
+      "heading": 1.6222217470082043,
+      "age": 240,
+      "energyFraction": 0.6250142075634927,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 80.35804214812816,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 157,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 106.21406385616535,
+      "y": 125.79918016829178,
+      "heading": 5.106511934879145,
+      "age": 1094,
+      "energyFraction": 0.8755166562309347,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 227.9852522128395,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 158,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 80.20021837386584,
+      "y": 2.256513919641884,
+      "heading": 3.278436107908007,
+      "age": 611,
+      "energyFraction": 0.8272268032417415,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 139.64118703721587,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 159,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 123.12835855047018,
+      "y": 12.582615425012778,
+      "heading": 4.619643205745189,
+      "age": 1346,
+      "energyFraction": 0.7507572241219308,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 277.2447680666217,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 160,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 79.32602724029913,
+      "y": 2.159774951556096,
+      "heading": 0.13116388112339994,
+      "age": 838,
+      "energyFraction": 0.7146390162946826,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 212.63445428859504,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 161,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 117.36070635545721,
+      "y": 19.232269630616923,
+      "heading": 5.129636558912557,
+      "age": 988,
+      "energyFraction": 0.8127160450929877,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 242.24085067559838,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 162,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 74.72643949958724,
+      "y": 86.17013428854308,
+      "heading": 2.965678654888502,
+      "age": 98,
+      "energyFraction": 0.6529567497284312,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 58.54883621281137,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 163,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 47.91293880653912,
+      "y": 84.15117894803798,
+      "heading": 6.222199931912041,
+      "age": 855,
+      "energyFraction": 0.9874528286810053,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 190.28065230669918,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 164,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 34.595346587595266,
+      "y": 93.11866658099719,
+      "heading": 5.15236534927597,
+      "age": 1123,
+      "energyFraction": 0.8477417133989869,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 241.56974919280006,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 165,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 29.28646958449699,
+      "y": 113.37687087037848,
+      "heading": 5.826627537518847,
+      "age": 1309,
+      "energyFraction": 0.777995123613078,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 277.4293501812291,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 166,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 48.65394210156222,
+      "y": 2.815285986616402,
+      "heading": 0.3727629620612971,
+      "age": 1492,
+      "energyFraction": 0.89411425439034,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 315.7664594652193,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 167,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 39.172970327821986,
+      "y": 41.23594184340063,
+      "heading": 0.48084816201385383,
+      "age": 361,
+      "energyFraction": 0.8925877907215483,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 102.27484570480573,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 168,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 23.962214669593706,
+      "y": 52.48520569792813,
+      "heading": 0.34084415201136586,
+      "age": 892,
+      "energyFraction": 0.8135457322710706,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 196.3930777912202,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 169,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 10.638737578676503,
+      "y": 76.86057876964891,
+      "heading": 0.47933921095006404,
+      "age": 1368,
+      "energyFraction": 0.7129423758655395,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 285.64977137850224,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 170,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 55.86002189598639,
+      "y": 39.63930753146597,
+      "heading": 5.561583975713405,
+      "age": 823,
+      "energyFraction": 0.6525994586099796,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 190.33285358788507,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 171,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 73.43781274736334,
+      "y": 72.53779137179353,
+      "heading": 5.409631364449032,
+      "age": 91,
+      "energyFraction": 0.7771161254412517,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 58.33736132888232,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 172,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 113.7715326032245,
+      "y": 77.12707058544106,
+      "heading": 3.8589801571585,
+      "age": 1054,
+      "energyFraction": 0.9264345404580213,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 241.09117293058677,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 173,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 105.71284520886613,
+      "y": 41.492462477756476,
+      "heading": 3.10619428246091,
+      "age": 142,
+      "energyFraction": 0.6655563928323404,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 68.54321161659404,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 174,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 34.66341835051942,
+      "y": 27.42696786640872,
+      "heading": 1.678715003526672,
+      "age": 251,
+      "energyFraction": 0.6420585278830696,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 84.52665941697717,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 175,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 50.33502899580542,
+      "y": 74.39861158625722,
+      "heading": 1.4221170626828936,
+      "age": 238,
+      "energyFraction": 0.6980584757030266,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 88.30264821727916,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "leaveThicket",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 176,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 99.24893745925414,
+      "y": 23.43132179215729,
+      "heading": 4.748566848351958,
+      "age": 1248,
+      "energyFraction": 0.9516120068919689,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 268.51386102375386,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "incubating",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 177,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 59.58427216936356,
+      "y": 126.00699112263256,
+      "heading": 5.634987371684817,
+      "age": 1201,
+      "energyFraction": 0.7753180375981326,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 276.0733521598458,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 178,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 120.81445966350066,
+      "y": 12.714276706283972,
+      "heading": 3.209675985590227,
+      "age": 363,
+      "energyFraction": 0.9915828013320662,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 99.09862348125363,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 179,
+      "kind": "animal",
+      "speciesId": "herbivore.buffalo",
+      "x": 95.78702064612258,
+      "y": 62.92391151130485,
+      "heading": 3.718325262172047,
+      "age": 12,
+      "energyFraction": 0.7951765630754261,
+      "hydrationFraction": 0.9958333333333336,
+      "bodyMass": 42.18747636611201,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 180,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 124.48916531515157,
+      "y": 80.12524138656275,
+      "heading": 4.860729144788323,
+      "age": 1439,
+      "energyFraction": 0.6994552252071191,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 102.69202899596985,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 181,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 52.040058607105436,
+      "y": 104.50470315164091,
+      "heading": 1.2451941266831232,
+      "age": 235,
+      "energyFraction": 0.7622369217218424,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 28.22947804175819,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 182,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 15.871646615696035,
+      "y": 120.72634789908685,
+      "heading": 6.117188944911084,
+      "age": 90,
+      "energyFraction": 0.6285753912327832,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 17.779013243172354,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 183,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 80.71330382311831,
+      "y": 98.56599863496523,
+      "heading": 5.900184661820838,
+      "age": 1061,
+      "energyFraction": 0.843539246188628,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 78.55332146210475,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 184,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 101.5436875912554,
+      "y": 68.22880949563549,
+      "heading": 1.9566883733888503,
+      "age": 1453,
+      "energyFraction": 0.8657863409775075,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 107.50050201175151,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 185,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 104.90145318395174,
+      "y": 74.08267670015438,
+      "heading": 2.4799216236990027,
+      "age": 1452,
+      "energyFraction": 0.5924264440865787,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 103.48412161269232,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 186,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 91.26737396023132,
+      "y": 59.20362441374074,
+      "heading": 0.24290687268177358,
+      "age": 1375,
+      "energyFraction": 0.8319359050533612,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 103.01442721618851,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 187,
+      "kind": "animal",
+      "speciesId": "predator.lion",
+      "x": 89.56755992623377,
+      "y": 59.15676300172349,
+      "heading": 3.0656770055624705,
+      "age": 1300,
+      "energyFraction": 0.5823267321525563,
+      "hydrationFraction": 0.9969999999999999,
+      "bodyMass": 94.72966007951182,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 188,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 32.302005254663655,
+      "y": 46.60246594724412,
+      "heading": 4.8062846917739215,
+      "age": 433,
+      "energyFraction": 0.9068723806299198,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 50.00352128830907,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "leaveThicket",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 189,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 116.16936130177409,
+      "y": 1.6306080749185763,
+      "heading": 5.611638331712481,
+      "age": 1099,
+      "energyFraction": 0.9398312918925282,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 110.98958254754332,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 190,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 7.3566900254442125,
+      "y": 73.11163136959145,
+      "heading": 5.342391544321563,
+      "age": 1026,
+      "energyFraction": 0.9153690643544803,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 104.07151749430523,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 191,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 99.74391734355814,
+      "y": 72.23218233122154,
+      "heading": 1.9847674526468868,
+      "age": 378,
+      "energyFraction": 0.7167521536077925,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 50.95037506564817,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 192,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 93.97785327170553,
+      "y": 100.16594907023159,
+      "heading": 3.9230314072619334,
+      "age": 1388,
+      "energyFraction": 0.8863861513422736,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 133.38132526634683,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 193,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 59.42268722626398,
+      "y": 14.231823220539692,
+      "heading": 0.2824733077994326,
+      "age": 428,
+      "energyFraction": 0.9104280239422956,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 53.541581098449164,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 194,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 119.84851187580028,
+      "y": 35.61223830990788,
+      "heading": 2.212240774993719,
+      "age": 1408,
+      "energyFraction": 0.8461495115299468,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 127.09481315493584,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 195,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 120.28406400528563,
+      "y": 27.001940558791667,
+      "heading": 1.2739846140198985,
+      "age": 315,
+      "energyFraction": 0.7989524103362537,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 43.483278177501845,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 196,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 64.7499672435398,
+      "y": 89.97296309029196,
+      "heading": 6.002045517343528,
+      "age": 248,
+      "energyFraction": 0.8194410937674508,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 40.203512956020845,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "herd",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 197,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 24.89300737220959,
+      "y": 36.88610931647206,
+      "heading": 2.142040158147677,
+      "age": 829,
+      "energyFraction": 0.7625614561657029,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 88.08718667967119,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 198,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 12.133455940708748,
+      "y": 4.284629855403243,
+      "heading": 5.140020468472641,
+      "age": 525,
+      "energyFraction": 0.7710063657030749,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 59.49269091336861,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 199,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 22.089128662694126,
+      "y": 44.380849043267496,
+      "heading": 3.7447809338199485,
+      "age": 713,
+      "energyFraction": 0.7934851647207429,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 78.53461591588714,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 200,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 12.598342199720387,
+      "y": 52.60150000161721,
+      "heading": 1.2234079844209305,
+      "age": 191,
+      "energyFraction": 0.8642050419606502,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 33.12280049997001,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 201,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 65.51485929314198,
+      "y": 89.75207085835065,
+      "heading": 2.8604528637537427,
+      "age": 1315,
+      "energyFraction": 0.8305329896426642,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 123.64046738517195,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "herd",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 202,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 7.0460378331780795,
+      "y": 73.20250817038328,
+      "heading": 2.073032352669637,
+      "age": 353,
+      "energyFraction": 0.976831195799017,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 44.66589104346423,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 203,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 30.523155977323867,
+      "y": 44.9529708920711,
+      "heading": 4.892578905766918,
+      "age": 509,
+      "energyFraction": 0.6700177048251986,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 58.73981616579822,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 204,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 85.3249361120551,
+      "y": 94.11807370055108,
+      "heading": 5.580695111798169,
+      "age": 176,
+      "energyFraction": 0.6533908458769485,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 32.88069392036647,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 205,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 115.15314672960984,
+      "y": 44.562632188609335,
+      "heading": 2.962945163808243,
+      "age": 325,
+      "energyFraction": 0.7370687342484751,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 45.83075672158951,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 206,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 122.26928765507583,
+      "y": 69.41906322817765,
+      "heading": 1.5707963267948966,
+      "age": 274,
+      "energyFraction": 0.9053407035307318,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 40.64459784198722,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 207,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 48.72629322221214,
+      "y": 60.70584253501172,
+      "heading": 5.1671618442313125,
+      "age": 943,
+      "energyFraction": 0.6946654313125565,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 102.51856260432461,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 208,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 29.77065927095448,
+      "y": 69.30062022894904,
+      "heading": 4.89268848271981,
+      "age": 1315,
+      "energyFraction": 0.6663965954805442,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 118.70053094089009,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 209,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 56.853833676155446,
+      "y": 46.830316517853554,
+      "heading": 3.2810135024990554,
+      "age": 510,
+      "energyFraction": 0.758576733120038,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 60.166200071501294,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "leaveThicket",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 210,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 117.59138151512283,
+      "y": 76.64837048648283,
+      "heading": 3.7676701814831377,
+      "age": 825,
+      "energyFraction": 0.8586240256458086,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 85.76265721017263,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 211,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 42.451292309226176,
+      "y": 29.542827590739446,
+      "heading": 2.896518605673954,
+      "age": 961,
+      "energyFraction": 0.7430448936263141,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 101.71895334976281,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 212,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 116.48590622663896,
+      "y": 50.092505044253755,
+      "heading": 4.4523809029275085,
+      "age": 1138,
+      "energyFraction": 0.9545407181885764,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 113.11484341517344,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 213,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 126.24423807859421,
+      "y": 118.14393217310112,
+      "heading": 1.5707963267948966,
+      "age": 1060,
+      "energyFraction": 0.9165406307523959,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 101.40698899164035,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 214,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 43.96547920335587,
+      "y": 3.7734346411876833,
+      "heading": 3.6727153461705373,
+      "age": 414,
+      "energyFraction": 0.6833697710185369,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 51.65254649613264,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 215,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 42.24898165158738,
+      "y": 4.34675112284786,
+      "heading": 2.364904758343364,
+      "age": 768,
+      "energyFraction": 0.9628866404130512,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 86.25389777866278,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 216,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 85.69211541770461,
+      "y": 46.62144748313141,
+      "heading": 0.5637307775792868,
+      "age": 88,
+      "energyFraction": 0.6688554339720075,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 25.421237749475985,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 217,
+      "kind": "animal",
+      "speciesId": "herbivore.wildebeest",
+      "x": 79.33344152134046,
+      "y": 64.34586452541416,
+      "heading": 5.552141049260369,
+      "age": 1307,
+      "energyFraction": 0.9110088379901462,
+      "hydrationFraction": 0.9961818181818181,
+      "bodyMass": 127.51165713316085,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 218,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 93.82116217244196,
+      "y": 35.502961937146964,
+      "heading": 2.4356054135321283,
+      "age": 1232,
+      "energyFraction": 0.817804411096033,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 150.90913914790664,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 219,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 8.976143374067608,
+      "y": 28.094502187164476,
+      "heading": 3.667222858438931,
+      "age": 194,
+      "energyFraction": 0.7824245068687473,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 49.030146227732764,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 220,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 45.681097755497795,
+      "y": 46.0806977280224,
+      "heading": 6.241730132893869,
+      "age": 364,
+      "energyFraction": 0.852245501825223,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 70.26817612603773,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 221,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 112.46057521465224,
+      "y": 34.21323752614221,
+      "heading": 3.903793044124031,
+      "age": 391,
+      "energyFraction": 0.7714317225689683,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 69.32933655392378,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 222,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 99.77431378999053,
+      "y": 27.19544453068577,
+      "heading": 0.7118243789593794,
+      "age": 644,
+      "energyFraction": 0.7836620336981099,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 93.99750685002762,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 223,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 115.20484956598607,
+      "y": 116.780895140271,
+      "heading": 2.145968778232147,
+      "age": 1001,
+      "energyFraction": 0.8340913358034868,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 130.9749636728363,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 224,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 93.04146206922816,
+      "y": 33.58434205020995,
+      "heading": 5.323504266073217,
+      "age": 563,
+      "energyFraction": 0.6333751369486406,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 90.37113774007688,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 225,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 103.80812166439009,
+      "y": 102.48810187609435,
+      "heading": 4.660638629300561,
+      "age": 1149,
+      "energyFraction": 0.6749855206804668,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 139.9820146524332,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 226,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 120.77734510665894,
+      "y": 47.48561420219032,
+      "heading": 2.787470948393646,
+      "age": 1503,
+      "energyFraction": 0.8636340806981596,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 199.240453041996,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 227,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 14.391956806145929,
+      "y": 93.91144790958421,
+      "heading": 5.904113252670609,
+      "age": 610,
+      "energyFraction": 0.884703920062434,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 90.51146683636694,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 228,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 126.45545762177908,
+      "y": 34.7440334324293,
+      "heading": 3.0394850531877644,
+      "age": 1148,
+      "energyFraction": 0.8840337769808092,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 154.50376977692645,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "wander",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 229,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 82.0787347208088,
+      "y": 67.9746586600037,
+      "heading": 0.7172814894474215,
+      "age": 884,
+      "energyFraction": 0.8163345554414739,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 116.93804214977659,
+      "healthFraction": 1,
+      "lifeStage": "subadult",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 230,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 48.18948938349202,
+      "y": 16.559379825364452,
+      "heading": 0.6047389109214194,
+      "age": 68,
+      "energyFraction": 0.6502430731972461,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 37.08986494048821,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 231,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 20.227065401683383,
+      "y": 116.64442654441439,
+      "heading": 5.535912911621973,
+      "age": 680,
+      "energyFraction": 0.8404381215447194,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 99.9002827299329,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "male",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "eat",
+      "alive": true,
+      "decayStage": 0
+    },
+    {
+      "id": 232,
+      "kind": "animal",
+      "speciesId": "herbivore.zebra",
+      "x": 57.257277964089155,
+      "y": 114.53168440137391,
+      "heading": 1.1640115226749188,
+      "age": 320,
+      "energyFraction": 0.9028426269458295,
+      "hydrationFraction": 0.9959999999999999,
+      "bodyMass": 65.0495177985384,
+      "healthFraction": 1,
+      "lifeStage": "juvenile",
+      "sex": "female",
+      "groupId": null,
+      "diseaseState": "susceptible",
+      "dispersing": false,
+      "action": "flee",
       "alive": true,
       "decayStage": 0
     }
@@ -5633,7 +7481,7 @@
     "width": 128,
     "height": 128,
     "maxLevel": 4,
-    "revision": 326,
+    "revision": 536,
     "encoding": "rle-row-major",
     "runs": [
       [
@@ -5778,11 +7626,11 @@
       ],
       [
         1,
-        2
+        3
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
@@ -6026,23 +7874,7 @@
       ],
       [
         1,
-        2
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        3
+        8
       ],
       [
         2,
@@ -6226,7 +8058,15 @@
       ],
       [
         1,
-        6
+        3
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
       ],
       [
         2,
@@ -6629,8 +8469,12 @@
         1
       ],
       [
+        0,
+        1
+      ],
+      [
         1,
-        3
+        2
       ],
       [
         2,
@@ -6866,11 +8710,11 @@
       ],
       [
         2,
-        3
+        1
       ],
       [
         1,
-        1
+        3
       ],
       [
         2,
@@ -7150,11 +8994,11 @@
       ],
       [
         0,
-        11
+        10
       ],
       [
         1,
-        6
+        7
       ],
       [
         2,
@@ -8418,15 +10262,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        2
-      ],
-      [
-        1,
-        5
+        8
       ],
       [
         2,
@@ -8694,11 +10530,11 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
@@ -8754,7 +10590,15 @@
       ],
       [
         1,
-        3
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -8998,11 +10842,11 @@
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        3
+        4
       ],
       [
         2,
@@ -9310,11 +11154,11 @@
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
@@ -9322,15 +11166,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        1
+        3
       ],
       [
         2,
@@ -9438,11 +11274,11 @@
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
@@ -9898,19 +11734,15 @@
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        5
-      ],
-      [
-        2,
-        1
+        6
       ],
       [
         0,
@@ -10346,7 +12178,15 @@
       ],
       [
         1,
-        8
+        6
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -10542,15 +12382,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        1
+        3
       ],
       [
         0,
@@ -10750,11 +12582,11 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
-        3
+        4
       ],
       [
         2,
@@ -10933,7 +12765,7 @@
         1
       ],
       [
-        2,
+        3,
         1
       ],
       [
@@ -11622,15 +13454,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        1
+        3
       ],
       [
         2,
@@ -11698,6 +13522,14 @@
       ],
       [
         1,
+        7
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        1,
         1
       ],
       [
@@ -11706,15 +13538,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        6
-      ],
-      [
-        1,
-        4
+        2
       ],
       [
         2,
@@ -11802,7 +13626,15 @@
       ],
       [
         1,
-        10
+        2
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        7
       ],
       [
         2,
@@ -11962,11 +13794,11 @@
       ],
       [
         1,
-        4
+        5
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
@@ -12146,7 +13978,15 @@
       ],
       [
         1,
-        12
+        6
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        5
       ],
       [
         2,
@@ -12217,16 +14057,8 @@
         1
       ],
       [
-        2,
-        1
-      ],
-      [
-        3,
-        1
-      ],
-      [
         1,
-        1
+        3
       ],
       [
         2,
@@ -12338,7 +14170,15 @@
       ],
       [
         1,
-        7
+        2
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        4
       ],
       [
         2,
@@ -12398,11 +14238,11 @@
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        3
+        4
       ],
       [
         2,
@@ -12514,11 +14354,7 @@
       ],
       [
         1,
-        6
-      ],
-      [
-        0,
-        1
+        7
       ],
       [
         2,
@@ -12526,11 +14362,11 @@
       ],
       [
         1,
-        2
+        3
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -12682,11 +14518,11 @@
       ],
       [
         1,
-        4
+        5
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -13226,7 +15062,15 @@
       ],
       [
         2,
-        3
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        2,
+        1
       ],
       [
         1,
@@ -13242,7 +15086,15 @@
       ],
       [
         2,
-        5
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        3
       ],
       [
         1,
@@ -13390,15 +15242,15 @@
       ],
       [
         1,
-        2
-      ],
-      [
-        2,
         3
       ],
       [
+        2,
+        1
+      ],
+      [
         1,
-        5
+        6
       ],
       [
         2,
@@ -13445,7 +15297,7 @@
         2
       ],
       [
-        1,
+        0,
         1
       ],
       [
@@ -14086,7 +15938,15 @@
       ],
       [
         2,
-        3
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        2,
+        1
       ],
       [
         1,
@@ -14326,7 +16186,15 @@
       ],
       [
         1,
-        6
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        4
       ],
       [
         2,
@@ -14534,15 +16402,7 @@
       ],
       [
         1,
-        2
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        1
+        4
       ],
       [
         0,
@@ -14598,10 +16458,14 @@
       ],
       [
         1,
-        4
+        3
       ],
       [
-        3,
+        0,
+        1
+      ],
+      [
+        1,
         1
       ],
       [
@@ -14778,15 +16642,7 @@
       ],
       [
         1,
-        2
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        1
+        4
       ],
       [
         0,
@@ -15109,8 +16965,12 @@
         2
       ],
       [
+        0,
+        1
+      ],
+      [
         1,
-        3
+        2
       ],
       [
         2,
@@ -15125,8 +16985,12 @@
         1
       ],
       [
+        0,
+        1
+      ],
+      [
         1,
-        5
+        4
       ],
       [
         2,
@@ -15173,8 +17037,12 @@
         2
       ],
       [
+        0,
+        1
+      ],
+      [
         2,
-        2
+        1
       ],
       [
         1,
@@ -15266,11 +17134,11 @@
       ],
       [
         1,
-        1
+        3
       ],
       [
         2,
-        4
+        2
       ],
       [
         1,
@@ -15406,11 +17274,11 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
@@ -15474,7 +17342,15 @@
       ],
       [
         2,
-        3
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
       ],
       [
         1,
@@ -15586,11 +17462,11 @@
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -15698,10 +17574,14 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
+        1
+      ],
+      [
+        0,
         1
       ],
       [
@@ -15754,7 +17634,15 @@
       ],
       [
         2,
-        4
+        2
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
       ],
       [
         1,
@@ -15822,7 +17710,11 @@
       ],
       [
         1,
-        5
+        3
+      ],
+      [
+        2,
+        2
       ],
       [
         0,
@@ -16009,7 +17901,7 @@
         2
       ],
       [
-        2,
+        0,
         1
       ],
       [
@@ -16074,7 +17966,15 @@
       ],
       [
         1,
-        7
+        4
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        2
       ],
       [
         0,
@@ -16306,19 +18206,15 @@
       ],
       [
         2,
-        3
-      ],
-      [
-        3,
-        1
+        4
       ],
       [
         1,
-        2
+        1
       ],
       [
         2,
-        1
+        2
       ],
       [
         1,
@@ -16602,15 +18498,7 @@
       ],
       [
         1,
-        2
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        5
+        8
       ],
       [
         2,
@@ -17398,7 +19286,23 @@
       ],
       [
         1,
-        6
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
       ],
       [
         2,
@@ -18002,7 +19906,15 @@
       ],
       [
         1,
-        4
+        2
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -18270,11 +20182,11 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
-        18
+        19
       ],
       [
         2,
@@ -19046,7 +20958,11 @@
       ],
       [
         2,
-        2
+        1
+      ],
+      [
+        0,
+        1
       ],
       [
         1,
@@ -19469,12 +21385,8 @@
         6
       ],
       [
-        2,
-        1
-      ],
-      [
         1,
-        1
+        2
       ],
       [
         2,
@@ -19786,7 +21698,11 @@
       ],
       [
         2,
-        3
+        2
+      ],
+      [
+        3,
+        1
       ],
       [
         1,
@@ -20254,7 +22170,15 @@
       ],
       [
         1,
-        5
+        3
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -20749,7 +22673,7 @@
         3
       ],
       [
-        2,
+        0,
         1
       ],
       [
@@ -21010,15 +22934,7 @@
       ],
       [
         1,
-        3
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        3
+        7
       ],
       [
         2,
@@ -21130,7 +23046,15 @@
       ],
       [
         1,
-        5
+        2
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
       ],
       [
         2,
@@ -21617,7 +23541,7 @@
         1
       ],
       [
-        1,
+        0,
         1
       ],
       [
@@ -21662,11 +23586,11 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
-        3
+        4
       ],
       [
         2,
@@ -21977,7 +23901,7 @@
         4
       ],
       [
-        2,
+        0,
         1
       ],
       [
@@ -22446,11 +24370,11 @@
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -22542,19 +24466,11 @@
       ],
       [
         1,
-        3
+        4
       ],
       [
         2,
-        1
-      ],
-      [
-        1,
-        1
-      ],
-      [
-        2,
-        1
+        2
       ],
       [
         1,
@@ -22590,15 +24506,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        3
+        5
       ],
       [
         2,
@@ -22858,7 +24766,15 @@
       ],
       [
         1,
-        4
+        2
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -23105,7 +25021,7 @@
         6
       ],
       [
-        1,
+        0,
         1
       ],
       [
@@ -23577,12 +25493,16 @@
         5
       ],
       [
+        0,
+        1
+      ],
+      [
         1,
         1
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -23802,11 +25722,11 @@
       ],
       [
         1,
-        6
+        7
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -24154,7 +26074,15 @@
       ],
       [
         1,
-        3
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -24317,7 +26245,7 @@
         1
       ],
       [
-        0,
+        1,
         1
       ],
       [
@@ -24638,31 +26566,31 @@
       ],
       [
         2,
-        1
-      ],
-      [
-        1,
-        1
-      ],
-      [
-        2,
-        2
-      ],
-      [
-        1,
-        3
-      ],
-      [
-        2,
-        2
-      ],
-      [
-        1,
-        3
-      ],
-      [
-        2,
         4
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        2
       ],
       [
         1,
@@ -24858,7 +26786,15 @@
       ],
       [
         2,
-        6
+        2
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        3
       ],
       [
         1,
@@ -25138,11 +27074,11 @@
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
@@ -25414,7 +27350,15 @@
       ],
       [
         1,
-        7
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        5
       ],
       [
         2,
@@ -26074,7 +28018,15 @@
       ],
       [
         2,
-        4
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        2
       ],
       [
         1,
@@ -26742,11 +28694,11 @@
       ],
       [
         1,
-        3
+        4
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
@@ -27218,35 +29170,35 @@
       ],
       [
         2,
+        2
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
         3
       ],
       [
         1,
-        1
-      ],
-      [
-        3,
-        1
-      ],
-      [
-        1,
-        2
-      ],
-      [
-        3,
-        1
-      ],
-      [
-        1,
-        4
-      ],
-      [
-        2,
-        4
-      ],
-      [
-        1,
-        4
+        5
       ],
       [
         2,
@@ -27286,11 +29238,11 @@
       ],
       [
         1,
-        2
+        1
       ],
       [
         2,
-        1
+        2
       ],
       [
         1,
@@ -27589,8 +29541,12 @@
         11
       ],
       [
+        1,
+        1
+      ],
+      [
         2,
-        3
+        2
       ],
       [
         1,
@@ -27686,15 +29642,7 @@
       ],
       [
         1,
-        4
-      ],
-      [
-        0,
-        1
-      ],
-      [
-        1,
-        2
+        7
       ],
       [
         2,
@@ -27918,11 +29866,11 @@
       ],
       [
         2,
-        2
+        1
       ],
       [
         1,
-        4
+        5
       ],
       [
         3,
@@ -28510,7 +30458,11 @@
       ],
       [
         2,
-        2
+        1
+      ],
+      [
+        3,
+        1
       ],
       [
         1,
@@ -28774,11 +30726,19 @@
       ],
       [
         1,
+        2
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
         1
       ],
       [
         2,
-        6
+        3
       ],
       [
         1,
@@ -29317,8 +31277,12 @@
         1
       ],
       [
+        0,
+        1
+      ],
+      [
         1,
-        2
+        1
       ],
       [
         2,
@@ -29534,11 +31498,11 @@
       ],
       [
         1,
-        2
+        3
       ],
       [
         2,
-        4
+        3
       ],
       [
         1,
@@ -29838,11 +31802,11 @@
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
@@ -30537,8 +32501,12 @@
         2
       ],
       [
+        0,
+        1
+      ],
+      [
         1,
-        3
+        2
       ],
       [
         2,
@@ -32450,7 +34418,15 @@
       ],
       [
         1,
-        3
+        1
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
       ],
       [
         2,
@@ -34146,11 +36122,11 @@
       ],
       [
         1,
-        3
+        1
       ],
       [
         2,
-        2
+        4
       ],
       [
         1,
@@ -34530,11 +36506,11 @@
       ],
       [
         1,
-        3
+        2
       ],
       [
         2,
-        2
+        3
       ],
       [
         1,
@@ -34854,7 +36830,11 @@
       ],
       [
         1,
-        4
+        3
+      ],
+      [
+        0,
+        1
       ],
       [
         2,
@@ -35046,11 +37026,11 @@
       ],
       [
         2,
-        3
+        2
       ],
       [
         1,
-        1
+        2
       ],
       [
         2,
@@ -35254,15 +37234,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        2
+        4
       ],
       [
         2,
@@ -35278,15 +37250,7 @@
       ],
       [
         1,
-        1
-      ],
-      [
-        2,
-        1
-      ],
-      [
-        1,
-        3
+        5
       ],
       [
         2,

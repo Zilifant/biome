@@ -21,7 +21,7 @@ import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapsho
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
-const STALKER = getSpecies('predator.stalker');
+const STALKER = getSpecies('predator.leopard');
 
 function sandbox({ seed = 3, size = 44, systems = [] } = {}) {
   const engine = new SimulationEngine({

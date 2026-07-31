@@ -26,7 +26,7 @@ import { dominanceOf } from '../src/simulation/social/dominance.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 
 const CONFIG = new SimulationEngine().config;
-const STALKER = getSpecies('predator.stalker');
+const STALKER = getSpecies('predator.leopard');
 const CORVID = getSpecies('scavenger.vulture');
 
 /** Teach one engine about invented species (the roster is a static import list, A50). */
@@ -128,8 +128,8 @@ describe('predation: prey eligibility by mass', () => {
     const declares = (species) => species.predation.maxPreyMassRatio !== null || species.predation.minPreyMassRatio !== null;
     assert.deepEqual(
       engine.species.all().filter(declares).map((s) => s.id).sort(),
-      ['predator.lion', 'scavenger.hyena'],
-      'only the two species with a reason to bound their prey do',
+      ['predator.leopard', 'predator.lion', 'scavenger.hyena'],
+      'only the species with a reason to bound their prey do — the three that hunt something they must not take whole',
     );
     for (const species of engine.species.all()) {
       if (declares(species)) continue;

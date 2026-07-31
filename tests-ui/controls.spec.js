@@ -51,7 +51,7 @@ test.describe('controls send commands (live, mocked host)', () => {
     await page.locator('#ctl-world-w').fill('200');
     await page.locator('#ctl-world-h').fill('150');
     await page.locator('#ctl-founding-herbivore-gazelle').fill('40');
-    await page.locator('#ctl-founding-predator-stalker').fill('5');
+    await page.locator('#ctl-founding-predator-leopard').fill('5');
     await page.locator('#ctl-founding-scavenger-vulture').fill('0');
 
     const before = commands.length;
@@ -64,7 +64,7 @@ test.describe('controls send commands (live, mocked host)', () => {
       height: 150,
       founding: [
         { speciesId: 'herbivore.gazelle', count: 40 },
-        { speciesId: 'predator.stalker', count: 5 },
+        { speciesId: 'predator.leopard', count: 5 },
         { speciesId: 'scavenger.vulture', count: 0 },
       ],
     });

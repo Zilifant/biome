@@ -221,6 +221,32 @@ export class World {
   }
 
   /**
+   * How well the ground at a continuous position hides an animal standing on it,
+   * 0 (plain sight) to 1 (invisible) — the graded form of `blocksSightAt`, and
+   * the chokepoint perception discounts its detection range by (PLAN-SPECIES.md
+   * §3.12, phase 14).
+   *
+   * ⚠ **"Hidden *in*" is a different question from "hidden *behind*"**, and this
+   * world answers them in two places on purpose: `blocksSightAt` is asked about
+   * the cells *between* two animals (the raycast), this is asked about the cell
+   * the target is standing *on*. Low brush is 0.55 here and transparent there —
+   * you see straight through a stand of it and still fail to pick out the cat
+   * crouched in the middle. They meet at 1: total concealment is opacity, which
+   * is why the terrain's boolean is derived from its concealment scale.
+   *
+   * The one place to fold in non-terrain concealment later — smoke from a fire,
+   * the A51 shrub layer — exactly as `speedModifierAt` folds in disturbances and
+   * worn ground, so no system has to learn a new source of cover to be hidden by
+   * one.
+   * @param {number} x @param {number} y
+   * @returns {number}
+   */
+  concealmentAt(x, y) {
+    const { cellX, cellY } = this.cellOf(x, y);
+    return this.terrain.concealmentAt(cellX, cellY);
+  }
+
+  /**
    * Whether a continuous position is inside a thicket — passable ground so slow
    * to cross that the movement system only lets an animal push in when it is
    * fleeing (or already inside, so it can push back out). The one predicate that

@@ -95,23 +95,17 @@ export const KIND_APPEARANCE = Object.freeze({
  * hide the more informative glyph of the two.
  */
 export const SPECIES_APPEARANCE = Object.freeze({
-  // ---- shipped today ----
-  // ⚠ `supersededBy` names the roster entry a shipped species is renamed into,
-  // so the pairing is mechanical rather than folklore — it is what lets two
-  // species share a glyph without that being a collision, and
-  // `renderer-view.test.js` checks both halves. **The entry is deleted in the
-  // phase that does the rename**: the grazer's and corvid's went at phase 7
-  // (2026-07-29) when they became the gazelle and the vulture, and the
-  // stalker's goes at phase 14 when it becomes the leopard.
-  'predator.stalker': Object.freeze({
-    glyph: 's',
-    colorToken: 'red',
-    priority: 60,
-    label: 'stalker',
-    supersededBy: 'predator.leopard',
-  }),
-
   // ---- the roster (PLAN-SPECIES §7) ----
+  // ⚠ **`supersededBy` has no entries left, and that is the scheme working
+  // rather than the scheme being abandoned.** It named the roster entry a shipped
+  // species would be renamed into, so two species could share a glyph without
+  // that being a collision — and the rule was always that **the entry is deleted
+  // in the phase that does the rename**. The grazer's and the corvid's went at
+  // phase 7 (2026-07-29) when they became the gazelle and the vulture; the
+  // stalker's went at **phase 14** (2026-07-30) when it became the leopard, which
+  // was the last one. The field, its handling, and `renderer-view.test.js`'s
+  // check of it all stay: the next rename needs them, and a scheme that is
+  // deleted the moment it is empty has to be rediscovered.
   // ⚠ The gazelle keeps the grazer's `g`/`yellow`/50 exactly, so batch 1 is
   // indistinguishable on screen from today's demo except for the carnivore that
   // arrives with it — which is what makes a visual regression obvious.

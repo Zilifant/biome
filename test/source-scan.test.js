@@ -25,9 +25,9 @@ describe('source scan: comment stripping', () => {
 
   test('⚠ a `*/` inside a LINE comment does not close a block comment', () => {
     // The mirror case, which is why reversing the two regexes was not the fix.
-    const source = ['/**', ' * A doc block.', ' */', '// closing looks like */ here', "const id = 'predator.stalker';"].join('\n');
+    const source = ['/**', ' * A doc block.', ' */', '// closing looks like */ here', "const id = 'predator.leopard';"].join('\n');
     const stripped = stripComments(source);
-    assert.ok(stripped.includes("'predator.stalker'"), 'code after both comment kinds must survive');
+    assert.ok(stripped.includes("'predator.leopard'"), 'code after both comment kinds must survive');
     assert.ok(!stripped.includes('A doc block'), 'the block comment is gone');
   });
 
@@ -103,7 +103,7 @@ describe('source scan: the demo founding roster exemption', () => {
       '  demo: {',
       '    founding: [',
       "      { speciesId: 'herbivore.gazelle', count: 120 },",
-      "      { speciesId: 'predator.stalker', count: 8 },",
+      "      { speciesId: 'predator.leopard', count: 8 },",
       '    ],',
       '  },',
       '};',
@@ -119,7 +119,7 @@ describe('source scan: the demo founding roster exemption', () => {
     // excised, no species id remains anywhere in the config.
     const raw = readFileSync('src/simulation/config/defaultSimulationConfig.js', 'utf8');
     const scanned = removeDemoFoundingRoster(stripComments(raw));
-    for (const id of ['herbivore.gazelle', 'predator.stalker', 'scavenger.vulture']) {
+    for (const id of ['herbivore.gazelle', 'predator.leopard', 'scavenger.vulture']) {
       assert.ok(!scanned.includes(id), `${id} appears outside demo.founding`);
     }
     // And the exemption is narrow: the roster really was in there to begin with.

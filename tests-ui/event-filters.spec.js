@@ -7,8 +7,12 @@ import { test, expect, waitForRender } from './helpers/app.js';
  * closed list), and that ticking a box actually changes the feed and is
  * remembered.
  *
- * The committed fixtures contain no births or deaths, which is why the default
- * feed is empty offline — a fact this suite relies on rather than works around.
+ * ⚠ **The fixtures used to contain no births or deaths at all**, and this suite
+ * relied on the default feed being *empty* offline. Batch 3 (2026-07-30) ended
+ * that: eight species and 24% more animals means something dies inside the
+ * fixture's warm-up. Nothing about the filters changed — the assumption was about
+ * the data, so it is now stated as a property of the feed (every visible row is a
+ * ticked type) rather than as a count that happened to be zero.
  */
 test.describe('event feed filters', () => {
   const filters = '#event-log-filters';
@@ -24,10 +28,16 @@ test.describe('event feed filters', () => {
   });
 
   test('ticking a type shows exactly that type, and only it', async ({ appPage: page }) => {
-    // Nothing in the fixtures is a birth or a death, so the default feed is empty.
-    await expect(page.locator('#event-log-list li')).toHaveCount(0);
+    // The default two types are births and deaths, so whatever is on screen before
+    // anything is touched must be one of those — a handful of lines in the current
+    // fixtures, and none at all in the ones this suite was written against.
+    for (const text of await page.locator('#event-log-list li').allTextContents()) {
+      expect(text, 'the default feed is births and deaths').toMatch(/born|died/);
+    }
 
     await page.locator(`${filters} > summary`).click();
+    await page.locator('input[data-event-type="entity.born"]').uncheck();
+    await page.locator('input[data-event-type="entity.died"]').uncheck();
     await page.locator('input[data-event-type="entity.moved"]').check();
 
     const lines = page.locator('#event-log-list li');

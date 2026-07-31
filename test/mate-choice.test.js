@@ -197,7 +197,7 @@ describe('mate choice: what makes a good mate', () => {
 
   test('each species declares its own display, read generically', () => {
     assert.equal(matePreferenceFor(REGISTRY.get('herbivore.gazelle')).trait, 'size');
-    assert.equal(matePreferenceFor(REGISTRY.get('predator.stalker')).trait, 'speed');
+    assert.equal(matePreferenceFor(REGISTRY.get('predator.leopard')).trait, 'speed');
     assert.equal(matePreferenceFor(REGISTRY.get('nope.unknown')), null, 'an unknown species degrades to no preference');
   });
 });

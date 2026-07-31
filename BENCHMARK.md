@@ -293,6 +293,78 @@ measured 85–90 ms/tick at large-5k in the interleaved rounds an hour earlier, 
 single dated reading spans ±25% depending on when it is taken. **Interleave, or do
 not compare.**
 
+### Batch 3: the wildebeest and zebra join every scenario (2026-07-30, phase 13)
+
+⚠ **The scenario roster changed again, so every figure above this line describes a
+different world.** Phase 13 added `herbivore.wildebeest` and `herbivore.zebra` to
+all four scenarios at the demo's own 120:30:15:35:8:8:10:6 ratio — **+24% more
+animals**, and two more species carrying a `migration.cueRadius`.
+
+Full run on the new roster:
+
+| Scenario | World | Start→end entities | ms/tick | ticks/sec |
+| --- | --- | ---: | ---: | ---: |
+| demo-default | 128×128 | 232→276 | 2.2178 | 451 |
+| small-100 | 256×256 | 194→221 | 1.3564 | 737 |
+| medium-1k | 512×512 | 1931→2237 | 18.3212 | 55 |
+| large-5k | 1024×1024 | 9649→11195 | **130.2420** | 8 |
+
+To separate the two species' cost from the extra animals and from machine drift,
+medium-1k was run **interleaved in one process**, alternating the two rosters three
+times each — no `git stash` needed, because a roster is config:
+
+| arm | medium-1k (3 rounds) | mean | entities | per animal |
+| --- | --- | ---: | ---: | ---: |
+| batch 2 roster | 13.051, 13.092, 12.830 | 12.991 | 1541 | 8.430 µs |
+| batch 3 roster | 16.785, 16.647, 16.328 | 16.587 | 1910 | 8.684 µs |
+
+**+27.7% total for +24.0% more animals — so ~+3.0% per animal**, and the batch-3
+arm is slower in **all three** rounds, which by this file's rule is a real cost
+rather than noise.
+
+⚠ **It is the long-range cue again, and this is now three phases of the same
+finding.** Phase 11 measured +5.7% per animal for the buffalo and lion and located
+it in `migration.cueRadius` rather than in any of the new mechanisms; batch 3 adds
+two more cue-carrying species (both at 20, the widest in the roster) and costs
+about half as much per animal, which is what you would expect from two cue rings
+and no 600 kg body. **A species with `cueRadius: 0` is close to free; one with a
+cue is the expensive kind.** Everything phase 12 built stayed free here — no
+species-count term appears in the association early-out, and a breeding window is
+one comparison.
+
+### Batch 4: the leopard and cover concealment (2026-07-30, PLAN-SPECIES.md phase 14)
+
+The roster did **not** change size — `predator.stalker` became `predator.leopard`
+at the same count — so unlike phases 11 and 13 the figures here are comparable to
+phase 13's on population grounds. What is new is a mechanism inside the hottest
+loop in the engine, which is what §3.12 warned about.
+
+Concealment on against off, interleaved in one process (it is a config A/B, so no
+`git stash` and no drift), medium-1k, three rounds each:
+
+| arm | medium-1k (3 rounds) | mean | entities |
+| --- | --- | ---: | ---: |
+| concealment off | 16.544, 16.669, 16.737 | 16.650 | 1898 |
+| concealment on | 17.094, 17.053, 17.115 | 17.087 | 1905 |
+
+**+2.6%**, slower in all three rounds — a real cost by this file's rule rather than
+noise, and a small one.
+
+⚠ **§3.12 called this "possibly the most expensive item in this document per unit
+of realism", and it was wrong in the useful direction.** Its fear was that grading
+sight would make every ray *accumulate* concealment rather than early-exit on the
+first opaque cell. Nothing accumulates. **Opacity became the top of the concealment
+scale rather than a second pass over it**: the terrain keeps a derived boolean array
+for the raycast, so `hasLineOfSight` does exactly the array read and branch it did
+before, and the new work is one cell read per neighbour *that already has line of
+sight* — skipped entirely for the seven species that declare no `crypsis`.
+
+Full run on the final tree: demo-default **2.3195**, small-100 **1.3494**, medium-1k
+**18.8874**, large-5k **129.0233 ms/tick** (9649→11094 entities). ⚠ Against phase
+13's 130.24 at the same roster size that is **flat** — the two readings differ by
+0.9% on a machine this file has repeatedly measured drifting ±25%, and the
+interleaved A/B above is the actual measurement.
+
 ## Results (post-Step-30)
 
 Measured **2026-07-21**, both columns on the same machine on the same day —

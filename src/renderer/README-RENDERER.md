@@ -162,7 +162,10 @@ config change and a renderer change. ⚠ A shipped species that is renamed into 
 roster entry later carries a `supersededBy` naming its successor — which is why
 two entries may share a letter — and the old entry is **deleted** in the phase
 that does the rename. Grazer → gazelle and corvid → vulture went that way on
-2026-07-29; `predator.stalker` → `predator.leopard` is the one still pending.
+2026-07-29, and `predator.stalker` → `predator.leopard` on 2026-07-30 — ⚠ which was
+the last one, so **no entry carries `supersededBy` today**. The field and its two
+tests stay: the next rename needs them, and a scheme deleted the moment it empties
+has to be rediscovered.
 
 **The hyena needed no renderer change at all**, which is what the scheme was
 for: it was founded, named, glyphed, and legended the moment its config file
@@ -171,7 +174,7 @@ existed.
 **Age and sex are two independent glyph channels** on top of the species letter.
 **Letter case is age**: a mature animal (`lifeStage` adult or senescent) is
 UPPERCASE, an immature one (juvenile or subadult) lowercase — `g`/`G` gazelle,
-`s`/`S` stalker. **Italic is sex**: a female is drawn in italic, a male (or an
+`p`/`P` leopard. **Italic is sex**: a female is drawn in italic, a male (or an
 animal the protocol sends with `sex: null`) upright. Colour still says species
 and priority still decides who wins a shared cell, so both are additions rather
 than substitutions; a hunt reads as the predator either way, and a herd's age and
@@ -629,8 +632,8 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   visible in the grid from the glyphs alone. The event log formats
   `entity.hunted` with the capture odds the engine actually used, plus
   `entity.killed` / `entity.escaped`. While a predator is selected, its quarry
-  is bracketed in red from the inspection payload's `huntTargetId`. The stalker
-  is `S`/red at priority 60, above prey, so a predator standing on its kill
+  is bracketed in red from the inspection payload's `huntTargetId`. The leopard
+  is `P`/bright-red at priority 60, above prey, so a predator standing on its kill
   still reads as the predator.
 - Remembered places (protocol v14) arrive in the same inspection payload: at
   most eight per animal, strongest first, each with a kind, a cell, and a

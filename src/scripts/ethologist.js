@@ -32,7 +32,7 @@
  * Usage:
  *   npm run ethologist                                  # a small default sweep
  *   npm run ethologist -- --seed=2344255022 --width=180 --height=120 \
- *       --founding=herbivore.gazelle:120,predator.stalker:8,scavenger.vulture:10,scavenger.hyena:6 \
+ *       --founding=herbivore.gazelle:120,predator.leopard:8,scavenger.vulture:10,scavenger.hyena:6 \
  *       --rocks=5 --thickets=5 --ticks=9200
  *   npm run ethologist -- --seeds=1,2,3,4,5 --ticks=6000 --top=15
  *
@@ -98,7 +98,7 @@ function parseArgs(argv) {
 }
 
 /**
- * `herbivore.gazelle:120,predator.stalker:8` → `[{ speciesId, count }]`.
+ * `herbivore.gazelle:120,predator.leopard:8` → `[{ speciesId, count }]`.
  * A malformed entry fails loudly rather than being skipped: a sweep quietly run
  * on a different world than the one asked for is worse than no sweep.
  */

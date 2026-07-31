@@ -7,11 +7,15 @@ per role**, each with its own behaviour, food, and water needs. Written
 six settled decisions (§11), and again to put the **gazelle** rather than the
 wildebeest in the first batch.
 
-> ### ⚠ Status: phases 0–12 are done (last updated 2026-07-30)
+> ### ⚠ Status: phases 0–13 are done (last updated 2026-07-30)
 >
-> **This document is no longer a plan for unimplemented work.** Phases 0–12 have
-> shipped — see the table in §8 — and the world now has **six species**
-> (gazelle, buffalo, stalker, lion, vulture, hyena) at protocol v29.
+> **This document is no longer a plan for unimplemented work.** Phases 0–13 have
+> shipped — see the table in §8 — and the world now has **eight species**
+> (gazelle, wildebeest, zebra, buffalo, stalker, lion, vulture, hyena) at
+> protocol v29. ⚠ **§8's own "reasonable stopping point" is here**: eight species
+> with clans, prides, bands, cooperative hunting, contested carcasses, mobbing, a
+> three-tier grazing succession, and a calving season. Everything past this is
+> refinement.
 >
 > A section marked ✅ has an **"As built"** block recording where its own
 > prediction was wrong; those blocks are the most useful part of the document now,
@@ -19,14 +23,20 @@ wildebeest in the first batch.
 > written". ⚠ Read the two together and prefer the As-built block: the plan was
 > right about shape far more often than about consequence.
 >
-> **Next: phase 13 — batch 3 (wildebeest + zebra)**, the first batch whose two
-> prerequisites were both built for it in advance (§3.11 and §3.16, phase 12) and
-> are both **inert until it declares them**. §3.12 and §3.13 are still ahead;
-> §3.3, §3.4, §3.7, and §3.16 have landed, and ⚠ **all four landed differently
-> from how they were proposed** — read their As-built blocks before touching any of
-> them. ⚠ Batch 2's own As-built (§10.2) is the one to read before adding any
-> species: every difficulty in it was about **density and scale**, not about
-> mechanisms — and batch 3 adds two herd species at once.
+> **Next: phase 15** (A51 browse, the `diet` forage-source list, sex-specific
+> territory) — or **stop**, which §8 says is reasonable and has been since phase 13.
+> §3.13 (vertical refuge) remains **deferred, deliberately and permanently so far**;
+> phase 14 took the horizontal half of it instead.
+>
+> ⚠ **Read §3.12's As-built before touching perception.** Phase 14's mechanism was
+> built wrong twice, and both failures measured as "no effect" rather than as an
+> error: a perception gate is not a predation gate, and a mechanism that hides
+> bodies helps whoever hides and hurts whoever searches.
+>
+> ⚠ **The mechanisms built at phases 10 and 12 are now all declared** (§3.11 by the
+> wildebeest, §3.16 by the gazelle, §3.12 by the leopard), which means their
+> inert-and-byte-identical readings are **gone**; what replaced them is a narrower
+> claim in each suite. Do not try to restore the old assertions.
 
 The short version, still true of what remains: **the species system is already
 good enough to declare new species, and not yet good enough to make them behave
@@ -230,7 +240,8 @@ is only which of them the engine can express.
 | ~~**How it behaves**~~         | ✅ **since 2026-07-28** | `behavior`, a species block of 22 weights (§3.1)     | everyone |
 | **What food it eats**          | ❌ binary carnivore/not | `diet` is a string with two meanings                 | rhino, elephant (browse)        |
 | ~~**Which grass it eats**~~     | ✅ **since 2026-07-29** | `forage.preferredBiomass` / `span` — standing crop *is* maturity, so no new state (§3.3, phase 9) | gazelle / wildebeest / zebra    |
-| ~~**Where it lives**~~          | ✅ **since 2026-07-29** | a per-species `habitat` weight per terrain, read by the long-range cue (§3.4, phase 9) — ⚠ needs a `cueRadius` to act through, which three of four species set to 0 | leopard, buffalo, rhino         |
+| ~~**Where it lives**~~          | ✅ **since 2026-07-29** | a per-species `habitat` weight per terrain, read by the long-range cue (§3.4, phase 9) — ⚠ needs a `cueRadius` to act through. The **leopard** is the species this was waiting for and it got one at phase 14 | leopard, buffalo, rhino         |
+| ~~**Ambush from cover**~~      | ✅ **since 2026-07-30** | graded `world.concealmentAt` (opacity is its top end) scaled by a per-species `crypsis`, plus a concealed-approach heading inside the existing `stalk` (§3.12, phase 14). ⚠ No ambush *term* anywhere — the advantage is emergent from where the two species choose to stand | leopard |
 | ~~**Which individuals it eats**~~ | ✅ **since 2026-07-28** | `predation.maxPreyMassRatio` / `minPreyMassRatio`, gated in perception on `bodyMass` (§3.6, phase 4) | lion, leopard, hyena            |
 | ~~**Persistent social identity**~~ | ✅ **since 2026-07-28** | `world.groups` + `groupRecordId`, gated by `groups.forms` (§3.8, phase 3) | lion, hyena, zebra, elephant    |
 | ~~**Cooperative action**~~     | ✅ **since 2026-07-30** | `hunting.cooperationWeight` + `attackersFor`, and mobbing as the groupmate half of `defend` (§3.7, phase 10); **demonstrated at phase 11** by the lion and buffalo — company takes a hunt's odds 0.451 → 0.535, a mob takes them 0.451 → 0.275 | lion, hyena, buffalo            |
@@ -1015,7 +1026,57 @@ Start wide and narrow it under measurement.
 This moves to **batch 3 with the wildebeest**. The gazelle breeds close enough to
 year-round that it does not need it, which is one more reason batch 1 is cheap.
 
-### 3.12 Cover as a hunting modifier, not just a speed modifier (leopard)
+### 3.12 ✅ Cover as a hunting modifier (shipped 2026-07-30, phase 14)
+
+✅ **Built, and this section's central proposal — a graded `concealmentAt` with
+`blocksSightAt` as its `>= 1` end — is exactly what shipped.** Its central
+*warning* was wrong in the most useful direction: it called this "possibly the most
+expensive item in this document per unit of realism", and it cost nothing
+measurable. Four deltas, and the first two are the phase's real results:
+
+- ⚠⚠ **Symmetric concealment made the leopard WORSE, and that had to be measured
+  rather than reasoned.** The section says cover should raise "*its* detection
+  advantage", and the obvious build is symmetric — cover hides whoever stands in
+  it, and the asymmetry comes from the two species wanting different ground. Built
+  that way: the leopard population fell **27 → 19** over 3 seeds × 4000 ticks. The
+  reason is plain afterwards and invisible before: **this mechanism helps whoever
+  hides and hurts whoever searches**, and a predator with twice its prey's sight
+  radius is overwhelmingly a searcher. It lost more prey sightings to brush than it
+  gained ambushes from it. The fix is a per-species **`crypsis`** — a motionless
+  rosetted cat is hidden, a herd of wildebeest in the same brush is a herd of
+  wildebeest — defaulting to **0**, so the mechanism is the exact identity for the
+  seven species that decline it.
+- ⚠⚠ **Then it sterilised the leopard, for a completely different reason.** With
+  crypsis in, the population *still* sat at 19: mate candidates come through the
+  same perception gate, so a cryptic **solitary** species had stopped finding
+  mates. Camouflage is against other species; conspecifics know each other's calls
+  and scent. One `speciesId` comparison, and the population came back to 26.
+  ⚠ The transferable part: **a perception gate is not a predation gate.** Anything
+  added there also gates mating, guardianship, and territorial rivalry, and the
+  species most affected is the one the change was written for.
+- ⚠ **Detection alone was not enough, and the section did not anticipate a second
+  half.** Measured, the range discount only paid when the cat *happened* to be
+  standing in brush — 9% of its hunt-starts — and the habitat cue did not move that
+  (10.9% of its time on cover with the cue on against 10.7% with it off; the
+  occupancy turned out to be mostly cover being *slow* rather than chosen). That is
+  A34's shape exactly, so A34's lever was applied: **give it a reason.** `stalk`
+  now steps through cover where cover lies toward the prey — a heading rule inside
+  an action that already existed, like `escapeHeading`, not a new action. Attempts
+  launched from concealment went **21 → 34**.
+- ✅ **The cost warning was wrong, and why is worth keeping.** The section feared
+  "every ray accumulates rather than early-exiting". Nothing accumulates: opacity
+  is the *top* of the concealment scale rather than a separate fact, so the raycast
+  keeps the boolean array it always read (derived from the scale, so the two cannot
+  drift) and the new work is **one cell read per neighbour that already has line of
+  sight**, skipped entirely for the seven non-cryptic species. Grading sight cost
+  `hasLineOfSight` exactly nothing.
+
+⚠ **What it does not do: cover still does not shelter prey.** Crypsis is 0 for
+every herbivore, so **DOCS A18 stays open** — deliberately, because raising prey
+crypsis changes every predator's living in the world at once and wants its own
+gated phase rather than a ride along with the leopard's.
+
+### 3.12 The section as written
 
 Today cover slows predator and prey equally (A18) and only **rock and thicket**
 are opaque. A leopard's whole living is that cover raises _its_ detection
@@ -1698,7 +1759,7 @@ Each phase leaves the suite green and the demo runnable, in this repo's usual
 shape. Phases 0–6 are groundwork with no new species at all; species land from
 phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 
-**⚠ Twelve of eighteen phases have shipped, and the world has six species.** The
+**⚠ Fourteen of eighteen phases have shipped, and the world has eight species.** The
 table is a *chart*, not a record: a done row states what landed, when, and the one
 thing worth carrying out of it. The reasoning, the measurements, and every place a
 phase's own prediction turned out wrong live in that phase's **"As built"** block
@@ -1719,9 +1780,9 @@ in the section it links to — read those before repeating any of this work.
 | **10** | Batch-2 prerequisites: `attackersFor` cooperative hunting (§3.7); mobbing (A33) + the A32 geometry fix | ✅ **2026-07-30** | Decision / Hunting. ⚠ **No new action**: mobbing turned out to be the unimplemented groupmate half of `defend`. Both mechanisms ship **inert and byte-identical**; ⚠⚠ **the A32 fix failed** — removing the clause entirely moves nothing, and the measured blocker is that only 6–9% of hunts commit to a juvenile at all. Opened **A59** |
 | **11** | **Batch 2 — lion + buffalo.** Cooperative hunting built and demonstrated together; first mobbing | ✅ **2026-07-30** | config + one correction to phase 10. ⚠⚠ **The gate failed first, exactly as predicted** — a carrion-subsidised pride ate the buffalo out (5/10 seeds) until `minHungerToHunt` went 0.3 → 0.45. ⚠ Every other difficulty was **density**: both mechanisms count neighbours, so `herdDistance` is a parameter of both. Closed **A33**, narrowed **A59**, opened **A60** (territory is an individual claim, so a pride cannot hold ground) |
 | **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | ✅ **2026-07-30** | Social / Reproduction. Both ship **inert and byte-identical**, and the risk estimate ("low") held. ⚠ The one thing measured wrong first was scaling the herd *pull* by the association weight as well as the centroid — the phase-9 double-count again, and it made every weight below ~0.58 inert. Opened **A61**. ⚠ Association grew a half the plan did not propose (an associate's alarm carries) because the plan's own reason for the mechanism was *vigilance* |
-| **13** | **Batch 3 — wildebeest + zebra.** Re-tune the gazelle into a three-tier grazing succession | ← **next** | high — config + re-tune. Also where `hunts()` and the metrics payload (P14) need re-measuring, and where **both of phase 12's mechanisms get their first declaring species** |
-| **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`; optionally ambush concealment (§3.12) | planned | med — config (+ perception). The last `supersededBy` entry is deleted here |
-| **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | planned | high — large. §5.7 must move in the same commit |
+| **13** | **Batch 3 — wildebeest + zebra.** The three-tier grazing succession, and the first declaring species for both of phase 12's mechanisms | ✅ **2026-07-30** | config only — **no engine change at all**, which is the claim §1 has made since Step 29 and this is the cleanest proof of it. ⚠ **Passed its gate first time**, the only batch that has. ⚠⚠ A 0.30-of-the-year rut cost the wildebeest 2 seeds in 3 before a config A/B relocated the cause to §11.6's lifespan compression; ⚠ the gazelle re-tune this row scheduled turned out **not to be needed**, and `maxGroupSize` turned out not to be a tuning question |
+| **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`, mass 45 → 60, **and ambush concealment (§3.12)**, which was optional and was taken | ✅ **2026-07-30** | config + perception + terrain. ⚠ The rename was proved **byte-identical** first (2.36 MB × 3 seeds), so the biology is separately attributable. ⚠⚠ The mechanism was **built wrong twice and both failures read as "no effect"**: symmetric concealment made the leopard worse (27 → 19), then hiding from conspecifics sterilised it (19). Opened **A63**; the last `supersededBy` entry is deleted here |
+| **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | ← **next**, or stop | high — large. §5.7 must move in the same commit. ⚠ A51 is now also the answer to "the ambush is bounded by how little cover exists" (§3.12) |
 | **16** | **Batch 5 — black rhino.** | planned | high — config only |
 | **17** | **Batch 6 — elephant** (§11.1: _may never happen_). Needs everything above plus musth and woody-floor damage | planned | high — large |
 
@@ -1823,6 +1884,14 @@ species added cost 3/10 seeds until the real bug surfaced.
 - **Before blaming the new species' own numbers**, grep for constants that ought
   to scale with whatever dimension it differs in by an order of magnitude. §4 and
   §5 are that grep, done in advance.
+- ✅ **Batch 3 passed first time (2026-07-30), and how is the transferable part.**
+  §11.1 says "budget a failed gate per net-new species" and that had held for every
+  batch. What changed is not the species but the order of measurement: a **3-seed
+  exploratory sweep** (~3 minutes) found the wildebeest failing, a **one-command
+  config A/B** (`--set=breeding.enabled=false`) located the cause in a single run,
+  and a four-arm width sweep settled the number — all before the ten-seed gate was
+  started. ⚠ The ten-seed gate is a *verdict*, not an instrument: it costs twenty
+  minutes and tells you a species failed, not why.
 
 ---
 
@@ -2077,7 +2146,79 @@ inherited rank, matrilines, male takeover, or infanticide. Rank-structured acces
 to food is a further layer on §3.8 and is out of scope; record it as a stated
 limitation for both species.
 
-### 10.3 Batch 3 (phase 13) — wildebeest, zebra
+### 10.3 ✅ Batch 3 (shipped 2026-07-30, phase 13) — wildebeest, zebra
+
+#### ✅ As built — the first batch whose prerequisites were waiting for it
+
+Both mechanisms built at phase 12 shipped inert and were declared here, which is
+the ordering §8 has argued for since phase 3 and the first time it paid in full:
+nothing had to be built during a species batch. ⚠ **The batch passed its ten-seed
+gate on the first attempt** — the first batch that did, against §11.1's "budget a
+failed gate per net-new species" — and the reason is not that this pair is easy but
+that the two things that would have failed it were caught by *cheaper* measurements
+first (a 3-seed exploratory sweep and a config A/B), which is the practice worth
+carrying rather than the outcome.
+
+Four results, and the first is the phase's real one:
+
+- ⚠⚠ **A real rut is not survivable in this world, and the cause is two
+  compressions meeting.** The wildebeest's first window ran over 0.30 of the year —
+  which §3.11 called deliberately wide — and cost the species its existence: **1
+  seed in 3** against 3/3 with `breeding.enabled: false`, isolated in one command
+  by the switch phase 12 built. The dose–response over four arms is clean: 0.30 →
+  1/3 (mean 0.3) · 0.50 → 3/3 (6.7) · **0.65 → 3/3 (10.7)** · none → 3/3 (16.7).
+  The mechanism is not at fault. The year is compressed to 8000 ticks *and*
+  lifespans are compressed beside it (§11.6), so a wildebeest's adult life is under
+  one year — a female whose cooldown ends just after the window closes does not
+  wait a season, she waits a lifetime. A narrow window does not slow recruitment,
+  it deletes most of the population's opportunities. **0.65 ships**, and it is a
+  seasonal restriction rather than the compressed rut the animal is famous for,
+  recorded as the limit it is.
+- ⚠⚠ **Measure the shift a preference causes, never the state it leaves behind.**
+  The raw succession reads *backwards* — gazelle feeds at 2.4 standing crop,
+  wildebeest 1.3, zebra 1.2, buffalo 0.6 — because a big animal empties a cell in
+  one bite, so the biomass under it measures its appetite rather than its taste.
+  Against the mechanism off, the tiers come out in exactly the declared order
+  (gazelle shifts −0.97/−1.64, wildebeest −0.51/−0.62, zebra and buffalo ~0). The
+  succession is real; the obvious reading of it is not.
+- ⚠ **The gazelle needed no re-tune, and this section predicted it would.** §3.3
+  said "expect to re-tune the gazelle when the larger grazers arrive" and §8's table
+  scheduled it as the phase's headline work. Measured: it feeds at 2.29/2.52 against
+  phase 9's 1.93/2.88, because three more grazers did not shorten the sward enough
+  to move it. Recorded as a prediction that did not hold, rather than a re-tune done
+  for its own sake.
+- ⚠ **`social.maxGroupSize` turned out not to be a tuning question at all.** §7
+  deferred "is 12 wrong for wildebeest?" to this batch. Measured at 12 against 24,
+  every one of the eight species came back **identical to the digit** — because the
+  herd label has no behavioural consumer: herding steers at a neighbour centroid,
+  mobbing counts `adults` from the same summary, alarm travels by proximity, and
+  nothing reads `groupId` but the metrics and the projection. It was raised to 24 on
+  reporting grounds (a herd of thirty was reported as three) and the finding is
+  written up in DOCS §9 Sociality.
+
+**The passing world** (10 seeds × 15 000 ticks against the batch-2 roster, same
+seeds, one process):
+
+| Species | batch 3 | batch-2 control | read as |
+| --- | --- | --- | --- |
+| gazelle | 10/10, mean 77.5 | 10/10, mean 82.4 | **−6%** — three more grazers on its grass cost it almost nothing |
+| wildebeest | **10/10**, mean 8.8 | — | establishes on every seed; declines through the run (34 → 16 → 9) and dies mostly of **age** |
+| zebra | **10/10**, mean 15.4 | — | the flattest trajectory in the world (17.7 → 16.8 → 15.4) |
+| buffalo | 9/10, mean 16.2 | 9/10, mean 15.8 | level — and its *predation* deaths fell (145 against 194) as the pride spread out |
+| stalker | 8/10, mean 6.0 | 9/10, mean 5.1 | ⚠ one seed worse on a higher mean: the incumbent to watch, as in batch 1 |
+| lion | **10/10**, mean 14.8 | 9/10, mean 10.2 | **+45%** — the prey base did exactly what §10.3 said it would |
+| hyena | 10/10, mean 5.8 | 10/10, mean 7.7 | −25%, squeezed at carcasses by a bigger pride (10.9% of carrion against 17.4%) |
+| vulture | 10/10, mean 307.3 | 10/10, mean 157.8 | ⚠ **+95%** — more animals and heavier ones is more carrion, and this is what eats it |
+
+⚠ **Nothing in this batch is limited by the grass**, which is the surprise. The
+herbivores die of **dehydration and age**, not starvation (gazelle: 1480 dehydration
+against 33 starvation), so the competitive-exclusion case §2 was built around did
+not arrive — three grazers on one field coexist here because water and lifespan bind
+first. That is worth carrying: §2's risk was real and the reason it did not fire is
+a property of *this world's* limiting factor, not proof that the axis was
+unnecessary.
+
+### 10.3 The section as written
 
 | Species                | Mass | Niche                                                                                                                 | Gated on                                       |
 | ---------------------- | ---: | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -2119,7 +2260,49 @@ them; a pride and a band are different founding rules over the same store. State
 which was built. `african-species.md` is explicit that zebra bands are persistent
 in a way gazelle herds are not, so this is a real gap, not a quibble.
 
-### 10.4 Batch 4–6 (phases 14, 16, 17) — leopard, rhino, elephant
+### 10.4 ✅ Batch 4 (shipped 2026-07-30, phase 14) — leopard · rhino and elephant ahead
+
+#### ✅ As built — a rename that was thirteen phases overdue, and a mechanism built wrong twice
+
+The section below calls phase 14 "about *timing*, not blockers", and that held: the
+leopard needed nothing that did not exist. What it did not anticipate is that
+taking §3.12 along — which it calls *optional* — would be the whole phase.
+
+- ✅ **The rename was a proven no-op**, as phase 7 established for the grazer and
+  the corvid: 2.36 MB of state across three seeds at 1500 ticks, byte-identical
+  with the two id strings normalized away. Everything else is separately
+  attributable from it. The last `supersededBy` entry went with it, so that scheme
+  is now empty — kept, because the next rename needs it.
+- ⚠⚠ **Cover concealment was built wrong twice, and both failures measured as "no
+  effect" rather than as an error.** Symmetric concealment made the leopard *worse*
+  (27 → 19), because a mechanism that hides bodies helps whoever hides and hurts
+  whoever **searches**. Then, with per-species `crypsis` in, it *sterilised* the
+  leopard (still 19): mate candidates come through the same perception gate, so a
+  cryptic **solitary** animal stopped finding mates — now **A63**. Full account in
+  §3.12's As-built.
+- ⚠ **The ambush fires, and it still costs the leopard.** Attempts launched from
+  concealment **21 → 34**, gazelle sightings of a leopard **−24%**, capture rate
+  **39.0% → 41.1%** — and the population falls **12.3 → 8.2**. Measured cause:
+  *not* mortality (deaths 158 against 184) but fewer completed hunts, because prey
+  that never sees the cat never **flees**, and a fleeing target is what forced the
+  sprint. The surprise gain does not pay for the slower conversion. ⚠ Raising
+  `chaseRange` 4 → 6 to commit sooner was tried and measured **worse** (2/3 seeds
+  against 10/10), and is recorded in the species file rather than shipped.
+- ✅ **The cost warning was wrong in the useful direction.** §3.12 called this
+  possibly "the most expensive item in this document per unit of realism"; measured
+  interleaved, **+2.6%**. Nothing accumulates along a ray, because opacity became
+  the top of the concealment scale rather than a second pass.
+
+**The passing world** (10 seeds × 15 000 ticks, concealment on against off, same
+roster and seeds): every species **10/10** with it on, against 9/10 for the buffalo
+and the gazelle with it off — a *more* stable world, with more prey (gazelle 61.8
+against 38.1) and a scarcer, more efficient ambush predator (8.2 against 12.3).
+
+⚠ **Whether that trade is the right one is a judgement, and it is recorded rather
+than settled**: a leopard that ambushes is the animal §10.4 asked for, and it is a
+third less numerous than the generic stalker it replaced.
+
+### 10.4 The section as written
 
 | Species              | Mass | Niche                                                                  | Gated on                                             |
 | -------------------- | ---: | ---------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -2220,9 +2403,12 @@ Per E4 discipline, and all lists must stay in step:
   §7 Decision again at phase 10** (cooperative action, and why it added no action);
   ✅ **§9 Sociality gained "Heterospecific association" and §9 Reproduction
   "Seasonal breeding windows" at phase 12**, and the Sociality table went from two
-  mechanisms to three; §9 Feeding at phase 9; §7 Vegetation at phase 9; §5 lifespan
-  compression at phase 13 (§11.6); ✅ §19 configuration map at phase 2, phase 10,
-  and phase 12
+  mechanisms to three; ✅ **§8's table became "The eight species" at phase 13**, with
+  the succession measurement in §9 Feeding, the herd-label finding in §9 Sociality,
+  the zebra band in §9 Persistent groups, and the hyena's calf predation in §9
+  Hunting; ✅ **§5 lifespan compression at phase 13** (§11.6) — and it is no longer a
+  note but a live interaction (A62); §9 Feeding at phase 9; §7 Vegetation at phase 9;
+  ✅ §19 configuration map at phase 2, phase 10, and phase 12
 - `ACTION-ITEMS.md` — ✅ **A55 closed at phase 7**; ✅ **A56 opened at phase 7** (a
   two-member clan flaps) and ✅ **A57 at phase 8** (concealment needs cover); ✅ A34
   was *tested* by phase 8 and its diagnosis held — it stays open, for the sharper
@@ -2238,8 +2424,10 @@ Per E4 discipline, and all lists must stay in step:
   revisited by sex-specific territory (phase 15); A51 in phase 15 — ⚠ and A57 is
   now an extra argument for it; A18 by §3.12; A3, A12, and A37 remain open
 - `src/renderer/DOCS-RENDERER.md` + `README-RENDERER.md` — ✅ appearance scheme and
-  metrics panel at phase 6, ✅ the two superseded glyph entries deleted at phase 7;
-  restart controls and protocol version as they change
+  metrics panel at phase 6, ✅ the two superseded glyph entries deleted at phase 7,
+  ✅ **the last one at phase 14** (stalker → leopard), which empties the
+  `supersededBy` scheme without removing it; restart controls and protocol version
+  as they change
 - ✅ `tests-ui/controls.spec.js` — done at phase 5. It now asserts the founder
   fields are **generated from the host's roster** rather than merely present; a
   panel that hardcoded the same three species would pass a presence check
@@ -2253,7 +2441,14 @@ Per E4 discipline, and all lists must stay in step:
   and no fixture regeneration**. (Contrast `entity.contested`, where reuse *would*
   have made the UI lie.)
 - ⚠ `npm run fixtures:renderer` — mandatory on **every** protocol bump (done at
-  phase 5; due again if §3.2's `diet` change lands).
+  phase 5; due again if §3.2's `diet` change lands). ⚠⚠ **And on every roster
+  change, which nobody had written down**: the committed fixtures still described
+  the *batch-1* world at phase 13 — no lion, no buffalo — so offline renderer
+  development could not see half the species the demo ships, including two whose
+  glyphs phase 6 had assigned in advance. Regenerated at phase 13. One UI test had
+  to move with them (`tests-ui/event-filters.spec.js` assumed the fixtures contain
+  no births or deaths; eight species and 24% more animals means something dies
+  inside the warm-up).
   ⚠⚠ **And bump `SUPPORTED_PROTOCOL_VERSION` with it.** At v29 both were missed
   and *the whole suite stayed green*, because the renderer tests compared that
   constant against itself — fixture mode would have refused every message at

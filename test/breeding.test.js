@@ -379,20 +379,44 @@ describe('breeding windows: in a running world', () => {
   });
 });
 
-describe('breeding windows: the demo is untouched', () => {
-  test('⚠ no shipped species declares a window, so the mechanism cannot be running', () => {
+describe('breeding windows: in the shipped world', () => {
+  // ⚠ **This block used to assert the demo byte-identical with the mechanism off,
+  // and batch 3 took that reading away**, exactly as phase 12 predicted: the
+  // wildebeest declares a window, so the arms now diverge by design. What replaces
+  // it is the claim that still holds.
+  const BATCH2 = [
+    { speciesId: 'herbivore.gazelle', count: 120 },
+    { speciesId: 'herbivore.buffalo', count: 35 },
+    { speciesId: 'predator.leopard', count: 8 },
+    { speciesId: 'predator.lion', count: 8 },
+    { speciesId: 'scavenger.vulture', count: 10 },
+    { speciesId: 'scavenger.hyena', count: 6 },
+  ];
+
+  test('exactly one species breeds seasonally, and the rest breed year-round', () => {
     const engine = createDemoSimulation({ seed: 42 });
-    for (const species of engine.species.all()) {
-      assert.equal(breedingWindowOf(species.reproduction), null, `${species.id} declares a breeding window`);
-    }
+    const seasonal = engine.species.all().filter((s) => breedingWindowOf(s.reproduction) !== null);
+    assert.deepEqual(seasonal.map((s) => s.id), ['herbivore.wildebeest']);
+    // ⚠ And its window wraps the year, which is the case the mechanism was built
+    // to allow and the shipped roster now exercises.
+    const rut = breedingWindowOf(seasonal[0].reproduction);
+    assert.ok(rut.startFraction > rut.endFraction, 'late winter into early summer');
   });
 
-  test('⚠ the demo is byte-identical with the mechanism switched off', () => {
-    const on = createDemoSimulation({ seed: 42 });
-    const off = createDemoSimulation({ seed: 42, config: { breeding: { enabled: false } } });
+  test('⚠ a world with no wildebeest is byte-identical with the mechanism switched off', () => {
+    // ⚠ Strings rather than `deepEqual`: when these do differ, `deepEqual` builds a
+    // diff of two ~650 KB object graphs and exhausts the heap before reporting.
+    const on = createDemoSimulation({ seed: 42, config: { demo: { founding: BATCH2 } } });
+    const off = createDemoSimulation({
+      seed: 42,
+      config: { demo: { founding: BATCH2 }, breeding: { enabled: false } },
+    });
     on.step(400);
     off.step(400);
-    assert.deepEqual(captureSimulationState(on).entities, captureSimulationState(off).entities);
+    assert.equal(
+      JSON.stringify(captureSimulationState(on).entities),
+      JSON.stringify(captureSimulationState(off).entities),
+    );
   });
 
   test('the shipped defaults are the ones the module documents', () => {

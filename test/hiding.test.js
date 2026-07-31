@@ -42,18 +42,18 @@ const NON_HIDER = Object.freeze({ ...GAZELLE, id: 'test.plain', aging: Object.fr
 
 /** Something that eats them, so the perception side has a point of view. */
 const HUNTER = Object.freeze({
-  ...getSpecies('predator.stalker'),
+  ...getSpecies('predator.leopard'),
   id: 'test.hunter',
   preySpeciesIds: Object.freeze(['test.hider', 'test.plain']),
 });
 
-function hidingEngine({ concealment = true, config = {} } = {}) {
+function hidingEngine({ neonatalConcealment = true, config = {} } = {}) {
   const engine = new SimulationEngine({
     seed: 3,
     config: {
       world: { width: 48, height: 48 },
       terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
-      parenting: { concealment },
+      parenting: { concealment: neonatalConcealment },
       ...config,
     },
   });
@@ -61,7 +61,7 @@ function hidingEngine({ concealment = true, config = {} } = {}) {
   engine.species = registry;
   engine.world.species = registry;
   engine.registerSystem(
-    new PerceptionSystem({ ...engine.config.perception, concealment: engine.config.parenting.concealment }),
+    new PerceptionSystem({ ...engine.config.perception, neonatalConcealment: engine.config.parenting.concealment }),
   );
   engine.registerSystem(
     new DecisionSystem({
@@ -72,7 +72,7 @@ function hidingEngine({ concealment = true, config = {} } = {}) {
       carcassRange: engine.config.feeding.carcassRange,
       provisionRange: engine.config.parenting.provisionRange,
       parentMinEnergyFraction: engine.config.parenting.parentMinEnergyFraction,
-      concealment: engine.config.parenting.concealment,
+      neonatalConcealment: engine.config.parenting.concealment,
       shelterStressThreshold: engine.config.locomotion.shelterStressThreshold,
       shelterStressSpan: engine.config.locomotion.shelterStressSpan,
       shelterRelief: engine.config.locomotion.shelterRelief,
@@ -259,7 +259,7 @@ describe('the hidden stage: concealment from hunters', () => {
     const stillOn = hidingEngine({ config: { aging: { hiddenUntil: 0 } } });
     assert.equal(stillOn.species.require(HIDER.id).aging.hiddenUntil, 100, 'the species value survives');
 
-    const off = hidingEngine({ concealment: false });
+    const off = hidingEngine({ neonatalConcealment: false });
     const { calfId } = family(off, { gap: 10 });
     off.step(1);
     const calf = off.world.entities.get(calfId);
@@ -343,7 +343,7 @@ describe('the hidden stage in the demo world', () => {
   test('only the gazelle has a hidden stage; every other species reads 0', () => {
     const engine = createDemoSimulation({ seed: 42 });
     assert.equal(hiddenUntilFor(engine.species.require('herbivore.gazelle')), 120);
-    for (const id of ['predator.stalker', 'scavenger.vulture', 'scavenger.hyena']) {
+    for (const id of ['predator.leopard', 'scavenger.vulture', 'scavenger.hyena']) {
       assert.equal(hiddenUntilFor(engine.species.require(id)), 0, `${id} declares no hidden stage`);
     }
   });

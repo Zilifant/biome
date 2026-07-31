@@ -25,7 +25,7 @@ describe('species schema: resolution', () => {
     // §1.4 A17: the stalker finally has its own body. It overrides `birthMass`
     // and `maxAge` but says nothing about `mortalityRamp`, which must still
     // arrive from the config rather than becoming undefined.
-    const stalker = registry().get('predator.stalker');
+    const stalker = registry().get('predator.leopard');
     assert.equal(stalker.aging.birthMass, 8, "its own birth mass, not the grazer's 5");
     assert.ok(stalker.aging.maxAge > CONFIG.aging.maxAge, 'and a longer life');
     assert.equal(stalker.aging.mortalityRamp, CONFIG.aging.mortalityRamp, 'unstated keys still inherit');
@@ -83,8 +83,8 @@ describe('species schema: resolution', () => {
 
   test('the predator/prey relation is data, read in both directions', () => {
     const r = registry();
-    assert.equal(r.hunts('predator.stalker', 'herbivore.gazelle'), true);
-    assert.equal(r.hunts('herbivore.gazelle', 'predator.stalker'), false, 'grazers hunt nothing');
+    assert.equal(r.hunts('predator.leopard', 'herbivore.gazelle'), true);
+    assert.equal(r.hunts('herbivore.gazelle', 'predator.leopard'), false, 'grazers hunt nothing');
     assert.equal(r.hunts('herbivore.gazelle', 'herbivore.gazelle'), false, 'nor each other');
     assert.equal(r.hunts('nope.unknown', 'herbivore.gazelle'), false);
   });
@@ -276,7 +276,7 @@ describe('species schema: per-species biology actually bites', () => {
 
     // And the mechanism behind it, not just its footprint: a species that states
     // an `aging` block gets its own numbers, and one that states none inherits.
-    const stalker = engine.species.require('predator.stalker');
+    const stalker = engine.species.require('predator.leopard');
     const grazer = engine.species.require('herbivore.gazelle');
     assert.notEqual(stalker.aging.maxAge, CONFIG.aging.maxAge, 'an override wins over the config default');
     assert.equal(grazer.aging.maxAge, CONFIG.aging.maxAge, 'and a species that states nothing inherits it');

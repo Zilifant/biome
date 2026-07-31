@@ -19,7 +19,7 @@ const GRAZER = getSpecies('herbivore.gazelle');
 // The predator/prey relation now lives on the resolved registry (Step 29).
 const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, {});
 const hunts = (a, b) => REGISTRY.hunts(a, b);
-const STALKER = getSpecies('predator.stalker');
+const STALKER = getSpecies('predator.leopard');
 
 /**
  * Bare open ground, so nothing but the two animals is in play.
@@ -433,7 +433,7 @@ describe('predation: demonstration scenario and the demo', () => {
       assert.ok(actions.has(action), `the demo shows ${action}`);
     }
     const alive = [...engine.world.entities.all()].filter((e) => e.alive);
-    assert.ok(alive.some((e) => e.speciesId === 'predator.stalker'), 'predators persisted');
+    assert.ok(alive.some((e) => e.speciesId === 'predator.leopard'), 'predators persisted');
     assert.ok(alive.some((e) => e.speciesId === 'herbivore.gazelle'), 'and so did their prey');
   });
 
@@ -449,7 +449,7 @@ describe('predation: demonstration scenario and the demo', () => {
     assert.ok(!PUBLIC_ENTITY_FIELDS.includes('stamina'));
     // `action` already carries stalk/chase/flee, which is how a viewer sees a hunt.
     assert.ok(PUBLIC_ENTITY_FIELDS.includes('action'));
-    const predator = [...engine.world.entities.all()].find((e) => e.speciesId === 'predator.stalker');
+    const predator = [...engine.world.entities.all()].find((e) => e.speciesId === 'predator.leopard');
     const details = engine.getEntityDetails(predator.id);
     assert.equal(typeof details.stamina, 'number');
     assert.ok('huntTargetId' in details);

@@ -25,6 +25,12 @@ import { captureSimulationState } from '../simulation/persistence/SimulationSeri
  * Predators scale with the herd (Step 16) at roughly the demo's ratio, so the
  * benchmark exercises a mixed population rather than a herbivore-only world.
  *
+ * ⚠ **The wildebeest and zebra joined every scenario on 2026-07-30** (phase 13),
+ * at the demo's own 120:30:15:35:8:8:10:6 ratio — **+24% animals** again, and two
+ * more species carrying a `migration.cueRadius`, which phase 11 identified as the
+ * expensive field rather than any of the new mechanisms. Figures taken before that
+ * date describe a six-species world.
+ *
  * ⚠ **The lion and buffalo joined every scenario on 2026-07-30** (phase 11), at
  * the demo's own 120:35:8:8:10:6 ratio — which is **+30% animals** in every
  * scenario and, more to the point, animals that are 600 kg. Figures taken before
@@ -44,32 +50,40 @@ import { captureSimulationState } from '../simulation/persistence/SimulationSeri
 const SCENARIOS = [
   { name: 'demo-default', world: { width: 128, height: 128 }, founding: [
       { speciesId: 'herbivore.gazelle', count: 120 },
+      { speciesId: 'herbivore.wildebeest', count: 30 },
+      { speciesId: 'herbivore.zebra', count: 15 },
       { speciesId: 'herbivore.buffalo', count: 35 },
-      { speciesId: 'predator.stalker', count: 8 },
+      { speciesId: 'predator.leopard', count: 8 },
       { speciesId: 'predator.lion', count: 8 },
       { speciesId: 'scavenger.vulture', count: 10 },
       { speciesId: 'scavenger.hyena', count: 6 },
     ] },
   { name: 'small-100', world: { width: 256, height: 256 }, founding: [
       { speciesId: 'herbivore.gazelle', count: 100 },
+      { speciesId: 'herbivore.wildebeest', count: 25 },
+      { speciesId: 'herbivore.zebra', count: 13 },
       { speciesId: 'herbivore.buffalo', count: 29 },
-      { speciesId: 'predator.stalker', count: 7 },
+      { speciesId: 'predator.leopard', count: 7 },
       { speciesId: 'predator.lion', count: 7 },
       { speciesId: 'scavenger.vulture', count: 8 },
       { speciesId: 'scavenger.hyena', count: 5 },
     ] },
   { name: 'medium-1k', world: { width: 512, height: 512 }, founding: [
       { speciesId: 'herbivore.gazelle', count: 1000 },
+      { speciesId: 'herbivore.wildebeest', count: 250 },
+      { speciesId: 'herbivore.zebra', count: 125 },
       { speciesId: 'herbivore.buffalo', count: 292 },
-      { speciesId: 'predator.stalker', count: 67 },
+      { speciesId: 'predator.leopard', count: 67 },
       { speciesId: 'predator.lion', count: 67 },
       { speciesId: 'scavenger.vulture', count: 80 },
       { speciesId: 'scavenger.hyena', count: 50 },
     ] },
   { name: 'large-5k', world: { width: 1024, height: 1024 }, founding: [
       { speciesId: 'herbivore.gazelle', count: 5000 },
+      { speciesId: 'herbivore.wildebeest', count: 1250 },
+      { speciesId: 'herbivore.zebra', count: 625 },
       { speciesId: 'herbivore.buffalo', count: 1458 },
-      { speciesId: 'predator.stalker', count: 333 },
+      { speciesId: 'predator.leopard', count: 333 },
       { speciesId: 'predator.lion', count: 333 },
       { speciesId: 'scavenger.vulture', count: 400 },
       { speciesId: 'scavenger.hyena', count: 250 },

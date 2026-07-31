@@ -64,6 +64,33 @@ they are not re-opened by accident.
   the fix is keying the claim layer on `groupRecordId`. ⚠ It sharpens **A35**:
   territory is not predator-only, it is *solitary*-only.
 
+- **⚠ A63 — A perception gate is not a predation gate** (from 2026-07-30, phase
+  14). Everything an animal knows about another animal comes through **one** test
+  in `PerceptionSystem` — prey, threats, **mate candidates**, a juvenile's
+  guardian, territorial rivals. Cover concealment was added there, correctly, and
+  the species it was written for is the one it broke: a cryptic **solitary**
+  predator stopped finding mates and its population fell **27 → 19**, with the
+  hunting half working exactly as designed. Fixed by exempting conspecifics
+  (camouflage is against other species), which is right on its own terms — but the
+  general hazard stands and has no guard on it. ⚠ **Anything added to that gate
+  gates reproduction too**, and the failure looks like a tuning problem rather than
+  a plumbing one. The lever, if this bites again, is separating "can I see it" from
+  "can I find my own kind"; nothing has needed that yet.
+
+- **⚠ A62 — A calendar mechanism meets the compressed lifespan** (from
+  2026-07-30, phase 13). The year is compressed to 8000 ticks and lifespans are
+  compressed beside it (PLAN-SPECIES §11.6), each defensible alone; together they
+  leave a large animal with **about one year of adult life**, so anything keyed to
+  the calendar rather than to the animal's own clock costs a female her whole
+  remaining reproductive life when she falls out of phase with it. Measured: a
+  wildebeest rut over 0.30 of the year — wide, in life — left the species alive on
+  **1 seed in 3** against 3/3 with `breeding.enabled: false`, on a clean
+  dose–response (0.30 → 0.3 mean · 0.50 → 6.7 · 0.65 → 10.7 · none → 16.7). It
+  ships at 0.65, which is a seasonal restriction rather than a rut. ⚠ The lever is
+  `ticksPerYear`, **not** the breeding window: lengthening the year relative to
+  lifespan is what makes a narrow window affordable, and it re-bases every seasonal
+  measurement in the project.
+
 - **⚠ A61 — An association weight only bites in mixed company** (from
   2026-07-30, phase 12). The weight is an *exchange rate between bodies* in the
   herd's centre of mass, so it decides whose centre wins when both kinds are
@@ -126,7 +153,14 @@ they are not re-opened by accident.
 - **A18 — Prey have no spatial refuge from predators.** Cover slows both
   equally. Part of why the founding counts are a knife edge. The static `thicket`
   terrain (A51) is a first refuge: it blocks line of sight and predators will not
-  follow prey into it.
+  follow prey into it. ⚠ **Phase 14 built the machinery and pointed it the other
+  way, on purpose.** Cover now conceals (`world.concealmentAt`, a graded scale) —
+  but scaled by a per-species `crypsis` that is **0 for every herbivore** and 1
+  only for the leopard, so what shipped is an *ambush* mechanism rather than a
+  refuge. Symmetric concealment was measured first and made the ambush predator
+  worse (27 → 19), which is why prey crypsis is a separate decision: raising it
+  changes every predator's living in the world at once and wants its own gated
+  phase. **The mechanism is in place; the number is the open question.**
 
 - **A51 — Dynamic shrub layer (large bush / small tree).** A new *dynamic* plant
   layer — deliberately **not** a terrain code, because terrain is static and a
@@ -298,11 +332,19 @@ they are not re-opened by accident.
   adding an `entity.inspection` fixture to
   `scripts/generateRendererFixtures.js`.
 
-- **P14 — The `/api/metrics` payload has never been measured against a long
-  roster.** It carries a histogram per trait per species and grows roughly
-  linearly; PLAN-SPECIES §7 asks whether it eventually needs a server-side
-  species filter. The per-species collapsible sections (2026-07-28) changed what
-  is drawn, not what is fetched. Measure at batch 3, not before.
+- **⚠ P14 — The `/api/metrics` payload is 383 KB at eight species, and the
+  species dimension is not what makes it that.** ✅ **Measured 2026-07-30 at batch
+  3**, as this item asked. The report splits **347 KB of bounded history (91%)
+  against 36 KB of current metrics (9%)**, and a species block is ~4.4 KB of which
+  3.2 KB is eight trait histograms. So the **server-side species filter** PLAN-
+  SPECIES §7 proposed is the wrong lever: it attacks the 9%, and the client wants
+  every species' counts for its legend anyway. The payload is
+  `historyLength × species × ~355 bytes` plus `species × ~4.4 KB`, polled every
+  3 s — the history is 120 points of eight trait *means* per species, and the
+  levers on it are fewer points, fewer traits in `summarizeForHistory`, or a delta
+  encoding. Left open with the diagnosis corrected rather than fixed: on a
+  localhost poll it is not yet a defect, and the roster grows by two more species
+  at most (§10.4).
 
 - **E4 — Keep `README-RENDERER.md`, `DOCS-RENDERER.md`, `PLAN-RENDERER.md`, and
   `HANDOFF-RENDERER.md` current _with_ each phase** rather than after it. An

@@ -602,7 +602,7 @@ describe('cooperative action: inert wherever the declaring species is not', () =
   // species picked up a weight without anyone noticing.
   const BATCH1 = [
     { speciesId: 'herbivore.gazelle', count: 120 },
-    { speciesId: 'predator.stalker', count: 8 },
+    { speciesId: 'predator.leopard', count: 8 },
     { speciesId: 'scavenger.vulture', count: 10 },
     { speciesId: 'scavenger.hyena', count: 6 },
   ];

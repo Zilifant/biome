@@ -210,10 +210,17 @@ describe('association: what a species declares', () => {
   test('the declaring-species map holds only the species that declare', () => {
     const registry = new SpeciesRegistry([...SPECIES_DEFINITIONS, ...SPECIES], CONFIG);
     const declaring = associationsIn(registry);
-    assert.deepEqual([...declaring.keys()].sort(), [MOBBING_FOLLOWER.id, FOLLOWER.id].sort());
-    // The claim the whole early-out rests on: nothing shipped declares one, so
-    // the map is empty for the real roster and `SocialSystem`'s loop is untouched.
-    assert.equal(associationsIn(new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG)).size, 0);
+    assert.deepEqual(
+      [...declaring.keys()].sort(),
+      [MOBBING_FOLLOWER.id, FOLLOWER.id, 'herbivore.gazelle'].sort(),
+      'the invented followers, and the one shipped species that declares one',
+    );
+    // ⚠ The claim the early-out rests on, and batch 3 narrowed it: the map is
+    // *small*, not empty. It held nothing at all until the gazelle declared an
+    // association (phase 13); what still matters is that every species not in it
+    // takes the untouched branch, which is seven of the eight shipped.
+    const shipped = associationsIn(new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG));
+    assert.deepEqual([...shipped.keys()], ['herbivore.gazelle']);
   });
 });
 
@@ -440,24 +447,71 @@ describe('association: the animal acts on it', () => {
   });
 });
 
-describe('association: the demo is untouched', () => {
-  test('⚠ no shipped species declares one, so the mechanism cannot be running', () => {
+describe('association: in the shipped world', () => {
+  // ⚠ **This block used to assert the demo byte-identical with the mechanism off,
+  // and batch 3 took that reading away** — exactly as phase 12 said it would:
+  // "takeable now and not later; the moment batch 3 gives the gazelle an
+  // association the two arms diverge by design." They do. What replaces it is the
+  // narrower claim that still means something.
+  const BATCH2 = [
+    { speciesId: 'herbivore.gazelle', count: 120 },
+    { speciesId: 'herbivore.buffalo', count: 35 },
+    { speciesId: 'predator.leopard', count: 8 },
+    { speciesId: 'predator.lion', count: 8 },
+    { speciesId: 'scavenger.vulture', count: 10 },
+    { speciesId: 'scavenger.hyena', count: 6 },
+  ];
+
+  test('exactly one species declares an association, and only over species that exist', () => {
     const engine = createDemoSimulation({ seed: 42 });
-    for (const species of engine.species.all()) {
-      assert.equal(associationOf(species), null, `${species.id} declares an association`);
+    const declaring = engine.species.all().filter((species) => associationOf(species) !== null);
+    assert.deepEqual(
+      declaring.map((s) => s.id),
+      ['herbivore.gazelle'],
+      'the small grazer follows the big ones, and the relation is directional',
+    );
+    // A weight naming a species that does not exist is dead data that reads as
+    // biology — the same failure a `preySpeciesIds` typo would be.
+    const known = new Set(engine.species.ids());
+    for (const partner of Object.keys(associationOf(declaring[0]))) {
+      assert.ok(known.has(partner), `${partner} is not a species in this world`);
     }
   });
 
-  test('⚠ the demo is byte-identical with the mechanism switched off', () => {
-    // D30's rule — an off switch must leave no trace — and the only honest way to
-    // ship a mechanism the roster does not use yet. This reading is *takeable now
-    // and not later*: the moment batch 3 gives the gazelle an association the two
-    // arms diverge by design, exactly as phase 11 took cooperation's away.
-    const on = createDemoSimulation({ seed: 42 });
-    const off = createDemoSimulation({ seed: 42, config: { association: { enabled: false, sharesAlarm: false } } });
+  test('⚠ a world with no wildebeest and no zebra is byte-identical with it switched off', () => {
+    // The property that survives, and the one that would break silently: the
+    // gazelle carries an association in every world now, so this is what says it
+    // costs nothing where it has no partner — which is what keeps batch 2's
+    // numbers comparable across the phase boundary.
+    //
+    // ⚠ Compared as strings rather than with `deepEqual`. When these two *do*
+    // differ, `deepEqual` tries to build a readable diff of two ~650 KB object
+    // graphs and exhausts a 4 GB heap before it can report anything (2026-07-30).
+    // A string compare fails in one line, which is the difference between a test
+    // that tells you what broke and one that kills the runner.
+    const on = createDemoSimulation({ seed: 42, config: { demo: { founding: BATCH2 } } });
+    const off = createDemoSimulation({
+      seed: 42,
+      config: { demo: { founding: BATCH2 }, association: { enabled: false, sharesAlarm: false } },
+    });
     on.step(400);
     off.step(400);
-    assert.deepEqual(captureSimulationState(on).entities, captureSimulationState(off).entities);
+    assert.equal(
+      JSON.stringify(captureSimulationState(on).entities),
+      JSON.stringify(captureSimulationState(off).entities),
+    );
+  });
+
+  test('and in the world that does have them, it is doing something', () => {
+    // §1.2's standing complaint is mechanisms that are correct and never fire.
+    const engine = createDemoSimulation({ seed: 42 });
+    engine.step(600);
+    let associating = 0;
+    for (const entity of engine.world.entities.all()) {
+      if (entity.kind !== 'animal' || !entity.alive) continue;
+      if ((engine.world.social.get(entity.id)?.associates ?? 0) > 0) associating += 1;
+    }
+    assert.ok(associating > 0, 'somebody is standing with another species');
   });
 
   test('the shipped defaults are the ones the module documents', () => {

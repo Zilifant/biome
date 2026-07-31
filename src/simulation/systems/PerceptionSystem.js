@@ -21,15 +21,41 @@ import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode } from '../world/TerrainGrid.js';
 import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
 import { isConcealed } from '../parenting/hiding.js';
+import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
 
 export class PerceptionSystem extends SimulationSystem {
+  /**
+   * The species registry the cryptic-species map was built from, so it is rebuilt
+   * rather than describing the wrong roster if one instance is reused across
+   * worlds. Same guard as `SocialSystem`'s association map and `GroupSystem`'s
+   * forming set.
+   * @type {object|null}
+   */
+  #crypticFrom = null;
+  /** @type {Map<string, number>} */
+  #cryptic = new Map();
+
   /**
    * @param {object} [options]
    * @param {number} [options.defaultRadius] radius for species without one
    * @param {number} [options.foodMinLevel] vegetation level that counts as food
    * @param {number} [options.updateInterval]
    */
-  constructor({ defaultRadius = 5, foodMinLevel = 1, maxMateCandidates = 6, lineOfSight = true, concealment = true, updateInterval = 1 } = {}) {
+  constructor({
+    defaultRadius = 5,
+    foodMinLevel = 1,
+    maxMateCandidates = 6,
+    lineOfSight = true,
+    neonatalConcealment = true,
+    // Cover concealment (phase 14, PLAN-SPECIES.md §3.12). ⚠ Wired from the global
+    // `config.concealment` — a different mechanism from the neonatal one above,
+    // and the two are kept apart by name because they answer different questions:
+    // that one is "is this calf hidden", this one is "how far away can this animal
+    // be picked out of the brush". `enabled: false` restores the phase-13 world.
+    coverConcealment = DEFAULT_CONCEALMENT.enabled,
+    coverConcealmentStrength = DEFAULT_CONCEALMENT.strength,
+    updateInterval = 1,
+  } = {}) {
     super({ id: 'perception', phase: 'perception', priority: 0, updateInterval });
     this.defaultRadius = defaultRadius;
     this.foodMinLevel = foodMinLevel;
@@ -44,11 +70,20 @@ export class PerceptionSystem extends SimulationSystem {
     // the whole stage, from `config.parenting.concealment` — *not*
     // `aging.hiddenUntil: 0`, which a species overrides (DOCS §8). Off skips the
     // test entirely, so the neighbour loop is exactly what it was.
-    this.concealment = concealment;
+    this.neonatalConcealment = neonatalConcealment;
+    this.coverConcealment = coverConcealment;
+    this.coverConcealmentStrength = coverConcealmentStrength;
   }
 
   update(world, context) {
     const perception = world.perception;
+    // Cover concealment (§3.12): which species are cryptic at all, resolved once
+    // per world. Empty for a roster that declares none, and then the neighbour
+    // loop below is exactly the loop it was.
+    if (this.#crypticFrom !== world.species) {
+      this.#crypticFrom = world.species;
+      this.#cryptic = this.coverConcealment ? crypticSpeciesIn(world.species) : new Map();
+    }
     perception.clear();
     world.neighbourhood.clear();
     for (const entity of world.entities.all()) {
@@ -96,6 +131,11 @@ export class PerceptionSystem extends SimulationSystem {
     const foodMinLevel = sensing?.foodMinLevel ?? this.foodMinLevel;
     const radiusSquared = radius * radius;
     const los = this.lineOfSight;
+    // Hoisted out of the neighbour loop for the reason everything else here is:
+    // two property loads per animal rather than two per neighbour, and D28's
+    // warning that this function is where a per-neighbour cost shows up.
+    const cryptic = this.coverConcealmentStrength > 0 && this.#cryptic.size > 0 ? this.#cryptic : null;
+    const hideStrength = this.coverConcealmentStrength;
     // Prey eligibility (phase 4, PLAN-SPECIES.md §3.6). Resolved **once per
     // animal**, into two plain numbers, so the in-loop test below is a pair of
     // register compares rather than a call and two property loads. An absent
@@ -154,10 +194,40 @@ export class PerceptionSystem extends SimulationSystem {
       // alarm is a sound that carries around a rock).
       neighbours.push(otherId, distance);
       animalCount += 1;
-      // Concealment: an animal behind an opaque obstacle is not *seen*, so it is
-      // none of the things below. This is what makes rock (and later, cover) a
-      // hiding place from predators and prey alike.
+      // An animal behind an opaque obstacle is not *seen*, so it is none of the
+      // things below. This is what makes rock and thicket a hiding place from
+      // predators and prey alike.
       if (los && !hasLineOfSight(world, entity.x, entity.y, other.x, other.y)) continue;
+      // ⚠⚠ **Cover concealment** (phase 14, PLAN-SPECIES.md §3.12), and it belongs
+      // on exactly this line: sight through a cell and being picked out *in* one
+      // are different questions, but they gate the same thing — everything below
+      // — so an animal hidden in brush is not prey, not a threat, not a mate, and
+      // not a findable guardian. Uniform by construction rather than by four
+      // remembered edits.
+      //
+      // The cost is one `concealmentAt` per neighbour that has line of sight, and
+      // it early-outs on the first compare for open ground, which is where 80–90%
+      // of this world's animals are standing. Measured at phase 14 (see
+      // BENCHMARK.md) rather than assumed, because §3.12 warned this could be the
+      // most expensive item in the plan per unit of realism — it was not, and the
+      // reason is that the *raycast* was left alone.
+      // ⚠ **Conspecifics are exempt, and leaving them in was measured wrong.**
+      // Crypsis is camouflage against *other* species; an animal's own kind knows
+      // its calls, its scent, and its habits. Mechanically it matters more than it
+      // sounds: mate candidates and territorial rivals come through this same gate,
+      // so a cryptic solitary species that hid from itself simply stopped breeding —
+      // the leopard population fell 27 → 19 with detection on and this exemption
+      // missing, which is the mechanism quietly sterilising the animal it was
+      // built for.
+      if (cryptic !== null && other.speciesId !== entity.speciesId) {
+        const crypsis = cryptic.get(other.speciesId);
+        if (
+          crypsis !== undefined &&
+          distance > visibleRange(radius, world.concealmentAt(other.x, other.y) * crypsis, hideStrength)
+        ) {
+          continue;
+        }
+      }
       if (nearestAnimal === null || distance < nearestAnimal.distance) {
         // speciesId lets behaviour distinguish conspecifics (e.g. mate seeking).
         nearestAnimal = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
@@ -187,7 +257,7 @@ export class PerceptionSystem extends SimulationSystem {
         (nearestPrey === null || distance < nearestPrey.distance) &&
         other.bodyMass <= maxPreyMass &&
         other.bodyMass >= minPreyMass &&
-        !(this.concealment && isConcealed(world, other, world.species.get(other.speciesId)))
+        !(this.neonatalConcealment && isConcealed(world, other, world.species.get(other.speciesId)))
       ) {
         // `fleeing` is visible to the hunter: prey that has bolted is running,
         // and a predator that keeps walking will never close the gap again.

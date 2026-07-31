@@ -71,7 +71,13 @@ export function registerDemoSystems(engine) {
       // (PLAN-SPECIES.md §3.14). Wired from `config.parenting`, its one home, and
       // read by this system and the decision system — ⚠ **not** expressible as
       // `aging.hiddenUntil: 0`, which a species overrides (DOCS §8).
-      concealment: engine.config.parenting.concealment,
+      neonatalConcealment: engine.config.parenting.concealment,
+      // Cover concealment (PLAN-SPECIES.md §3.12, phase 14): how far away an
+      // animal standing in brush can still be picked out. ⚠ A *different*
+      // mechanism from the line above — that one is the hidden calf — and from a
+      // different config section, which is why both are named in full here.
+      coverConcealment: engine.config.concealment.enabled,
+      coverConcealmentStrength: engine.config.concealment.strength,
     }),
   );
   engine.registerSystem(new MemorySystem(engine.config.memory));
@@ -165,7 +171,7 @@ export function registerDemoSystems(engine) {
       // from their one home rather than restated, exactly as `drinkRange` is.
       provisionRange: engine.config.parenting.provisionRange,
       parentMinEnergyFraction: engine.config.parenting.parentMinEnergyFraction,
-      concealment: engine.config.parenting.concealment,
+      neonatalConcealment: engine.config.parenting.concealment,
       // Weather machinery: the °C thresholds stay global, and `shelterRelief` is
       // shared with metabolism through the `thermalStress` chokepoint so the
       // system that charges for stress and the one that walks out of it cannot
@@ -185,6 +191,12 @@ export function registerDemoSystems(engine) {
       // which is global precisely so a species cannot override the switch — the
       // window itself is read per-species from the `reproduction` block above.
       breedingEnabled: engine.config.breeding.enabled,
+      // Cover concealment (PLAN-SPECIES.md §3.12, phase 14): the *approach* half,
+      // which is a heading rule inside the `stalk` this system already had. The
+      // detection half is wired into `PerceptionSystem` above. ⚠ Two switches:
+      // `enabled` turns the whole mechanism off, `approach` turns off only this
+      // half, so the two can be measured apart.
+      coverConcealment: engine.config.concealment.enabled && engine.config.concealment.approach,
     }),
   );
   engine.registerSystem(

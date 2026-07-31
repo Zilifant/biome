@@ -60,7 +60,21 @@ export const predatorLion = Object.freeze({
   // under what a pride is for". So the partition is by species here and by *mass*
   // within the species below, and it is what makes lion and hyena coexist on one
   // map rather than compete for one prey animal (§2).
-  preySpeciesIds: Object.freeze(['herbivore.buffalo']),
+  // ⚠⚠ **Three entries as of batch 3, and the reason it was one is still live.**
+  // Perception reports the *nearest eligible* prey (A58), so a list is a
+  // statement about what this animal spends its life on, not a menu it chooses
+  // from — phase 11 measured a lion that also listed gazelle taking **2 buffalo
+  // in 4000 ticks**. What makes wildebeest and zebra safe to add where gazelle
+  // was not is that they are *worth* the hunt: 200 kg and 300 kg against a 180 kg
+  // hunter, where a 30 kg gazelle is a lion doing a leopard's job for a leopard's
+  // meal. This is the prey base §10.3 said this phase would give it, and it is
+  // what a Serengeti pride actually lives on.
+  //
+  // ⚠ It is also the phase's main measurement risk, and it runs both ways: a
+  // wider base feeds more lions, and more lions is more pressure on the buffalo
+  // the pride was built for. Watch `predator.lion` and `herbivore.buffalo`
+  // together in the sweep — and `minHungerToHunt` first, as ever.
+  preySpeciesIds: Object.freeze(['herbivore.buffalo', 'herbivore.wildebeest', 'herbivore.zebra']),
   bodyMass: 180, // kg (adult) — 4× the stalker, and the first real step up
   baseSpeed: 1.4, // powerful rather than quick: faster than a buffalo, barely
   // faster than a gazelle, and it pays for every second of it

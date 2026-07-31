@@ -49,7 +49,21 @@ export const scavengerHyena = Object.freeze({
   // between this animal and the vulture at the schema level; everything else
   // below is what makes it a different animal to watch.
   diet: 'carnivore',
-  preySpeciesIds: Object.freeze(['herbivore.gazelle']),
+  // ⚠⚠ **The wildebeest is on this list as a *calf*, and nothing below says so.**
+  // `maxPreyMassRatio: 1.0` was written at phase 7 with the note that it "bounds
+  // nothing today"; batch 3 is where it starts binding. A 60 kg hyena may commit
+  // to prey up to 60 kg, a wildebeest is born at 18 kg and grows to 200, so the
+  // ratio admits calves and refuses their mothers — with no life-stage
+  // conditional anywhere, because `bodyMass` grows along the aging curve (§3.6).
+  // That is age-structured prey selection falling out of a field that already
+  // existed, and hyenas taking wildebeest calves is the textbook case of it.
+  //
+  // ⚠ The zebra is deliberately **not** here: a zebra foal is born at 30 kg and is
+  // over the ratio within a fraction of its juvenile stage, so listing it would
+  // buy a handful of ticks of eligibility and a great deal of A58 — the nearest
+  // *eligible* animal is what perception reports, and a target that stops being
+  // eligible mid-stalk is a hunt that evaporates.
+  preySpeciesIds: Object.freeze(['herbivore.gazelle', 'herbivore.wildebeest']),
   bodyMass: 60, // kg (adult) — 0.5× ratio on a 30 kg gazelle is an ordinary
   // predator–prey match, and only 1.3× the stalker, so batch 1 carries almost
   // none of the mass jump the original lion-first plan would have

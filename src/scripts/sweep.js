@@ -21,8 +21,8 @@
  * Usage:
  *   npm run sweep                                    # 10 seeds x 15000 ticks, demo defaults
  *   npm run sweep -- --seedCount=10 --ticks=15000
- *   npm run sweep -- --founding=herbivore.gazelle:120,predator.stalker:8,scavenger.vulture:10,scavenger.hyena:6 \
- *                    --control=herbivore.gazelle:120,predator.stalker:8,scavenger.vulture:10
+ *   npm run sweep -- --founding=herbivore.gazelle:120,predator.leopard:8,scavenger.vulture:10,scavenger.hyena:6 \
+ *                    --control=herbivore.gazelle:120,predator.leopard:8,scavenger.vulture:10
  *   npm run sweep -- --seeds=1,2,3 --ticks=5000 --json
  *   npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false
  *
@@ -98,7 +98,7 @@ function parseConfigOverrides(value) {
   return config;
 }
 
-/** `herbivore.gazelle:120,predator.stalker:8` → `[{ speciesId, count }]`. */
+/** `herbivore.gazelle:120,predator.leopard:8` → `[{ speciesId, count }]`. */
 function parseFoundingRoster(value) {
   return value.split(',').map((pair) => {
     const [speciesId, count] = pair.split(':');

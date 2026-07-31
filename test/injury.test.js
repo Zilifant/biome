@@ -21,7 +21,7 @@ import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapsho
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
-const STALKER = getSpecies('predator.stalker');
+const STALKER = getSpecies('predator.leopard');
 
 function sandbox({ seed = 3, size = 44, systems = [], hunting = null } = {}) {
   const engine = new SimulationEngine({
@@ -256,7 +256,13 @@ describe('injury: a failed hunt leaves marks', () => {
   });
 
   test('prey can hurt their attacker on the way out', () => {
-    const { engine, predatorId } = failedHunt({ predatorInjuryChance: 1 });
+    // ⚠ **2, not 1, and the reason is the mechanism under test.** `trampleChance`
+    // is the configured chance scaled by `defenderMass / attackerMass` — a light
+    // animal cannot hurt a heavy one much — so against a 60 kg leopard a 30 kg
+    // gazelle halves it. At 1 this was a coin flip that happened to land, and it
+    // stopped landing when the leopard's mass went 45 → 60 at phase 14. 2 × 0.5 is
+    // certainty, which is what the test means.
+    const { engine, predatorId } = failedHunt({ predatorInjuryChance: 2 });
     engine.step(1);
     const predator = engine.world.entities.get(predatorId);
     assert.equal(predator.injuries.length, 1, 'hunting is a gamble in both directions');

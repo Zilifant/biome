@@ -21,7 +21,7 @@ const CONFIG = new SimulationEngine().config;
 // Resolved species (Step 29): the accessors take a resolved record, not an id.
 const REGISTRY = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
 const GRAZER = getSpecies('herbivore.gazelle');
-const STALKER = getSpecies('predator.stalker');
+const STALKER = getSpecies('predator.leopard');
 
 function genomeWith(overrides = {}) {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [overrides[locus] ?? 1, overrides[locus] ?? 1]]));

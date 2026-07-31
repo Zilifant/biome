@@ -162,7 +162,7 @@ function paintZones(engine, biomass) {
 
 /** Perception + decision, wired exactly as the fixture wires them. */
 function decisionSystems(engine) {
-  engine.registerSystem(new PerceptionSystem({ ...engine.config.perception, concealment: engine.config.parenting.concealment }));
+  engine.registerSystem(new PerceptionSystem({ ...engine.config.perception, neonatalConcealment: engine.config.parenting.concealment }));
   engine.registerSystem(
     new DecisionSystem({
       ...engine.config.decision,
@@ -172,7 +172,7 @@ function decisionSystems(engine) {
       carcassRange: engine.config.feeding.carcassRange,
       foragePreference: engine.config.forage.enabled,
       forageQualityFloor: engine.config.forage.qualityFloor,
-      concealment: engine.config.parenting.concealment,
+      neonatalConcealment: engine.config.parenting.concealment,
     }),
   );
 }
@@ -569,24 +569,25 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     let ticks = 0;
     let coverTicks = 0;
     let animalTicks = 0;
-    let buffaloTicks = 0;
-    let buffaloGround = 0;
+    let grazerTicks = 0;
+    let grazerThicket = 0;
     for (let t = 0; t < 1500; t += 1) {
       engine.step(1);
       for (const entity of world.entities.all()) {
         if (entity.kind !== 'animal' || !entity.alive) continue;
         const { cellX, cellY } = world.cellOf(entity.x, entity.y);
         const code = world.terrain.codeAt(cellX, cellY);
-        if (entity.speciesId === BUFFALO.id) {
-          buffaloTicks += 1;
-          // "Open ground" is everything that is not one of the three named
-          // terrains — the cells this species weights above 1.
-          if (code !== TerrainType.COVER && code !== TerrainType.THICKET && code !== TerrainType.ROCK) {
-            buffaloGround += 1;
-          }
+        // ⚠ The three *big* grazers, not every grazer: batch 3 put four species
+        // on the same open ground and the ground share stopped being a clean
+        // signal (see the test below), so the claim moved to thicket — and there
+        // the gazelle has nothing to lose, sitting at 0.18% with the cue either
+        // way, while the animals that arrived with a wide `cueRadius` have real
+        // thicket time for the preference to take off them.
+        if (entity.speciesId !== GAZELLE.id) {
+          grazerTicks += 1;
+          if (code === TerrainType.THICKET) grazerThicket += 1;
           continue;
         }
-        if (entity.speciesId !== GAZELLE.id) continue;
         animalTicks += 1;
         if (code === TerrainType.COVER) coverTicks += 1;
         if (entity.action !== 'eat') continue;
@@ -594,26 +595,31 @@ describe('forage guilds and habitat: not inert in the demo', () => {
         ticks += 1;
       }
     }
-    return { crop: total, eatTicks: ticks, coverTicks, animalTicks, buffaloTicks, buffaloGround };
+    return { crop: total, eatTicks: ticks, coverTicks, animalTicks, grazerTicks, grazerThicket };
   }
 
   /** Both arms over every seed, summed — computed once and shared by both tests. */
   const arms = (() => {
-    const both = { on: [], off: [] };
+    const both = { on: [], off: [], habitatOff: [] };
     for (const seed of SEEDS) {
       both.on.push(grazedCrop(seed, {}));
       both.off.push(grazedCrop(seed, { forage: { enabled: false }, habitat: { enabled: false } }));
+      // ⚠ A third arm, added at phase 13: the habitat claim needs habitat switched
+      // off and **forage left on**. Measuring it against the both-off arm compares
+      // worlds whose animals also eat differently, which is fine for the forage
+      // claim above (that arm is its control) and quietly wrong for this one.
+      both.habitatOff.push(grazedCrop(seed, { habitat: { enabled: false } }));
     }
     const pool = (runs) => ({
       meanCrop: runs.reduce((sum, r) => sum + r.crop, 0) / Math.max(1, runs.reduce((sum, r) => sum + r.eatTicks, 0)),
       eatTicks: runs.reduce((sum, r) => sum + r.eatTicks, 0),
       coverShare:
         runs.reduce((sum, r) => sum + r.coverTicks, 0) / Math.max(1, runs.reduce((sum, r) => sum + r.animalTicks, 0)),
-      buffaloGround: runs.reduce((sum, r) => sum + r.buffaloGround, 0),
-      buffaloTicks: runs.reduce((sum, r) => sum + r.buffaloTicks, 0),
+      grazerThicket: runs.reduce((sum, r) => sum + r.grazerThicket, 0),
+      grazerTicks: runs.reduce((sum, r) => sum + r.grazerTicks, 0),
       perSeed: runs,
     });
-    return { on: pool(both.on), off: pool(both.off) };
+    return { on: pool(both.on), off: pool(both.off), habitatOff: pool(both.habitatOff) };
   })();
 
   /** `seed 1: 9.1% · seed 2: 5.1% · seed 42: 4.2%` — the detail behind a pooled claim. */
@@ -630,29 +636,33 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     );
   });
 
-  test('and each grazer spends more of its life on the ground it prefers', () => {
-    // The habitat half. ⚠⚠ **This asserted the *gazelle's* cover share until
-    // 2026-07-30, and phase 11 reversed it — not by breaking the mechanism but by
-    // adding a second grazer.** Measured over the same three seeds, gazelle cover
-    // share went 6.6→6.9, 3.9→7.0 and 3.7→4.8 percent with preference on: it now
-    // spends *more* time in cover, because a 600 kg buffalo with its own
-    // open-ground preference grazes the open ground both of them want and the
-    // gazelle is displaced onto the margin. That is competitive displacement —
-    // the first two-herbivore interaction in this project and exactly what §2 is
-    // about — rather than a habitat cue that stopped working.
+  test('and the grazers keep out of the ground they all dislike', () => {
+    // The habitat half, and ⚠⚠ **this assertion has now been moved twice by
+    // roster changes, neither of them a regression.** It asserted the *gazelle's
+    // cover share* until phase 11 added a second grazer and reversed it
+    // (competitive displacement: a 600 kg buffalo with its own open-ground
+    // preference grazes the open ground both want, and the smaller animal is
+    // pushed to the margin). It then asserted the **buffalo's open-ground share**
+    // until phase 13 put *four* grazers on that same ground and flattened it:
+    // pooled over the same three seeds, ground share went 78.0→79.9% for the
+    // buffalo and 88.3→89.7% for the gazelle but **82.9→79.6%** for the wildebeest
+    // and **80.9→74.9%** for the zebra. Open ground is contested by every grazer
+    // in the world now, so "who ends up on it" measures the competition, not the
+    // cue.
     //
-    // So the claim moves to the one that is actually about the mechanism and
-    // survives a growing roster: **the species that declares a preference acts on
-    // it.** The buffalo weights open ground 1.1 against cover 0.9, and switching
-    // preference off is what lets it drift into cover (measured on seed 42:
-    // 93.9% on open ground with the cue, 83.6% without).
-    const { on, off } = arms;
-    const percent = (r) => `${((100 * r.buffaloGround) / Math.max(1, r.buffaloTicks)).toFixed(1)}%`;
-    assert.ok(on.buffaloTicks > 1000 && off.buffaloTicks > 1000, 'there were buffalo in both arms');
+    // ⚠ So the claim moves to the axis with **headroom and no contest**: nobody
+    // wants thicket, every grazer weights it 0.3–0.4, and the cue's effect there
+    // is large, consistent, and in one direction — measured 2026-07-30 over 3
+    // seeds × 3000 ticks: wildebeest 0.37→0.09%, zebra 0.43→0.05%, buffalo
+    // 0.25→0.18%. That is a preference doing visible work, stated as a property of
+    // the mechanism rather than of one species' trajectory.
+    const { on, habitatOff: off } = arms;
+    const percent = (r) => `${((100 * r.grazerThicket) / Math.max(1, r.grazerTicks)).toFixed(2)}%`;
+    assert.ok(on.grazerTicks > 5000 && off.grazerTicks > 5000, 'there were grazers in both arms');
     assert.ok(
-      on.buffaloGround / on.buffaloTicks > off.buffaloGround / off.buffaloTicks,
-      `buffalo on open ground: ${((100 * on.buffaloGround) / on.buffaloTicks).toFixed(1)}% on against ` +
-        `${((100 * off.buffaloGround) / off.buffaloTicks).toFixed(1)}% off\n` +
+      on.grazerThicket / on.grazerTicks < off.grazerThicket / off.grazerTicks,
+      `grazers in thicket: ${((100 * on.grazerThicket) / on.grazerTicks).toFixed(2)}% on against ` +
+        `${((100 * off.grazerThicket) / off.grazerTicks).toFixed(2)}% off\n` +
         `  on  ${bySeed(on, percent)}\n` +
         `  off ${bySeed(off, percent)}`,
     );

@@ -117,7 +117,7 @@ export const MAX_FOUNDING_TOTAL = 30000;
  */
 export const FOUNDING_ROLE_ALIASES = Object.freeze({
   herbivores: 'herbivore.gazelle',
-  predators: 'predator.stalker',
+  predators: 'predator.leopard',
   scavengers: 'scavenger.vulture',
 });
 
