@@ -33,6 +33,21 @@ figure with its own date beside the original** rather than overwriting it — th
 drift between them is usually the interesting part. Never inherit a number;
 re-run the thing.
 
+⚠ **Species have been renamed, and older passages still name the old animal.**
+Three renames have happened, each proved byte-identical so the measurements around
+them stayed valid (that is *why* they were proved):
+
+| Named in older text | Is now | Renamed |
+| --- | --- | --- |
+| `herbivore.grazer` | `herbivore.gazelle` | 2026-07-29, phase 7 |
+| `scavenger.corvid` | `scavenger.vulture` | 2026-07-29, phase 7 |
+| `predator.stalker` | `predator.leopard` | 2026-07-30, phase 14 |
+
+A measurement that says "the stalker" is a measurement of the animal now called
+the leopard, taken before its mass went 45 → 60 kg. Passages are **not** rewritten
+to the new name: a reading belongs to the world it was taken in, and silently
+renaming the animal inside it would make the date meaningless.
+
 Verify current state with:
 
 ```bash
@@ -54,9 +69,9 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
 | Benchmark (large-5k)  | **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eight** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` on 2026-07-30 (§8). ⚠ **Every block and field is now used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / **`association`**, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, and the **wildebeest `reproduction.breedingWindow`** (batch 3). The schema has stopped running ahead of the roster |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **nine** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30 (§8). ⚠ **Eight of the twelve blocks and all nine fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, and the **leopard `crypsis`** (phase 14). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
-| Git                   | Species phases 0–11 are committed (`c8bfaff phase 11`); **phases 12, 13 and 14 are uncommitted** (the user handles git) |
+| Git                   | Species phases 0–14 are **committed** — `9fceb4d phase 12` and `83a6dd9 phase 14`, ⚠ the latter carrying phases 13 and 14 together (the user handles git) |
 
 The renderer is a fully separate subsystem with its own reference documentation,
 [`src/renderer/DOCS-RENDERER.md`](src/renderer/DOCS-RENDERER.md) (and its own
@@ -1054,8 +1069,11 @@ Alongside them sit fields that were always per-species: `matePreference`,
 `territory`, `migration`, `diet`, `preySpeciesIds` — and `groups`, which joined
 them the same day rather than becoming a block, because its config section also
 carries world-level machinery (see §19). **`forage` and `habitat` joined that list
-on 2026-07-29** (§9 Feeding) and **`association` on 2026-07-30** (§9 Sociality),
-for the same reason plus a sharper one:
+on 2026-07-29** (§9 Feeding), **`association` on 2026-07-30** (§9 Sociality), and
+**`crypsis` the same day** (§9 Perception) — ⚠ that last one is a bare number with
+no config section of its own at all, because there is nothing world-level to say
+about how well an animal hides beyond the switch in `config.concealment`.
+All for the same reason, plus a sharper one:
 
 ⚠ **An off switch cannot live in a species block.** A species block *beats* the
 config, so `config.forage.enabled: false` would be overridden by any species stating
@@ -3608,8 +3626,8 @@ that applies to every cryptic animal, and `neonatalConcealment` is the phase-8
 species-scaled; the second is a boolean. They share the English word because they
 are the same idea at different strengths, and nothing else.
 
-⚠ **`cooperation`, `mobbing`, `breeding`, and `association` are switches with no
-section of their own to sit in.** Cooperative hunting's weight belongs in
+⚠ **`cooperation`, `mobbing`, `breeding`, `association`, and `concealment` are
+switches with no section of their own to sit in.** Cooperative hunting's weight belongs in
 `hunting`, mobbing's in `behavior`, and a breeding window in `reproduction` — all
 species blocks — so their off switches had to live somewhere a species cannot
 override, and that is these sections. They hold an `enabled` plus the geometry

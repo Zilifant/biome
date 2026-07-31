@@ -4,17 +4,22 @@
  * For twenty-five steps, "what an animal is like" was written in two different
  * places at once. Some of it was per-species (`perceptionRadius`, `territory`,
  * `matePreference`); most of it was in **global** config sections that every
- * animal shared, so a stalker cub was born at the grazer's 5 kg and every
+ * animal shared, so a predator's cub was born at the grazer's 5 kg and every
  * species aged, starved, and dried out on identical curves. §1.4 named the
  * pieces — B3, B4, A13, A17, A29, A30, A38, A41 — and this is where they land.
  *
  * `feeding` and `hunting` joined the list on 2026-07-28 (PLAN-SPECIES.md §3.2),
  * so a browser and a grazer can differ in what they get out of the same ground
  * and two predators can differ in how they capture; `behavior` and `predation`
- * followed the same day. ⚠ None of the four *varies* by species yet — every
- * species inherits the config — which is the same shape `disease` had when it
- * landed (§1.4 A38): the schema arriving one step ahead of the roster that needs
- * it.
+ * followed the same day. ⚠ **They landed inert** — every species inherited the
+ * config — which is the shape `disease` had at Step 29 (§1.4 A38): the schema
+ * arriving ahead of the roster that needs it. ✅ **That gap closed on 2026-07-30**:
+ * the lion declares `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`,
+ * three predators declare `predation` ratios, and the wildebeest a
+ * `reproduction.breedingWindow`. ⚠ **Four blocks are still inert**, though —
+ * `traits`, `genetics`, `disease`, and `feeding` are inherited unchanged by all
+ * eight species, so no animal yet varies how widely its individuals differ, how
+ * fast it mutates, how it takes an infection, or what it gets out of a mouthful.
  *
  * **A species overrides; the config supplies defaults.** Each block below falls
  * back to the same-named global config section, so a species file states only
@@ -42,7 +47,7 @@
  * Blocks a species may override, each falling back to the global config section
  * of the same name. Anything not listed here is either already per-species
  * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, and —
- * from the species plan — `groups`, `forage`, `habitat`, `association`) or
+ * from the species plan — `groups`, `forage`, `habitat`, `association`, `crypsis`) or
  * genuinely world-level (terrain, weather, disturbances, the decision weights)
  * and stays in the config.
  *

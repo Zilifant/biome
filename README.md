@@ -344,9 +344,12 @@ to make, and a test will fail if you make one.
 1. Add a definition to `src/simulation/config/species/` — biology only, never
    glyphs or colors. State only what differs from the defaults: every block
    (`metabolism`, `hydration`, `aging`, `perception`, `traits`, `genetics`,
-   `disease`, `reproduction`, `feeding`, `hunting`, `behavior`) falls back to the same-named
-   section of the simulation config, so a species file reads as a list of what
-   makes that animal unusual.
+   `disease`, `reproduction`, `feeding`, `hunting`, `behavior`, `predation`) falls
+   back to the same-named section of the simulation config, so a species file reads
+   as a list of what makes that animal unusual. Alongside them sit the
+   always-per-species **fields**, which have no config default to fall back on:
+   `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`,
+   `forage`, `habitat`, `association`, `crypsis`.
 2. Add it to the roster in `config/species/index.js` and to `config.demo.founding`
    if it should exist in the demo world.
 3. Give it an appearance entry in the renderer's `SPECIES_APPEARANCE` — the only
@@ -355,6 +358,12 @@ to make, and a test will fail if you make one.
    `test/species-schema.test.js` scans for that and fails. Express behaviour as
    data instead: `diet`, `preySpeciesIds`, `territory.defends`,
    `migration.tracksForage`.
+5. ⚠ **Gate it.** Add the species at `count: 0` and prove the world unchanged, then
+   raise the count and sweep **10 seeds × 15 000 ticks** against the roster without
+   it: `npm run sweep -- --control=…`. Every species batch since phase 7 has done
+   this, and three of the four found a real problem that way — see
+   [`PLAN-SPECIES.md`](PLAN-SPECIES.md) §9 for the procedure and what each batch
+   cost.
 
 The scavenger is the worked example — a carnivore with an empty `preySpeciesIds`,
 which is an entire trophic level expressed by leaving a field empty.
@@ -476,13 +485,20 @@ dangerous. Prey drop everything and run the moment a predator comes into view.
 Stamina is what actually decides most chases: both sides trade it for speed and
 recover it only at rest.
 
-The demo holds grazer and stalker in a genuine oscillation rather than a fixed
-balance, and it is **a knife edge rather than a guarantee**. Measured 2026-07-20
-over 15k ticks on ten seeds with all three species present: roughly 8–75 grazers against
-0–2 stalkers, with both still alive in 5 of 10 seeds and all three species
-coexisting in 4. Nothing enforces any of that — it emerges from encounter rates,
-capture odds, lifespan, and now competition for carrion — and the honest reading
-is that predators go extinct about half the time.
+The demo holds predator and prey in a genuine oscillation rather than a fixed
+balance, and it is **a knife edge rather than a guarantee**. Nothing enforces any
+of it — it emerges from encounter rates, capture odds, lifespan, and competition
+for carrion.
+
+⚠ **Measured 2026-07-20 over 15k ticks on ten seeds, when the world had three
+species**: roughly 8–75 grazers against 0–2 stalkers, both alive in 5 of 10 seeds,
+all three coexisting in 4 — the honest reading then being that predators went
+extinct about half the time. **That world no longer exists.** The roster is now
+eight species and the same gate reads very differently: every species alive on
+**10 of 10 seeds** (2026-07-30, phase 14), with the gazelle at a mean of 62 and
+each predator between 5 and 15. The mechanism is the same; the world it runs in
+is not, which is why both readings carry their date rather than one replacing the
+other.
 
 That number is measured on **ten** seeds for a reason. Five cannot resolve a
 one-seed difference here, and every tuning decision from Step 26 onward has been

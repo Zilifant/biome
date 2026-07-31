@@ -7,15 +7,22 @@ per role**, each with its own behaviour, food, and water needs. Written
 six settled decisions (§11), and again to put the **gazelle** rather than the
 wildebeest in the first batch.
 
-> ### ⚠ Status: phases 0–13 are done (last updated 2026-07-30)
+> ### ⚠⚠ Status: phases 0–14 are done, and the plan is PARKED (last updated 2026-07-30)
 >
-> **This document is no longer a plan for unimplemented work.** Phases 0–13 have
-> shipped — see the table in §8 — and the world now has **eight species**
-> (gazelle, wildebeest, zebra, buffalo, stalker, lion, vulture, hyena) at
-> protocol v29. ⚠ **§8's own "reasonable stopping point" is here**: eight species
-> with clans, prides, bands, cooperative hunting, contested carcasses, mobbing, a
-> three-tier grazing succession, and a calving season. Everything past this is
-> refinement.
+> **Phases 15, 16 and 17 are deferred — a decision taken on 2026-07-30, not a
+> stall.** This document is no longer a plan for unimplemented work: phases 0–14
+> have shipped (see §8) and the world has **eight species** — gazelle, wildebeest,
+> zebra, buffalo, **leopard**, lion, vulture, hyena — at protocol v29.
+>
+> ⚠ **§8's own "reasonable stopping point" was after phase 13, and phase 14 went
+> one past it**: eight species with clans, prides, bands, cooperative hunting,
+> contested carcasses, mobbing, a three-tier grazing succession, a calving season,
+> and an ambush predator. §2's table has **one ❌ row left** (the `diet` string).
+> ⚠ Eight of the twelve species blocks and all nine always-per-species fields are
+> used by a shipped animal — but `traits`, `genetics`, `disease`, and `feeding` are
+> still inherited unchanged by all eight, which is A38's shape four blocks deep.
+> Everything remaining is refinement — see `HANDOFF.md` §8 for what each deferred
+> phase would cost.
 >
 > A section marked ✅ has an **"As built"** block recording where its own
 > prediction was wrong; those blocks are the most useful part of the document now,
@@ -23,10 +30,10 @@ wildebeest in the first batch.
 > written". ⚠ Read the two together and prefer the As-built block: the plan was
 > right about shape far more often than about consequence.
 >
-> **Next: phase 15** (A51 browse, the `diet` forage-source list, sex-specific
-> territory) — or **stop**, which §8 says is reasonable and has been since phase 13.
-> §3.13 (vertical refuge) remains **deferred, deliberately and permanently so far**;
-> phase 14 took the horizontal half of it instead.
+> **If the plan is ever resumed**, phase 15 (A51 browse, the `diet` forage-source
+> list, sex-specific territory) is the next row and the largest single piece of work
+> left in the document. §3.13 (vertical refuge) remains **deferred, deliberately**;
+> phase 14 took the horizontal half of it — concealment — instead.
 >
 > ⚠ **Read §3.12's As-built before touching perception.** Phase 14's mechanism was
 > built wrong twice, and both failures measured as "no effect" rather than as an
@@ -1759,7 +1766,8 @@ Each phase leaves the suite green and the demo runnable, in this repo's usual
 shape. Phases 0–6 are groundwork with no new species at all; species land from
 phase 7 onward, **one or two at a time** (§11.1), each behind the §9 gate.
 
-**⚠ Fourteen of eighteen phases have shipped, and the world has eight species.** The
+**⚠ Fourteen of eighteen phases have shipped, the world has eight species, and the
+remaining three are deferred (2026-07-30).** The
 table is a *chart*, not a record: a done row states what landed, when, and the one
 thing worth carrying out of it. The reasoning, the measurements, and every place a
 phase's own prediction turned out wrong live in that phase's **"As built"** block
@@ -1782,9 +1790,9 @@ in the section it links to — read those before repeating any of this work.
 | **12** | Batch-3 prerequisites: heterospecific association (§3.16); seasonal breeding windows (§3.11) | ✅ **2026-07-30** | Social / Reproduction. Both ship **inert and byte-identical**, and the risk estimate ("low") held. ⚠ The one thing measured wrong first was scaling the herd *pull* by the association weight as well as the centroid — the phase-9 double-count again, and it made every weight below ~0.58 inert. Opened **A61**. ⚠ Association grew a half the plan did not propose (an associate's alarm carries) because the plan's own reason for the mechanism was *vigilance* |
 | **13** | **Batch 3 — wildebeest + zebra.** The three-tier grazing succession, and the first declaring species for both of phase 12's mechanisms | ✅ **2026-07-30** | config only — **no engine change at all**, which is the claim §1 has made since Step 29 and this is the cleanest proof of it. ⚠ **Passed its gate first time**, the only batch that has. ⚠⚠ A 0.30-of-the-year rut cost the wildebeest 2 seeds in 3 before a config A/B relocated the cause to §11.6's lifespan compression; ⚠ the gazelle re-tune this row scheduled turned out **not to be needed**, and `maxGroupSize` turned out not to be a tuning question |
 | **14** | **Batch 4 — leopard.** Rename `predator.stalker` → `predator.leopard`, mass 45 → 60, **and ambush concealment (§3.12)**, which was optional and was taken | ✅ **2026-07-30** | config + perception + terrain. ⚠ The rename was proved **byte-identical** first (2.36 MB × 3 seeds), so the biology is separately attributable. ⚠⚠ The mechanism was **built wrong twice and both failures read as "no effect"**: symmetric concealment made the leopard worse (27 → 19), then hiding from conspecifics sterilised it (19). Opened **A63**; the last `supersededBy` entry is deleted here |
-| **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | ← **next**, or stop | high — large. §5.7 must move in the same commit. ⚠ A51 is now also the answer to "the ambush is bounded by how little cover exists" (§3.12) |
-| **16** | **Batch 5 — black rhino.** | planned | high — config only |
-| **17** | **Batch 6 — elephant** (§11.1: _may never happen_). Needs everything above plus musth and woody-floor damage | planned | high — large |
+| **15** | A51 shrub layer as browse (§3.3); forage-source list replacing the `diet` string (§3.2); sex-specific territory (§3.10) | ⏸ **deferred 2026-07-30** | high — large. §5.7 must move in the same commit. ⚠ A51 is now also the answer to "the ambush is bounded by how little cover exists" (§3.12) |
+| **16** | **Batch 5 — black rhino.** | ⏸ **deferred 2026-07-30** | high — config only, but gated on A51's browse: without a woody layer a rhino is a heavy wildebeest |
+| **17** | **Batch 6 — elephant** (§11.1: _may never happen_). Needs everything above plus musth and woody-floor damage | ⏸ **deferred 2026-07-30** | high — large. Phase 14 did not change the case against it |
 
 **Ordering rationale** — ✅ marks a decision the shipped phases have now tested.
 
@@ -2393,8 +2401,9 @@ Recorded 2026-07-28. Re-opening one needs a new reason, not a reminder.
 
 Per E4 discipline, and all lists must stay in step:
 
-- `DOCS.md` — ✅ **§8's table became "The four species"** at phase 7, with the
-  rename and its byte-identity proof recorded beside it; ✅ **§9 Sociality was
+- `DOCS.md` — ✅ **§8's species table** grew with every batch: "The four species" at
+  phase 7, six at phase 11, **"The eight species" at phase 13**, and the leopard
+  rename at phase 14 — each with its byte-identity proof recorded beside it; ✅ **§9 Sociality was
   rewritten** at phase 3 (§11.2) — it now opens by recording the decision it
   overrode, with the label mechanism kept whole underneath and a new "Persistent
   groups" subsection beside it; ✅ §9 Carcasses at phase 4 (possession); ✅ **§9
