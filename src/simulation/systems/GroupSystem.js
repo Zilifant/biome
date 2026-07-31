@@ -6,15 +6,16 @@
  * mechanism exists beside the herd label, and what a record deliberately does
  * not hold. This file is the part that changes membership.
  *
- * ⚠ **It is inert unless a species asks for it.** No shipped species declares
- * `groups.forms: true` — the grazer and the corvid are label animals and the
- * stalker is solitary — so in today's demo this system builds its species set
- * once and returns immediately, forever. That is the same shape `feeding`,
- * `hunting`, `behavior`, and `disease` each landed in: the mechanism arriving
- * ahead of the roster that needs it (the clan-forming carnivore of batch 1), and
- * it means this step cannot move a single demo number. The mechanism is proved
- * by tests that invent a group-forming species, exactly as the species schema
- * proves itself by inventing a browser.
+ * ⚠ **It is inert unless a species asks for it, and that stopped being "always"
+ * on 2026-07-29.** When this landed no shipped species declared
+ * `groups.forms: true`, so the system built its species set once and returned
+ * immediately, forever — the same shape `feeding`, `hunting`, `behavior`, and
+ * `disease` each landed in: the mechanism arriving ahead of the roster that
+ * needs it. ✅ **Three species declare it now** — the hyena (batch 1, the clan
+ * this was built for), the lion (a pride) and the zebra (a band, and the first
+ * *prey* animal on the registry). The early-out still carries every world whose
+ * roster happens to contain none of them, but this system moves demo numbers
+ * today and a change here is no longer free.
  *
  * **The rules, stated rather than left to be read out of the code.** All of them
  * are the cheapest honest first cut, and every simplification is named:
@@ -40,6 +41,18 @@
  *      else removes a living member — ⚠ **membership survives separation**, and
  *      that is the entire point. Two animals fifty units apart are still in the
  *      same group; their herd *labels* diverged long ago.
+ *
+ *      ⚠⚠ **A disperser does not re-attach until its walk is over** (A64, fixed
+ *      2026-07-31), and the two halves of that are deliberately *one* predicate.
+ *      Dispersal is a **window**, not an instant, so a rule that only said
+ *      "leave while dispersing" removed the animal on one tick and let the
+ *      ordinary proximity join put it straight back on the next — it was still
+ *      standing beside the family it had just walked out of, and nothing
+ *      recorded that it had already gone. The result was a leave/join cycle
+ *      every other tick for the whole window: **901 membership changes in 2430
+ *      ticks** for one lion, against its own `dispersalTicks: 900`.
+ *      `#dispersingOut` now gates **both** sides, so "you leave" and "you do
+ *      not join yet" cannot drift apart.
  *   5. **Dissolution.** A record with fewer than `minMembers` living members is
  *      destroyed and its survivors released, which is what reclaims a group
  *      whose members have died. `minMembers: 2` mirrors the herd label's
@@ -91,6 +104,7 @@ export class GroupSystem extends SimulationSystem {
    * @param {number} [options.minMembers] below this the record dissolves
    * @param {string} [options.leavingSex] which sex leaves its natal group at dispersal
    * @param {boolean} [options.inheritFromGuardian] whether young are born into their guardian's group
+   * @param {boolean} [options.rejoinWhileDispersing] ⚠ `true` restores the A64 flapping — the measured control
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -99,6 +113,7 @@ export class GroupSystem extends SimulationSystem {
     minMembers = 2,
     leavingSex = Sexes.MALE,
     inheritFromGuardian = true,
+    rejoinWhileDispersing = false,
     updateInterval = 1,
   } = {}) {
     // Priority -8 in `decision`: after `SocialSystem` (-10) has settled this
@@ -111,6 +126,11 @@ export class GroupSystem extends SimulationSystem {
     this.minMembers = minMembers;
     this.leavingSex = leavingSex;
     this.inheritFromGuardian = inheritFromGuardian;
+    // ⚠ A world-level switch rather than a species field, by the rule in DOCS §8:
+    // a species block *beats* the config, so an "off" arm living in one cannot
+    // switch anything off. `true` is the pre-2026-07-31 behaviour exactly, which
+    // is what the A64 fix was measured against.
+    this.rejoinWhileDispersing = rejoinWhileDispersing;
   }
 
   update(world, context) {
@@ -166,7 +186,7 @@ export class GroupSystem extends SimulationSystem {
       }
 
       if (entity.groupRecordId !== null) {
-        if (this.#leavesAtDispersal(entity, params, context.tick)) {
+        if (this.#dispersingOut(entity, params, context.tick)) {
           const groupId = entity.groupRecordId;
           registry.leave(groupId, entity.id);
           entity.groupRecordId = null;
@@ -182,6 +202,14 @@ export class GroupSystem extends SimulationSystem {
         if (params.inheritFromGuardian) this.#inherit(world, registry, entity, params, context);
         continue;
       }
+
+      // ⚠⚠ A64. The other half of leaving: an animal still walking out does not
+      // attach to anything, so the group it just left cannot immediately take it
+      // back. Deliberately *after* the guardian branch — inheritance is a
+      // different rule about a dependent, and a dependent is not dispersing.
+      // Once the window closes this predicate goes false and the animal joins
+      // wherever it has arrived, which is what natal dispersal means.
+      if (!this.rejoinWhileDispersing && this.#dispersingOut(entity, params, context.tick)) continue;
 
       this.#joinOrFound(world, context, registry, entity, params);
     }
@@ -224,13 +252,22 @@ export class GroupSystem extends SimulationSystem {
   }
 
   /**
-   * Whether this animal walks out of its natal group. Natal dispersal already
-   * exists as a bounded outward walk (`beginDispersal`, DOCS §9 Migration), so
-   * sex-biased dispersal needs no new state and no new clock: it is that event,
-   * filtered by sex. `'none'` keeps everyone, `'both'` empties the natal group
-   * of every disperser.
+   * Whether this animal is **walking out of its natal group right now**. Natal
+   * dispersal already exists as a bounded outward walk (`beginDispersal`, DOCS §9
+   * Migration), so sex-biased dispersal needs no new state and no new clock: it
+   * is that event, filtered by sex. `'none'` keeps everyone, `'both'` empties the
+   * natal group of every disperser.
+   *
+   * ⚠⚠ **Read by both membership rules, and that is the whole of the A64 fix.**
+   * It answers one question — "is this animal in the middle of leaving?" — and
+   * the two consequences follow from the same answer: an attached animal leaves,
+   * and an unattached one does not join. When only the first consequence existed,
+   * this predicate stayed true for the entire dispersal window while the join
+   * rule knew nothing about it, so the animal was expelled and re-admitted on
+   * alternating ticks for 900 ticks. ⚠ Renamed from `#leavesAtDispersal` because
+   * the old name described one of its two callers rather than the fact it states.
    */
-  #leavesAtDispersal(entity, params, tick) {
+  #dispersingOut(entity, params, tick) {
     const leaving = params.leavingSex;
     if (leaving === LEAVE_NOBODY) return false;
     if (!isDispersing(entity, tick)) return false;

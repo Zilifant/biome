@@ -120,40 +120,6 @@ The test now asserts what the fixture genuinely shows and claims **no
 direction** — it has not been papered over. Closing this means _building_ a
 world that demonstrates selection, not tuning the existing one.
 
-**⚠ A64 — A dispersing animal join/leave-flaps its persistent group every other
-tick** _(found 2026-07-31 by the ethologist, on its first run after the
-eight-species recalibration)_
-
-`GroupSystem` releases a disperser in `#leavesAtDispersal` and then `continue`s,
-so it correctly does not rejoin in the same pass. But on the **next** tick that
-animal has `groupRecordId === null`, falls through to `#joinOrFound`, and rejoins
-the very group it is still standing inside — and the tick after that it is still
-dispersing, so it leaves again. The cycle runs for the whole dispersal window.
-`isDispersing` is a **window**, not an event, and nothing records that this
-animal has already walked out.
-
-Measured on the demo world (seed 2): one lion changed membership **901 times in
-2430 adult ticks — one every 2.7 ticks**, against its species'
-`migration.dispersalTicks: 900`, which is the window's exact length. The zebra
-and hyena show the same shape at their own window lengths (one every 4.5 and 5.0
-ticks). Over a 6000-tick demo run it costs **1720 `entity.grouped` + 1679
-`entity.ungrouped` events** across eight surviving groups.
-
-⚠ **The events are the visible half, and `GroupSystem`'s own comment states the
-invariant being broken**: "Membership changes are rare by construction (a group
-is joined once and left once), so these are milestone events rather than a
-per-tick stream" — and the renderer keeps them for as long as it keeps births
-and deaths. ⚠ It also means **`groupsFounded`/`groupsDissolved` in `sweep.js`
-and every group-churn figure taken from these events are inflated**, so any such
-number recorded before this date is suspect.
-
-The obvious fix — refuse to rejoin while `isDispersing` — is a small guard in
-`#joinOrFound`, but it is a **behavioural** change to a mechanism that the
-species plan gated, so it wants the PLAN-SPECIES §9 arm rather than a quiet
-edit: a disperser that stays unattached for its whole window is a different
-animal from one that flaps, and A56 ("a two-member clan flaps") may be the same
-finding seen from the other side.
-
 ### 1.2 Implemented, tested, and near-inert
 
 Real mechanisms that demonstrably almost never fire in the demo. Recorded
@@ -581,6 +547,7 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | A54 | ⚠ **Persistent groups and carcass possession were invisible through the protocol.** Both shipped engine-side (phases 3 and 4) with no projection and no events, so an observer watching the demo saw a scavenger stop eating for no stated reason | **Closed 2026-07-28 by protocol v29.** Held back on purpose for two phases rather than bumping twice in a row and regenerating renderer fixtures twice for nothing — the debt was recorded, scheduled, and paid in the same version as the founding-roster rework it was waiting for. v29 added the `group` block and `possessorId` to entity inspection, a `groups` aggregate to `/api/metrics`, and three event types (`entity.robbed`, `entity.grouped`, `entity.ungrouped`). ⚠ Reusing `entity.contested` for a carcass fight was considered and **rejected**: the renderer labels it "contests over a mate", so it would have made the UI lie |
 | A33 | **Mobbing** — prey collectively attacking a predator                                                                        | **Closed 2026-07-30** (built phase 10, demonstrated phase 11). ⚠ Not a new action: it is the *groupmate* half of `defend`, which §7 Decision had described since Step 23 with only the kin half implemented. The buffalo declares `behavior.mobWeight` and a mobbed hunt drops the lion's mean capture chance 0.508 → 0.277 (§9 Hunting). ⚠ Phase 11 corrected one thing phase 10 got wrong: the hunted animal **stands its ground** too, because a fleeing target is carried away from the herd by the chase and no mob ever reaches the attempt |
 | C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge. **Follow-up 2026-07-22:** reflection closed only the _wander_ half; the residual crowding was predator-driven `flee` re-aiming into the wall every tick, closed at the decision layer by edge-aware fleeing (`escapeHeading`, §7 Decision). 2-cell edge occupancy ~19% → ~9%, acute corner pinning ~×4–9 → ~×1.5, survival unchanged. Remaining outer-ring occupancy is a herd-distribution effect for the forage-taper change, not flee-pinning |
+| A64 | ⚠ **A dispersing animal left its persistent group on one tick and was re-admitted on the next, for its whole dispersal walk.** The leave rule asked whether the animal was *inside* its dispersal window — true for hundreds of ticks — but only the leaving side consulted it, so the ordinary proximity join put it straight back into the group it was standing in. Measured at **901 membership changes in 2430 ticks for one lion** against its own `dispersalTicks: 900`, costing ~3400 spurious group events per 6000-tick run and inflating every group-churn figure taken before it | **Closed 2026-07-31** — one predicate (`#dispersingOut`) now gates both sides, so "you leave" and "you do not join yet" cannot drift apart; events fell **3399 → 107**. Gated on the §9 sweep against a `groups.rejoinWhileDispersing: true` control: all eight species pass, none materially worse. Found by the ethologist, not by a test — ⚠ the dispersal test stepped exactly **one** tick and asserted the animal had left, which it always had. See §9 Persistent groups |
 
 ---
 
@@ -2292,6 +2259,52 @@ rather than inferred from a population number, because a registry that quietly
 never founded a second clan would pass any survival gate. ⚠ See **A56** for the
 one thing the first real measurement found: at `minMembers: 2` a clan can flap
 between founding and dissolution on some seeds.
+
+#### ⚠⚠ Leaving is a window, not an instant — A64 _(found and fixed 2026-07-31)_
+
+**A dispersing animal left its group on one tick and was re-admitted on the
+next, for its whole dispersal walk.** `#dispersingOut` (then named
+`#leavesAtDispersal`) asks whether the animal is *inside* its dispersal window,
+and that stayed true for hundreds of ticks — but only the *leaving* rule
+consulted it. Once released, the animal was an ordinary unattached animal
+standing six units from the family it had just walked out of, so the ordinary
+proximity join took it straight back, and the next tick expelled it again.
+Nothing recorded that it had already gone.
+
+Measured in the demo before the fix: **901 membership changes in 2430 adult
+ticks for one lion — one every 2.7 ticks — against its own
+`migration.dispersalTicks: 900`**, the window's exact length. The zebra and hyena
+showed the same shape at their own lengths. It cost **~3400 spurious
+`entity.grouped`/`entity.ungrouped` events per 6000-tick run**, against this
+system's own claim that membership changes are milestone events rather than a
+per-tick stream — so ⚠ **any group-churn figure taken from those events before
+this date is inflated.**
+
+The fix is that **one predicate now gates both sides**: you leave while
+dispersing, and you do not join while dispersing. They cannot drift apart
+because they are the same question. Events fell **3399 → 107** on seed 2.
+
+⚠ **Two things this is worth remembering for.** First, a *window* predicate used
+where an *event* was meant is a general shape, not a group-system quirk — the
+give-away is a rule that fires correctly the first time and then keeps firing.
+Second, **the test suite covered this and still missed it**: the dispersal test
+stepped exactly one tick and asserted the animal had left, which it always had.
+Leaving was tested; *having left* was not. The regression test now steps a
+hundred ticks and counts transitions, and `groups.rejoinWhileDispersing: true`
+keeps the pre-fix arm re-runnable.
+
+✅ **Gated on the §9 sweep** (10 seeds × 15 000 ticks, arm against the pre-fix
+control on the same seeds): every species passes, none is materially worse, and
+the control's two seed-losses — gazelle and wildebeest on seed 8 — did not recur.
+⚠ The per-species means all moved *up* (gazelle +7.9, vulture +31.7, the rest
++0.3 to +2.5, hyena −0.1), and that should **not** be read as the fix improving
+the ecosystem: on a gazelle whose control range is 0–255, D14 applies and those
+deltas sit inside the noise. The honest claim is "no species is worse off".
+
+⚠ **The fix also uncovered the real A56.** With the dispersal artefact gone, the
+residual flapping in the demo is a hyena at **one change every 95 ticks** rather
+than every 2.7 — a genuinely different phenomenon, and the one `minMembers: 2`
+was always suspected of.
 
 ⚠ **The pride exposed the limit the clan never reached: a group cannot hold
 ground** (A60). Territory is an *individual* claim — cells are marked by entity id

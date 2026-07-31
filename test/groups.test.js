@@ -402,6 +402,85 @@ describe('persistent groups: inheritance, dispersal, and dissolution', () => {
     assert.deepEqual(engine.world.groups.get(group.id).memberIds, [...females].sort((p, q) => p - q));
   });
 
+  test('⚠ a disperser stays out for his whole walk rather than flapping (A64)', () => {
+    // ⚠⚠ The regression test for A64, and the gap it closes is *one tick wide*.
+    // The test above steps exactly once and proves he leaves — which he always
+    // did. The entire bug lived on the **next** tick, when the ordinary
+    // proximity join found him still standing beside the family he had just
+    // walked out of and put him straight back, because `isDispersing` is a
+    // window and nothing recorded that he had already gone. Leaving was tested;
+    // *having left* was not. In the demo that cost 901 membership changes in
+    // 2430 ticks for one lion, against its own `dispersalTicks: 900`.
+    //
+    // This sandbox registers no movement, so he stays at (22,20) beside them for
+    // the whole walk — the join is as tempting as it can possibly be.
+    const engine = sandbox();
+    const females = [spawn(engine, { x: 20, y: 20 }), spawn(engine, { x: 21, y: 20 })];
+    const son = spawn(engine, { x: 22, y: 20, sex: Sexes.MALE });
+    engine.step(1);
+    const group = soleGroup(engine);
+    assert.equal(group.memberIds.length, 3);
+
+    entity(engine, son).dispersalUntil = engine.tick + 200;
+    let changes = 0;
+    let previous = entity(engine, son).groupRecordId;
+    for (let i = 0; i < 100; i += 1) {
+      engine.step(1);
+      const current = entity(engine, son).groupRecordId ?? null;
+      if (current !== previous) changes += 1;
+      previous = current;
+    }
+
+    assert.equal(changes, 1, 'he leaves once — not once every other tick');
+    assert.equal(entity(engine, son).groupRecordId, null, 'and is still out at the end of the walk');
+    assert.deepEqual(engine.world.groups.get(group.id).memberIds, [...females].sort((p, q) => p - q));
+  });
+
+  test('a disperser joins again once his walk is over', () => {
+    // The other half, and the reason the fix is a gate on the *window* rather
+    // than a permanent mark: dispersal ends, and an animal that has arrived
+    // somewhere is an ordinary unattached animal again. Without this the fix
+    // would read as "dispersers never group again", which is a different and
+    // much worse bug.
+    const engine = sandbox();
+    spawn(engine, { x: 20, y: 20 });
+    spawn(engine, { x: 21, y: 20 });
+    const son = spawn(engine, { x: 22, y: 20, sex: Sexes.MALE });
+    engine.step(1);
+    const group = soleGroup(engine);
+
+    entity(engine, son).dispersalUntil = engine.tick + 10;
+    engine.step(5);
+    assert.equal(entity(engine, son).groupRecordId, null, 'out while the walk is on');
+
+    engine.step(10); // past `dispersalUntil`
+    assert.equal(entity(engine, son).groupRecordId, group.id, 'and back in once it is over');
+  });
+
+  test('`groups.rejoinWhileDispersing: true` restores the pre-fix flapping — the measured control', () => {
+    // ⚠ D30: an off switch must leave no trace, and the arm A64 was measured
+    // against has to stay re-runnable or the measurement cannot be repeated.
+    // This pins the control's behaviour so it cannot rot into a no-op switch
+    // that quietly reports the fixed world as the control.
+    const engine = sandbox({ config: { groups: { rejoinWhileDispersing: true } } });
+    spawn(engine, { x: 20, y: 20 });
+    spawn(engine, { x: 21, y: 20 });
+    const son = spawn(engine, { x: 22, y: 20, sex: Sexes.MALE });
+    engine.step(1);
+    soleGroup(engine);
+
+    entity(engine, son).dispersalUntil = engine.tick + 200;
+    let changes = 0;
+    let previous = entity(engine, son).groupRecordId;
+    for (let i = 0; i < 20; i += 1) {
+      engine.step(1);
+      const current = entity(engine, son).groupRecordId ?? null;
+      if (current !== previous) changes += 1;
+      previous = current;
+    }
+    assert.ok(changes > 5, `the control flaps (saw ${changes} changes in 20 ticks)`);
+  });
+
   test('`leavingSex: none` keeps everybody', () => {
     const stay = Object.freeze({ ...CLAN, id: 'test.stay', groups: Object.freeze({ ...CLAN.groups, leavingSex: 'none' }) });
     const engine = sandbox({ species: [stay] });

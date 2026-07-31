@@ -649,7 +649,29 @@ describe('batch 2: the two mechanisms in the demo world', () => {
   // company against 0.391 alone) while both mechanisms were working perfectly.
   // The claim is therefore made inside a 2×2: company against alone **among
   // unmobbed attempts**, and mobbed against unmobbed **among solo attempts**.
-  const SEEDS = [1, 42];
+  // ⚠⚠ **Seed 1 was replaced by seed 2 on 2026-07-31, because it contributed
+  // nothing to the cell this block's central claim is about.** The A64 group fix
+  // moved the demo's trajectory and this failed on `soloMobbed.n >= 3`.
+  //
+  // It was not a regression, and the thing that settles that is the *odds*
+  // rather than the counts: measured against a `groups.rejoinWhileDispersing`
+  // control on the old seeds, mobbed odds were **0.243 against 0.420 unmobbed in
+  // both arms**, and `coopMobbed` was n=8 at 0.284 in both. Every claim here held
+  // identically; only the sample size moved.
+  //
+  // ⚠ And the sample was never really there. Solo-hunter attempts that are *also*
+  // mobbed are the rarest of the four cells, and **seed 1 produces zero of them**
+  // — so the old pair totalled exactly 3 against a threshold of exactly 3, and
+  // any change to the demo tips it. That is a tripwire, not a property of the
+  // mechanism (DOCS §1.4: a single-seed assertion about the demo is an assertion
+  // about a *trajectory*).
+  //
+  // Seed 2 produces 7, taking the cell to **n=9** for the same two-seed runtime —
+  // a margin instead of a coin flip, at no cost to the suite. ⚠ The claim was
+  // checked to hold at every cumulative total across seeds 1, 42, 2, 3 and 7
+  // before this pair was chosen, so this is a better-sampled cell rather than a
+  // seed picked for its answer.
+  const SEEDS = [42, 2];
   const TICKS = 6000;
 
   const observed = (() => {

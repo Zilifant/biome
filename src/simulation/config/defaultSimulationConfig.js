@@ -605,6 +605,14 @@ export const defaultSimulationConfig = Object.freeze({
     // parent that gestated, so matrilineal descent falls out with no sex
     // conditional anywhere.
     inheritFromGuardian: true,
+    // ⚠⚠ A64 (DOCS §1.1), fixed 2026-07-31. `true` restores the pre-fix world
+    // exactly — the measured control — in which a dispersing animal was removed
+    // from its group on one tick and re-admitted by the ordinary proximity join
+    // on the next, for the whole dispersal window. It cost ~3400 spurious
+    // membership events per 6000-tick run and inflated every group-churn figure
+    // taken before that date. Left as a switch rather than deleted so the arm
+    // stays re-runnable, in the pattern every measured mechanism here ships.
+    rejoinWhileDispersing: false,
   }),
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
   // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,
