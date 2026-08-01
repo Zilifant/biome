@@ -27,7 +27,7 @@ import {
 import { AsciiGridRenderer } from '../src/renderer/app/rendering/AsciiGridRenderer.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend } from '../src/renderer/app/ui/Legend.js';
-import { indexHistory, drawTrend, BAR_LEVELS } from '../src/renderer/app/ui/MetricsPanel.js';
+import { indexHistory, drawTrend, BAR_LEVELS, TREND_LEVELS } from '../src/renderer/app/ui/MetricsPanel.js';
 import { matchWatched, WATCHABLE } from '../src/renderer/app/ui/Watchlist.js';
 import {
   EVENT_CATALOG,
@@ -567,8 +567,31 @@ describe('population sparklines fit the column they are in', () => {
     // ⚠ Compressed, not truncated: the shape of the *whole* history is the
     // point of the row, so a rising series still reads as rising end to end.
     const chart = drawTrend(rising, 20);
-    assert.equal(chart[0], BAR_LEVELS[0]);
-    assert.equal(chart.at(-1), BAR_LEVELS.at(-1));
+    assert.equal(chart[0], TREND_LEVELS[0]);
+    assert.equal(chart.at(-1), TREND_LEVELS.at(-1));
+  });
+
+  test('the lowest sample is a visible bar, never a blank', () => {
+    // ⚠ A histogram has a zero and a sparkline does not. Sharing one ramp drew
+    // the window's *minimum* as empty space, so `41,41,41,40` came out as
+    // `███ ` — losing one animal of 41 looking exactly like the species
+    // disappearing — and a steady population came out as a line of nothing.
+    assert.equal(drawTrend([41, 41, 41, 40]), '███▁');
+    assert.equal(drawTrend([38, 39, 40, 41, 42])[0], '▁');
+    for (const chart of [drawTrend(rising, 30), drawTrend([40, 40, 39, 40]), drawTrend(Array(9).fill(7))]) {
+      assert.ok(!chart.includes(BAR_LEVELS[0]), `a trend must not contain the blank rung: ${JSON.stringify(chart)}`);
+    }
+    // The blank rung is still the histogram's, where a bin of nothing is
+    // genuinely nothing.
+    assert.equal(TREND_LEVELS.length, BAR_LEVELS.length - 1);
+    assert.equal(TREND_LEVELS[0], BAR_LEVELS[1]);
+  });
+
+  test('a steady population draws a flat line, not an empty one', () => {
+    const flat = drawTrend(Array(40).fill(120), 20);
+    assert.equal(flat.length, 20);
+    assert.equal(new Set(flat).size, 1);
+    assert.equal(flat[0], '▁', 'steady reads as no change, at the foot of the chart');
   });
 
   test('a short history is drawn one-to-one and simply ends', () => {
@@ -594,6 +617,7 @@ describe('population sparklines fit the column they are in', () => {
     for (const width of [5, 12, 31, 96]) {
       assert.equal(new Set(drawTrend(flat, width)).size, 1, `width ${width} is not flat`);
       assert.equal(drawTrend(flat, width).length, width);
+      assert.ok(!drawTrend(flat, width).includes(BAR_LEVELS[0]), 'and visible at every width');
     }
   });
 });

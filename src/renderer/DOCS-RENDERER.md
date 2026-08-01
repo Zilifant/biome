@@ -547,6 +547,16 @@ things fix it, and both are needed:
   line short rather than stretching four points across the panel. ⚠ Buckets are
   laid out by proportion so the last one is never a short remainder, which would
   be a spike at the right-hand end of every chart.
+- ⚠ **A sparkline uses its own ramp, with no blank rung.** The block ramp is
+  shared with the trait *histograms*, where a blank bottom rung is right — a bin
+  with no animals in it is genuinely empty. A sparkline has no zero: every
+  column has a sample, so scaling `min → max` onto that ramp drew the window's
+  **minimum** as blank. A steady population came out as a line of nothing
+  (`min === max`, so every sample is the minimum) and `41,41,41,40` came out as
+  `███ `, where losing one animal of 41 is indistinguishable from the species
+  disappearing. `TREND_LEVELS` is the same ramp minus the blank, so a trend's
+  low point is `▁` and a flat series reads as "no change" rather than as no
+  population.
 - **The width is measured, not assumed.** The column is user-resizable and the
   font is whatever `ui-monospace` resolves to, so `MetricsPanel` measures one
   block character with a hidden probe (the block glyphs, not a digit — a font

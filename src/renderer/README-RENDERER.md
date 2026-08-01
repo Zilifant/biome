@@ -701,7 +701,10 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   the living count off the edge of a 300px panel. The panel measures the column
   and resamples the history into it (bucket means, so the whole history's shape
   survives), re-measuring when the column is dragged; a history shorter than the
-  column is drawn one-to-one and simply ends. A persistent group count (protocol v29) appears
+  column is drawn one-to-one and simply ends. ⚠ A trend's lowest sample draws as
+  `▁`, never as a blank: the blank rung belongs to the trait histograms, where an
+  empty bin is genuinely empty, and lending it to a sparkline drew a steady
+  population as a line of nothing. A persistent group count (protocol v29) appears
   beside the herd row for any species that forms clans or prides, and nowhere at
   all for a world with none.
 - Territory (protocol v23) is inspection-only. The claim layer is deliberately

@@ -27,8 +27,8 @@ const SHOWN_TRAITS = ['size', 'speed', 'metabolicEfficiency', 'boldness'];
 /**
  * Blocks used to draw a histogram bar, lightest to fullest.
  *
- * ⚠ **The empty rung is a NO-BREAK SPACE (U+00A0), not a plain space**, and it
- * has to stay one. A histogram is a single word as far as the browser is
+ * ⚠ **The empty rung belongs to histograms only** — see `TREND_LEVELS`. It is a
+ * NO-BREAK SPACE (U+00A0), not a plain space, and it has to stay one. A histogram is a single word as far as the browser is
  * concerned, and an ordinary space in the middle of it is a line-break
  * opportunity — so a bar with an empty bin wrapped there and the second half of
  * the distribution appeared on the next line, silently misreading as two bars.
@@ -36,6 +36,24 @@ const SHOWN_TRAITS = ['size', 'speed', 'metabolicEfficiency', 'boldness'];
  * alignment changes.
  */
 export const BAR_LEVELS = ['\u00a0', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+/**
+ * The rungs a **sparkline** may use: the same ramp without its blank.
+ *
+ * ⚠ **A histogram has a zero and a sparkline does not**, and sharing one ramp
+ * between them made the trends lie. A bin with no animals in it should be blank
+ * — that is what `BAR_LEVELS[0]` is for — but every column of a trend *has* a
+ * sample, and scaling `min → max` onto a ramp whose bottom rung is blank drew
+ * the window's minimum as empty space. A steady population came out as a line
+ * of nothing (`min === max`, so every sample is the minimum), and `41,41,41,40`
+ * came out as `███ `, where losing one animal of 41 is indistinguishable from
+ * the species disappearing.
+ *
+ * So a trend's lowest sample is `▁` and blank never appears in one. A flat
+ * series draws a flat `▁▁▁▁`, which reads as "no change" rather than as no
+ * population.
+ */
+export const TREND_LEVELS = Object.freeze(BAR_LEVELS.slice(1));
 
 /** Species a viewer has expanded, remembered across reloads. */
 const OPEN_SPECIES_KEY = 'biome.metrics.openSpecies';
@@ -112,8 +130,10 @@ export function drawTrend(values, width = Infinity) {
   const min = Math.min(...samples);
   const max = Math.max(...samples);
   const span = max - min || 1;
+  // ⚠ TREND_LEVELS, not BAR_LEVELS: a sparkline has no zero, so its lowest
+  // sample is the shortest *visible* bar rather than a blank.
   return samples
-    .map((v) => BAR_LEVELS[Math.min(BAR_LEVELS.length - 1, Math.round(((v - min) / span) * (BAR_LEVELS.length - 1)))])
+    .map((v) => TREND_LEVELS[Math.min(TREND_LEVELS.length - 1, Math.round(((v - min) / span) * (TREND_LEVELS.length - 1)))])
     .join('');
 }
 
