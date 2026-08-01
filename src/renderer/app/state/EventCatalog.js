@@ -51,9 +51,15 @@ export const OTHER_EVENTS = '*other';
  * Mnemonic where a character allows it — `*` a new life, `x` a death, `X` a
  * death with an author, `%` the carcass glyph, `@` a new address, `>` a pursuit,
  * `/` a break away, `!` a wound, `?` a question asked, `&` two joined, `{`/`}` a
- * clan forming and dissolving, `:` the trail glyph, `.` the faintest mark in the
- * set for the most frequent event there is. The catch-all takes the backtick:
- * the one mark that says this build has no name for what it is showing.
+ * clan forming and dissolving, `#` ground gone dense with fire or flood, `.` the
+ * faintest mark in the set for the most frequent event there is. The catch-all
+ * takes the backtick: the one mark that says this build has no name for what it
+ * is showing.
+ *
+ * ⚠ These marks are a **separate namespace from the grid's glyphs** and do not
+ * track them. `:` was picked when it was the trail glyph and stayed put when the
+ * trail became `.`; chasing the grid would mean renumbering the whole set every
+ * time a glyph is retuned, for a mnemonic nobody reads twice.
  *
  * @type {ReadonlyArray<{type: string, label: string, group: string, hint: string, prefix: string, retention: string}>}
  */

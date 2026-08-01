@@ -252,7 +252,7 @@ export function resolveTerrainAppearance(name) {
 export const VEGETATION_APPEARANCE = Object.freeze([
   null, // 0 — bare: fall through to terrain
   Object.freeze({ glyph: '.', colorToken: 'green' }),
-  Object.freeze({ glyph: ',', colorToken: 'green' }),
+  Object.freeze({ glyph: ':', colorToken: 'green' }),
   Object.freeze({ glyph: '"', colorToken: 'green' }),
   Object.freeze({ glyph: '"', colorToken: 'bright-green' }),
 ]);
@@ -267,34 +267,6 @@ export function resolveVegetationAppearance(level) {
   return VEGETATION_APPEARANCE[level] ?? (level > 0 ? VEGETATION_APPEARANCE.at(-1) : null);
 }
 
-/** Every appearance `resolveVegetationAppearance` can return, for identity tests. */
-const VEGETATION_APPEARANCES = new Set(VEGETATION_APPEARANCE.filter(Boolean));
-
-/**
- * Whether a ground appearance is vegetation rather than the terrain under it.
- *
- * The ramp entries are frozen singletons, so this is an identity test rather
- * than a glyph comparison — which matters because vegetation and terrain share
- * glyphs (`.` is bare ground *and* the sparsest grass) and only the identity
- * says which layer the answer came from.
- *
- * Used by the grid to fade grass under an animal (see `AsciiGridRenderer`): the
- * animal's glyph is the informative one, and a `"` behind a `g` is noise.
- * @param {{glyph: string, colorToken: string} | null} appearance
- * @returns {boolean}
- */
-export function isVegetationAppearance(appearance) {
-  return VEGETATION_APPEARANCES.has(appearance);
-}
-
-/**
- * Opacity of a vegetation glyph in a cell an animal is standing in. Faint
- * enough that the animal reads as the only thing in the cell, present enough
- * that the ground it is standing on is still legible when you look for it —
- * the alternative, drawing nothing, would make a grazing herd punch holes in
- * the grass it is grazing.
- */
-export const OCCUPIED_VEGETATION_ALPHA = 0.2;
 
 /**
  * Ground animals wore (protocol v27). Renderer-owned: the protocol sends a
@@ -304,14 +276,73 @@ export const OCCUPIED_VEGETATION_ALPHA = 0.2;
  * ground is the most permanent thing on the map and the least urgent to see.
  */
 export const FEATURE_APPEARANCE = Object.freeze({
-  trail: Object.freeze({ glyph: ':', colorToken: 'orange' }),
-  burrow: Object.freeze({ glyph: 'o', colorToken: 'comment' }),
+  trail: Object.freeze({ glyph: '.', colorToken: 'orange' }),
+  burrow: Object.freeze({ glyph: 'O', colorToken: 'comment' }),
 });
 
 /** Appearance for a feature kind, or null for one this renderer predates. */
 export function resolveFeatureAppearance(kind) {
   return FEATURE_APPEARANCE[kind] ?? null;
 }
+
+/**
+ * The layers that give way to whatever is standing on them: **forage, water,
+ * trails, and burrows**. Drawn at `OCCUPIED_ALPHA` in any cell an entity
+ * occupies (see `AsciiGridRenderer`) — both glyphs land in the same cell and the
+ * occupant's is the informative one, so a full-strength `"` behind a `g` reads
+ * as a two-character smear while a faded one still says the animal is standing
+ * in deep grass.
+ *
+ * ⚠ **Membership is a judgement about what a layer is _for_, not about how
+ * often it is drawn.** These are readings *of* a cell — how much there is to
+ * eat, whether it is wet, what has walked here, whether it is thick enough to
+ * hide in. What stays solid is the *hard* shape of the map: rock and cover, and
+ * disturbances, because an animal caught in a fire is the whole point of being
+ * able to watch it get caught.
+ *
+ * ⚠ Thicket is in the list precisely because it is the layer animals are most
+ * often *inside*: a `♣` and a `g` in the same 10px cell is the collision this
+ * mechanism exists for, and a herd in cover was the hardest thing on the map to
+ * read.
+ */
+const FADING_LAYERS = new Set([
+  ...VEGETATION_APPEARANCE.filter(Boolean),
+  TERRAIN_APPEARANCE.water,
+  TERRAIN_APPEARANCE.deep_water,
+  TERRAIN_APPEARANCE.thicket,
+  FEATURE_APPEARANCE.trail,
+  FEATURE_APPEARANCE.burrow,
+]);
+
+/**
+ * Whether this ground layer gives way to an occupant standing on it.
+ *
+ * ⚠ **An identity test, never a glyph comparison.** The layers share glyphs —
+ * `.` is bare ground, the sparsest forage, *and* a trail — so only the identity
+ * of the frozen registry entry says which layer produced the answer.
+ * @param {{glyph: string, colorToken: string} | null} appearance
+ * @returns {boolean}
+ */
+export function fadesUnderOccupant(appearance) {
+  return FADING_LAYERS.has(appearance);
+}
+
+/**
+ * Opacity of a fading layer in a cell something is standing in.
+ *
+ * **Zero: the layer is not drawn there at all.** It was 20% first, on the
+ * argument that a herd would otherwise punch holes in the grass it is grazing —
+ * and watching it, the holes are not the problem. Two glyphs in one 10px cell is
+ * a smudge at *any* opacity that leaves the lower one visible, the occupant is
+ * always the thing worth reading, and the ground it is standing on is one click
+ * away in the inspector, which reports the cell rather than the animal.
+ *
+ * Kept as a constant rather than deleted along with the branch: it is the knob
+ * this decision turns, and the next person to disagree should be able to turn it
+ * back rather than rebuild the mechanism. ⚠ At 0 the renderer skips the draw
+ * outright instead of drawing something invisible.
+ */
+export const OCCUPIED_ALPHA = 0;
 
 /**
  * Local disturbances (protocol v26). Renderer-owned, like every other
@@ -358,45 +389,117 @@ export function resolveMemoryAppearance(kind) {
 }
 
 /**
- * Health fraction below which a living animal is drawn in a hurt tone. Injuries
+ * Health fraction below which a living animal counts as hurt. Injuries
  * themselves are inspection-only (protocol v16), but `healthFraction` has been
  * in every bulk snapshot since Step 4 — so the grid can show that an animal is
  * in poor condition without the protocol carrying anything new.
  */
 export const HURT_HEALTH_FRACTION = 0.7;
 
-/** Renderer-owned colour for a living animal that is visibly hurt. */
-export const HURT_COLOR_TOKEN = 'orange';
-
 /**
- * Renderer-owned colour for a visibly ill animal (protocol v24). Takes
- * precedence over the hurt tint: an outbreak crossing a herd is the thing worth
- * seeing, and a sick animal is usually losing health anyway, so the two tints
- * would otherwise fight over the same animals.
+ * The statuses an animal can be marked with, in the order they cycle.
  *
- * Only `symptomatic` is tinted, even though the protocol also sends
- * `incubating`. That is deliberate rather than an oversight: the whole model
- * rests on a carrier being *invisible*, and colouring one would hand the viewer
- * information no animal in the world has.
+ * ⚠ **A status is a mark in the corner of the cell, not a change to the glyph**,
+ * and that is the whole point of this registry. Hurt and ill used to *tint* the
+ * species letter, which cost the two things the letter is for: a purple `g` no
+ * longer says "gazelle" at a glance, and the two tints could not both be shown,
+ * so an animal that was ill *and* hurt looked exactly like one that was only
+ * ill. A mark beside the glyph is additive — the letter keeps saying species,
+ * the colour keeps saying species, and any number of conditions can ride along.
+ *
+ * `shape` distinguishes the two families and is deliberately only two values:
+ *
+ * - **`dot` — condition.** Something is wrong with this animal.
+ * - **`diamond` — state.** Something is happening in its life. Not wrong, not
+ *   permanent, and worth finding on the grid.
+ *
+ * Each carries its own colour, because shape alone is two bits and colour is
+ * what makes a marker findable in a herd. ⚠ **An animal in several statuses
+ * shows them one at a time, cycling every `STATUS_CYCLE_MS`** — see
+ * `AsciiGridRenderer`. Drawing all of them at once was the alternative and it is
+ * worse at every zoom this renderer offers: four marks in a 10px cell is a
+ * smudge, and the corner is the only place they can go without covering the
+ * glyph they belong to.
+ *
+ * Every predicate reads a **bulk-snapshot** field, so a status is true of every
+ * animal on screen rather than only of the selected one. `gestating` and
+ * `seekingMate` are what protocol v30 added for exactly this.
+ *
+ * @type {ReadonlyArray<{id: string, shape: 'dot' | 'diamond', colorToken: string,
+ *        label: string, applies: (entity: object) => boolean}>}
  */
-export const SICK_COLOR_TOKEN = 'purple';
+export const STATUS_APPEARANCE = Object.freeze([
+  Object.freeze({
+    id: 'hurt',
+    shape: 'dot',
+    colorToken: 'orange',
+    label: 'hurt',
+    applies: (entity) =>
+      typeof entity.healthFraction === 'number' && entity.healthFraction < HURT_HEALTH_FRACTION,
+  }),
+  Object.freeze({
+    id: 'ill',
+    shape: 'dot',
+    colorToken: 'purple',
+    label: 'visibly ill',
+    // ⚠ `incubating` is deliberately unmarked even though the protocol sends it:
+    // the whole disease model rests on a carrier being invisible, and marking
+    // one would hand the viewer information no animal in the world has.
+    applies: (entity) => entity.diseaseState === 'symptomatic',
+  }),
+  Object.freeze({
+    id: 'gestating',
+    shape: 'diamond',
+    colorToken: 'pink',
+    label: 'carrying young',
+    applies: (entity) => entity.gestating === true,
+  }),
+  Object.freeze({
+    id: 'rut',
+    shape: 'diamond',
+    colorToken: 'bright-cyan',
+    label: 'in rut',
+    // ⚠ The engine leaves the *seeking* sex ready year-round and gates only the
+    // chooser, so this marks the animals actually in the market. A male marker
+    // would be permanently lit and would say nothing.
+    applies: (entity) => entity.seekingMate === true,
+  }),
+  Object.freeze({
+    id: 'dispersing',
+    shape: 'diamond',
+    colorToken: 'bright-white',
+    label: 'dispersing',
+    applies: (entity) => entity.dispersing === true,
+  }),
+]);
+
+/** How long each status of a multi-status animal is shown before the next. */
+export const STATUS_CYCLE_MS = 500;
 
 /**
- * Colour token for an entity as drawn, taking condition into account. Kept
- * separate from `resolveAppearance` so the glyph (a species fact) and the tint
- * (a moment-to-moment condition) stay independently cacheable.
- * @param {{alive?: boolean, healthFraction?: number}} entity
- * @param {{colorToken: string}} appearance
- * @returns {string}
+ * The statuses of one entity, in registry order.
+ *
+ * Living animals only: a carcass has no condition and no life left to be in the
+ * middle of, and every one of these fields is either absent or meaningless on
+ * one. Returns the shared empty array when there are none, which is the case
+ * for almost every animal on almost every tick — this runs once per drawn cell
+ * per frame, so the common answer must not allocate.
+ *
+ * @param {object} entity
+ * @returns {ReadonlyArray<object>}
  */
-export function resolveColorToken(entity, appearance) {
-  if (entity?.alive !== false && entity?.diseaseState === 'symptomatic') return SICK_COLOR_TOKEN;
-  const hurt =
-    entity?.alive !== false &&
-    typeof entity?.healthFraction === 'number' &&
-    entity.healthFraction < HURT_HEALTH_FRACTION;
-  return hurt ? HURT_COLOR_TOKEN : appearance.colorToken;
+export function statusesOf(entity) {
+  if (entity?.kind !== 'animal' || entity.alive === false) return NO_STATUSES;
+  let found = null;
+  for (const status of STATUS_APPEARANCE) {
+    if (!status.applies(entity)) continue;
+    if (found === null) found = [status];
+    else found.push(status);
+  }
+  return found ?? NO_STATUSES;
 }
+
+const NO_STATUSES = Object.freeze([]);
 
 const cache = new Map();
 

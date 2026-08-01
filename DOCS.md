@@ -74,7 +74,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
 | Tests                 | 946 passing / 0 failing, 241 suites _(2026-07-31)_     |
-| `PROTOCOL_VERSION`    | **29** — founding roster by species, host-published roster, group + possession projections (§11) |
+| `PROTOCOL_VERSION`    | **30** — reproductive state in bulk snapshots (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
 | Benchmark (large-5k)  | **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
@@ -3081,7 +3081,26 @@ gated on a rarely-moving revision, is not a layer. **Inspection returns copies.*
 
 `PUBLIC_ENTITY_FIELDS`: `id, kind, speciesId, x, y, heading, age,
 energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
-groupId, diseaseState, dispersing, action, alive, decayStage`.
+groupId, diseaseState, dispersing, gestating, seekingMate, action, alive,
+decayStage`.
+
+⚠ **`gestating` and `seekingMate` (v30) are derived on read, and adding no state
+is the whole shape of the change.** `publicEntityView` compares
+`gestationUntil` and `mateSearchSince` — two fields `ReproductionSystem` already
+maintains every tick — exactly as `dispersing` is derived from the clock. A
+projection that *stored* two more booleans would have to be kept in step by every
+path that changes either, which is the class of bug D30 is about. They earn their
+place by the same argument `diseaseState` did: a renderer cannot show what it
+cannot see, and which females are carrying and who is in season are what make a
+rut and a calving season **watchable** rather than inferable from a birth several
+hundred ticks later. ⚠ `seekingMate` is the *chooser's* state, so it is a
+female-side fact — the seeking sex is deliberately ready year-round (§9
+Reproduction), so projecting readiness for a male would be a permanently-true
+field saying nothing. ✅ **Measured 2026-08-01**: the projection costs
+**0.318 → 0.327 ms per snapshot at 11 300 entities** (+0.009 ms, +3% of a
+0.3 ms step) against a 129 ms tick — 0.007% of a tick. ⚠ Measured on the
+projection loop directly rather than looked for in a whole-tick number, because
+a whole-system reading here has a ±10% spread and cannot resolve it (D28).
 
 Inspection-only (`GET /api/entities/:id`): absolute energy/hydration/health and
 speed, the action target, the utility breakdown, the perception summary, the

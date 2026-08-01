@@ -17,7 +17,7 @@ import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.j
 import { isLastingEvent } from './EventCatalog.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 29;
+export const SUPPORTED_PROTOCOL_VERSION = 30;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {
@@ -140,6 +140,22 @@ export class RendererStore {
   #listeners = new Set();
   /** highest event seq ever placed in the buffer (dedupe guard) */
   #lastBufferedEventSeq = 0;
+  /**
+   * The last form in which each id was seen **alive**, as protocol fields —
+   * `{ id, kind, speciesId, sex, lifeStage, alive: true }`. Bounded, and kept
+   * long after the animal itself is gone.
+   *
+   * ⚠ This exists because **an event is about a moment, and an entity is about
+   * now.** The log said `> hunt p122 → %65 caught`: by the time that line was
+   * drawn its prey was a carcass, so the reference wore a `%`, and once the body
+   * decayed away the same line fell back to `#65`. A record of a hunt that
+   * cannot say what was hunted is the panel reporting the present tense over the
+   * past one. Only protocol fields are kept — what they *look like* is still
+   * `EntityAppearance`'s alone (§3, invariant 4).
+   * @type {Map<number, object>}
+   */
+  #animalIdentities = new Map();
+  #maxRememberedAnimals;
 
   simulationId = null;
   protocolVersion = null;
@@ -208,13 +224,19 @@ export class RendererStore {
    * to fill the visible log when that filter is on, and nowhere near enough to
    * cost anything.
    *
+   * `maxRememberedAnimals` matches the `lasting` cap on purpose: an id is only
+   * worth remembering for as long as some retained event can still name it, and
+   * the milestone buffer is what decides that.
+   *
    * @param {object} [options]
    * @param {number} [options.maxLastingEvents] retained milestones
    * @param {number} [options.maxPassingEvents] retained per-tick chatter
+   * @param {number} [options.maxRememberedAnimals] ids whose living form is kept
    */
-  constructor({ maxLastingEvents = 20000, maxPassingEvents = 400 } = {}) {
+  constructor({ maxLastingEvents = 20000, maxPassingEvents = 400, maxRememberedAnimals = 20000 } = {}) {
     this.#maxLastingEvents = maxLastingEvents;
     this.#maxPassingEvents = maxPassingEvents;
+    this.#maxRememberedAnimals = maxRememberedAnimals;
   }
 
   /**
@@ -285,6 +307,10 @@ export class RendererStore {
       this.#lastingCount = 0;
       this.#passingCount = 0;
       this.#lastBufferedEventSeq = 0;
+      // ⚠ The remembered forms go with the log, and for the same reason its
+      // links do: the new world reuses the same small integers, so keeping them
+      // would draw a lion's glyph beside a gazelle that happens to be #7 now.
+      this.#animalIdentities.clear();
     }
     this.protocolVersion = snapshot.protocolVersion;
     this.simulationId = snapshot.simulationId;
@@ -292,6 +318,8 @@ export class RendererStore {
     this.lastEventSeq = snapshot.lastEventSeq ?? 0;
     this.world = { width: snapshot.world.width, height: snapshot.world.height };
     this.entities = new Map(snapshot.entities.map((entity) => [entity.id, { ...entity }]));
+    for (const entity of this.entities.values()) this.#rememberAnimal(entity);
+    this.#trimRememberedAnimals();
     // Terrain is static and carried by full snapshots; decode it once here.
     // Deltas never touch it. A snapshot without terrain clears it.
     this.terrain = snapshot.terrain ? decodeTerrain(snapshot.terrain) : null;
@@ -383,6 +411,12 @@ export class RendererStore {
       );
     }
     const counts = applyDeltaToEntities(this.entities, delta);
+    // Remembered before anything can bury it: an animal killed in *this* delta
+    // arrives as an update turning it into a carcass, and the tick it was last
+    // alive is the last chance to record what it was.
+    for (const entity of delta.created) this.#rememberAnimal(entity);
+    for (const entity of delta.updated) this.#rememberAnimal(entity);
+    this.#trimRememberedAnimals();
     this.#applyVegetationChanges(delta.vegetation);
     if (delta.environment) this.environment = { ...delta.environment };
     // `Array.isArray` rather than a truthiness check: an empty list is the
@@ -484,10 +518,65 @@ export class RendererStore {
     this.events = kept;
   }
 
+  /**
+   * Record the form an animal is in while it is alive, so a log line about it
+   * can still say what it was after it dies.
+   *
+   * ⚠ **Allocation-free on an ordinary tick.** This runs for every entity in
+   * every delta — a couple of thousand per tick at demo scale — so it writes
+   * only when the *identity* has actually changed, which for an animal is at
+   * birth and at each life stage. A record per update would be a per-tick
+   * allocation for a fact that changes three times in a life.
+   *
+   * Only living animals are recorded. A carcass entity is not a form anything
+   * was ever "in": it is what is left, and the whole point here is the animal.
+   * @param {object} entity
+   */
+  #rememberAnimal(entity) {
+    if (entity?.kind !== 'animal' || entity.alive === false) return;
+    const known = this.#animalIdentities.get(entity.id);
+    if (known && known.speciesId === entity.speciesId && known.lifeStage === (entity.lifeStage ?? null)) return;
+    this.#animalIdentities.set(entity.id, {
+      id: entity.id,
+      kind: 'animal',
+      alive: true,
+      speciesId: entity.speciesId,
+      sex: entity.sex ?? null,
+      lifeStage: entity.lifeStage ?? null,
+    });
+  }
+
+  /**
+   * Drop the least recently *first seen* ids once the map has overflowed —
+   * amortized over a whole cap, exactly as `#trimEvents` is and for the same
+   * reason. Dropping a still-living animal costs nothing: it is still in
+   * `entities`, so it resolves from there.
+   */
+  #trimRememberedAnimals() {
+    if (this.#animalIdentities.size <= this.#maxRememberedAnimals * 2) return;
+    let drop = this.#animalIdentities.size - this.#maxRememberedAnimals;
+    for (const id of this.#animalIdentities.keys()) {
+      if (drop-- <= 0) break;
+      this.#animalIdentities.delete(id);
+    }
+  }
+
+  /**
+   * The last form this id was seen alive in, or null if this client never saw
+   * it alive — after a reconnect, or for an animal that died before it
+   * connected. Null is the honest answer there rather than a guess.
+   * @param {number} entityId
+   * @returns {object | null}
+   */
+  rememberedAnimal(entityId) {
+    return this.#animalIdentities.get(entityId) ?? null;
+  }
+
   /** Forget everything (new connection, new simulation). */
   reset() {
     this.entities = new Map();
     this.events = [];
+    this.#animalIdentities.clear();
     this.#lastingCount = 0;
     this.#passingCount = 0;
     this.#lastBufferedEventSeq = 0;

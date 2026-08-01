@@ -24,8 +24,18 @@ import { SPECIES_APPEARANCE, KIND_APPEARANCE, speciesLabel } from '../rendering/
 /** Trait rows worth showing; the rest are available in the raw query. */
 const SHOWN_TRAITS = ['size', 'speed', 'metabolicEfficiency', 'boldness'];
 
-/** Blocks used to draw a histogram bar, lightest to fullest. */
-const BAR_LEVELS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+/**
+ * Blocks used to draw a histogram bar, lightest to fullest.
+ *
+ * ⚠ **The empty rung is a NO-BREAK SPACE (U+00A0), not a plain space**, and it
+ * has to stay one. A histogram is a single word as far as the browser is
+ * concerned, and an ordinary space in the middle of it is a line-break
+ * opportunity — so a bar with an empty bin wrapped there and the second half of
+ * the distribution appeared on the next line, silently misreading as two bars.
+ * It is the same advance width in a monospace font, so nothing about the
+ * alignment changes.
+ */
+export const BAR_LEVELS = ['\u00a0', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 /** Species a viewer has expanded, remembered across reloads. */
 const OPEN_SPECIES_KEY = 'biome.metrics.openSpecies';
@@ -73,16 +83,60 @@ function signed(value, digits = 3) {
   return `<span class="${tone}">${value >= 0 ? '+' : ''}${value.toFixed(digits)}</span>`;
 }
 
-/** Sparkline of one scalar across the bounded history. */
-function drawTrend(values) {
+/**
+ * Sparkline of one scalar across the bounded history, at most `width`
+ * characters wide.
+ *
+ * ⚠ **A sparkline is one character per sample, so its width is the history's
+ * length — which is a number this panel does not choose.** At 120 samples it is
+ * 120 columns of unbreakable block characters in a 300px column: it ran past
+ * the edge, took the species name and the living count with it, and got worse
+ * every time the column was narrowed. So the series is *resampled* to the space
+ * available rather than drawn one-to-one.
+ *
+ * **Downsampled by bucket mean, not truncated to the last N.** The whole point
+ * of the row is the shape of the whole history — a population that doubled and
+ * crashed reads as that at any width, where the most recent 30 samples read as
+ * whatever the last few minutes did. Fewer samples than columns is the other
+ * case, early in a run: those are drawn one-to-one and simply end, leaving the
+ * rest of the line empty rather than stretching four points across the column.
+ *
+ * @param {Array<number | undefined>} values
+ * @param {number} width columns available, from the panel's own measurement
+ * @returns {string}
+ */
+export function drawTrend(values, width = Infinity) {
   const usable = values.filter((v) => typeof v === 'number');
-  if (usable.length < 2) return '';
-  const min = Math.min(...usable);
-  const max = Math.max(...usable);
+  if (usable.length < 2 || width < 2) return '';
+  const samples = usable.length <= width ? usable : bucketMeans(usable, Math.floor(width));
+  const min = Math.min(...samples);
+  const max = Math.max(...samples);
   const span = max - min || 1;
-  return usable
+  return samples
     .map((v) => BAR_LEVELS[Math.min(BAR_LEVELS.length - 1, Math.round(((v - min) / span) * (BAR_LEVELS.length - 1)))])
     .join('');
+}
+
+/**
+ * `values` reduced to exactly `count` numbers, each the mean of its bucket.
+ *
+ * Buckets are laid out by proportion rather than by a fixed size, so the last
+ * one is never a short remainder — `history % width` is almost never zero, and
+ * a final bucket averaging two samples where the others average five is a spike
+ * at the right-hand end of every chart.
+ * @param {number[]} values @param {number} count
+ * @returns {number[]}
+ */
+function bucketMeans(values, count) {
+  const out = [];
+  for (let i = 0; i < count; i += 1) {
+    const start = Math.floor((i * values.length) / count);
+    const end = Math.max(start + 1, Math.floor(((i + 1) * values.length) / count));
+    let sum = 0;
+    for (let j = start; j < end; j += 1) sum += values[j];
+    out.push(sum / (end - start));
+  }
+  return out;
 }
 
 /**
@@ -127,15 +181,42 @@ export function indexHistory(history) {
   return bySpecies;
 }
 
+/**
+ * Horizontal space a sparkline cannot use: the section's own padding either
+ * side, plus a character's worth of slack so a rounding error cannot be what
+ * pushes a line past the edge.
+ */
+const TREND_GUTTER_PX = 20;
+
+/** Enough columns to be a chart at all; below this the row draws none. */
+const MIN_TREND_COLUMNS = 8;
+
 export class MetricsPanel {
   #container;
   /** @type {Set<string>} */
   #openSpecies = loadOpenSpecies();
+  /** The last report, so a column resize can re-render without a fresh poll. */
+  #report = null;
+  /** Columns the sparklines were last drawn at, so a resize is a no-op unless it changes them. */
+  #columns = 0;
+  /** Measured width of one monospace character, in CSS pixels. */
+  #charWidth = 0;
 
   /** @param {HTMLElement} container */
   constructor(container) {
     this.#container = container;
     container.innerHTML = '<h2>Population</h2><p class="hint">Waiting for metrics…</p>';
+    // ⚠ The panel is re-rendered when its *column* changes width, not only when
+    // the metrics poll lands — a drag would otherwise leave the charts at the
+    // old width for up to the poll interval. Guarded on the character count
+    // rather than the pixel width, so the render happens once per column of
+    // change instead of once per pointer move, and so a height change (a
+    // section opening) cannot trigger one at all.
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(() => {
+        if (this.#report && this.#trendColumns() !== this.#columns) this.render(this.#report);
+      }).observe(container);
+    }
     // `toggle` does not bubble, so this listens in the capture phase — and on
     // the container, which survives the innerHTML rewrite every render does.
     container.addEventListener(
@@ -152,10 +233,47 @@ export class MetricsPanel {
   }
 
   /**
+   * How many characters of sparkline fit across this column right now.
+   *
+   * ⚠ Measured, not assumed. The column is user-resizable and the font is
+   * whatever the platform's `ui-monospace` resolves to, so the only honest
+   * answer comes from the browser — and a probe is cheap because the width of
+   * one character is a constant per font, cached after the first render that
+   * finds the panel laid out.
+   */
+  #trendColumns() {
+    if (this.#charWidth === 0) this.#charWidth = this.#measureCharWidth();
+    if (this.#charWidth === 0) return 0;
+    const available = this.#container.clientWidth - TREND_GUTTER_PX;
+    const columns = Math.floor(available / this.#charWidth);
+    return columns >= MIN_TREND_COLUMNS ? columns : 0;
+  }
+
+  /**
+   * The advance width of one block character, measured with a hidden probe.
+   *
+   * ⚠ The block glyphs, not a digit: a sparkline is drawn in `▁▂▃`, and a font
+   * that renders those at a different advance than `0` would leave every chart
+   * mis-measured by the difference. Returns 0 when the panel is not laid out
+   * yet (a collapsed column, a hidden tab), which reads as "do not draw one
+   * yet" rather than as a wrong number.
+   */
+  #measureCharWidth() {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:-9999px';
+    probe.textContent = '█'.repeat(40);
+    this.#container.append(probe);
+    const width = probe.getBoundingClientRect().width / 40;
+    probe.remove();
+    return width > 0 ? width : 0;
+  }
+
+  /**
    * @param {{available: boolean, metrics: object|null, history: object[]} | null} report
    *        the last `metrics` query response, if any
    */
   render(report) {
+    this.#report = report;
     if (!report?.available || !report.metrics) {
       this.#container.innerHTML =
         '<h2>Population</h2><p class="hint">Metrics appear once the simulation has run a little.</p>';
@@ -163,12 +281,19 @@ export class MetricsPanel {
     }
     const { metrics, history = [] } = report;
     const historyBySpecies = indexHistory(history);
+    // One measurement for the whole render. The population chart gets the
+    // column; the in-row charts share a line with numbers, so they get a third
+    // of it — enough to read a direction, never enough to push the row it sits
+    // in past the edge, which is the same defect one click deeper.
+    const columns = this.#trendColumns();
+    this.#columns = columns;
+    const inlineColumns = Math.floor(columns / 3);
 
     const sections = metrics.species
       .map((species) => {
         const series = historyBySpecies.get(species.speciesId) ?? [];
-        const trendFor = (trait) => drawTrend(series.map((sample) => sample.traits?.[trait]));
-        const populationTrend = drawTrend(series.map((sample) => sample.living));
+        const trendFor = (trait) => drawTrend(series.map((sample) => sample.traits?.[trait]), inlineColumns);
+        const populationTrend = drawTrend(series.map((sample) => sample.living), columns);
 
         const traitRows = SHOWN_TRAITS.filter((trait) => species.traits[trait])
           .map((trait) => {
@@ -211,6 +336,7 @@ export class MetricsPanel {
         const outbreak = species.disease
           ? `<div class="field"><span>disease</span><span>${species.disease.infectious} infectious <span class="dim">(${species.disease.symptomatic} visible) · ${species.disease.recovered} immune ${drawTrend(
               series.map((sample) => sample.infectious),
+              inlineColumns,
             )}</span></span></div>`
           : '';
 
@@ -225,7 +351,9 @@ export class MetricsPanel {
           <details class="inspector-section" data-species="${escapeHtml(species.speciesId)}"${open}>
             <summary>${speciesGlyph(species.speciesId)} <span class="section-title">${escapeHtml(
               speciesLabel(species.speciesId),
-            )}</span> <span class="section-badge">${species.living} alive ${populationTrend}</span></summary>
+            )}</span> <span class="section-badge">${species.living} alive</span>${
+              populationTrend ? `<span class="metrics-trend dim">${populationTrend}</span>` : ''
+            }</summary>
             <div class="section-body">
               ${sexes}
               ${grouping}

@@ -386,6 +386,75 @@ describe('renderer store: protocol version and events', () => {
   });
 });
 
+describe('renderer store: what an animal looked like alive', () => {
+  // An event is about a moment; an entity is about now. The log said
+  // `> hunt p122 → %65 caught` — its prey was already a carcass by the time the
+  // line was drawn, and `#65` once the body decayed away. The store keeps the
+  // last living form of every id so a past line can still name a past animal.
+  const gazelle = (id, overrides = {}) =>
+    entity(id, { speciesId: 'herbivore.gazelle', sex: 'female', lifeStage: 'juvenile', ...overrides });
+
+  test('an animal is remembered as it was alive, through death and removal', () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ entities: [gazelle(65)] }));
+    assert.equal(store.rememberedAnimal(65).speciesId, 'herbivore.gazelle');
+
+    // It grows up: the remembered form follows while it is alive.
+    store.applyDelta(delta({ updated: [gazelle(65, { lifeStage: 'adult' })] }));
+    assert.equal(store.rememberedAnimal(65).lifeStage, 'adult');
+
+    // It is killed — the same id arrives back as a carcass — and then decays
+    // out of the world entirely. Neither may overwrite what it was.
+    store.applyDelta(delta({ baseTick: 6, tick: 7, updated: [entity(65, { kind: 'carcass', alive: false, decayStage: 1 })] }));
+    assert.equal(store.getEntity(65).kind, 'carcass');
+    assert.deepEqual(
+      { speciesId: store.rememberedAnimal(65).speciesId, lifeStage: store.rememberedAnimal(65).lifeStage, sex: store.rememberedAnimal(65).sex },
+      { speciesId: 'herbivore.gazelle', lifeStage: 'adult', sex: 'female' },
+    );
+
+    store.applyDelta(delta({ baseTick: 7, tick: 8, removed: [65] }));
+    assert.equal(store.getEntity(65), null);
+    assert.equal(store.rememberedAnimal(65).speciesId, 'herbivore.gazelle');
+  });
+
+  test('an id never seen alive is null rather than a guess', () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ entities: [entity(9, { kind: 'carcass', alive: false })] }));
+    assert.equal(store.rememberedAnimal(9), null, 'a carcass is not a form anything was seen in');
+    assert.equal(store.rememberedAnimal(404), null);
+  });
+
+  test('a restart forgets them, because the new world reuses the same ids', () => {
+    // Exactly where the event log is cleared, and for the same reason: keeping
+    // them would draw a lion beside whatever animal happens to be #1 now.
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ entities: [gazelle(1)] }));
+    assert.ok(store.rememberedAnimal(1));
+
+    store.applyFullSnapshot(snapshot({ simulationId: 'demo-2', entities: [] }));
+    assert.equal(store.rememberedAnimal(1), null);
+
+    // A *recovery* snapshot of the same world keeps them, as it keeps the log.
+    store.applyFullSnapshot(snapshot({ simulationId: 'demo-2', entities: [gazelle(4)] }));
+    store.applyFullSnapshot(snapshot({ simulationId: 'demo-2', tick: 9, entities: [] }));
+    assert.ok(store.rememberedAnimal(4));
+  });
+
+  test('the memory is bounded, and dropping a living one costs nothing', () => {
+    const store = new RendererStore({ maxRememberedAnimals: 4 });
+    for (let id = 1; id <= 40; id += 1) {
+      store.applyFullSnapshot(snapshot({ tick: id, entities: [gazelle(id)] }));
+    }
+    // Amortized like the event buffer: a whole cap of overflow before the trim.
+    let remembered = 0;
+    for (let id = 1; id <= 40; id += 1) if (store.rememberedAnimal(id)) remembered += 1;
+    assert.ok(remembered <= 8, `expected the memory bounded near its cap, kept ${remembered}`);
+    assert.ok(remembered >= 4, `expected at least a cap-worth kept, kept ${remembered}`);
+    // The most recent are the ones kept — the oldest first-seen go first.
+    assert.ok(store.rememberedAnimal(40), 'the newest is remembered');
+  });
+});
+
 describe('cell description', () => {
   /** A 3x2 world with terrain, vegetation, a trail, and a fire. */
   const describedWorld = () => {

@@ -15,7 +15,7 @@ import { installAppRoutes, LAUNCH_OPTIONS, APP_ORIGIN, REPO_ROOT } from './serve
 export { expect };
 
 /** The committed full snapshot, used to render a world in mocked live mode. */
-const SNAPSHOT = JSON.parse(readFileSync(path.join(REPO_ROOT, 'src/renderer/fixtures/example-full-snapshot.json'), 'utf8'));
+export const SNAPSHOT = JSON.parse(readFileSync(path.join(REPO_ROOT, 'src/renderer/fixtures/example-full-snapshot.json'), 'utf8'));
 const PROTOCOL_VERSION = SNAPSHOT.protocolVersion;
 
 const CONTEXT_OPTIONS = {
@@ -81,14 +81,16 @@ export const test = base.extend({
 
   // Live mode against a mocked host: the WebSocket delivers the fixture snapshot
   // (so a world renders and controls are live) and captures the commands the UI
-  // sends. Provides `{ page, commands }`, where `commands` is the array of
-  // protocol commands the UI has emitted so far — the way to test that a control
-  // sends the right thing. Commands travel over the WS in live mode (HTTP is
-  // only a fallback), so the mock echoes a `command.result` to each.
+  // sends. Provides `{ page, commands, push }` — `commands` is the array of
+  // protocol commands the UI has emitted so far (the way to test that a control
+  // sends the right thing), and `push` sends a frame *down* the socket, which is
+  // how a test drives the world forward: a delta that kills an animal, a batch
+  // of events, a recovery snapshot. Commands travel over the WS in live mode
+  // (HTTP is only a fallback), so the mock echoes a `command.result` to each.
   live: async ({}, use) => {
     const { browser, page, extra } = await launchAndNavigate(gotoLive);
     try {
-      await use({ page, commands: extra });
+      await use({ page, commands: extra.commands, push: extra.push });
     } finally {
       await browser.close().catch(() => {});
     }
@@ -108,10 +110,10 @@ export async function gotoFixture(page) {
  */
 export async function gotoLive(page) {
   const commands = [];
-  await installLiveMocks(page, commands);
+  const push = await installLiveMocks(page, commands);
   await page.goto('/', { waitUntil: 'load' });
   await waitForRender(page);
-  return commands;
+  return { commands, push };
 }
 
 /**
@@ -163,14 +165,24 @@ function metricsReport() {
       groups: null,
       species,
     },
-    history: [0, 1, 2].map((step) => ({
-      tick: tick - (2 - step) * 50,
+    // ⚠ A *full* bounded history (120 samples, as the host sends), not three.
+    // The sparklines are one character per sample until they are resampled, so
+    // three points is a three-character chart — under which "the chart fits the
+    // column" is true of any column and the test that asserts it is measuring
+    // nothing. The counts rise and fall so the line has a shape to draw.
+    history: Array.from({ length: 120 }, (_, step) => ({
+      tick: tick - (119 - step) * 50,
       species: species.map((entry) => ({
         speciesId: entry.speciesId,
-        living: entry.living - (2 - step),
+        living: entry.living + Math.round(10 * Math.sin(step / 9)),
         generation: 1.5,
-        traits: { size: 1, speed: 1.05, metabolicEfficiency: 0.98, boldness: 1.02 },
-        infectious: 1,
+        traits: {
+          size: 1 + step / 400,
+          speed: 1.05,
+          metabolicEfficiency: 0.98,
+          boldness: 1.02 - step / 500,
+        },
+        infectious: 1 + (step % 5),
       })),
     })),
   };
@@ -222,7 +234,10 @@ async function installLiveMocks(page, commands) {
     }
   });
 
+  /** @type {any} the live socket, so a test can drive the world forward */
+  let socket = null;
   await page.routeWebSocket('**/ws', (ws) => {
+    socket = ws;
     // Render a world immediately.
     ws.send(JSON.stringify({ type: 'snapshot.full', payload: SNAPSHOT }));
     // Capture commands and acknowledge them so the UI does not time out.
@@ -239,6 +254,14 @@ async function installLiveMocks(page, commands) {
       }
     });
   });
+
+  // Send a frame down the socket the app is listening on. The world only moves
+  // when a test says so, which is what makes a test about *what happened over
+  // time* — an animal dying, then decaying away — possible at all.
+  return (frame) => {
+    if (!socket) throw new Error('the mocked WebSocket has not connected yet');
+    socket.send(JSON.stringify(frame));
+  };
 }
 
 /**

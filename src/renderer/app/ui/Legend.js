@@ -26,8 +26,7 @@ import {
   CARCASS_DECAY_APPEARANCE,
   MEMORY_APPEARANCE,
   UNKNOWN_APPEARANCE,
-  HURT_COLOR_TOKEN,
-  SICK_COLOR_TOKEN,
+  STATUS_APPEARANCE,
 } from '../rendering/EntityAppearance.js';
 
 /**
@@ -35,7 +34,6 @@ import {
  * @property {string} glyph
  * @property {string} colorToken
  * @property {string} label
- * @property {string} [note] why it looks like that, when that is not obvious
  * @property {boolean} [italic] render the glyph in italic (the female channel)
  */
 
@@ -50,20 +48,23 @@ export function describeLegend() {
     // Age is drawn by letter case (lowercase young, UPPERCASE grown), so a
     // species is shown as both — which is what makes a herd's age structure
     // readable at a glance. The base glyph is the lowercase form.
+    //
+    // ⚠ No note beside it. "young / grown" against every one of ten species is
+    // the same sentence ten times, and the `g/G` pair says it already — the
+    // *explanation* has its own row in "Age & sex" below, which is where a
+    // reader who does not recognize the pair will look.
     const young = appearance.glyph;
     const grown = appearance.glyph.toUpperCase();
     animals.push({
       glyph: young === grown ? young : `${young}/${grown}`,
       colorToken: appearance.colorToken,
       label: appearance.label,
-      note: young === grown ? '' : 'young / grown',
     });
   }
   animals.push({
     glyph: KIND_APPEARANCE.animal.glyph,
     colorToken: KIND_APPEARANCE.animal.colorToken,
     label: 'unmapped species',
-    note: 'a species this renderer predates',
   });
   animals.push({
     glyph: UNKNOWN_APPEARANCE.glyph,
@@ -93,11 +94,20 @@ export function describeLegend() {
     label: kind,
   }));
 
-  const remains = CARCASS_DECAY_APPEARANCE.map((appearance, stage) => ({
+  const remains = CARCASS_DECAY_APPEARANCE.map((appearance) => ({
     glyph: appearance.glyph,
     colorToken: appearance.colorToken,
     label: appearance.label,
-    note: stage === 0 ? 'rots as it ages' : '',
+  }));
+
+  // Statuses are marks in the corner of a cell rather than glyphs, so the
+  // legend stands in a `●` or `◆` for the shape the canvas draws. Generated
+  // from the registry for the same reason everything else here is: a status
+  // added to the grid and forgotten in the legend is a mark nobody can read.
+  const statuses = STATUS_APPEARANCE.map((status) => ({
+    glyph: status.shape === 'diamond' ? '◆' : '●',
+    colorToken: status.colorToken,
+    label: status.label,
   }));
 
   const memories = Object.entries(MEMORY_APPEARANCE).map(([kind, appearance]) => ({
@@ -109,27 +119,15 @@ export function describeLegend() {
   return [
     { title: 'Animals', entries: animals },
     { title: 'Age & sex', entries: SEX_AGE_ENTRIES },
-    { title: 'Condition', entries: CONDITION_ENTRIES },
+    { title: 'Status', entries: statuses },
     { title: 'Remains', entries: remains },
     { title: 'Ground', entries: ground },
     { title: 'Forage', entries: forage },
     { title: 'Worn ground', entries: worn },
-    { title: 'Disturbances', entries: events },
+    { title: 'Disturbances', entries: [...events, ...MOMENT_ENTRIES] },
     { title: 'Selected animal only', entries: [...memories, ...OVERLAY_ENTRIES] },
   ];
 }
-
-/**
- * Tints and marks that are not glyphs of their own. These are the one part of
- * the legend written by hand, because they describe how a glyph is *coloured*
- * or *bracketed* rather than which glyph is drawn — there is no registry entry
- * to read them from. The colour tokens still come from the appearance module.
- * @type {LegendEntry[]}
- */
-const CONDITION_ENTRIES = Object.freeze([
-  { glyph: '▪', colorToken: HURT_COLOR_TOKEN, label: 'hurt', note: 'below 70% health' },
-  { glyph: '▪', colorToken: SICK_COLOR_TOKEN, label: 'visibly ill', note: 'a carrier looks healthy' },
-]);
 
 /**
  * The two per-animal display channels, written by hand because they describe how
@@ -139,9 +137,19 @@ const CONDITION_ENTRIES = Object.freeze([
  * @type {LegendEntry[]}
  */
 const SEX_AGE_ENTRIES = Object.freeze([
-  { glyph: 'g/G', colorToken: 'yellow', label: 'young / grown', note: 'lowercase / UPPERCASE' },
-  { glyph: 'g', colorToken: 'yellow', label: 'female', note: 'italic', italic: true },
+  { glyph: 'g/G', colorToken: 'yellow', label: 'young / grown' },
+  // ⚠ Both cases here too, and italic. The row is a *sample of the same thing*
+  // the row above shows — one `g` read as "the female form is the young one",
+  // which is the one reading the two channels being independent rules out.
+  { glyph: 'g/G', colorToken: 'yellow', label: 'female', italic: true },
 ]);
+
+/**
+ * Marks that are a filled *cell* rather than a glyph, so there is no registry
+ * to read them from. `█` stands in for the fill.
+ * @type {LegendEntry[]}
+ */
+const MOMENT_ENTRIES = Object.freeze([{ glyph: '█', colorToken: 'red', label: 'killed here, this tick' }]);
 
 /** @type {LegendEntry[]} */
 const OVERLAY_ENTRIES = Object.freeze([
@@ -150,7 +158,7 @@ const OVERLAY_ENTRIES = Object.freeze([
   { glyph: '[]', colorToken: 'red', label: 'hunted by this animal' },
   { glyph: '[]', colorToken: 'pink', label: 'its guardian and offspring' },
   { glyph: '[]', colorToken: 'comment', label: 'its groupmates' },
-  { glyph: '+', colorToken: 'purple', label: 'its home range', note: 'ring at the range radius' },
+  { glyph: '+', colorToken: 'purple', label: 'its home range' },
 ]);
 
 export class LegendPanel {
@@ -165,14 +173,14 @@ export class LegendPanel {
             .map(
               (entry) => `
             <span class="legend-glyph" style="color: var(--dracula-${entry.colorToken})${entry.italic ? '; font-style: italic' : ''}">${entry.glyph}</span>
-            <span class="legend-label">${entry.label}${entry.note ? ` <span class="dim">${entry.note}</span>` : ''}</span>`,
+            <span class="legend-label">${entry.label}</span>`,
             )
             .join('')}
         </div>`,
       )
       .join('');
     container.innerHTML = `
-      <details class="inspector-section legend-root">
+      <details class="inspector-section legend-root" open>
         <summary><span class="section-title">Legend</span> <span class="section-badge">what the glyphs mean</span></summary>
         <div class="section-body">${groups}</div>
       </details>`;

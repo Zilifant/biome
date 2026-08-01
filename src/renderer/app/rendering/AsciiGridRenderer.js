@@ -20,9 +20,9 @@ import {
   resolveDisturbanceAppearance,
   resolveFeatureAppearance,
   resolveMemoryAppearance,
-  resolveColorToken,
-  isVegetationAppearance,
-  OCCUPIED_VEGETATION_ALPHA,
+  statusesOf,
+  fadesUnderOccupant,
+  OCCUPIED_ALPHA,
 } from './EntityAppearance.js';
 
 const MONO_STACK =
@@ -53,6 +53,8 @@ export class AsciiGridRenderer {
   #cssHeight = 0;
   /** @type {Map<string, string>} theme token → resolved color */
   #colors = new Map();
+  /** whether the last frame drew an animal with more than one status */
+  #hasCyclingStatus = false;
 
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -116,8 +118,13 @@ export class AsciiGridRenderer {
    * @param {{cellX: number, cellY: number} | null} [options.hoverCell]
    *        the cell under the pointer, framed in yellow corner brackets (the
    *        crosshair cursor aims at it) — grey fill stays selection-only
+   * @param {number} [options.statusPhase] which status a multi-status animal is
+   *        showing right now. A wall-clock counter, not a tick: see
+   *        `hasCyclingStatus`
+   * @param {Array<{cellX: number, cellY: number}>} [options.killCells] cells
+   *        where something was killed on **this** tick, flashed red
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -137,16 +144,31 @@ export class AsciiGridRenderer {
     ctx.textBaseline = 'middle';
     const half = cellSize / 2;
 
+    // --- Kill flash. A cell where something was killed **this tick** is filled
+    // red behind everything else, so a hunt that succeeded is impossible to
+    // miss on a grid where the only other sign is a `%` appearing among the
+    // glyphs. It lasts exactly as long as the tick does — the next delta clears
+    // it, and a pause holds it — which is what makes it a *moment* rather than
+    // another layer to read.
+    //
+    // ⚠ Behind everything: the ground glyph, the carcass, and any bracket are
+    // all drawn over it. A flash that covered them would hide the very thing it
+    // is pointing at.
+    const killFill = this.#color('red');
+    for (const cell of killCells) {
+      const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
+      ctx.fillStyle = killFill;
+      ctx.fillRect(px, py, cellSize, cellSize);
+    }
+
     // --- Occupants, resolved before anything is drawn. The entity pass below
-    // needs the highest-priority occupant per cell, and the terrain pass needs
-    // to know which cells hold a living animal so it can fade the grass under
-    // it — so the scan happens once, here, and both passes read it.
+    // needs the highest-priority occupant per cell, and the ground and feature
+    // passes need to know which cells are occupied at all so they can fade what
+    // is underneath — so the scan happens once, here, and all three read it.
     const cells = projection.visibleCellBounds();
     const visible = store.getEntitiesInBounds(projection.visibleWorldBounds(1));
     /** @type {Map<string, object>} cell key → top occupant */
     const topByCell = new Map();
-    /** @type {Set<string>} cell keys holding a living animal */
-    const animalCells = new Set();
     for (const entity of visible) {
       const cell = worldCellOf(entity, world);
       const key = `${cell.cellX},${cell.cellY}`;
@@ -154,32 +176,32 @@ export class AsciiGridRenderer {
       if (!current || compareOccupants(entity, current) < 0) {
         topByCell.set(key, entity);
       }
-      // A carcass is not an occupant for this purpose: it is *part* of the
-      // ground's story rather than something standing on it, and fading the
-      // grass under every body would make a die-off read as a drought.
-      if (entity.kind === 'animal' && entity.alive !== false) animalCells.add(key);
     }
+    // Any occupant fades the ground, a carcass included: a body lying in the
+    // grass hides that cell's forage exactly as an animal standing in it does,
+    // and the `%` is the glyph worth reading either way.
+    const occupied = (cellX, cellY) => topByCell.has(`${cellX},${cellY}`);
 
     // --- Terrain + vegetation pass. Terrain cell types come from the snapshot
     // legend; where a cell carries vegetation (level > 0), the green density
     // glyph is drawn over the ground instead. Cells beyond the world edge get
     // the out-of-bounds glyph.
     //
-    // ⚠ Vegetation under a living animal is drawn at a fraction of its opacity.
-    // Both glyphs occupy the same cell and the animal's is the informative one:
-    // a bright `"` behind a `g` reads as a two-character smear, while a faded
-    // one still says the animal is standing in deep grass. Only *vegetation* is
-    // faded — terrain is the shape of the map and stays solid, so a herd
-    // crossing a ridge does not erase the ridge.
+    // ⚠ A *fading* layer is not drawn at all in an occupied cell — forage,
+    // water, and thicket here, trails and burrows in the pass below. Which
+    // layers those are, and why the rest of the terrain is not among them, is
+    // `fadesUnderOccupant`; how completely they give way is `OCCUPIED_ALPHA`,
+    // which is 0 today and was 20% first (EntityAppearance has the argument).
     for (let cellY = cells.minCellY; cellY <= cells.maxCellY; cellY += 1) {
       for (let cellX = cells.minCellX; cellX <= cells.maxCellX; cellX += 1) {
         const appearance = groundAppearanceAt(store, cellX, cellY, world);
+        const covered = occupied(cellX, cellY) && fadesUnderOccupant(appearance);
+        if (covered && OCCUPIED_ALPHA === 0) continue;
         const { px, py } = projection.cellToScreen(cellX, cellY);
-        const faded = isVegetationAppearance(appearance) && animalCells.has(`${cellX},${cellY}`);
-        if (faded) ctx.globalAlpha = OCCUPIED_VEGETATION_ALPHA;
+        if (covered) ctx.globalAlpha = OCCUPIED_ALPHA;
         ctx.fillStyle = this.#color(appearance.colorToken);
         ctx.fillText(appearance.glyph, px + half, py + half);
-        if (faded) ctx.globalAlpha = 1;
+        if (covered) ctx.globalAlpha = 1;
       }
     }
 
@@ -198,9 +220,13 @@ export class AsciiGridRenderer {
       ) {
         continue;
       }
+      const covered = occupied(feature.cellX, feature.cellY) && fadesUnderOccupant(appearance);
+      if (covered && OCCUPIED_ALPHA === 0) continue;
       const { px, py } = projection.cellToScreen(feature.cellX, feature.cellY);
+      if (covered) ctx.globalAlpha = OCCUPIED_ALPHA;
       ctx.fillStyle = this.#color(appearance.colorToken);
       ctx.fillText(appearance.glyph, px + half, py + half);
+      if (covered) ctx.globalAlpha = 1;
     }
 
     // --- Disturbance pass (protocol v26): fires, floods, and storms drawn over
@@ -231,9 +257,10 @@ export class AsciiGridRenderer {
       const [cellX, cellY] = key.split(',').map(Number);
       const { px, py } = projection.cellToScreen(cellX, cellY);
       const appearance = resolveAppearance(entity);
-      // A hurt animal is tinted (Step 17) from the `healthFraction` the
-      // protocol already sends — injuries themselves stay inspection-only.
-      ctx.fillStyle = this.#color(resolveColorToken(entity, appearance));
+      // ⚠ No condition tint. A hurt or ill animal used to be *recoloured*,
+      // which spent the one channel that says which species it is; condition
+      // now rides as a corner mark instead (the status pass, last).
+      ctx.fillStyle = this.#color(appearance.colorToken);
       ctx.font = appearance.italic ? italicFont : uprightFont;
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
@@ -345,6 +372,70 @@ export class AsciiGridRenderer {
       const { px, py } = projection.cellToScreen(hoverCell.cellX, hoverCell.cellY);
       this.#drawBrackets(px, py, cellSize, this.#color('bright-yellow'));
     }
+
+    // --- Status pass (protocol v30 for two of them): a small mark in the
+    // upper-left corner of any cell whose animal is hurt, ill, carrying,
+    // in season, or dispersing.
+    //
+    // ⚠ **Drawn after everything, including the selection fill**, which paints
+    // over its whole cell — a mark drawn before it would vanish the moment you
+    // clicked the animal you were watching, which is exactly when you are
+    // looking hardest. It rides slightly over the corner bracket arms for the
+    // same reason: a two-pixel arm is recoverable, a hidden condition is not.
+    //
+    // One mark per *cell*, belonging to the occupant whose glyph is drawn —
+    // the same rule the grid follows everywhere else. Several statuses on one
+    // animal take turns rather than crowding the corner (see `statusPhase`).
+    this.#hasCyclingStatus = false;
+    for (const [key, entity] of topByCell) {
+      const statuses = statusesOf(entity);
+      if (statuses.length === 0) continue;
+      if (statuses.length > 1) this.#hasCyclingStatus = true;
+      const status = statuses[statusPhase % statuses.length];
+      const [cellX, cellY] = key.split(',').map(Number);
+      const { px, py } = projection.cellToScreen(cellX, cellY);
+      this.#drawStatusMark(px, py, cellSize, status);
+    }
+  }
+
+  /**
+   * Whether the frame just drawn holds an animal with more than one status —
+   * i.e. whether anything on screen is mid-cycle and the view has to be redrawn
+   * when the phase turns over. Read by `RendererApp`, which owns the clock.
+   *
+   * ⚠ This is the whole reason the cycle can run while the simulation is
+   * paused: it is a property of the *drawing*, not of the tick stream, so a
+   * still world still animates.
+   */
+  get hasCyclingStatus() {
+    return this.#hasCyclingStatus;
+  }
+
+  /**
+   * A filled dot or diamond in the cell's upper-left corner.
+   *
+   * Sized from the cell rather than fixed, so it stays proportionate across the
+   * 10–32px zoom range, and floored at 1.5px because below that a dot and a
+   * diamond are the same three pixels and the shape channel stops meaning
+   * anything.
+   */
+  #drawStatusMark(px, py, cellSize, status) {
+    const ctx = this.#context;
+    const radius = Math.max(1.5, cellSize * 0.13);
+    const cx = px + radius + 1;
+    const cy = py + radius + 1;
+    ctx.fillStyle = this.#color(status.colorToken);
+    ctx.beginPath();
+    if (status.shape === 'diamond') {
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx + radius, cy);
+      ctx.lineTo(cx, cy + radius);
+      ctx.lineTo(cx - radius, cy);
+      ctx.closePath();
+    } else {
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    }
+    ctx.fill();
   }
 
   /** Corner brackets so selection is visible without relying on color alone. */

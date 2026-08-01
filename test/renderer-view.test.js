@@ -17,13 +17,17 @@ import {
   MEMORY_APPEARANCE,
   VEGETATION_APPEARANCE,
   resolveVegetationAppearance,
-  isVegetationAppearance,
-  OCCUPIED_VEGETATION_ALPHA,
+  fadesUnderOccupant,
+  OCCUPIED_ALPHA,
+  STATUS_APPEARANCE,
+  STATUS_CYCLE_MS,
+  statusesOf,
+  HURT_HEALTH_FRACTION,
 } from '../src/renderer/app/rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from '../src/renderer/app/rendering/AsciiGridRenderer.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend } from '../src/renderer/app/ui/Legend.js';
-import { indexHistory } from '../src/renderer/app/ui/MetricsPanel.js';
+import { indexHistory, drawTrend, BAR_LEVELS } from '../src/renderer/app/ui/MetricsPanel.js';
 import { matchWatched, WATCHABLE } from '../src/renderer/app/ui/Watchlist.js';
 import {
   EVENT_CATALOG,
@@ -114,34 +118,53 @@ describe('entity appearance', () => {
   });
 });
 
-describe('vegetation under an animal', () => {
-  // Both glyphs land in the same cell and the animal's is the informative one,
-  // so the grass behind it is drawn faint (AsciiGridRenderer). The renderer
-  // decides *which* layer to fade by identity, not by glyph — vegetation and
-  // terrain share glyphs, and only the identity says which layer answered.
-  test('every vegetation level resolves to something the fade recognizes', () => {
+describe('the layers that fade under an occupant', () => {
+  // Forage, water, trails, and burrows are readings *of* a cell, so they give
+  // way to whatever is standing in it; the rest of the terrain is the shape of
+  // the map and stays solid. The renderer decides which is which by identity,
+  // not by glyph — these layers share glyphs, and only the identity of the
+  // frozen registry entry says which one answered.
+  test('every forage level fades, at every level the ramp can return', () => {
     for (let level = 1; level < VEGETATION_APPEARANCE.length + 2; level += 1) {
       const appearance = resolveVegetationAppearance(level);
-      assert.ok(appearance, `level ${level} should resolve to a vegetation glyph`);
-      assert.ok(isVegetationAppearance(appearance), `level ${level} is not recognized as vegetation`);
+      assert.ok(appearance, `level ${level} should resolve to a forage glyph`);
+      assert.ok(fadesUnderOccupant(appearance), `level ${level} does not fade`);
     }
   });
 
-  test('bare ground and terrain are not vegetation, even where they share a glyph', () => {
+  test('water, thicket, trails, and burrows give way; the hard map does not', () => {
+    for (const name of ['water', 'deep_water', 'thicket']) {
+      assert.ok(fadesUnderOccupant(TERRAIN_APPEARANCE[name]), `${name} gives way`);
+    }
+    for (const appearance of Object.values(FEATURE_APPEARANCE)) {
+      assert.ok(fadesUnderOccupant(appearance), 'worn ground gives way');
+    }
+    for (const name of ['ground', 'rock', 'cover']) {
+      assert.equal(fadesUnderOccupant(TERRAIN_APPEARANCE[name]), false, `${name} must stay solid`);
+    }
+    // A disturbance stays solid: an animal caught in a fire is the whole point
+    // of watching it get caught.
+    for (const appearance of Object.values(DISTURBANCE_APPEARANCE)) {
+      assert.equal(fadesUnderOccupant(appearance), false, 'disturbances stay solid');
+    }
+  });
+
+  test('the test is identity, not glyph — three layers share `.`', () => {
     assert.equal(resolveVegetationAppearance(0), null);
-    assert.equal(isVegetationAppearance(null), false);
-    // `.` is bare ground *and* the sparsest grass; only identity tells them apart.
-    assert.equal(TERRAIN_APPEARANCE.ground.glyph, resolveVegetationAppearance(1).glyph);
-    assert.equal(isVegetationAppearance(TERRAIN_APPEARANCE.ground), false);
-    for (const appearance of Object.values(TERRAIN_APPEARANCE)) {
-      assert.equal(isVegetationAppearance(appearance), false);
-    }
+    assert.equal(fadesUnderOccupant(null), false);
+    // Bare ground, the sparsest forage, and a trail are all `.`; two of the
+    // three fade and one does not, so a glyph comparison would be wrong.
+    assert.equal(TERRAIN_APPEARANCE.ground.glyph, '.');
+    assert.equal(resolveVegetationAppearance(1).glyph, '.');
+    assert.equal(FEATURE_APPEARANCE.trail.glyph, '.');
+    assert.equal(fadesUnderOccupant(TERRAIN_APPEARANCE.ground), false);
   });
 
-  test('the occupied fade is faint but not invisible', () => {
-    // Drawing nothing would make a grazing herd punch holes in the grass it is
-    // grazing; drawing it fully is the two-character smear this replaced.
-    assert.ok(OCCUPIED_VEGETATION_ALPHA > 0 && OCCUPIED_VEGETATION_ALPHA < 0.5);
+  test('a covered layer is not drawn at all', () => {
+    // It was 20% first. Two glyphs in one 10px cell is a smudge at any opacity
+    // that leaves the lower one visible, and the occupant is always the thing
+    // worth reading; the ground is one click away in the inspector.
+    assert.equal(OCCUPIED_ALPHA, 0);
   });
 });
 
@@ -155,7 +178,16 @@ describe('vegetation under an animal', () => {
  * no `getComputedStyle` — so the whole pass runs in node with no DOM
  * dependency, exactly as the rest of the suite does.
  */
-function recordDraw(occupants = [], vegetationLevel = 3) {
+function recordDraw(occupants = [], vegetationLevel = 3, features = [], statusPhase = 0, selection = null, terrain = 'ground', killCells = []) {
+  return drawWith(occupants, vegetationLevel, features, statusPhase, selection, terrain, killCells).ops;
+}
+
+/** As `recordDraw`, but answering the renderer's own cycling question. */
+function drawAndAsk(occupants) {
+  return drawWith(occupants, 3, [], 0, null, 'ground').renderer.hasCyclingStatus;
+}
+
+function drawWith(occupants, vegetationLevel, features, statusPhase, selection, terrain = 'ground', killCells = []) {
   const ops = [];
   const context = {
     globalAlpha: 1,
@@ -164,13 +196,39 @@ function recordDraw(occupants = [], vegetationLevel = 3) {
     textAlign: '',
     textBaseline: '',
     setTransform() {},
-    fillRect() {},
-    beginPath() {},
-    moveTo() {},
-    lineTo() {},
+    fillRect(px, py, w, h) {
+      ops.push({ rect: true, px, py, w, h, colorToken: tokenOf(this.fillStyle), alpha: this.globalAlpha });
+    },
     stroke() {},
     fillText(glyph, px, py) {
       ops.push({ glyph, px, py, alpha: this.globalAlpha });
+    },
+    // Status marks are drawn as paths rather than glyphs, so the stub tracks
+    // one: `arc` makes it a dot, a run of line segments a diamond, and `fill`
+    // is what commits it.
+    beginPath() {
+      this.path = { shape: null, points: [] };
+    },
+    arc(cx, cy, radius) {
+      this.path = { shape: 'dot', cx, cy, radius, points: [] };
+    },
+    moveTo(x, y) {
+      this.path.points.push([x, y]);
+    },
+    lineTo(x, y) {
+      this.path.points.push([x, y]);
+    },
+    closePath() {},
+    fill() {
+      const path = this.path;
+      const mark = path.shape === 'dot'
+        ? { mark: 'dot', cx: path.cx, cy: path.cy, radius: path.radius }
+        : {
+            mark: 'diamond',
+            cx: (Math.min(...path.points.map((p) => p[0])) + Math.max(...path.points.map((p) => p[0]))) / 2,
+            cy: (Math.min(...path.points.map((p) => p[1])) + Math.max(...path.points.map((p) => p[1]))) / 2,
+          };
+      ops.push({ ...mark, colorToken: tokenOf(this.fillStyle), alpha: this.globalAlpha });
     },
   };
   const renderer = new AsciiGridRenderer({ style: {}, width: 0, height: 0, getContext: () => context });
@@ -188,65 +246,241 @@ function recordDraw(occupants = [], vegetationLevel = 3) {
   renderer.draw({
     store: {
       world,
-      features: [],
+      features,
       disturbances: [],
-      selection: null,
+      selection,
       followedEntityId: null,
       vegetationLevelAt: () => vegetationLevel,
-      terrainNameAt: () => 'ground',
+      terrainNameAt: () => terrain,
       getEntitiesInBounds: () => entities,
       getEntity: (id) => entities.find((entity) => entity.id === id) ?? null,
     },
     camera,
+    statusPhase,
+    killCells,
   });
-  return ops;
+  return { ops, renderer };
 }
 
+/** The Dracula token a resolved hex belongs to — the stub sees colours, not tokens. */
+const tokenOf = (hex) => Object.keys(DRACULA_COLORS).find((token) => DRACULA_COLORS[token] === hex) ?? hex;
+
 /** A living gazelle standing in the given cell. */
-const gazelleAt = (cellX, cellY) => ({ kind: 'animal', alive: true, speciesId: 'herbivore.gazelle', cellX, cellY });
+const gazelleAt = (cellX, cellY, overrides = {}) => ({
+  kind: 'animal',
+  alive: true,
+  speciesId: 'herbivore.gazelle',
+  healthFraction: 1,
+  cellX,
+  cellY,
+  ...overrides,
+});
+
+describe('animal statuses', () => {
+  // A status is a mark in the corner of the cell, not a change to the glyph.
+  // Tinting the letter spent the one channel that says which species it is, and
+  // could only ever show one condition at a time.
+  const gazelle = (overrides = {}) => ({
+    kind: 'animal',
+    alive: true,
+    speciesId: 'herbivore.gazelle',
+    healthFraction: 1,
+    ...overrides,
+  });
+
+  test('every status has a distinct id, colour, and one of the two shapes', () => {
+    const ids = STATUS_APPEARANCE.map((status) => status.id);
+    const colours = STATUS_APPEARANCE.map((status) => status.colorToken);
+    assert.equal(new Set(ids).size, ids.length, `duplicate status ids in ${ids}`);
+    // Colour is what makes a marker findable in a herd; shape alone is one bit.
+    assert.equal(new Set(colours).size, colours.length, `two statuses share a colour: ${colours}`);
+    for (const status of STATUS_APPEARANCE) {
+      assert.ok(['dot', 'diamond'].includes(status.shape), `${status.id} has shape ${status.shape}`);
+      assert.ok(DRACULA_COLORS[status.colorToken], `${status.id} has an unknown colour token`);
+      assert.ok(status.label, `${status.id} needs a label for the legend`);
+    }
+  });
+
+  test('each status reads a bulk-snapshot field, so it is true of every animal on screen', () => {
+    assert.deepEqual(statusesOf(gazelle({ healthFraction: HURT_HEALTH_FRACTION - 0.01 })).map((s) => s.id), ['hurt']);
+    assert.deepEqual(statusesOf(gazelle({ diseaseState: 'symptomatic' })).map((s) => s.id), ['ill']);
+    assert.deepEqual(statusesOf(gazelle({ gestating: true })).map((s) => s.id), ['gestating']);
+    assert.deepEqual(statusesOf(gazelle({ seekingMate: true })).map((s) => s.id), ['rut']);
+    assert.deepEqual(statusesOf(gazelle({ dispersing: true })).map((s) => s.id), ['dispersing']);
+    // ⚠ An incubating carrier is deliberately unmarked: the disease model rests
+    // on it being invisible.
+    assert.deepEqual(statusesOf(gazelle({ diseaseState: 'incubating' })).map((s) => s.id), []);
+  });
+
+  test('an ordinary animal and a carcass have none, and the empty answer does not allocate', () => {
+    assert.deepEqual(statusesOf(gazelle()), []);
+    // A carcass has no condition and no life left to be in the middle of.
+    assert.deepEqual(statusesOf({ kind: 'carcass', alive: false, healthFraction: 0, seekingMate: true }), []);
+    assert.deepEqual(statusesOf({ kind: 'animal', alive: false, healthFraction: 0 }), []);
+    // Same frozen array every time: this runs per drawn cell per frame.
+    assert.equal(statusesOf(gazelle()), statusesOf({ kind: 'plant' }));
+  });
+
+  test('several statuses come back in registry order, which is the order they cycle', () => {
+    const many = statusesOf(gazelle({ healthFraction: 0.2, diseaseState: 'symptomatic', gestating: true }));
+    assert.deepEqual(many.map((s) => s.id), ['hurt', 'ill', 'gestating']);
+    assert.equal(STATUS_CYCLE_MS, 500);
+  });
+});
 
 describe('the grid renderer', () => {
-  // The vegetation ramp for level 3 is `"`; the gazelle is `g`.
-  const vegetationGlyph = resolveVegetationAppearance(3).glyph;
+  // The forage ramp for level 3 is `"`; the gazelle is `g`; a fresh carcass `%`.
+  const forageGlyph = resolveVegetationAppearance(3).glyph;
 
-  test('vegetation under a living animal is drawn faint, and everywhere else solid', () => {
-    // Both glyphs land in the same cell and the animal's is the informative
-    // one: a full-strength `"` behind a `g` reads as a two-character smear.
+  test('an occupied cell draws no forage at all, and every other cell still does', () => {
+    // Two glyphs in one cell is a smudge at any opacity that leaves the lower
+    // one readable, and the occupant is always the one worth reading.
     const ops = recordDraw([gazelleAt(1, 1)]);
     const animal = ops.find((op) => op.glyph === 'g');
     assert.ok(animal, 'the animal was drawn');
 
-    const grass = ops.filter((op) => op.glyph === vegetationGlyph);
+    const grass = ops.filter((op) => op.glyph === forageGlyph);
     assert.ok(grass.length > 1, 'the world is vegetated');
-    const under = grass.filter((op) => op.px === animal.px && op.py === animal.py);
-    assert.equal(under.length, 1, 'exactly one vegetation glyph shares the animal cell');
-    assert.equal(under[0].alpha, OCCUPIED_VEGETATION_ALPHA);
-    for (const op of grass) {
-      if (op === under[0]) continue;
-      assert.equal(op.alpha, 1, 'vegetation nobody is standing in stays solid');
-    }
-    // ⚠ And the fade is put back: leaving globalAlpha low would fade every
-    // later pass — the animals, the overlays, the selection mark.
-    assert.equal(animal.alpha, 1);
+    assert.equal(
+      grass.filter((op) => op.px === animal.px && op.py === animal.py).length,
+      0,
+      'nothing is drawn under the animal',
+    );
+    for (const op of grass) assert.equal(op.alpha, 1, 'forage nobody is standing in is untouched');
   });
 
-  test('with nothing standing anywhere, no vegetation is faded', () => {
+  test('thicket gives way too — the layer animals are most often inside', () => {
+    // A `♣` and a `g` in the same 10px cell is the collision this exists for.
+    const thicketGlyph = TERRAIN_APPEARANCE.thicket.glyph;
+    const bare = recordDraw([], 0, [], 0, null, 'thicket');
+    assert.ok(bare.some((op) => op.glyph === thicketGlyph), 'thicket is drawn when nobody is standing in it');
+
+    const ops = recordDraw([gazelleAt(1, 1)], 0, [], 0, null, 'thicket');
+    const animal = ops.find((op) => op.glyph === 'g');
+    assert.equal(
+      ops.filter((op) => op.glyph === thicketGlyph && op.px === animal.px && op.py === animal.py).length,
+      0,
+    );
+  });
+
+  test('a carcass covers the ground it is lying on, exactly as an animal does', () => {
+    const ops = recordDraw([{ kind: 'carcass', alive: false, decayStage: 0, cellX: 1, cellY: 1 }]);
+    const carcass = ops.find((op) => op.glyph === '%');
+    assert.ok(carcass, 'the carcass was drawn');
+    assert.equal(
+      ops.filter((op) => op.glyph === forageGlyph && op.px === carcass.px && op.py === carcass.py).length,
+      0,
+    );
+  });
+
+  test('a trail or burrow under an occupant is not drawn, and one nobody stands on is', () => {
+    const features = [
+      { kind: 'trail', cellX: 1, cellY: 1 },
+      { kind: 'burrow', cellX: 2, cellY: 2 },
+    ];
+    // ⚠ Over *rock*, deliberately. A trail is `.` and so is bare ground, which
+    // does not give way — so on ground this test would find the terrain's own
+    // `.` in the animal's cell and call it the trail. The same collision the
+    // renderer resolves by identity rather than by glyph.
+    const ops = recordDraw([gazelleAt(1, 1)], 0, features, 0, null, 'rock');
+    const animal = ops.find((op) => op.glyph === 'g');
+    assert.ok(animal, 'the animal was drawn');
+    assert.equal(
+      ops.filter((op) => op.glyph === FEATURE_APPEARANCE.trail.glyph && op.px === animal.px && op.py === animal.py)
+        .length,
+      0,
+      'the occupied trail is not drawn',
+    );
+    const burrow = ops.find((op) => op.glyph === FEATURE_APPEARANCE.burrow.glyph);
+    assert.ok(burrow, 'a burrow nobody is standing on is drawn as usual');
+    assert.equal(burrow.alpha, 1);
+  });
+
+  test('with nothing standing anywhere, nothing is faded', () => {
     for (const op of recordDraw()) assert.equal(op.alpha, 1);
   });
 
-  test('bare ground under an animal is not faded — only vegetation is', () => {
-    // Terrain is the shape of the map, so a herd crossing a ridge must not
-    // erase the ridge. At level 0 the ground glyph is terrain, not grass.
-    for (const op of recordDraw([gazelleAt(1, 1)], 0)) assert.equal(op.alpha, 1);
+  test('a status is a mark in the cell\'s upper-left corner, not a tint on the glyph', () => {
+    const ops = recordDraw([gazelleAt(1, 1, { healthFraction: 0.2 })]);
+    const animal = ops.find((op) => op.glyph === 'g');
+    // ⚠ The glyph keeps its *species* colour. It used to be recoloured, which
+    // spent the channel that says what the animal is.
+    assert.equal(animal.colorToken, undefined, 'glyph ops carry no override');
+    const marks = ops.filter((op) => op.mark);
+    assert.equal(marks.length, 1);
+    assert.equal(marks[0].mark, 'dot', 'a condition is a dot');
+    assert.equal(marks[0].colorToken, 'orange');
+    // Upper-left of that cell, inside it, and above the glyph's own centre.
+    assert.ok(marks[0].cx < animal.px, 'left of the glyph centre');
+    assert.ok(marks[0].cy < animal.py, 'above the glyph centre');
   });
 
-  test('a carcass does not fade the ground it is lying on', () => {
-    // A body is part of the ground's story rather than something standing on
-    // it; fading the grass under every carcass would make a die-off read as a
-    // drought.
-    const ops = recordDraw([{ kind: 'carcass', alive: false, decayStage: 0, cellX: 1, cellY: 1 }]);
-    assert.ok(ops.some((op) => op.glyph === '%'), 'the carcass was drawn');
-    for (const op of ops) assert.equal(op.alpha, 1);
+  test('a state is a diamond, and the shapes are the two families', () => {
+    const ops = recordDraw([gazelleAt(1, 1, { gestating: true })]);
+    const mark = ops.find((op) => op.mark);
+    assert.equal(mark.mark, 'diamond');
+    assert.equal(mark.colorToken, 'pink');
+  });
+
+  test('an animal in several statuses shows one at a time, chosen by the phase', () => {
+    // The phase is a wall-clock counter, so this is what makes a paused world
+    // still cycle.
+    const occupant = gazelleAt(1, 1, { healthFraction: 0.2, gestating: true });
+    const shown = (phase) => recordDraw([occupant], 3, [], phase).find((op) => op.mark);
+    assert.equal(shown(0).colorToken, 'orange');
+    assert.equal(shown(1).colorToken, 'pink');
+    assert.equal(shown(2).colorToken, 'orange', 'and round again');
+    // One mark at a time: four in a 10px cell is a smudge.
+    assert.equal(recordDraw([occupant], 3, [], 0).filter((op) => op.mark).length, 1);
+  });
+
+  test('the renderer reports whether anything on screen is mid-cycle', () => {
+    // `RendererApp` redraws on the phase turning over only when this is true,
+    // so a still, unremarkable world costs no frames at all.
+    assert.equal(drawAndAsk([gazelleAt(1, 1)]), false);
+    assert.equal(drawAndAsk([gazelleAt(1, 1, { gestating: true })]), false, 'one status never cycles');
+    assert.equal(drawAndAsk([gazelleAt(1, 1, { gestating: true, healthFraction: 0.1 })]), true);
+  });
+
+  test('a status mark survives the selection fill that paints over its cell', () => {
+    // Drawn last of all: a mark drawn before the selection's fillRect vanished
+    // the moment you clicked the animal you were watching.
+    const ops = recordDraw([gazelleAt(1, 1, { id: 1, healthFraction: 0.2 })], 3, [], 0, {
+      cellX: 1,
+      cellY: 1,
+      entityIds: [1],
+      activeId: 1,
+    });
+    const markIndex = ops.findIndex((op) => op.mark);
+    const selectionGlyph = ops.map((op) => op.glyph).lastIndexOf('g');
+    assert.ok(markIndex > selectionGlyph, 'the mark is drawn after the selection redraw');
+  });
+
+  test('a kill fills its cell red, behind everything else in it', () => {
+    // A `%` appearing among the glyphs is the only other sign a hunt landed,
+    // and on a moving grid that is no sign at all.
+    const ops = recordDraw([{ kind: 'carcass', alive: false, decayStage: 0, cellX: 1, cellY: 1 }], 3, [], 0, null, 'ground', [
+      { cellX: 1, cellY: 1 },
+    ]);
+    const flash = ops.filter((op) => op.rect && op.colorToken === 'red');
+    assert.equal(flash.length, 1);
+
+    const carcass = ops.find((op) => op.glyph === '%');
+    assert.equal(flash[0].px, carcass.px - flash[0].w / 2, 'the fill is that cell, not an offset one');
+    assert.ok(ops.indexOf(flash[0]) < ops.indexOf(carcass), 'behind the body it is pointing at');
+  });
+
+  test('no kill, no flash — it is a moment, not a layer', () => {
+    assert.equal(
+      recordDraw([gazelleAt(1, 1)]).filter((op) => op.rect && op.colorToken === 'red').length,
+      0,
+    );
+  });
+
+  test('the shape of the map stays solid under an animal', () => {
+    // Level 0 means the ground glyph is terrain rather than forage. A herd
+    // crossing a ridge must not erase the ridge.
+    for (const op of recordDraw([gazelleAt(1, 1)], 0)) assert.equal(op.alpha, 1);
   });
 });
 
@@ -317,6 +551,49 @@ describe('the species roster', () => {
         `${speciesId} is superseded by ${appearance.supersededBy}, which has no entry`,
       );
       assert.ok(!SPECIES_APPEARANCE[appearance.supersededBy].supersededBy, 'supersession does not chain');
+    }
+  });
+});
+
+describe('population sparklines fit the column they are in', () => {
+  // A sparkline is one character per sample, so 120 samples is 120 unbreakable
+  // columns in a 300px panel: it ran off the edge and took the species name
+  // with it. The series is resampled to the space available instead.
+  const rising = Array.from({ length: 120 }, (_, i) => i);
+
+  test('a long history is compressed to the width, not cut off at it', () => {
+    assert.equal(drawTrend(rising, 20).length, 20);
+    assert.equal(drawTrend(rising, 7).length, 7);
+    // ⚠ Compressed, not truncated: the shape of the *whole* history is the
+    // point of the row, so a rising series still reads as rising end to end.
+    const chart = drawTrend(rising, 20);
+    assert.equal(chart[0], BAR_LEVELS[0]);
+    assert.equal(chart.at(-1), BAR_LEVELS.at(-1));
+  });
+
+  test('a short history is drawn one-to-one and simply ends', () => {
+    // Early in a run there is less data than column: the rest of the line is
+    // empty, rather than four points stretched across the panel.
+    assert.equal(drawTrend([1, 2, 3], 40).length, 3);
+    assert.equal(drawTrend([1, 2, 3]).length, 3, 'unbounded width is the same answer');
+  });
+
+  test('a width too small for a chart draws none at all', () => {
+    assert.equal(drawTrend(rising, 1), '');
+    assert.equal(drawTrend(rising, 0), '');
+    // And too little data is still no chart, at any width.
+    assert.equal(drawTrend([5], 40), '');
+    assert.equal(drawTrend([], 40), '');
+  });
+
+  test('every bucket averages a fair share, so the last one is not a spike', () => {
+    // `history % width` is almost never zero; a final bucket over two samples
+    // where the rest cover five is a cliff at the right-hand end of every chart.
+    // A flat series must therefore draw completely flat at any width.
+    const flat = Array(97).fill(4);
+    for (const width of [5, 12, 31, 96]) {
+      assert.equal(new Set(drawTrend(flat, width)).size, 1, `width ${width} is not flat`);
+      assert.equal(drawTrend(flat, width).length, width);
     }
   });
 });
@@ -683,12 +960,66 @@ describe('legend', () => {
     }
   });
 
+  test('every status reaches the legend, with the shape the grid draws', () => {
+    // A status added to the grid and forgotten here is a mark nobody can read.
+    const group = describeLegend().find((g) => g.title === 'Status');
+    assert.equal(group.entries.length, STATUS_APPEARANCE.length);
+    for (const status of STATUS_APPEARANCE) {
+      const entry = group.entries.find((e) => e.label === status.label);
+      assert.ok(entry, `${status.id} is missing from the legend`);
+      assert.equal(entry.colorToken, status.colorToken);
+      assert.equal(entry.glyph, status.shape === 'diamond' ? '◆' : '●');
+    }
+  });
+
+  test('no row carries a note — the legend is a key, not a manual', () => {
+    for (const entry of allEntries()) {
+      assert.ok(!entry.note, `${entry.label} still carries "${entry.note}"`);
+    }
+  });
+
+  test('the female row shows both cases, because the two channels are independent', () => {
+    // A single `g` there read as "the female form is the young one", which is
+    // the one reading case-is-age and italic-is-sex being separate rules out.
+    const group = describeLegend().find((g) => g.title === 'Age & sex');
+    const female = group.entries.find((entry) => entry.label === 'female');
+    assert.equal(female.italic, true);
+    assert.equal(female.glyph, group.entries.find((entry) => entry.label === 'young / grown').glyph);
+    assert.match(female.glyph, /^[a-z]\/[A-Z]$/);
+  });
+
   test('every legend colour is a real Dracula token', () => {
     // The legend renders colours as `var(--dracula-<token>)`, so a token that
     // is not in the palette silently renders as inherited text.
     for (const entry of allEntries()) {
       assert.ok(DRACULA_COLORS[entry.colorToken], `unknown colour token "${entry.colorToken}" for ${entry.label}`);
     }
+  });
+});
+
+describe('bars do not break across lines', () => {
+  // A histogram or sparkline is one "word" to the browser, and an ordinary
+  // space inside it is a line-break opportunity — so a bar with an empty bin
+  // wrapped there and the rest of the distribution appeared on the next line,
+  // reading as two bars. Both bar builders pad with U+00A0 instead.
+  test('no rung of the histogram ramp is a breaking space', () => {
+    assert.ok(BAR_LEVELS.length > 1);
+    for (const rung of BAR_LEVELS) {
+      assert.equal(rung.length, 1, `a rung must be one character, got ${JSON.stringify(rung)}`);
+      assert.ok(!/\s/.test(rung) || rung === '\u00a0', `rung ${JSON.stringify(rung)} can break a line`);
+    }
+    assert.equal(BAR_LEVELS[0], '\u00a0', 'the empty rung is the one that used to be a plain space');
+  });
+
+  test("the inspector's centred trait bar pads with no-break spaces", () => {
+    const detail = { traits: { speed: 1.4, size: 0.6 }, traitReference: { speed: 1, size: 1 } };
+    const body = describeSections(detail, null).find((section) => section.id === 'traits')?.body ?? '';
+    assert.ok(body.includes('█'), 'a trait bar was drawn');
+    assert.ok(body.includes('\u00a0'), 'the empty side of the bar is padded with U+00A0');
+    // The bar itself — between the first block and the last — holds no ordinary
+    // space, which is the character that would let it wrap.
+    const bar = body.slice(body.indexOf('│') - 6, body.indexOf('│') + 7);
+    assert.ok(!bar.includes(' '), `the bar must not contain a plain space: ${JSON.stringify(bar)}`);
   });
 });
 
@@ -712,6 +1043,32 @@ describe('entity references', () => {
   test('a tick reference is not mistaken for an entity id', () => {
     // `t1205` has no `#`, so it must stay plain text.
     assert.doesNotMatch(linkifyIds('ended at t1205'), /data-entity/);
+  });
+
+  test('given an appearance, a reference wears the animal\'s own glyph', () => {
+    const gazelle = resolveAppearance({ kind: 'animal', speciesId: 'herbivore.gazelle', alive: true, sex: 'female' });
+    const html = entityRef(412, gazelle);
+    assert.match(html, />g412</, 'the species glyph replaces the #');
+    assert.match(html, /data-entity="412"/);
+    assert.match(html, /font-style: italic/, 'the sex channel carries over to the reference');
+    // ⚠ The colour must ride on the custom property, never on `color` — an
+    // inline `color` outranks the stylesheet and the cyan hover would be dead.
+    assert.match(html, /--ref-color: var\(--dracula-yellow\)/);
+    const declarations = html.match(/style="([^"]*)"/)[1].split(';').map((part) => part.split(':')[0].trim());
+    assert.ok(!declarations.includes('color'), `an inline color would kill the hover: ${declarations}`);
+  });
+
+  test('an id the renderer can no longer place keeps its #', () => {
+    // An animal that died leaves its number behind in the log, and nothing says
+    // what it looked like — so the reference is honest rather than guessing.
+    assert.match(entityRef(7, null), />#7</);
+    assert.match(linkifyIds('x died #7', () => null), />#7</);
+  });
+
+  test('a resolver puts a glyph on every id in a line', () => {
+    const leopard = resolveAppearance({ kind: 'animal', speciesId: 'predator.leopard', alive: true, lifeStage: 'adult' });
+    const html = linkifyIds('X killed #7 by #9', () => leopard);
+    assert.equal(html.match(/>P\d+</g).length, 2);
   });
 });
 
@@ -845,6 +1202,21 @@ describe('event log filters', () => {
       prefixes.length,
       `two event types share a prefix in ${prefixes.join(' ')}`,
     );
+  });
+
+  test('a ratio drops its leading zero; a quantity keeps its leading digit', () => {
+    // `(.63 vs .58)` rather than `(0.63 vs 0.58)`: every one of these is below
+    // one, so the digit is two columns per number that say nothing, in a panel
+    // whose lines are already clipped at the column edge.
+    const courted = describeEvent({
+      type: 'entity.courted', entityId: 83, candidateId: 108, accepted: true, quality: 0.63, threshold: 0.58,
+    });
+    assert.ok(courted.endsWith('(.63 vs .58)'), courted);
+    assert.ok(describeEvent({ type: 'entity.mated', entityId: 1, partnerId: 2, quality: 0.7 }).endsWith('(.70)'));
+    assert.ok(describeEvent({ type: 'entity.injured', entityId: 1, injury: 'gash', severity: 0.4 }).includes('gash .40'));
+    // ⚠ A fed amount is kilograms, not a ratio — `+0.70` and `+1.01` have to
+    // line up, and the `0` is what says which side of one it is on.
+    assert.ok(describeEvent({ type: 'entity.fed', entityId: 1, amount: 0.7 }).includes('+0.70'));
   });
 
   test('a log line is its type\'s prefix, and an unnamed type gets the catch-all\'s', () => {

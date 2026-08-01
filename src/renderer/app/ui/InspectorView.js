@@ -38,20 +38,44 @@ function escapeHtml(text) {
  * hunts, contests, and herd references are all bare ids otherwise, which means
  * following a family tree involves reading a number and then hunting the grid
  * for it by eye.
+ *
+ * **Given an appearance, the id wears the animal's own glyph instead of a `#`**
+ * — `g412` in the gazelle's yellow, `P97` in the leopard's bright red, italic
+ * where the animal is female — so a line of the event log says *what* it is
+ * about before you read the number, and the thing you then look for on the grid
+ * is the same mark in the same colour. Without one (an animal that has left the
+ * world, or a caller that has no store to ask) it falls back to `#`, which is
+ * the honest answer: this renderer no longer knows what that id looked like.
+ *
+ * ⚠ The colour rides on a **custom property**, not on `color`, or the inline
+ * style would outrank the `:hover` rule and the cyan hover would never appear.
+ *
  * @param {number} id
+ * @param {{glyph: string, colorToken: string, italic?: boolean} | null} [appearance]
  */
-export function entityRef(id) {
-  return `<button type="button" class="entity-ref" data-entity="${id}">#${id}</button>`;
+export function entityRef(id, appearance = null) {
+  const style = appearance
+    ? ` style="--ref-color: var(--dracula-${appearance.colorToken})${appearance.italic ? '; font-style: italic' : ''}"`
+    : '';
+  const mark = appearance ? escapeHtml(appearance.glyph) : '#';
+  return `<button type="button" class="entity-ref" data-entity="${id}"${style}>${mark}${id}</button>`;
 }
 
 /**
  * Turn every `#123` in already-escaped text into a reference button. Used by
  * the event log, whose lines are built as plain text and contain `<` and `>`
  * of their own — so they must be escaped *first* and linkified second.
+ *
+ * `resolve` is optional and answers what the entity looks like *now*: the event
+ * log passes one backed by the store, so a reference carries the animal's glyph
+ * (see `entityRef`). A resolver that returns null for an id — an animal that
+ * died and left its number behind in the log — leaves that reference as `#123`.
+ *
  * @param {string} escaped
+ * @param {(id: number) => ({glyph: string, colorToken: string, italic?: boolean} | null)} [resolve]
  */
-export function linkifyIds(escaped) {
-  return escaped.replace(/#(\d+)/g, (_, id) => entityRef(Number(id)));
+export function linkifyIds(escaped, resolve = null) {
+  return escaped.replace(/#(\d+)/g, (_, id) => entityRef(Number(id), resolve?.(Number(id)) ?? null));
 }
 
 /**
@@ -197,7 +221,11 @@ function formatTraits(detail) {
       // Map roughly [0.5, 1.5] onto the bar, clamped, with the midpoint at average.
       const offset = Math.max(-1, Math.min(1, (value - 1) * 2));
       const filled = Math.round(Math.abs(offset) * 5);
-      const bar = offset < 0 ? '─'.repeat(5 - filled) + '█'.repeat(filled) + '│' + ' '.repeat(5) : ' '.repeat(5) + '│' + '█'.repeat(filled) + '─'.repeat(5 - filled);
+      // ⚠ The padding is a NO-BREAK SPACE (U+00A0), for the reason MetricsPanel's
+      // BAR_LEVELS documents: a plain space inside a bar is where the browser
+      // breaks the line, splitting one trait's bar across two of them.
+      const pad = '\u00a0'.repeat(5);
+      const bar = offset < 0 ? '─'.repeat(5 - filled) + '█'.repeat(filled) + '│' + pad : pad + '│' + '█'.repeat(filled) + '─'.repeat(5 - filled);
       const tone = Math.abs(value - 1) < 0.05 ? 'dim' : '';
       return `<div class="field"><span>${escapeHtml(name)}</span><span><span class="dim">${bar}</span> <span class="${tone}">${value.toFixed(2)}</span></span></div>`;
     })

@@ -30,4 +30,29 @@ test.describe('entity id references are navigable', () => {
     expect(errors).toEqual([]);
     expect(inspectorOpened, 'clicking an in-view entity id should open the inspector').toBe(true);
   });
+
+  /**
+   * A reference in the event log wears the animal's own glyph and colour, so a
+   * line says what it is about before you read it. ⚠ The colour rides on a
+   * custom property rather than an inline `color`, because an inline
+   * declaration would outrank the `:hover` rule and kill the cyan hover — which
+   * is a CSS cascade question, and therefore only answerable in a browser.
+   */
+  test('a reference is drawn in its species colour and still turns cyan on hover', async ({ appPage: page }) => {
+    await page.locator('#event-log-filters > summary').click();
+    await page.locator('#event-log-all').click();
+    const ref = page.locator('#event-log-list [data-entity]').first();
+    await expect(ref).toBeVisible();
+
+    // The glyph replaces the `#`, so the label is `<glyph><id>` — never `#123`.
+    await expect(ref).toHaveText(/^[A-Za-z%?][0-9]+$/);
+    const resting = await ref.evaluate((el) => getComputedStyle(el).color);
+    expect(resting, 'a reference is not drawn in the default cyan').not.toBe('rgb(139, 233, 253)');
+
+    await ref.hover();
+    await expect
+      .poll(() => ref.evaluate((el) => getComputedStyle(el).textDecorationLine))
+      .toBe('underline');
+    expect(await ref.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(164, 255, 255)'); // bright-cyan
+  });
 });

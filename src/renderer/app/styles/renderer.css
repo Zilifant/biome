@@ -547,6 +547,20 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
+/* The population sparkline, on its own line under the species name and inside
+   the <summary>, so it is still there when the section is collapsed — the
+   overview is the trend, not just the count.
+
+   ⚠ Its width is decided in JS (MetricsPanel measures the column and resamples
+   the history to fit); `overflow: hidden` is the backstop, so a mis-measurement
+   costs a clipped chart rather than a column of text pushed off the edge. */
+.metrics-trend {
+  display: block;
+  white-space: pre;
+  overflow: hidden;
+  line-height: 1.2;
+}
+
 /* ---- entity references ----
    Every `#123` in the inspector and event log is a way into the grid. Styled as
    text rather than a button so a dense panel does not turn into a field of
@@ -556,7 +570,13 @@ input:focus-visible {
   border: 0;
   background: none;
   font: inherit;
-  color: var(--dracula-cyan);
+  /* ⚠ The colour comes from a custom property the markup sets per reference —
+     an animal's own species colour where the renderer still knows it (the event
+     log draws `g412` in gazelle yellow), cyan otherwise. It is `--ref-color`
+     rather than an inline `color` precisely so the hover rule below can still
+     win: an inline declaration outranks any stylesheet rule, and the cyan hover
+     would simply never appear. */
+  color: var(--ref-color, var(--dracula-cyan));
   cursor: pointer;
 }
 
@@ -583,6 +603,7 @@ input:focus-visible {
   text-align: center;
   white-space: nowrap;
 }
+
 
 .legend-label {
   color: var(--dracula-foreground);

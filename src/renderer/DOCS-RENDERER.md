@@ -42,11 +42,11 @@ numbers, so re-measure rather than inherit.
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 105, runner 18 (of 951 repo-wide); 36 in `tests-ui` |
-| Protocol understood | **29** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
-| Coverage            | every protocol layer through v29 is drawn or inspectable   |
+| Tests               | renderer 130, runner 18 (of 991 repo-wide); 44 in `tests-ui` |
+| Protocol understood | **30** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
+| Coverage            | every protocol layer through v30 is drawn or inspectable   |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four |
-| Fixtures            | current — v29, all **eight** shipped species including the leopard; ⚠ due on every **roster** change, not only a protocol bump (§10) |
+| Fixtures            | current — v30, all **eight** shipped species including the leopard; ⚠ due on every **roster** change, not only a protocol bump (§10) |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                    |
 | Git                 | uncommitted (the user handles git)                         |
 
@@ -343,6 +343,29 @@ Delta application records each updated entity's `previousPosition` —
 renderer-owned annotation so optional interpolation (P7) can be added later
 without protocol or store changes.
 
+### The store remembers what each id was, alive
+
+Beside the entity map the store keeps a **bounded map of last living forms** —
+`{ id, kind, speciesId, sex, lifeStage, alive: true }` per id, held long after
+the animal is gone. It exists because **an event is about a moment and an entity
+is about now**, and the event log resolves its references through it (§5).
+
+- **Protocol fields only.** What they *look like* stays `EntityAppearance`'s
+  alone (§3, invariant 4); the store gained a memory, not a glyph.
+- ⚠ **Written only when the identity changes**, which for an animal is at birth
+  and at each life stage. This runs against every entity of every delta —
+  thousands per tick — so a record per update would be a per-tick allocation for
+  a fact that changes three times in a life.
+- **A carcass is never recorded.** It is not a form anything was seen *in*; it
+  is what is left, and the animal is the point.
+- **Bounded at the `lasting` event cap**, and trimmed the same amortized way: an
+  id is worth remembering exactly as long as some retained event can still name
+  it. Dropping a still-living animal costs nothing — it is in `entities`, so it
+  resolves from there.
+- ⚠ **Cleared exactly where the event log is** — on the `simulationId` changing,
+  never on a recovery snapshot. A new world reuses the same small integers, so
+  keeping them would draw a lion's glyph beside whatever animal is `#7` now.
+
 **Three transports** implement one contract: WebSocket (live stream, backoff
 reconnect, epoch guard), HTTP (REST queries, command fallback, recovery
 snapshots), and Fixture (offline replay of committed messages). Fixture mode
@@ -510,6 +533,37 @@ coalesced step still drops events in the host's outbox before they ever arrive
 
 ### The metrics panel is one collapsed row per species
 
+⚠ **A sparkline's width is the history's length, which is not a number this
+panel chooses.** At 120 samples the population chart was 120 unbreakable block
+characters in a 300px column: it ran past the edge, took the species name and
+the living count with it, and got worse every time the column was narrowed. Two
+things fix it, and both are needed:
+
+- **The chart is resampled to the space available**, by bucket mean, rather than
+  drawn one sample per column. Downsampled rather than truncated to the most
+  recent N, because the shape of the *whole* history is what the row is for — a
+  population that doubled and crashed reads as that at any width. Fewer samples
+  than columns (early in a run) are drawn one-to-one and simply end, leaving the
+  line short rather than stretching four points across the panel. ⚠ Buckets are
+  laid out by proportion so the last one is never a short remainder, which would
+  be a spike at the right-hand end of every chart.
+- **The width is measured, not assumed.** The column is user-resizable and the
+  font is whatever `ui-monospace` resolves to, so `MetricsPanel` measures one
+  block character with a hidden probe (the block glyphs, not a digit — a font
+  that renders them at a different advance would mis-measure every chart) and
+  divides the column by it. A `ResizeObserver` re-renders on a column drag,
+  guarded on the *character count* so it fires once per column of change rather
+  than once per pointer move.
+
+The chart sits on its own line under the species name, **inside the
+`<summary>`** so it survives the section being collapsed — collapsed, the trend
+is the overview, not the count. The in-row trend sparklines (traits, disease)
+get a third of the same budget, since they share their line with numbers and are
+the identical defect one click deeper. `overflow: hidden` on the chart is the
+backstop: a mis-measurement then costs a clipped chart rather than a column of
+text pushed off the edge.
+
+
 `MetricsPanel` renders a full section per species — trait histograms with
 sparklines, herds, disease, home range, generations, births and deaths. That
 reads at three species and is unusable at ten, so **each species is a collapsed
@@ -543,8 +597,36 @@ Three things about it are easy to get wrong:
 
 ### Clickable ids
 
-Every `#123` in the inspector and event log is a button that selects and centres
-that animal. ⚠ **Escape before you linkify.** Event-log lines are plain text
+Every id in the inspector and event log is a button that selects and centres
+that animal. **In the event log the `#` is replaced by the animal's own glyph**,
+in its own colour and sex style — `g412`, `P97` — so a line says what it is about
+before it is read, and the mark you then hunt for on the grid is the same mark.
+`linkifyIds` takes an optional resolver for that; the log backs it with the
+store's **remembered living forms** (§4), and an id this client never saw alive
+falls back to `#412`. Four details worth knowing:
+
+- ⚠ **A reference resolves against what the animal *was*, not what its id is
+  now**, and the difference is the whole reason the store remembers. Resolving
+  against `getEntity` alone produced `> hunt p122 → %65 caught`: the prey was
+  already a carcass in the very delta that carried the hunt, so the line about
+  the hunt wore the glyph of the body — and `#65` a few hundred ticks later when
+  the body decayed away. The line never changed; what it was resolved against
+  did. A record of a hunt that cannot say what was hunted is the panel reporting
+  the present tense over a past one.
+
+- ⚠ **The colour rides on a CSS custom property (`--ref-color`), not on
+  `color`.** An inline `color` outranks any stylesheet rule, so the `:hover`
+  cyan would simply never fire — the reference would be species-coloured and
+  dead to the touch. A `tests-ui` spec drives the hover, because a cascade
+  question can only be answered by a browser.
+- **The inspector keeps `#`.** Its references are mostly to animals in a
+  lineage — parents, offspring, a guardian — many of them dead and unresolvable,
+  and a panel that showed glyphs for some and `#` for others would read as a
+  bug.
+- **A carcass resolves like anything else**, so a `%412` in the log is telling
+  you the animal is a body now.
+
+⚠ **Escape before you linkify.** Event-log lines are plain text
 containing `<` and `>` (`<until t1205>`), so `linkifyIds(escapeHtml(text))` is the
 only safe order; the reverse lets an event's own punctuation become markup.
 Tested. The herd id is linkable too — a `groupId` _is_ an animal's id — but the
@@ -786,41 +868,132 @@ both are additions rather than substitutions; a hunt reads as the predator
 whatever the ages and sexes involved. Case and italic are **animal-only** — a
 carcass, plant, or unknown kind keeps its base glyph exactly.
 
-**Draw order is deliberate and layered:** terrain → worn ground (features) →
-disturbances → memory marks / home-range ring → entities → brackets (herd,
-family, hunt) → selection overlay. The rule throughout is that the more permanent
+**Draw order is deliberate and layered:** kill flash → terrain → worn ground
+(features) → disturbances → memory marks / home-range ring → entities →
+brackets (herd, family, hunt) → selection overlay → status marks. The rule throughout is that the more permanent
 and less urgent a thing is, the further under it is drawn: worn ground is the most
 permanent thing on the map and the least urgent to see; an animal caught in a fire
 must stay visible, which is the whole point of watching it get caught.
 
+### A kill flashes its cell, for one tick
+
+**A cell where something was killed on the tick being displayed is filled red**,
+behind everything else in it. A successful hunt otherwise has no sign on the grid
+at all beyond a `%` appearing among the glyphs, which on a moving map is no sign
+at all — and the kill is the single most watchable thing this simulation does.
+
+- ⚠ **The cell comes from the *body*, not from the event.** `entity.killed`
+  carries `{ entityId, predatorId }` and no position, but the prey becomes a
+  carcass at the death site in the same delta — so the cell is a store lookup
+  rather than a protocol change. An id that is somehow already gone contributes
+  nothing rather than a guessed cell.
+- **It lasts exactly as long as the tick does.** `RendererApp` reads the event
+  buffer *backwards* and stops at the first event from an earlier tick, so the
+  flash is present while that tick is on screen and gone with the next delta —
+  and a pause holds it. ⚠ That also gives the right answer for a coalesced
+  step: kills from earlier ticks inside the window are not from *this* tick and
+  are not flashed, where the naive read would paint the screen red after
+  `Advance 500`.
+- **Behind everything.** The ground glyph, the carcass, and any bracket all draw
+  over it — a flash that covered them would hide the thing it is pointing at.
+
 ⚠ **The occupant scan happens before the first pass, not between two of them.**
-Vegetation in a cell a living animal is standing in is drawn at
-`OCCUPIED_VEGETATION_ALPHA` (20%), which means the terrain pass has to know
-where the animals are — so `draw` resolves the visible occupants once, up front,
-and both the ground pass and the entity pass read that. Three decisions inside
-one small feature, and each is the reason a plausible alternative is wrong:
+A cell with something standing in it draws its *fading layers* at
+`OCCUPIED_ALPHA` (20%), which means the ground and feature passes both have to
+know where the entities are — so `draw` resolves the visible occupants once, up
+front, and all three passes read that one map.
 
-- **Fade rather than omit.** Drawing nothing under an animal would make a
-  grazing herd punch holes in the grass it is grazing; at 20% the ground is
-  still legible when you look for it and silent when you are not.
-- **Vegetation only.** Terrain is the shape of the map, so a herd crossing a
-  ridge must not erase the ridge. ⚠ The two layers *share glyphs* — `.` is bare
-  ground and also the sparsest grass — so the test is
-  `isVegetationAppearance`, an **identity** check against the frozen ramp
-  entries, never a glyph comparison.
-- **Living animals only.** A carcass is part of the ground's story rather than
-  something standing on it, and fading the grass under every body would make a
-  die-off read as a drought.
+Which layers give way is `fadesUnderOccupant`, and the split is a judgement
+about what a layer is **for**:
 
-**Two condition tints ride on `healthFraction` / `diseaseState`** without any new
-bulk fields: a living animal below `HURT_HEALTH_FRACTION` is drawn hurt, and a
-**symptomatic** animal is tinted purple (taking precedence, since an outbreak
-crossing a herd is the thing worth seeing). ⚠ An **incubating** animal is
-deliberately _not_ tinted even though the protocol sends its state — the whole
-disease model rests on a carrier being invisible, and colouring one would hand the
-viewer information no animal in the world has. `resolveColorToken` is kept separate
-from `resolveAppearance` so the glyph (a cached species fact) and the tint (a
-moment-to-moment condition) stay independent.
+| Gives way to an occupant | Stays solid |
+| --- | --- |
+| forage (every level), water and deep water, **thicket**, trails, burrows | ground, rock, cover, disturbances |
+
+- ⚠ **`OCCUPIED_ALPHA` is 0: a covered layer is not drawn at all.** It was 20%
+  first, on the argument that a herd would otherwise punch holes in the grass it
+  is grazing — and watching it, the holes are not the problem. Two glyphs in one
+  10px cell is a smudge at *any* opacity that leaves the lower one visible, the
+  occupant is always the thing worth reading, and the ground is one click away in
+  the inspector, which reports the *cell* rather than the animal. The constant
+  stays as the knob this decision turns; at 0 the renderer skips the draw
+  outright rather than drawing something invisible.
+- **A reading of the cell gives way; the hard shape of the map does not.**
+  Forage, water, thicket, and worn ground are facts *about* a cell — how much
+  there is to eat, whether it is wet, whether it is thick enough to hide in,
+  what has walked here — and an animal standing there is the more urgent fact.
+  Rock and cover are the map itself; a disturbance stays solid because an animal
+  caught in a fire is the whole point of watching it get caught. ⚠ Thicket is on
+  the giving-way side precisely because it is the layer animals are most often
+  *inside*: a `♣` and a `g` in one cell was the hardest collision on the map to
+  read.
+- ⚠ **The test is identity, never a glyph comparison.** Three different layers
+  draw `.` — bare ground, the sparsest forage, and a trail — and two of the
+  three fade. Only the identity of the frozen registry entry says which layer
+  produced the answer, which is why `FADING_LAYERS` is a `Set` of the entries
+  themselves.
+- **Any occupant, carcass included.** A body lying in the grass hides that
+  cell's forage exactly as a standing animal does, and the `%` is the glyph
+  worth reading either way. (This started out living-animals-only, on the
+  argument that a carcass is part of the ground's story; watching it, the
+  distinction bought nothing and the inconsistency was the thing you noticed.)
+
+### Status is a mark, not a tint
+
+**A status is a small dot or diamond in the upper-left corner of the cell**, and
+the animal's glyph keeps its own colour. Hurt and ill used to *tint* the species
+letter, which cost the two things a letter is for: a purple `g` no longer says
+"gazelle" at a glance, and the two tints could not both be shown, so an animal
+that was ill *and* hurt looked exactly like one that was only ill. A mark beside
+the glyph is additive — the letter still says species, the colour still says
+species, and any number of conditions can ride along.
+
+`STATUS_APPEARANCE` is the registry, and the legend is generated from it:
+
+| Mark | Status | From |
+| --- | --- | --- |
+| ● orange | hurt | `healthFraction < HURT_HEALTH_FRACTION` |
+| ● purple | visibly ill | `diseaseState === 'symptomatic'` |
+| ◆ pink | carrying young | `gestating` (protocol v30) |
+| ◆ bright-cyan | in rut | `seekingMate` (protocol v30) |
+| ◆ bright-white | dispersing | `dispersing` |
+
+- **Shape is the family and colour is the identity.** A `dot` says something is
+  *wrong* with this animal; a `diamond` says something is *happening* in its
+  life. Two shapes is all the shape channel can carry at 10px, so colour does
+  the rest — and no two statuses share one, which a test enforces.
+- ⚠ **An animal in several statuses shows them one at a time**, `STATUS_CYCLE_MS`
+  (500 ms) each, in registry order. Drawing all of them at once is the obvious
+  alternative and it is worse at every zoom this renderer offers: four marks in
+  a 10px cell is a smudge, and the corner is the only place a mark can go
+  without covering the glyph it belongs to.
+- ⚠ **The cycle runs on the wall clock, not the tick stream**, so a *paused*
+  world still cycles — which is exactly when someone is reading the marks. The
+  phase is `floor(now / STATUS_CYCLE_MS)` computed in the rAF loop;
+  `AsciiGridRenderer.hasCyclingStatus` reports whether the last frame drew
+  anything mid-cycle, and the loop marks itself dirty on a phase change **only
+  then**, so a still, unremarkable world costs no frames at all. This is
+  invariant 7 (rendering frequency is independent of tick frequency) being used
+  rather than merely respected.
+- ⚠ **The status pass is drawn last, after the selection overlay.** The
+  selection paints a filled rect over its whole cell, so a mark drawn earlier
+  vanished the moment you clicked the animal you were watching — which is when
+  you are looking hardest. It rides slightly over the corner bracket arms for
+  the same reason: two pixels of bracket are recoverable, a hidden condition is
+  not.
+- ⚠ An **incubating** animal is deliberately unmarked even though the protocol
+  sends its state — the whole disease model rests on a carrier being invisible,
+  and marking one would hand the viewer information no animal in the world has.
+- **Only living animals.** A carcass has no condition and no life left to be in
+  the middle of.
+
+⚠ **`seekingMate` is the chooser's state, so the rut marker is female-side.**
+The engine deliberately leaves the seeking sex ready year-round (see the engine's
+`mating/breeding.js`), so a male marker would be permanently lit and would say
+nothing at all. What the mark means is "receptive and in the market", which for a
+species with a breeding window is its season — and that is the thing worth
+watching, since a compressed conception window is a compressed calving window a
+gestation later.
 
 ### The roster has glyphs before it has species (2026-07-28)
 
@@ -873,13 +1046,28 @@ missing glyph, a stale fixture fails nothing.
 
 **The legend is generated, never written.** `describeLegend()` reads the
 appearance registries, so adding a species updates it for free and it cannot drift
-from what the grid draws. Four tests enforce that every registry entry (every
+from what the grid draws. ⚠ **No row carries a note, and no group does either.**
+The legend is a key, not a manual: "young / grown" against each of ten species
+was one sentence ten times, and once the per-row glosses were gone the rest read
+as clutter — including the paragraph explaining that several statuses take
+turns, which is a thing to notice on the grid rather than to read here. ⚠ The
+female row shows **both** cases (`g/G`, italic), like the row above it: a single
+`g` there read as "the female form is the young one", which is the one reading
+that case-is-age and italic-is-sex being independent channels rules out.
+
+**It opens expanded.** A key you have to go and find is a key nobody reads, and
+the panel is the last one in the sidebar — the cost of it being open is scrolling
+past it, and the cost of it being shut was two dozen glyph meanings nobody could
+look up. Four tests enforce that every registry entry (every
 species in both its young and grown case, every terrain, feature, disturbance,
 memory kind, and carcass stage) reaches it and that every colour token is a real
-Dracula value. The condition tints, the bracket overlays, and the **age/sex
-key** (`young / grown` and the italic `female` row) are the hand-written part,
-because they describe how a glyph is _cased, styled, or coloured_ rather than
-which glyph is drawn.
+Dracula value — and that every **status** reaches it carrying the shape the grid
+draws it with. The bracket overlays and the **age/sex key** (`young / grown` and
+the italic `female` row) are the hand-written part, because they describe how a
+glyph is _cased, styled, or bracketed_ rather than which glyph is drawn. ⚠ The
+statuses are *not* hand-written any more: they were, as two "condition tint"
+rows, and a registry that the legend reads is what stops the next one being
+forgotten here.
 
 **Dracula palette.** `styles/dracula.css` defines the exact Dracula Classic values
 as CSS custom properties; `EntityAppearance.DRACULA_COLORS` mirrors them for
@@ -921,11 +1109,24 @@ the sections above; collected here as a checklist.
   before adding a store write to any high-frequency handler.
 - **Appearance stays in `EntityAppearance.js`.** Adding a species is one entry
   there and nothing else; the legend enforces the rule by being generated from it.
+- **A new status is one entry in `STATUS_APPEARANCE`** — a shape, a colour, a
+  label, a note, and a predicate over **bulk-snapshot** fields. The grid mark,
+  the legend row, and the cycling all follow from it. ⚠ The predicate must read
+  a bulk field: an inspection-only fact is known for the *selected* animal
+  alone, so a status built on one would appear and vanish as the selection
+  moved.
 - **A new event type is one entry in `EventCatalog.js`** — label, group, and a
   retention tier — and it appears in the filter list, in the store's retention
   policy, and in the test that checks the list against the protocol. A type added
   to the engine and not to the catalog fails that test rather than quietly
   landing in the `*other` bucket.
+- ⚠ **A bar graph pads with U+00A0, never a space.** A histogram or sparkline
+  is one word to the browser, so an ordinary space inside it is a line-break
+  opportunity: a bar with an empty bin wrapped there and the rest of the
+  distribution appeared on the next line, reading as two bars. Same advance
+  width in a monospace font, so nothing about the alignment changes. It applies
+  to any drawn-with-characters figure — `MetricsPanel.BAR_LEVELS` and the
+  inspector's centred trait bar are both tested for it.
 - ⚠ **Do not rely on grid auto-placement in `#main`.** Some of its children are
   placed by hand (the drag handles overlay columns), and a grid that places some
   items explicitly auto-places the rest around them. Give every child its
@@ -1025,6 +1226,18 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
   row on the handles alone and made it *worse*, because the asides were still
   auto-placed and now had to route around three occupied cells.
 
+- **⚠ A view of the past resolved against the present.** Every `#123` in the
+  event log was resolved through `getEntity`, which answers *now* — so a line
+  recording a hunt drew its prey as the carcass it had become in that same
+  delta, and as a bare `#` once the body decayed away. Nothing was stale and
+  nothing threw; the line said something true about an id and false about the
+  event. ⚠ **The tell is a panel whose content is historical and whose lookups
+  are live**, and the fix is a renderer-side memory rather than a protocol
+  change — the log's own retention already says how long that memory has to
+  last. The regression test drives it end to end (kill, then remove) and was
+  checked against the old code, because a test for a lookup that *usually*
+  succeeds passes vacuously.
+
 - **A prefix vocabulary drifts unless something owns it.** The event log's line
   marks were written inline in `formatEvent`, one `case` at a time, and ended up
   with seven two-character marks and four characters each meaning two different
@@ -1106,6 +1319,12 @@ panel surviving a tick.
   times a tick), plus a `case` in `EventLog.formatEvent` for a line better than
   the generic fallback. The checkbox, the retention tier, and the filter count
   all follow from the entry.
+- **To add a status mark:** one entry in `STATUS_APPEARANCE` — `shape`
+  (`dot` for a condition, `diamond` for a state), a `colorToken` no other status
+  uses, a label, a note, and `applies(entity)` over bulk-snapshot fields. The
+  legend row and the cycling come for free. If the fact is not in a bulk
+  snapshot yet, that is a protocol change first (v30 is exactly that: two
+  booleans added so a rut and a pregnancy could be marked at all).
 - **To replace the Canvas renderer:** implement a new `draw({ store, camera })`;
   the store, transports, protocol, and engine are untouched.
 - **Never invent a field**, and keep all appearance in `EntityAppearance.js` (§10).

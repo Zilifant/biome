@@ -62,6 +62,13 @@ function publicEntityView(entity, tick) {
     groupId: entity.groupId,
     diseaseState: entity.diseaseState,
     dispersing: isDispersing(entity, tick),
+    // Reproductive state (Step 30), derived on read like `dispersing` above:
+    // `gestationUntil` and `mateSearchSince` are maintained by the reproduction
+    // system every tick, so these are two comparisons and no new stored state.
+    // `mateSearchSince` is non-null exactly while an animal is receptive and
+    // looking — which for a species with a breeding window is its season.
+    gestating: entity.gestationUntil !== null && entity.gestationUntil !== undefined,
+    seekingMate: entity.mateSearchSince !== null && entity.mateSearchSince !== undefined,
     action: entity.action,
     alive: entity.alive,
     decayStage: entity.decayStage,

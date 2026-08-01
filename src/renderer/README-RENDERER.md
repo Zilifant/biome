@@ -47,7 +47,9 @@ npm run test:ui:headed    # watch in a window
 **When you add or change a UI feature, add or update a test there.** Two
 fixtures cover the two cases: `appPage` (offline fixture mode — layout, panels,
 canvas rendering, selection/hover/drag) and `live` (a mocked host — for controls
-that send commands, exposing the `commands` the UI emitted). The canvas is
+that send commands, exposing the `commands` the UI emitted and a `push` that
+sends a frame *down* the socket, which is how a spec drives the world forward:
+a delta that kills an animal, a batch of events, a recovery snapshot). The canvas is
 tested by sampling pixels, since it is opaque to DOM queries. See
 [`tests-ui/README.md`](../../tests-ui/README.md) for how it runs offline and how
 to write a test.
@@ -183,6 +185,46 @@ sex structure reads off the grid at a glance. An absent or unrecognized life
 stage reads as not-yet-grown (lowercase). Both channels are animal-only — a
 carcass, plant, or unknown kind keeps its base glyph.
 
+## Status marks
+
+**A hurt, ill, carrying, rutting, or dispersing animal carries a small mark in
+the upper-left corner of its cell** — a **dot** when something is wrong with it,
+a **diamond** when something is happening in its life:
+
+| Mark | Means | |
+| --- | --- | --- |
+| ● orange | hurt | below 70% health |
+| ● purple | visibly ill | a carrier looks healthy |
+| ◆ pink | carrying young | until she gives birth |
+| ◆ bright-cyan | in rut | receptive, looking for a mate |
+| ◆ bright-white | dispersing | a juvenile leaving its natal range |
+
+The animal's glyph keeps its own colour. Hurt and ill used to *tint* it, which
+cost the two things a letter is for: a purple `g` no longer says "gazelle" at a
+glance, and only one condition could ever be shown — an animal that was ill *and*
+hurt looked exactly like one that was only ill.
+
+⚠ **An animal in several statuses shows them one at a time, half a second each**,
+because four marks in a 10px cell is a smudge. The turn is taken on the **wall
+clock**, so the cycle keeps running while the simulation is paused — which is
+when someone is most likely to be reading the marks. It costs nothing when
+nothing is cycling: the renderer redraws on a phase change only if the last frame
+actually drew a multi-status animal.
+
+**A kill fills its cell red for exactly one tick**, behind the body and
+everything else in that cell. `entity.killed` carries no position, but the prey
+becomes a carcass at the death site in the same delta, so the cell is a lookup
+rather than a protocol change — and the flash is gone with the next delta, held
+by a pause, and deliberately absent for kills inside a long coalesced step (they
+did not happen on *this* tick, and painting them would redden the screen after
+`Advance 500`).
+
+Adding one is a single entry in `STATUS_APPEARANCE` (shape, colour, label, note,
+and a predicate over bulk-snapshot fields); the legend row and the cycling follow
+from it. ⚠ The predicate has to read a **bulk** field — an inspection-only fact
+is known for the selected animal alone, so a status built on one would appear and
+vanish as the selection moved.
+
 **To show a new protocol-visible field in the inspector**: once the simulation
 protocol actually provides the field, add one `<div class="field">` row to the
 relevant formatter in `InspectorView.js`. Do not invent fields the protocol
@@ -219,6 +261,12 @@ the remembered open/closed state, so it must be stable.
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
+
+**Numbers in the feed are short on purpose.** A ratio drops its leading zero —
+`(.63 vs .58)`, not `(0.63 vs 0.58)` — since every one of them is below one and
+the digit is two columns per number that say nothing, in lines already clipped at
+the column edge. ⚠ Quantities keep theirs: `+0.70` kg and `+1.01` kg have to line
+up against each other, and the `0` is what says which side of one it is on.
 
 **The event feed.** One checkbox per event type, in a `<details>` that starts
 closed on every load (the list is as long as the protocol's event vocabulary —
@@ -403,7 +451,21 @@ made the most interesting part of the panel the least trustworthy. The
 percentages come from deltas and update every tick; the absolutes are labelled
 with the tick they were read at.
 
-**Every `#123` is a way into the grid.** Ids in the inspector and the event log
+**In the event log an id wears its animal's own glyph** — `g412` in the gazelle's
+yellow, `P97` in the leopard's bright red, italic where the animal is female —
+rather than a `#`. A line then says *what* it is about before you read it, and
+the thing you go looking for on the grid is the same mark in the same colour.
+⚠ **The glyph is what the animal *was*, and stops following it.** A line about a
+hunt is about the moment of the hunt: resolving it against the animal's current
+state gave `> hunt p122 → %65 caught` — the prey was already a carcass in the
+same delta that carried the event — and then `#65` once the body decayed out of
+the world. The store keeps the last form every id was seen alive in, so the line
+still names an animal however long ago it died. An id this client never saw alive
+(one that died before it connected) keeps its `#`, which is the honest answer.
+Hovering still underlines and turns cyan, whatever colour the reference is at
+rest.
+
+**Every id is a way into the grid.** Ids in the inspector and the event log
 select and centre that animal — so a birth, a hunt, a contest, or a lineage can
 be followed rather than read as a number and hunted for by eye. The event log's
 lines are plain text containing `<` and `>` of their own, so they are escaped
@@ -464,13 +526,18 @@ appearance registries** rather than written out. That is the whole design:
 cannot drift from what is actually drawn, and adding a species updates the
 legend for free. A hand-maintained legend would be wrong within one step.
 
+**It opens expanded**, and no row carries an explanatory note: the legend is a
+key, not a manual, and a key you have to go and find is a key nobody reads.
+
 `describeLegend()` is pure and returns plain data; `renderer-view.test.js`
 asserts that every species (in both its young and grown case), every terrain
 type, feature, disturbance, memory kind, and carcass decay stage reaches it, and
-that every colour token is a real Dracula value. The age/sex key (`young /
-grown` and the italic `female` row), the condition tints, and the bracket
-overlays are hand-written, because they describe how a glyph is _coloured_ or
-_bracketed_ rather than which glyph is drawn, and have no registry to read from.
+that every colour token is a real Dracula value — and that every **status**
+reaches it with the shape the grid draws, since a mark nobody can look up is a
+mark nobody can read. The age/sex key (`young / grown` and the italic `female`
+row) and the bracket overlays are the hand-written part, because they describe
+how a glyph is _cased, styled, or bracketed_ rather than which glyph is drawn,
+and have no registry to read from.
 
 ## Dracula palette
 
@@ -495,6 +562,16 @@ a renderer exists.
 What the renderer does with each layer the protocol projects, and why. Open
 gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
+- Reproductive state (protocol v30): `gestating` and `seekingMate` ride in bulk
+  snapshots, and the grid marks both — a pink diamond for a female carrying, a
+  bright-cyan one for an animal receptive and looking. They were added for
+  exactly this: a rut and a calving season are inferable from a birth several
+  hundred ticks later and *watchable* only if the state itself is projected.
+  ⚠ Both are derived on read in the engine from fields the reproduction system
+  already maintains (`gestationUntil`, `mateSearchSince`), so the projection
+  stores nothing new. ⚠ `seekingMate` is the chooser's state and therefore
+  female-side: the engine leaves the seeking sex ready year-round, so a male
+  marker would be permanently lit and would say nothing.
 - Species roster, founding by species, and the deferred projections (protocol
   v29): the host publishes `species: [{ id, defaultCount }]` on `/api/status` and
   the restart panel builds a field per species from it (see "Restarting the
@@ -508,10 +585,10 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
   reason this version exists is that the UI must not lie.
 - Worn ground (protocol v27): trails and burrows arrive as a revision-gated
   sparse list (`{ revision, cells: [{ cellX, cellY, kind, wear }] }`) on both
-  snapshots and deltas, and are drawn from `FEATURE_APPEARANCE` (`:` trail
-  orange, `o` burrow grey) _over_ terrain and _under_ everything that happens on
+  snapshots and deltas, and are drawn from `FEATURE_APPEARANCE` (`.` trail
+  orange, `O` burrow grey) _over_ terrain and _under_ everything that happens on
   it — worn ground is the most permanent thing on the map and the least urgent
-  to see. The projection carries only cells deep enough to _be_ something, so
+  to see, and it fades to 20% under whatever is standing on it. The projection carries only cells deep enough to _be_ something, so
   the pass walks a short list rather than the grid and costs nothing on a world
   nobody has worn down. `environment.feature` is off by default in the event
   feed and kept only briefly, because ground genuinely turns over and the state
@@ -535,13 +612,14 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
   the habitat reading rather than competing with it, and showing both without
   saying which is winning would mislead.
 - Disease (protocol v24). `diseaseState` rides in bulk snapshots so an outbreak
-  is watchable, and a **symptomatic** animal is tinted purple — taking precedence
-  over the hurt tint, since an outbreak crossing a herd is the thing worth
-  seeing and a sick animal is usually losing health anyway. An **incubating**
-  animal is deliberately _not_ tinted even though the protocol sends its state:
-  the whole model rests on a carrier being invisible, and colouring one would
-  hand the viewer information no animal in the world has. The inspector panel
-  spells out `infectious` separately from `symptomatic` for the same reason.
+  is watchable, and a **symptomatic** animal carries a purple status dot. (It
+  used to *tint the glyph*, which spent the channel that says which species the
+  animal is, and could not be shown at the same time as the hurt tint — see
+  "Status marks" above.) An **incubating** animal is deliberately unmarked even
+  though the protocol sends its state: the whole model rests on a carrier being
+  invisible, and marking one would hand the viewer information no animal in the
+  world has. The inspector panel spells out `infectious` separately from
+  `symptomatic` for the same reason.
 
 ## Known limitations
 
@@ -587,16 +665,21 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   store decodes to a row-major `Uint8Array` (`vegetationLevelAt`) and patches
   it in place from deltas. The grid renderer draws a green density ramp over
   the ground for levels 1+ via `VEGETATION_APPEARANCE`
-  (`.` → `,` → `"` → bright `"`); level 0 shows the terrain beneath. ⚠ **Grass in
-  a cell a living animal is standing in is drawn at 20% opacity**: both glyphs
-  land in the same cell and the animal's is the informative one, so a
-  full-strength `"` behind a `g` reads as a two-character smear while a faded one
-  still says the animal is standing in deep grass. Only *vegetation* fades —
-  terrain is the shape of the map, so a herd crossing a ridge does not erase the
-  ridge — and only a *living animal* triggers it, since a carcass is part of the
-  ground's story rather than something standing on it. The demo
-  no longer has plant entities — vegetation is the cell layer. Tree `T`
-  remains reserved for future individual plants.
+  (`.` → `:` → `"` → bright `"`); level 0 shows the terrain beneath. ⚠ **A cell
+  with something standing in it does not draw its covered layers at all** —
+  forage, water, thicket, trails, and burrows. Both glyphs land in the same cell
+  and the occupant's is the informative one, so a `"` behind a `g` reads as a
+  two-character smear at any opacity that leaves it visible. (It was 20% first;
+  the ground under an animal is one click away in the inspector, which reports
+  the cell rather than the animal.) A carcass covers them exactly as an animal
+  does: a body in the grass hides that cell's forage just the same. What is
+  *not* covered is the hard shape of the map — ground, rock, cover — and
+  disturbances, because an animal caught in a fire is the whole point of
+  watching it get caught. ⚠ **Thicket is covered**, and it is the layer this
+  matters most for: animals are most often *inside* it, and a `♣` behind a `g`
+  was the hardest collision on the map to read. The demo no longer has plant
+  entities — vegetation is the cell layer. Tree `T` remains reserved for future
+  individual plants.
 - Inspector's absolute energy is re-fetched every ~2s while the panel is open
   (live mode) and labeled with the tick it was read at; the percentage updates
   every tick from deltas.
@@ -612,7 +695,13 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   `<details>`** whose summary is its grid glyph, its name, how many are alive,
   and the population sparkline — a full section apiece reads at three species and
   makes the sidebar unusable at ten. What you expand is remembered
-  (`biome.metrics.openSpecies`). A persistent group count (protocol v29) appears
+  (`biome.metrics.openSpecies`). ⚠ **The population sparkline is on its own line
+  under the name and sized to the column**: a chart is one character per sample,
+  so a 120-sample history was 120 unbreakable columns and pushed the name and
+  the living count off the edge of a 300px panel. The panel measures the column
+  and resamples the history into it (bucket means, so the whole history's shape
+  survives), re-measuring when the column is dragged; a history shorter than the
+  column is drawn one-to-one and simply ends. A persistent group count (protocol v29) appears
   beside the herd row for any species that forms clans or prides, and nowhere at
   all for a world with none.
 - Territory (protocol v23) is inspection-only. The claim layer is deliberately
@@ -661,13 +750,13 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   inspection-only, like every other absolute quantity. The event log formats
   `entity.decayed`.
 - Injuries (protocol v16) are inspection-only, but the _grid_ still shows
-  condition: a living animal below `HURT_HEALTH_FRACTION` is drawn in the hurt
-  tone, using the `healthFraction` that has been in every bulk snapshot since
-  Step 4 — no protocol widening needed. `resolveColorToken` is deliberately
-  separate from `resolveAppearance` so the glyph (a species fact, cached) and
-  the tint (a moment-to-moment condition) stay independent. The inspector
+  condition: a living animal below `HURT_HEALTH_FRACTION` carries an orange
+  status dot, from the `healthFraction` that has been in every bulk snapshot
+  since Step 4 — no protocol widening needed. The inspector
   lists each wound with a severity bar and the derived impairment percentage,
   and the event log formats `entity.injured` / `entity.recovered`.
+- ⚠ **A kill flashes its cell red for that tick** (see "Status marks"), which is
+  the only sign a hunt landed that survives a moving grid.
 - Hunts (protocol v15) are readable without any new bulk fields: `stalk`,
   `chase`, and `flee` ride the existing public `action`, so a pursuit is
   visible in the grid from the glyphs alone. The event log formats

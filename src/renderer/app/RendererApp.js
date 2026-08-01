@@ -11,7 +11,7 @@
 import { StoreDesyncError, RendererProtocolError } from './state/RendererStore.js';
 import { Camera } from './rendering/Camera.js';
 import { createProjection, occupantsInCell, worldCellOf } from './rendering/GridProjection.js';
-import { compareOccupants } from './rendering/EntityAppearance.js';
+import { compareOccupants, STATUS_CYCLE_MS } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
 import { TransportEvents } from './transports/RendererTransport.js';
 import { describeCell } from './ui/CellDetail.js';
@@ -35,6 +35,8 @@ export class RendererApp {
   #mode;
   #dirty = true;
   #hasCentered = false;
+  /** Which status a multi-status animal is showing: a wall-clock counter. */
+  #statusPhase = 0;
   #recovering = false;
   /**
    * The cell under the pointer, or null when the pointer is off the grid or a
@@ -147,7 +149,18 @@ export class RendererApp {
     }
 
     this.#transport.connect();
-    const frame = () => {
+    const frame = (now) => {
+      // An animal in several statuses shows them one at a time, and the turn is
+      // taken on the *wall* clock rather than the tick stream — so a paused
+      // world still cycles, which is when a viewer is most likely to be reading
+      // the marks. Redrawn only when the phase actually turns over, and only
+      // while something on screen is mid-cycle: a still, unremarkable world
+      // costs no frames at all.
+      const phase = Math.floor((now ?? 0) / STATUS_CYCLE_MS);
+      if (phase !== this.#statusPhase) {
+        this.#statusPhase = phase;
+        if (this.#grid.hasCyclingStatus) this.#dirty = true;
+      }
       if (this.#dirty) {
         this.#dirty = false;
         this.#grid.draw({
@@ -159,6 +172,8 @@ export class RendererApp {
           groupId: this.#selectedGroupId(),
           homeRange: this.#selectedHomeRange(),
           hoverCell: this.#hoverCell,
+          statusPhase: this.#statusPhase,
+          killCells: this.#killCells(),
         });
         this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
       }
@@ -516,6 +531,39 @@ export class RendererApp {
       this.#store.setSelection({ ...selection, activeId: entityId });
       this.#refreshInspection(entityId);
     }
+  }
+
+  /**
+   * Cells where something was killed on the tick now being displayed, for the
+   * red flash on the grid.
+   *
+   * ⚠ **Read back from the event buffer, not from a field.** `entity.killed`
+   * carries `{ entityId, predatorId }` and no position — but the body is at the
+   * death site and arrives in the same delta, so the cell is a lookup rather
+   * than a protocol change. An id that is somehow gone contributes nothing
+   * instead of guessing a cell.
+   *
+   * The scan walks *backwards* and stops at the first event from an earlier
+   * tick, which costs a handful of comparisons against a 20 000-event buffer:
+   * events are seq-ascending and therefore tick-ascending, so this tick's are
+   * the tail. ⚠ That also gives the right answer for a coalesced step, where
+   * kills from earlier ticks in the window are simply not from *this* tick and
+   * are not flashed — the alternative would be a screen of red after
+   * `Advance 500`.
+   *
+   * @returns {Array<{cellX: number, cellY: number}>}
+   */
+  #killCells() {
+    const events = this.#store.events;
+    const cells = [];
+    for (let i = events.length - 1; i >= 0; i -= 1) {
+      const event = events[i];
+      if (event.tick !== this.#store.tick) break;
+      if (event.type !== 'entity.killed') continue;
+      const prey = this.#store.getEntity(event.entityId);
+      if (prey) cells.push(worldCellOf(prey, this.#store.world));
+    }
+    return cells;
   }
 
   /**

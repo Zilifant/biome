@@ -56,6 +56,21 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // that would dirty a delta for every animal every tick, and it is inspection
   // detail rather than something to draw.
   'dispersing',
+  // Reproductive state (Step 30). Two booleans, bulk-projected for the reason
+  // `diseaseState` is: a renderer that cannot see them cannot show them, and
+  // "which females are carrying" and "who is in season" are the two facts that
+  // make a rut and a calving season *watchable* rather than only inferable from
+  // a birth several hundred ticks later. Both are derived on read from fields
+  // the reproduction system already maintains every tick — no new state, and no
+  // per-tick cost beyond the copy.
+  //
+  // ⚠ `seekingMate` is the *chooser's* state, so it is a female-side fact: the
+  // engine deliberately leaves the seeking sex ready year-round (see
+  // `mating/breeding.js`), which means a male marker would be permanently on
+  // and say nothing. Named for what it is rather than for "rut", so the field
+  // cannot be read as a claim the engine does not make.
+  'gestating',
+  'seekingMate',
   'action',
   'alive',
   // Carcass decay (Step 18). Bulk-projected because the renderer ramps the

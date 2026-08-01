@@ -16,6 +16,7 @@
  */
 
 import { linkifyIds } from './InspectorView.js';
+import { resolveAppearance } from '../rendering/EntityAppearance.js';
 import {
   EVENT_CATALOG,
   DEFAULT_EVENT_FILTER,
@@ -40,6 +41,22 @@ function escapeHtml(text) {
 }
 
 /**
+ * A unitless 0..1 ratio, without the leading zero.
+ *
+ * `(.63 vs .58)` rather than `(0.63 vs 0.58)`: every one of these is below one,
+ * so the digit is two columns per number that say nothing, in a panel whose
+ * lines are already clipped at the column edge. ⚠ Only for **ratios** —
+ * quantities keep their leading digit, since `+0.70` kg and `+1.01` kg have to
+ * line up against each other and the `0` is what says which side of one it is
+ * on. (A ratio that did somehow exceed one prints normally: there is no leading
+ * zero there to remove.)
+ * @param {number} value @param {number} [digits]
+ */
+function ratio(value, digits = 2) {
+  return value.toFixed(digits).replace(/^(-?)0\./, '$1.');
+}
+
+/**
  * One line of the log, without its mark.
  *
  * ⚠ **The prefix is not written here.** Every line is headed by the single
@@ -61,12 +78,12 @@ function formatEvent(event) {
     case 'entity.fed':
       return `fed #${event.entityId}${event.cell ? ` @${event.cell.cellX},${event.cell.cellY}` : ''}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
     case 'entity.mated':
-      return `mated #${event.entityId} + #${event.partnerId}${event.quality !== undefined ? ` (${event.quality.toFixed(2)})` : ''}`;
+      return `mated #${event.entityId} + #${event.partnerId}${event.quality !== undefined ? ` (${ratio(event.quality)})` : ''}`;
     case 'entity.courted':
       // Quality against the standard it was held to, for the same reason
       // `entity.hunted` shows its odds: the verdict should be checkable.
       return `courted #${event.entityId} → #${event.candidateId} ${event.accepted ? 'accepted' : 'rejected'}${
-        event.quality !== undefined ? ` (${event.quality.toFixed(2)} vs ${event.threshold.toFixed(2)})` : ''
+        event.quality !== undefined ? ` (${ratio(event.quality)} vs ${ratio(event.threshold)})` : ''
       }`;
     case 'entity.born':
       return `born #${event.entityId}${event.sex ? ` ${event.sex}` : ''}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
@@ -81,7 +98,7 @@ function formatEvent(event) {
     case 'entity.escaped':
       return `escaped #${event.entityId} from #${event.predatorId}`;
     case 'entity.injured':
-      return `injured #${event.entityId} (${event.injury}${event.severity !== undefined ? ` ${event.severity.toFixed(2)}` : ''})${event.sourceId != null ? ` by #${event.sourceId}` : ''}`;
+      return `injured #${event.entityId} (${event.injury}${event.severity !== undefined ? ` ${ratio(event.severity)}` : ''})${event.sourceId != null ? ` by #${event.sourceId}` : ''}`;
     case 'entity.recovered':
       return `healed #${event.entityId}${event.injury ? ` (${event.injury})` : ''}`;
     case 'entity.decayed':
@@ -297,6 +314,18 @@ export class EventLog {
 
   /** @param {import('../state/RendererStore.js').RendererStore} store */
   render(store) {
+    // ⚠ **The remembered living form first, the current entity second.** A log
+    // line is about a moment, not about now: a prey animal is already a carcass
+    // by the time its hunt is drawn, and gone entirely a few hundred ticks
+    // later — so resolving against `getEntity` alone turned `g65` into `%65`
+    // and then `#65` while the line itself never changed. The store keeps what
+    // each id looked like alive for exactly this. Falling back to the live
+    // entity still covers what was never seen alive: a carcass already lying
+    // there when this client connected.
+    const refAppearance = (entityId) => {
+      const entity = store.rememberedAnimal(entityId) ?? store.getEntity(entityId);
+      return entity ? resolveAppearance(entity) : null;
+    };
     const events = [];
     for (let i = store.events.length - 1; i >= 0 && events.length < MAX_RENDERED_EVENTS; i -= 1) {
       const event = store.events[i];
@@ -314,8 +343,14 @@ export class EventLog {
       // Event lines are plain text that legitimately contains `<` and `>`
       // (`<until t1205>`, `→`), so they are escaped first and linkified second.
       // Reversing that order would let an event's own punctuation become markup.
+      //
+      // The resolver is what puts each animal's own glyph in front of its id
+      // (`g412` rather than `#412`), so a line says what it is about before you
+      // read it. It is a store lookup plus a cached appearance, per reference —
+      // and an id the store no longer holds resolves to null and stays `#412`,
+      // because a death does not tell us what the animal looked like.
       const line = document.createElement('span');
-      line.innerHTML = linkifyIds(escapeHtml(describeEvent(event)));
+      line.innerHTML = linkifyIds(escapeHtml(describeEvent(event)), refAppearance);
       item.append(line);
       fragment.append(item);
     }

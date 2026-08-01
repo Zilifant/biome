@@ -55,3 +55,68 @@ test.describe('per-species metrics sections', () => {
     await expect(page.locator(`#metrics-panel details[data-species="${MOCK_SPECIES[0]}"] .section-body`)).toBeHidden();
   });
 });
+
+/**
+ * The population sparkline sits on its own line under the species name, inside
+ * the `<summary>` so it survives the section being collapsed — and it is sized
+ * to the column rather than to the history's length.
+ *
+ * ⚠ This is the bug it exists for: a sparkline is one character per sample, so
+ * 120 samples is 120 unbreakable columns in a 300px panel. It ran past the
+ * edge, took the species name and the living count with it, and got worse every
+ * time the column was narrowed. Only a browser can answer whether it fits.
+ */
+test.describe('the population sparkline fits its column', () => {
+  const trend = (page) => page.locator('#metrics-panel details[data-species] .metrics-trend').first();
+
+  test('it is on its own line under the name, and stays when the section collapses', async ({ live: { page } }) => {
+    const section = page.locator('#metrics-panel details[data-species]').first();
+    await expect(trend(page)).toBeVisible();
+    await expect(section).not.toHaveAttribute('open', /.*/);
+
+    // Its own line: below the name, and starting at the left edge rather than
+    // beside it.
+    const name = await section.locator('.section-title').boundingBox();
+    const chart = await trend(page).boundingBox();
+    expect(chart.y).toBeGreaterThan(name.y);
+    expect(chart.x).toBeLessThanOrEqual(name.x);
+
+    // And still there expanded, where the detail rows are.
+    await section.locator('summary').click();
+    await expect(trend(page)).toBeVisible();
+  });
+
+  test('it never runs past the column, at any width', async ({ live: { page } }) => {
+    // ⚠ Measured as **content** against the box, not box against panel. The
+    // element is `overflow: hidden`, so its bounding box fits the column no
+    // matter how long the chart inside it is — an assertion on the box passes
+    // just as happily with a 120-character chart clipped at the edge, which is
+    // exactly the bug. `scrollWidth > clientWidth` is the state that says
+    // something was cut off.
+    const fits = async () =>
+      trend(page).evaluate((el) => el.scrollWidth <= el.clientWidth);
+    expect(await fits(), 'fits at the default width').toBe(true);
+
+    // Widen the column, then narrow it back to its minimum. The chart is
+    // re-rendered from the same history each time.
+    // ⚠ The handle is re-measured per drag: widening the column *moves* it, so
+    // a cached position aims the second drag at empty space — and the test then
+    // reports "the chart did not contract" when nothing was ever dragged.
+    const drag = async (dx) => {
+      const handle = await page.locator('.col-resizer[data-resize="population-column"]').boundingBox();
+      const y = handle.y + handle.height / 2;
+      await page.mouse.move(handle.x + 3, y);
+      await page.mouse.down();
+      await page.mouse.move(handle.x + 3 + dx / 2, y);
+      await page.mouse.move(handle.x + 3 + dx, y);
+      await page.mouse.up();
+    };
+    await drag(-260);
+    await expect.poll(fits, { timeout: 4000 }).toBe(true);
+    const wide = (await trend(page).boundingBox()).width;
+
+    await drag(400); // back to the minimum
+    await expect.poll(fits, { timeout: 4000 }).toBe(true);
+    expect((await trend(page).boundingBox()).width, 'the chart contracted with the column').toBeLessThan(wide);
+  });
+});
