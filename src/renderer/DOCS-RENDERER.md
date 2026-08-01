@@ -37,12 +37,12 @@ stands, not a reading. A dated figure is a record of what was true when it was
 taken — the demo world it was measured in keeps changing underneath these
 numbers, so re-measure rather than inherit.
 
-### Current state (as of 2026-07-31)
+### Current state (as of 2026-08-01)
 
 |                     |                                                            |
 | ------------------- | ---------------------------------------------------------- |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 101, runner 18 (of 946 repo-wide); 28 in `tests-ui` |
+| Tests               | renderer 105, runner 18 (of 951 repo-wide); 36 in `tests-ui` |
 | Protocol understood | **29** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
 | Coverage            | every protocol layer through v29 is drawn or inspectable   |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four |
@@ -150,7 +150,7 @@ present** (P5).
   `null` there), so the inspector shows ground and bulk fields but no sections
   offline, and the metrics panel is empty. Closing it means adding an
   `entity.inspection` fixture to `scripts/generateRendererFixtures.js`. More
-  annoying now that collapsible sections are the bulk of the panel.
+  annoying now that collapsible sections are the bulk of the panel. ⚠ **More conspicuous since 2026-08-01**, when population moved into a column of its own: offline that column is now a whole empty panel rather than an empty section of a shared sidebar.
 - **⚠ P14 — The `/api/metrics` payload is 383 KB at eight species, and the
   species dimension is not what makes it that** _(opened 2026-07-28 with the
   per-species sections)_. ✅ **Measured 2026-07-30 at batch 3**, which is what this
@@ -233,7 +233,7 @@ app/
     HttpRendererTransport.js  REST queries, command fallback, recovery snapshots
     FixtureRendererTransport.js    offline replay of committed fixtures
   ui/
-    StatusPanel.js            connection/tick/entities/camera/zoom bar
+    StatusPanel.js            connection/tick/entities/camera/zoom bar, and the last command's result
     CellDetail.js             pure description of one cell's ground
     InspectorView.js          what the inspector says (ground + occupants + sections)
     InspectorPanel.js         where the inspector is (floating popover or docked sidebar)
@@ -242,6 +242,8 @@ app/
     EventLog.js               domain-event feed, one filter per event type
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
+    collapsible.js            click a panel's h2 header to minimize it (localStorage)
+    columnResize.js           drag or arrow-key a column edge to widen it (localStorage)
   styles/
     dracula.css               the Dracula Classic palette (single source of color)
     renderer.css              layout and panel styling
@@ -468,8 +470,8 @@ deaths. It replaced a single "show routine" toggle that split the world in two �
 five noisy types on one side, twenty-three on the other — which answered the
 wrong question: someone watching an outbreak wants infections and nothing else,
 and no single switch could give them that. The list is as long as the protocol's
-event vocabulary (29 boxes: 28 types plus a catch-all), so it lives in a
-`<details>` that **starts closed on every load**, with `N of 29` in its summary
+event vocabulary (32 boxes: 31 types plus a catch-all), so it lives in a
+`<details>` that **starts closed on every load**, with `N of 32` in its summary
 and `all` / `none` / `births & deaths` to set the whole list at once.
 
 - **Every event type is in the list**, and a test imports the protocol's
@@ -485,6 +487,20 @@ and `all` / `none` / `births & deaths` to set the whole list at once.
 - Retention is a **separate** axis from the filter (§4). A `passing` type says so
   beside its checkbox ("frequent · kept briefly"), because ticking `movement` and
   finding only the last few ticks of it is otherwise a mystery.
+- ⚠ **Every line is headed by one character, and no two types share one.** The
+  mark is the only part of a line that is scannable in a column of a hundred, so
+  it lives in the **catalog** — beside the label, the group, and the retention
+  tier — rather than inside `formatEvent`, which is what let it drift in the
+  first place: `!!` (sickened), `++` (cured), `::` / `..` (a feature forming and
+  lost), `*!` / `*.`, `vs`, `[]`, and `=>` were all two columns wide, while `+`
+  meant *both* a birth and an injury healing, `!` both a wound and an alarm
+  call, `~` three different things, and `?` both a courtship and the unknown
+  fallback. `formatEvent` now returns only the body and `describeEvent`
+  assembles the line, so a formatter cannot invent a mark; two tests enforce one
+  character and no duplicates. ⚠ The two events whose *wording* also collided
+  are now distinguished as well — an injury healing is `_ healed`, a disease
+  recovery `^ recovered` — because a prefix nobody can decode is no better than
+  a shared one.
 
 Verified live rather than only against fixtures: after 3043 ticks the default
 feed held births and deaths back to **t483**, where the previous 150-event bound
@@ -535,6 +551,56 @@ Tested. The herd id is linkable too — a `groupId` _is_ an animal's id — but 
 animal it names may have died and left the label behind, in which case the click
 reports "not in view" rather than navigating.
 
+### The four columns, and why they resize
+
+The page is one CSS grid: **events · grid · population · sidebar**, with the
+controls, the inspector dock, and the legend in the last of them. Population left
+the sidebar because a panel of per-species sections and a panel of controls were
+competing for one narrow strip, and whichever you were reading was the one
+scrolled out of sight. Collapsing the species sections (above) made that panel an
+overview; giving it a column is what makes the overview visible at the same time
+as the controls.
+
+**Every column can be widened** by dragging the edge that faces the grid, or by
+focusing that edge and using the arrow keys (Shift for a bigger step, Home or a
+double-click to reset). `ui/columnResize.js` writes one custom property per
+column on the document root and the grid does the rest, so nothing about a panel
+changes when its column does. Widths are remembered in `localStorage` beside the
+collapsed-panel set — renderer-owned presentation state, exactly like the
+inspector's open sections.
+
+Four things here are load-bearing:
+
+- ⚠ **The default width is the minimum.** Each column was sized to the narrowest
+  thing it has to show without wrapping, so dragging below it would break the
+  panel rather than merely shrink it. A drag only ever widens, and the grid gives
+  up the room. ⚠ The numbers are stated in **both** `renderer.css` (as the custom
+  property fallbacks, since CSS lays the page out before any module runs) and
+  `RESIZABLE_COLUMNS`; a disagreement shows up as a column that jumps on the
+  first drag.
+- ⚠ **Every child of `#main` is placed explicitly.** The handles overlay the
+  columns rather than taking tracks of their own, so they are placed by hand —
+  and a grid with *some* items placed by hand auto-places the rest into whatever
+  cells are left. That put each aside one track right of where it belonged and
+  pushed the sidebar onto a second row, which halved every column's height: the
+  page still looked roughly right while half of it could not be clicked (§11).
+- **The grid canvas is watched, not the window.** Dragging a column changes the
+  viewport without any window `resize`, so `RendererApp` observes
+  `#viewport-wrap` with a `ResizeObserver` and the window listener is only the
+  fallback. ⚠ Observing the *wrapper* rather than the canvas is what keeps it
+  from looping — the wrapper is sized by the grid, and resizing the canvas inside
+  it cannot change it back.
+- **The handle is a real widget.** `role="separator"`, focusable, with
+  `aria-valuenow` / `min` / `max` kept current — because a focusable separator
+  without them is an axe violation, and more to the point every other control
+  here has a keyboard path (pan, zoom, speed, follow), so a mouse-only column
+  edge would be the exception.
+
+The three panel columns share one `.panel-column` rule rather than a rule per
+id. That is what let the population panel move columns without touching its own
+styling, and it is the same reasoning as theming form controls by type (§10):
+**a panel should behave identically wherever it is put.**
+
 ---
 
 ## 6. Controls and run state
@@ -564,6 +630,26 @@ bytes and 300× fewer messages.
 ⚠ **A poll must not fight the user.** The seed field is not written back while it
 has focus, or a poll landing mid-typing overwrites what you were entering.
 Anything that both polls and accepts input needs the same guard.
+
+### One command line, in the status bar, always about the current command
+
+Every report about a command — a client-side refusal, a structured `ok` with the
+tick it landed on, a desync warning, a protocol error, what an auto-pause stopped
+for — is written to a single element at the right-hand end of the status bar.
+`StatusPanel` owns it; `Controls.setStatus` is a pass-through to a callback, and
+`RendererApp` writes to the panel directly.
+
+Two things about it are the design rather than the plumbing:
+
+- ⚠ **Sending clears the last report**, in `RendererApp.sendCommand` — the one
+  chokepoint every command passes through, which is why the clear lives there
+  rather than at each of the callers that later write a result. A message
+  outlives what it described otherwise, and a red "step failed" still on screen
+  three commands later reads as the state **right now** rather than as history.
+- **It moved out of the controls panel**, where it was the last child of a
+  section that folds up — so the one time a viewer most wants to know why
+  nothing happened, the answer was hidden with the buttons that had failed. In
+  the status bar it sits beside the run state it usually explains.
 
 ---
 
@@ -707,6 +793,25 @@ and less urgent a thing is, the further under it is drawn: worn ground is the mo
 permanent thing on the map and the least urgent to see; an animal caught in a fire
 must stay visible, which is the whole point of watching it get caught.
 
+⚠ **The occupant scan happens before the first pass, not between two of them.**
+Vegetation in a cell a living animal is standing in is drawn at
+`OCCUPIED_VEGETATION_ALPHA` (20%), which means the terrain pass has to know
+where the animals are — so `draw` resolves the visible occupants once, up front,
+and both the ground pass and the entity pass read that. Three decisions inside
+one small feature, and each is the reason a plausible alternative is wrong:
+
+- **Fade rather than omit.** Drawing nothing under an animal would make a
+  grazing herd punch holes in the grass it is grazing; at 20% the ground is
+  still legible when you look for it and silent when you are not.
+- **Vegetation only.** Terrain is the shape of the map, so a herd crossing a
+  ridge must not erase the ridge. ⚠ The two layers *share glyphs* — `.` is bare
+  ground and also the sparsest grass — so the test is
+  `isVegetationAppearance`, an **identity** check against the frozen ramp
+  entries, never a glyph comparison.
+- **Living animals only.** A carcass is part of the ground's story rather than
+  something standing on it, and fading the grass under every body would make a
+  die-off read as a drought.
+
 **Two condition tints ride on `healthFraction` / `diseaseState`** without any new
 bulk fields: a living animal below `HURT_HEALTH_FRACTION` is drawn hurt, and a
 **symptomatic** animal is tinted purple (taking precedence, since an outbreak
@@ -821,6 +926,13 @@ the sections above; collected here as a checklist.
   policy, and in the test that checks the list against the protocol. A type added
   to the engine and not to the catalog fails that test rather than quietly
   landing in the `*other` bucket.
+- ⚠ **Do not rely on grid auto-placement in `#main`.** Some of its children are
+  placed by hand (the drag handles overlay columns), and a grid that places some
+  items explicitly auto-places the rest around them. Give every child its
+  `grid-column` and `grid-row` (§8a).
+- **Style a panel by what it is, not where it is.** `.panel-column` covers all
+  three columns, so a panel can be moved between them without a CSS change —
+  which is exactly what moving population out of the sidebar needed.
 - ⚠ **Theme form controls by _type_, not by id.** `renderer.css` styles
   `input[type='number']`, `input[type='text']`, `select`, and `button` with
   shared selectors, so a new control is themed the moment it is added. The
@@ -901,6 +1013,26 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
   a tick or two and an empty log after a restart looks like a quiet world. The
   fix is two lines in `applyFullSnapshot`; the lesson is that a small buffer can
   make a correctness bug read as ordinary churn.
+
+- **⚠ A half-placed CSS grid looks right and cannot be clicked.** Adding the
+  column drag handles to `#main` without giving them a `grid-row` auto-placed
+  them into a *second* row, which halved every column's height and left the
+  panels' content laid out below the box that was supposed to clip it. Nothing
+  looked obviously broken in a screenshot; what failed was three specs that
+  click things — including one whose message named `#main` as the element
+  intercepting the click, which is the tell. ⚠ **The fix is not the handle's
+  `grid-row`, it is placing every child explicitly**: the first attempt set the
+  row on the handles alone and made it *worse*, because the asides were still
+  auto-placed and now had to route around three occupied cells.
+
+- **A prefix vocabulary drifts unless something owns it.** The event log's line
+  marks were written inline in `formatEvent`, one `case` at a time, and ended up
+  with seven two-character marks and four characters each meaning two different
+  things — while every individual line still looked fine. Moving the mark into
+  `EventCatalog` beside the label and the retention tier made the collision
+  *checkable*, and the check is two assertions. The general shape: **a value
+  chosen per-case in a long `switch` has no invariant; the same value in a table
+  has one.**
 
 - **⚠ A `sed -i` NUL byte in a file with box-drawing characters.** See §10. The
   insidious part is that the code still ran and `node --check` still passed, so the

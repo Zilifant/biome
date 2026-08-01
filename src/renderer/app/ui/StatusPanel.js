@@ -1,7 +1,16 @@
 /**
  * Top status bar: connection state, mode, simulation identity, tick, entity
- * count, season/weather, camera position, and zoom. Plain DOM, text-first
- * (connection state is announced via aria-live).
+ * count, season/weather, camera position, zoom, and the result of the last
+ * command. Plain DOM, text-first (connection state and command results are
+ * announced via aria-live).
+ *
+ * ⚠ **The command line reports the command that is current, and nothing else.**
+ * It used to sit at the bottom of the controls panel, where a message outlived
+ * whatever it described — a red "step failed" still on screen three commands
+ * later reads as the *current* state rather than as history. So `RendererApp`
+ * clears it the moment another command goes out (`clearCommandStatus`), and
+ * whatever that command reports takes its place. A line here is therefore always
+ * about the last thing asked for.
  */
 
 /** Renderer-owned tone per weather state; unknown states get no emphasis. */
@@ -21,6 +30,7 @@ export class StatusPanel {
       <span class="status-item"><span class="status-label">season</span> <span id="status-season">–</span></span>
       <span class="status-item"><span class="status-label">cam</span> <span id="status-camera">–</span></span>
       <span class="status-item"><span class="status-label">cell</span> <span id="status-zoom">–</span></span>
+      <span class="status-item" id="command-status" aria-live="polite"></span>
     `;
     this.#els = {
       connection: container.querySelector('#status-connection'),
@@ -32,7 +42,32 @@ export class StatusPanel {
       season: container.querySelector('#status-season'),
       camera: container.querySelector('#status-camera'),
       zoom: container.querySelector('#status-zoom'),
+      command: container.querySelector('#command-status'),
     };
+  }
+
+  /**
+   * Report what the last command did. Every caller — the controls' own
+   * client-side validation, a command result, a protocol problem, an auto-pause
+   * — comes through here, so there is exactly one line saying what just
+   * happened.
+   * @param {string} text
+   * @param {'ok' | 'warn' | 'bad'} [kind]
+   */
+  setCommandStatus(text, kind = 'ok') {
+    this.#els.command.textContent = text;
+    this.#els.command.className = `status-item ${kind}`;
+  }
+
+  /**
+   * Drop the last report, because it is about to stop being true: another
+   * command has been sent and the line would otherwise caption the wrong one.
+   * Called from `RendererApp.sendCommand`, which is the single chokepoint every
+   * command passes through.
+   */
+  clearCommandStatus() {
+    this.#els.command.textContent = '';
+    this.#els.command.className = 'status-item';
   }
 
   /**

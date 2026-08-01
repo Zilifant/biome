@@ -39,34 +39,54 @@ export const OTHER_EVENTS = '*other';
  * Every filterable event, in the order the checkboxes are shown. Grouped by
  * what a viewer would call the subject rather than by emitting system.
  *
- * @type {ReadonlyArray<{type: string, label: string, group: string, hint: string, retention: string}>}
+ * ⚠ **`prefix` is one character, and no two entries share one.** It is the mark
+ * the event log puts at the head of every line, and it is the only part of a
+ * line that is scannable at a glance in a column of a hundred — so a prefix that
+ * is two characters wide (`!!`, `++`, `::`) buys nothing and costs the
+ * alignment, and a prefix shared by two event types (an injury and an alarm
+ * both `!`, a birth and a recovery both `+`) makes the mark meaningless where it
+ * matters most. `renderer-view.test.js` enforces both halves: one character, and
+ * unique across the catalog.
+ *
+ * Mnemonic where a character allows it — `*` a new life, `x` a death, `X` a
+ * death with an author, `%` the carcass glyph, `@` a new address, `>` a pursuit,
+ * `/` a break away, `!` a wound, `?` a question asked, `&` two joined, `{`/`}` a
+ * clan forming and dissolving, `:` the trail glyph, `.` the faintest mark in the
+ * set for the most frequent event there is. The catch-all takes the backtick:
+ * the one mark that says this build has no name for what it is showing.
+ *
+ * @type {ReadonlyArray<{type: string, label: string, group: string, hint: string, prefix: string, retention: string}>}
  */
 export const EVENT_CATALOG = Object.freeze(
   [
     // ---- life and death ----
-    { type: 'entity.born', label: 'births', group: 'Life', hint: '' },
-    { type: 'entity.died', label: 'deaths', group: 'Life', hint: 'any cause' },
-    { type: 'entity.lifeEvent', label: 'weaning, dispersal, orphaning', group: 'Life', hint: '' },
-    { type: 'entity.migrated', label: 'an animal moves house', group: 'Life', hint: '' },
-    { type: 'entity.created', label: 'entities appearing', group: 'Life', hint: 'plants regrowing too' },
-    { type: 'entity.removed', label: 'entities leaving the world', group: 'Life', hint: '' },
-    { type: 'entity.decayed', label: 'carcasses decaying', group: 'Life', hint: '' },
+    { type: 'entity.born', label: 'births', group: 'Life', hint: '', prefix: '*' },
+    { type: 'entity.died', label: 'deaths', group: 'Life', hint: 'any cause', prefix: 'x' },
+    { type: 'entity.lifeEvent', label: 'weaning, dispersal, orphaning', group: 'Life', hint: '', prefix: '|' },
+    { type: 'entity.migrated', label: 'an animal moves house', group: 'Life', hint: '', prefix: '@' },
+    { type: 'entity.created', label: 'entities appearing', group: 'Life', hint: 'plants regrowing too', prefix: '+' },
+    { type: 'entity.removed', label: 'entities leaving the world', group: 'Life', hint: '', prefix: '-' },
+    { type: 'entity.decayed', label: 'carcasses decaying', group: 'Life', hint: '', prefix: '%' },
 
     // ---- predation ----
-    { type: 'entity.killed', label: 'kills', group: 'Predation', hint: '' },
-    { type: 'entity.hunted', label: 'hunt attempts', group: 'Predation', hint: 'with the odds' },
-    { type: 'entity.escaped', label: 'escapes', group: 'Predation', hint: '' },
-    { type: 'entity.injured', label: 'injuries', group: 'Predation', hint: '' },
-    { type: 'entity.recovered', label: 'injuries healing', group: 'Predation', hint: '' },
+    { type: 'entity.killed', label: 'kills', group: 'Predation', hint: '', prefix: 'X' },
+    { type: 'entity.hunted', label: 'hunt attempts', group: 'Predation', hint: 'with the odds', prefix: '>' },
+    { type: 'entity.escaped', label: 'escapes', group: 'Predation', hint: '', prefix: '/' },
+    { type: 'entity.injured', label: 'injuries', group: 'Predation', hint: '', prefix: '!' },
+    // ⚠ Not `+`: an injury healing and a birth are both good news and were both
+    // `+`, which is exactly the collision the one-character rule exists to stop.
+    { type: 'entity.recovered', label: 'injuries healing', group: 'Predation', hint: '', prefix: '_' },
 
     // ---- courtship ----
-    { type: 'entity.courted', label: 'courtship', group: 'Courtship', hint: 'accepted and rejected' },
-    { type: 'entity.mated', label: 'matings', group: 'Courtship', hint: '' },
+    { type: 'entity.courted', label: 'courtship', group: 'Courtship', hint: 'accepted and rejected', prefix: '?' },
+    { type: 'entity.mated', label: 'matings', group: 'Courtship', hint: '', prefix: '&' },
 
     // ---- disease ----
-    { type: 'entity.infected', label: 'infections', group: 'Disease', hint: 'before any symptoms show' },
-    { type: 'entity.sickened', label: 'animals falling ill', group: 'Disease', hint: '' },
-    { type: 'entity.cured', label: 'animals recovering', group: 'Disease', hint: '' },
+    // A progression in weight: a carrier is a faint mark, symptoms are a heavier
+    // one, and recovery lifts.
+    { type: 'entity.infected', label: 'infections', group: 'Disease', hint: 'before any symptoms show', prefix: "'" },
+    { type: 'entity.sickened', label: 'animals falling ill', group: 'Disease', hint: '', prefix: '"' },
+    { type: 'entity.cured', label: 'animals recovering', group: 'Disease', hint: '', prefix: '^' },
 
     // ---- conflict and care ----
     // ⚠ Three contests, three labels, and they are not interchangeable. The
@@ -74,33 +94,36 @@ export const EVENT_CATALOG = Object.freeze(
     // but an observer cares which one they are watching — and a carcass fight
     // filed under "contests over a mate" would be the UI lying, which is the
     // thing protocol v29 exists to stop.
-    { type: 'entity.contested', label: 'contests over a mate', group: 'Conflict', hint: '' },
-    { type: 'entity.disputed', label: 'disputes over ground', group: 'Conflict', hint: '' },
-    { type: 'entity.robbed', label: 'carcasses stolen', group: 'Conflict', hint: 'with both dominance scores' },
-    { type: 'entity.defended', label: 'an adult defending another', group: 'Conflict', hint: '' },
-    { type: 'entity.alarmed', label: 'alarm calls', group: 'Conflict', hint: '', retention: PASSING },
+    { type: 'entity.contested', label: 'contests over a mate', group: 'Conflict', hint: '', prefix: '<' },
+    { type: 'entity.disputed', label: 'disputes over ground', group: 'Conflict', hint: '', prefix: '[' },
+    { type: 'entity.robbed', label: 'carcasses stolen', group: 'Conflict', hint: 'with both dominance scores', prefix: '$' },
+    { type: 'entity.defended', label: 'an adult defending another', group: 'Conflict', hint: '', prefix: ')' },
+    { type: 'entity.alarmed', label: 'alarm calls', group: 'Conflict', hint: '', prefix: '(', retention: PASSING },
 
     // ---- persistent groups ----
     // ⚠ Not herds. A herd is the positional `groupId` that rides in every
     // snapshot and needs no event because the state is always there; these are
     // the *records* — prides, clans, bands — which change rarely and whose
     // beginning and end are milestones worth keeping.
-    { type: 'entity.grouped', label: 'joining a pride or clan', group: 'Conflict', hint: 'founding one too' },
-    { type: 'entity.ungrouped', label: 'leaving a pride or clan', group: 'Conflict', hint: 'and clans dissolving' },
+    { type: 'entity.grouped', label: 'joining a pride or clan', group: 'Conflict', hint: 'founding one too', prefix: '{' },
+    { type: 'entity.ungrouped', label: 'leaving a pride or clan', group: 'Conflict', hint: 'and clans dissolving', prefix: '}' },
 
     // ---- the world ----
-    { type: 'environment.changed', label: 'season and weather turning', group: 'World', hint: '' },
-    { type: 'environment.disturbed', label: 'fire / flood / storm starting', group: 'World', hint: '' },
-    { type: 'environment.settled', label: 'a disturbance ending', group: 'World', hint: '' },
-    { type: 'environment.feature', label: 'trails and burrows', group: 'World', hint: '', retention: PASSING },
+    { type: 'environment.changed', label: 'season and weather turning', group: 'World', hint: '', prefix: '~' },
+    { type: 'environment.disturbed', label: 'fire / flood / storm starting', group: 'World', hint: '', prefix: '#' },
+    { type: 'environment.settled', label: 'a disturbance ending', group: 'World', hint: '', prefix: ';' },
+    { type: 'environment.feature', label: 'trails and burrows', group: 'World', hint: '', prefix: ':', retention: PASSING },
 
     // ---- the constant business of being alive ----
-    { type: 'entity.moved', label: 'movement', group: 'Routine', hint: '', retention: PASSING },
-    { type: 'entity.fed', label: 'feeding', group: 'Routine', hint: '', retention: PASSING },
-    { type: 'entity.provisioned', label: 'young being fed', group: 'Routine', hint: '', retention: PASSING },
+    // ⚠ `entity.moved` takes the faintest mark in the set on purpose: it is
+    // 95% of everything the engine emits, and a loud prefix on it drowns the
+    // milestones sharing the column.
+    { type: 'entity.moved', label: 'movement', group: 'Routine', hint: '', prefix: '.', retention: PASSING },
+    { type: 'entity.fed', label: 'feeding', group: 'Routine', hint: '', prefix: '=', retention: PASSING },
+    { type: 'entity.provisioned', label: 'young being fed', group: 'Routine', hint: '', prefix: ',', retention: PASSING },
 
     // Not an event type: whatever a newer engine emits that this build cannot name.
-    { type: OTHER_EVENTS, label: 'anything else', group: 'Routine', hint: 'events this build cannot name' },
+    { type: OTHER_EVENTS, label: 'anything else', group: 'Routine', hint: 'events this build cannot name', prefix: '`' },
   ].map((entry) => Object.freeze({ retention: LASTING, ...entry })),
 );
 
@@ -129,6 +152,19 @@ export function isLastingEvent(type) {
  */
 export function filterIdFor(type) {
   return BY_TYPE.has(type) ? type : OTHER_EVENTS;
+}
+
+/**
+ * The one-character mark the log puts at the head of a line of this type.
+ *
+ * An unnamed type gets the catch-all's mark, for the same reason it gets the
+ * catch-all's checkbox: a newer engine's event should read as "something this
+ * build cannot name" rather than as nothing at all.
+ * @param {string} type
+ * @returns {string}
+ */
+export function prefixFor(type) {
+  return (BY_TYPE.get(type) ?? BY_TYPE.get(OTHER_EVENTS)).prefix;
 }
 
 /**

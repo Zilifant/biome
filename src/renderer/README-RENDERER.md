@@ -89,7 +89,7 @@ app/
     HttpRendererTransport.js  REST queries, command fallback, recovery snapshots
     FixtureRendererTransport.js    offline replay of committed fixtures
   ui/
-    StatusPanel.js            connection/tick/entities/camera/zoom bar
+    StatusPanel.js            connection/tick/entities/camera/zoom bar, and the last command's result
     CellDetail.js             pure description of one cell's ground (terrain, forage, wear, disturbances)
     InspectorView.js          what the inspector says: ground + occupants, protocol fields, and the collapsible sections
     InspectorPanel.js         where the inspector is: floating popover anchored to the cell, or docked in the sidebar
@@ -99,6 +99,7 @@ app/
     Watchlist.js              which events are worth auto-pausing on (pure)
     Controls.js               transport bar: run/speed/step, auto-pause toggles, restart
     collapsible.js            click a panel's h2 header to minimize it (state in localStorage)
+    columnResize.js           drag or arrow-key a column edge to widen it (state in localStorage)
   styles/
     dracula.css               the Dracula Classic palette (single source of color)
     renderer.css              layout and panel styling
@@ -213,6 +214,7 @@ the remembered open/closed state, so it must be stable.
 | Esc                    | Clear selection                                                                                          |
 | Space                  | Pause/resume via protocol command (live mode)                                                            |
 | `[` / `]`              | Slower / faster (steps the speed ladder)                                                                 |
+| Drag a column edge     | Widen that column (double-click the handle, or focus it and press Home, to reset)                        |
 | Buttons                | Pause/resume, step `+1 / +10 / +100`, `Advance N`, speed — protocol commands; Recenter, Reconnect/Replay |
 
 Following moves the camera, never the entity. Camera movement sends nothing
@@ -220,17 +222,40 @@ to the simulation.
 
 **The event feed.** One checkbox per event type, in a `<details>` that starts
 closed on every load (the list is as long as the protocol's event vocabulary —
-29 boxes, including a catch-all for types this build cannot name). Births and
+32 boxes, including a catch-all for types this build cannot name). Births and
 deaths are on by default; `all` / `none` / `births & deaths` set the whole list,
 and the choice is remembered in `localStorage`. Types that arrive many times a
 tick say "frequent · kept briefly" beside the box, since those are the ones the
 store drops within a few ticks.
 
-**Layout.** The event log has its own column on the left; the grid is in the
-middle; the controls, inspector, legend, and metrics sit in the sidebar on the
-right. Every panel minimizes — click its header (the Legend is a `<details>`, the
-rest toggle a `collapsed` class via `collapsible.js`); the collapsed set is
-remembered in `localStorage`.
+**Every line is headed by one character, and no two event types share one.** The
+mark is the only part of a log line that is scannable in a column of a hundred,
+so it lives in `EventCatalog.js` beside the label and the retention tier rather
+than inside the formatter — `*` a birth, `x` a death, `X` a kill, `%` a carcass
+decaying, `>` a hunt, `!` an injury, `?` a courtship, `~` the weather turning,
+`.` the movement chatter, `` ` `` anything this build cannot name. It used to be
+whatever the formatter felt like: `!!` and `++` and `::` were two columns wide,
+and `+` meant *both* a birth and an injury healing while `!` meant both a wound
+and an alarm call. `renderer-view.test.js` enforces one character and no
+duplicates, so a new event type cannot quietly reuse a mark.
+
+**Layout.** Four columns: the event log on the left, the grid in the middle,
+population next, and the controls, inspector, and legend in the sidebar on the
+right. Population has a column of its own because a panel of per-species
+histograms and a panel of controls were competing for one narrow strip, and the
+one you were reading kept being the one scrolled out of sight.
+
+Every panel minimizes — click its header (the Legend is a `<details>`, the rest
+toggle a `collapsed` class via `collapsible.js`); the collapsed set is remembered
+in `localStorage`.
+
+**Every column can be widened** by dragging the edge facing the grid, or by
+focusing that edge and pressing the arrow keys (Shift for a bigger step, Home to
+reset; a double-click resets it too). ⚠ **The default width is also the
+minimum** — each column is sized to the narrowest thing it has to show without
+wrapping — so a drag only ever makes a column wider, and the grid gives up the
+room. Widths are remembered in `localStorage` and re-clamped when the window
+changes, since half a narrow window is not half a wide one.
 
 ## Run state is reported, not remembered
 
@@ -246,6 +271,15 @@ click. Until the first reply lands the panel shows `…` rather than assuming a
 default. This replaced a locally-remembered flag that was fetched once at
 startup and updated only by commands _this_ client sent — which meant anything
 else pausing the simulation left the renderer confidently wrong.
+
+**The result of the last command is in the status bar**, at the right-hand end,
+beside the run state it usually explains — a validation refusal, an `ok` with the
+tick it landed on, a desync warning, or what an auto-pause stopped for. ⚠ It is
+**cleared the moment another command is sent**, so a line here is always about
+the command you just gave: a red "step failed" still on screen three commands
+later reads as the state right now rather than as history. It used to sit at the
+foot of the controls panel, where it was invisible exactly when that panel was
+folded up.
 
 **Stepping pauses first.** `simulation.step` is refused outright while the
 runner's timer is going, so the step controls send `simulation.pause`, await it,
@@ -553,7 +587,14 @@ encoding: 'rle-row-major', runs }`) of quantized biomass levels; deltas
   store decodes to a row-major `Uint8Array` (`vegetationLevelAt`) and patches
   it in place from deltas. The grid renderer draws a green density ramp over
   the ground for levels 1+ via `VEGETATION_APPEARANCE`
-  (`.` → `,` → `"` → bright `"`); level 0 shows the terrain beneath. The demo
+  (`.` → `,` → `"` → bright `"`); level 0 shows the terrain beneath. ⚠ **Grass in
+  a cell a living animal is standing in is drawn at 20% opacity**: both glyphs
+  land in the same cell and the animal's is the informative one, so a
+  full-strength `"` behind a `g` reads as a two-character smear while a faded one
+  still says the animal is standing in deep grass. Only *vegetation* fades —
+  terrain is the shape of the map, so a herd crossing a ridge does not erase the
+  ridge — and only a *living animal* triggers it, since a carcass is part of the
+  ground's story rather than something standing on it. The demo
   no longer has plant entities — vegetation is the cell layer. Tree `T`
   remains reserved for future individual plants.
 - Inspector's absolute energy is re-fetched every ~2s while the panel is open

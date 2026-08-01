@@ -83,3 +83,34 @@ test.describe('controls send commands (live, mocked host)', () => {
     expect(commands.slice(before).some((c) => c.type === 'simulation.restart')).toBe(false);
   });
 });
+
+/**
+ * The command line reports the command that is current. It lives in the status
+ * bar rather than at the foot of the controls panel, where it was invisible
+ * exactly when that panel was folded up — and it is cleared the moment another
+ * command goes out, so it never captions a command that has been superseded.
+ */
+test.describe('the command status line', () => {
+  test('it is in the status bar, not in the controls panel', async ({ live: { page } }) => {
+    await expect(page.locator('#status-bar #command-status')).toHaveCount(1);
+    await expect(page.locator('#controls-panel #command-status')).toHaveCount(0);
+  });
+
+  test('a command reports its result there', async ({ live: { page } }) => {
+    await page.locator('#ctl-run').click();
+    await expect(page.locator('#command-status')).toContainText(/simulation\.pause ok/);
+  });
+
+  test('the next command clears the last report before replacing it', async ({ live: { page } }) => {
+    // A client-side refusal, which sends nothing and therefore cannot be
+    // overwritten by a result — so if it is gone, it was *cleared*.
+    const restartSection = page.locator('#controls-panel details').filter({ has: page.locator('#ctl-restart') });
+    await restartSection.locator('summary').click();
+    await page.locator('#ctl-world-w').fill('8');
+    await page.locator('#ctl-restart').click();
+    await expect(page.locator('#command-status')).toContainText(/width/i);
+
+    await page.locator('#ctl-run').click();
+    await expect(page.locator('#command-status')).not.toContainText(/width/i);
+  });
+});

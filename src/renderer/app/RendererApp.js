@@ -102,6 +102,16 @@ export class RendererApp {
 
     this.#resize();
     window.addEventListener('resize', () => this.#resize());
+    // ⚠ The grid's size is no longer only the window's. Dragging a column edge
+    // (ui/columnResize.js) or folding a panel changes the viewport without any
+    // window event, so the wrapper is observed directly and the window listener
+    // above is only the fallback for a browser without ResizeObserver. Observing
+    // the *wrapper* rather than the canvas is what keeps this from looping: the
+    // wrapper is sized by the grid, and resizing the canvas inside it cannot
+    // change it back.
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(() => this.#resize()).observe(this.#canvas.parentElement);
+    }
     this.#bindPointer();
     this.#bindKeyboard();
 
@@ -181,7 +191,7 @@ export class RendererApp {
         // Promise-based senders surface results; nothing extra to do here.
         break;
       case TransportEvents.NOTICE:
-        this.#ui.controls.setStatus(event.message, event.level === 'warn' ? 'warn' : 'ok');
+        this.#ui.statusPanel.setCommandStatus(event.message, event.level === 'warn' ? 'warn' : 'ok');
         break;
       default:
         break;
@@ -225,14 +235,14 @@ export class RendererApp {
   async #recoverFromDesync(error) {
     if (this.#recovering) return;
     this.#recovering = true;
-    this.#ui.controls.setStatus(`desynchronized (${error.message}) — requesting full snapshot`, 'warn');
+    this.#ui.statusPanel.setCommandStatus(`desynchronized (${error.message}) — requesting full snapshot`, 'warn');
     try {
       const source = this.#http ?? this.#transport;
       const snapshot = await source.requestSnapshot();
       if (snapshot) this.#applySnapshot(snapshot);
-      else this.#ui.controls.setStatus('recovery failed: no snapshot available', 'bad');
+      else this.#ui.statusPanel.setCommandStatus('recovery failed: no snapshot available', 'bad');
     } catch (requestError) {
-      this.#ui.controls.setStatus(`recovery failed: ${requestError}`, 'bad');
+      this.#ui.statusPanel.setCommandStatus(`recovery failed: ${requestError}`, 'bad');
     } finally {
       this.#recovering = false;
     }
@@ -240,16 +250,24 @@ export class RendererApp {
 
   #reportProtocolProblem(error) {
     const label = error instanceof RendererProtocolError ? `protocol: ${error.message}` : String(error);
-    this.#ui.controls.setStatus(label, 'bad');
+    this.#ui.statusPanel.setCommandStatus(label, 'bad');
   }
 
   // ----------------------------------------------------------------- commands
 
   /**
    * All external change flows through protocol commands on a transport.
+   *
+   * ⚠ **Sending clears the last report.** The status line says what the current
+   * command did, so the previous one's message is stale the instant another
+   * command goes out — and a stale "failed" or "paused: kill" left on screen
+   * reads as the state right now rather than as history. This is the single
+   * chokepoint every command passes through, which is why the clear lives here
+   * rather than at each of the callers that later write a result.
    * @param {object} command
    */
   async sendCommand(command) {
+    this.#ui.statusPanel.clearCommandStatus();
     let result;
     if (this.#mode === 'live' && this.#transport.isOpen === false && this.#http) {
       result = await this.#http.sendCommand(command);
@@ -329,7 +347,7 @@ export class RendererApp {
         this.#runState.paused = false;
         return;
       }
-      this.#ui.controls.setStatus(`paused: ${match.watchable.label} (t${match.event.tick})`, 'warn');
+      this.#ui.statusPanel.setCommandStatus(`paused: ${match.watchable.label} (t${match.event.tick})`, 'warn');
       // Go to it. Being interrupted is only useful if you can see what for.
       const entityId = match.event.entityId ?? match.event.disturbanceId ?? null;
       if (typeof entityId === 'number') this.selectEntity(entityId);
@@ -356,7 +374,7 @@ export class RendererApp {
     this.#store.setFollowedEntity(null);
     this.#hasCentered = false;
     this.#ui.controls.setSeed(result.seed);
-    this.#ui.controls.setStatus(`restarted — seed ${result.seed}`, 'ok');
+    this.#ui.statusPanel.setCommandStatus(`restarted — seed ${result.seed}`, 'ok');
     return result;
   }
 
@@ -483,7 +501,7 @@ export class RendererApp {
   selectEntity(entityId) {
     const entity = this.#store.getEntity(entityId);
     if (!entity) {
-      this.#ui.controls.setStatus(`#${entityId} is not in view`, 'warn');
+      this.#ui.statusPanel.setCommandStatus(`#${entityId} is not in view`, 'warn');
       return;
     }
     const cell = worldCellOf(entity, this.#store.world);
@@ -580,7 +598,7 @@ export class RendererApp {
     const entity = this.#store.getEntity(followedId);
     if (!entity) {
       this.#store.setFollowedEntity(null);
-      this.#ui.controls.setStatus(`followed entity #${followedId} is gone`, 'warn');
+      this.#ui.statusPanel.setCommandStatus(`followed entity #${followedId} is gone`, 'warn');
       return;
     }
     this.#camera.centerOn(entity.x, entity.y);

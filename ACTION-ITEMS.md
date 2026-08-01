@@ -391,7 +391,7 @@ they are not re-opened by accident.
 - **P6 / E3 — Fixture mode has no inspection or metrics data at all**, so the
   panel shows ground and bulk fields but no sections offline. Closing it means
   adding an `entity.inspection` fixture to
-  `scripts/generateRendererFixtures.js`.
+  `scripts/generateRendererFixtures.js`. ⚠ **More conspicuous since 2026-08-01**, when population moved into a column of its own: offline that column is now a whole empty panel rather than an empty section of a shared sidebar.
 
 - **⚠ P14 — The `/api/metrics` payload is 383 KB at eight species, and the
   species dimension is not what makes it that.** ✅ **Measured 2026-07-30 at batch

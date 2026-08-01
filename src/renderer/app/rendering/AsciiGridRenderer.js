@@ -21,6 +21,8 @@ import {
   resolveFeatureAppearance,
   resolveMemoryAppearance,
   resolveColorToken,
+  isVegetationAppearance,
+  OCCUPIED_VEGETATION_ALPHA,
 } from './EntityAppearance.js';
 
 const MONO_STACK =
@@ -135,17 +137,49 @@ export class AsciiGridRenderer {
     ctx.textBaseline = 'middle';
     const half = cellSize / 2;
 
+    // --- Occupants, resolved before anything is drawn. The entity pass below
+    // needs the highest-priority occupant per cell, and the terrain pass needs
+    // to know which cells hold a living animal so it can fade the grass under
+    // it — so the scan happens once, here, and both passes read it.
+    const cells = projection.visibleCellBounds();
+    const visible = store.getEntitiesInBounds(projection.visibleWorldBounds(1));
+    /** @type {Map<string, object>} cell key → top occupant */
+    const topByCell = new Map();
+    /** @type {Set<string>} cell keys holding a living animal */
+    const animalCells = new Set();
+    for (const entity of visible) {
+      const cell = worldCellOf(entity, world);
+      const key = `${cell.cellX},${cell.cellY}`;
+      const current = topByCell.get(key);
+      if (!current || compareOccupants(entity, current) < 0) {
+        topByCell.set(key, entity);
+      }
+      // A carcass is not an occupant for this purpose: it is *part* of the
+      // ground's story rather than something standing on it, and fading the
+      // grass under every body would make a die-off read as a drought.
+      if (entity.kind === 'animal' && entity.alive !== false) animalCells.add(key);
+    }
+
     // --- Terrain + vegetation pass. Terrain cell types come from the snapshot
     // legend; where a cell carries vegetation (level > 0), the green density
     // glyph is drawn over the ground instead. Cells beyond the world edge get
     // the out-of-bounds glyph.
-    const cells = projection.visibleCellBounds();
+    //
+    // ⚠ Vegetation under a living animal is drawn at a fraction of its opacity.
+    // Both glyphs occupy the same cell and the animal's is the informative one:
+    // a bright `"` behind a `g` reads as a two-character smear, while a faded
+    // one still says the animal is standing in deep grass. Only *vegetation* is
+    // faded — terrain is the shape of the map and stays solid, so a herd
+    // crossing a ridge does not erase the ridge.
     for (let cellY = cells.minCellY; cellY <= cells.maxCellY; cellY += 1) {
       for (let cellX = cells.minCellX; cellX <= cells.maxCellX; cellX += 1) {
         const appearance = groundAppearanceAt(store, cellX, cellY, world);
         const { px, py } = projection.cellToScreen(cellX, cellY);
+        const faded = isVegetationAppearance(appearance) && animalCells.has(`${cellX},${cellY}`);
+        if (faded) ctx.globalAlpha = OCCUPIED_VEGETATION_ALPHA;
         ctx.fillStyle = this.#color(appearance.colorToken);
         ctx.fillText(appearance.glyph, px + half, py + half);
+        if (faded) ctx.globalAlpha = 1;
       }
     }
 
@@ -192,18 +226,7 @@ export class AsciiGridRenderer {
       }
     }
 
-    // --- Entity pass: highest-priority occupant per cell.
-    const visible = store.getEntitiesInBounds(projection.visibleWorldBounds(1));
-    /** @type {Map<string, object>} cell key → top occupant */
-    const topByCell = new Map();
-    for (const entity of visible) {
-      const cell = worldCellOf(entity, world);
-      const key = `${cell.cellX},${cell.cellY}`;
-      const current = topByCell.get(key);
-      if (!current || compareOccupants(entity, current) < 0) {
-        topByCell.set(key, entity);
-      }
-    }
+    // --- Entity pass: the highest-priority occupant per cell, resolved above.
     for (const [key, entity] of topByCell) {
       const [cellX, cellY] = key.split(',').map(Number);
       const { px, py } = projection.cellToScreen(cellX, cellY);

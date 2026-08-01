@@ -144,6 +144,8 @@ export class Controls {
    * @param {(command: object) => Promise<object>} callbacks.onRestart rebuild the world
    * @param {() => void} callbacks.onRecenter
    * @param {() => void} callbacks.onReconnect
+   * @param {(text: string, kind: 'ok' | 'warn' | 'bad') => void} callbacks.onStatus
+   *        report the result of a command (drawn in the status bar, not here)
    */
   constructor(container, callbacks) {
     this.#callbacks = callbacks;
@@ -207,8 +209,7 @@ export class Controls {
             ${prevalenceSelect("ctl-thickets", DEFAULTS.thickets, "Thicket prevalence")}
           </div>
         </div>
-      </details>
-      <p id="command-status" class="command-status" aria-live="polite"></p>`;
+      </details>`;
     this.#els = {
       run: container.querySelector("#ctl-run"),
       slower: container.querySelector("#ctl-slower"),
@@ -230,7 +231,6 @@ export class Controls {
       founding: container.querySelector("#ctl-founding"),
       rocks: container.querySelector("#ctl-rocks"),
       thickets: container.querySelector("#ctl-thickets"),
-      status: container.querySelector("#command-status"),
     };
 
     this.#els.run.addEventListener("click", () => callbacks.onToggleRun());
@@ -521,10 +521,16 @@ export class Controls {
     }
   }
 
-  /** @param {string} text @param {'ok' | 'warn' | 'bad'} [kind] */
+  /**
+   * Say what the last command did. ⚠ The line itself lives in the **status
+   * bar**, not in this panel: a result belongs beside the run state it explains,
+   * and one at the foot of a collapsible panel is invisible exactly when the
+   * panel is folded up. This panel only reports; `StatusPanel` owns the element
+   * and `RendererApp` decides when a report has gone stale.
+   * @param {string} text @param {'ok' | 'warn' | 'bad'} [kind]
+   */
   setStatus(text, kind = "ok") {
-    this.#els.status.textContent = text;
-    this.#els.status.className = `command-status ${kind}`;
+    this.#callbacks.onStatus?.(text, kind);
   }
 
   /**

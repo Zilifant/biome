@@ -21,6 +21,7 @@ import {
   DEFAULT_EVENT_FILTER,
   PASSING,
   filterIdFor,
+  prefixFor,
   loadEventFilter,
   saveEventFilter,
 } from '../state/EventCatalog.js';
@@ -38,93 +39,102 @@ function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * One line of the log, without its mark.
+ *
+ * ⚠ **The prefix is not written here.** Every line is headed by the single
+ * character `EventCatalog` assigns to its type (see `prefixFor`), prepended by
+ * the caller — so a line cannot invent a mark of its own, two types cannot end
+ * up sharing one, and no type can spend two columns on it. This function
+ * describes *what happened*; the catalog says what it is marked with.
+ */
 function formatEvent(event) {
   switch (event.type) {
     case 'entity.created':
-      return `+ created #${event.entityId} ${event.speciesId ?? event.kind ?? ''}`;
+      return `created #${event.entityId} ${event.speciesId ?? event.kind ?? ''}`;
     case 'entity.moved':
-      return `~ moved #${event.entityId} → ${event.to ? `${event.to.x.toFixed(1)},${event.to.y.toFixed(1)}` : '?'}`;
+      return `moved #${event.entityId} → ${event.to ? `${event.to.x.toFixed(1)},${event.to.y.toFixed(1)}` : '?'}`;
     case 'entity.died':
-      return `x died #${event.entityId}${event.cause ? ` (${event.cause})` : ''}`;
+      return `died #${event.entityId}${event.cause ? ` (${event.cause})` : ''}`;
     case 'entity.removed':
-      return `- removed #${event.entityId}`;
+      return `removed #${event.entityId}`;
     case 'entity.fed':
-      return `= fed #${event.entityId}${event.cell ? ` @${event.cell.cellX},${event.cell.cellY}` : ''}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
+      return `fed #${event.entityId}${event.cell ? ` @${event.cell.cellX},${event.cell.cellY}` : ''}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
     case 'entity.mated':
-      return `& mated #${event.entityId} + #${event.partnerId}${event.quality !== undefined ? ` (${event.quality.toFixed(2)})` : ''}`;
+      return `mated #${event.entityId} + #${event.partnerId}${event.quality !== undefined ? ` (${event.quality.toFixed(2)})` : ''}`;
     case 'entity.courted':
       // Quality against the standard it was held to, for the same reason
       // `entity.hunted` shows its odds: the verdict should be checkable.
-      return `? courted #${event.entityId} → #${event.candidateId} ${event.accepted ? 'accepted' : 'rejected'}${
+      return `courted #${event.entityId} → #${event.candidateId} ${event.accepted ? 'accepted' : 'rejected'}${
         event.quality !== undefined ? ` (${event.quality.toFixed(2)} vs ${event.threshold.toFixed(2)})` : ''
       }`;
     case 'entity.born':
-      return `* born #${event.entityId}${event.sex ? ` ${event.sex}` : ''}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
+      return `born #${event.entityId}${event.sex ? ` ${event.sex}` : ''}${event.parents ? ` of ${event.parents.map((id) => `#${id}`).join(' + ')}` : ''}`;
     case 'entity.provisioned':
-      return `^ fed #${event.entityId} by #${event.guardianId}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
+      return `fed #${event.entityId} by #${event.guardianId}${event.amount !== undefined ? ` +${event.amount.toFixed(2)}` : ''}`;
     case 'entity.hunted':
       // The odds are shown because a hunt is not a coin flip: the number comes
       // from the two animals' speed, stamina, and condition.
-      return `> hunt #${event.entityId} → #${event.targetId} ${event.captured ? 'caught' : 'missed'}${event.chance !== undefined ? ` (${Math.round(event.chance * 100)}%)` : ''}`;
+      return `hunt #${event.entityId} → #${event.targetId} ${event.captured ? 'caught' : 'missed'}${event.chance !== undefined ? ` (${Math.round(event.chance * 100)}%)` : ''}`;
     case 'entity.killed':
-      return `X killed #${event.entityId} by #${event.predatorId}`;
+      return `killed #${event.entityId} by #${event.predatorId}`;
     case 'entity.escaped':
-      return `/ escaped #${event.entityId} from #${event.predatorId}`;
+      return `escaped #${event.entityId} from #${event.predatorId}`;
     case 'entity.injured':
-      return `! injured #${event.entityId} (${event.injury}${event.severity !== undefined ? ` ${event.severity.toFixed(2)}` : ''})${event.sourceId != null ? ` by #${event.sourceId}` : ''}`;
+      return `injured #${event.entityId} (${event.injury}${event.severity !== undefined ? ` ${event.severity.toFixed(2)}` : ''})${event.sourceId != null ? ` by #${event.sourceId}` : ''}`;
     case 'entity.recovered':
-      return `+ recovered #${event.entityId}${event.injury ? ` (${event.injury})` : ''}`;
+      return `healed #${event.entityId}${event.injury ? ` (${event.injury})` : ''}`;
     case 'entity.decayed':
-      return `~ decayed #${event.entityId} → ${event.stageName ?? event.stage}${event.edibleMass !== undefined ? ` (${event.edibleMass.toFixed(1)}kg left)` : ''}`;
+      return `decayed #${event.entityId} → ${event.stageName ?? event.stage}${event.edibleMass !== undefined ? ` (${event.edibleMass.toFixed(1)}kg left)` : ''}`;
     case 'environment.changed':
-      return `@ ${event.season} · ${event.weather}${event.temperature !== undefined ? ` · ${event.temperature.toFixed(1)}°C` : ''}`;
+      return `${event.season} · ${event.weather}${event.temperature !== undefined ? ` · ${event.temperature.toFixed(1)}°C` : ''}`;
     case 'entity.alarmed':
       // `hops` is what makes a wave of panic readable: 0 saw the predator,
       // 1 was told by someone who did, and so on outward.
-      return `! alarm #${event.entityId}${event.sourceId != null ? ` from #${event.sourceId}` : ' (saw it)'}${
+      return `alarm #${event.entityId}${event.sourceId != null ? ` from #${event.sourceId}` : ' (saw it)'}${
         event.hops !== undefined ? ` ${event.hops}h` : ''
       }`;
     case 'entity.contested':
       // No odds, because there is no roll — dominance decides it. The two
       // scores are shown instead, which is the actual reason for the outcome.
-      return `vs contest #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.opponentId} (${event.opponentDominance?.toFixed(0)}) → #${event.winnerId}${
+      return `contest #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.opponentId} (${event.opponentDominance?.toFixed(0)}) → #${event.winnerId}${
         event.escalated ? ' FIGHT' : ' yielded'
       }`;
     case 'entity.disputed':
       // How much ground actually moved is the payload's whole point: a dispute
       // that transfers 40 cells is a resident being evicted, one that transfers
       // 1 is a scuffle at a boundary.
-      return `[] ground #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.ownerId} (${event.ownerDominance?.toFixed(0)}) → #${event.winnerId}${
+      return `ground #${event.entityId} (${event.dominance?.toFixed(0)}) v #${event.ownerId} (${event.ownerDominance?.toFixed(0)}) → #${event.winnerId}${
         event.escalated ? ' FIGHT' : ''
       }${event.cellsTransferred ? ` (+${event.cellsTransferred} cells)` : ''}`;
     case 'entity.defended':
-      return `# defends #${event.entityId} over #${event.wardId} against #${event.threatId}`;
+      return `defends #${event.entityId} over #${event.wardId} against #${event.threatId}`;
     case 'entity.infected':
       // A null source is a case from outside the population, not a missing
       // field — which is why it says so rather than printing "#null".
-      return `~ infected #${event.entityId} ${event.sourceId != null ? `by #${event.sourceId}` : '(from the environment)'}`;
+      return `infected #${event.entityId} ${event.sourceId != null ? `by #${event.sourceId}` : '(from the environment)'}`;
     case 'entity.sickened':
-      return `!! sickened #${event.entityId}`;
+      return `sickened #${event.entityId}`;
     case 'entity.cured':
-      return `++ recovered #${event.entityId}${event.immuneUntil != null ? ` <immune to t${event.immuneUntil}>` : ''}`;
+      return `recovered #${event.entityId}${event.immuneUntil != null ? ` <immune to t${event.immuneUntil}>` : ''}`;
     case 'environment.feature':
-      return `${event.state === 'formed' ? '::' : '..'} ${event.kind} ${event.state} @${event.cellX},${event.cellY}`;
+      return `${event.kind} ${event.state} @${event.cellX},${event.cellY}`;
     case 'environment.disturbed':
-      return `*! ${event.kind} at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} r${event.radius?.toFixed(0)} <until t${event.until}>`;
+      return `${event.kind} at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} r${event.radius?.toFixed(0)} <until t${event.until}>`;
     case 'environment.settled':
       // How long it lasted is the fact the record no longer holds.
-      return `*. ${event.kind} ended at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} <${event.durationTicks} ticks>`;
+      return `${event.kind} ended at ${event.x?.toFixed(0)},${event.y?.toFixed(0)} <${event.durationTicks} ticks>`;
     case 'entity.migrated':
       // Where it moved *from* and *to*, because "moved house" is a claim about
       // two places. The distance is the part that says whether this was a shift
       // next door or an animal crossing the map.
-      return `=> moved #${event.entityId} (${event.from?.x?.toFixed(0)},${event.from?.y?.toFixed(0)}) → (${event.to?.x?.toFixed(0)},${event.to?.y?.toFixed(0)}) ${event.distance?.toFixed(0)}u${
+      return `moved #${event.entityId} (${event.from?.x?.toFixed(0)},${event.from?.y?.toFixed(0)}) → (${event.to?.x?.toFixed(0)},${event.to?.y?.toFixed(0)}) ${event.distance?.toFixed(0)}u${
         event.reason ? ` [${event.reason}]` : ''
       }`;
     case 'entity.lifeEvent':
       // A dispersal carries the natal centre it is leaving, so the log shows
       // where an animal grew up rather than only that it left.
-      return `> ${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}${
+      return `${event.event ?? 'life event'} #${event.entityId}${event.guardianId != null ? ` from #${event.guardianId}` : ''}${
         event.x !== undefined ? ` (born ${event.x.toFixed(0)},${event.y.toFixed(0)})` : ''
       }`;
     default: {
@@ -132,9 +142,20 @@ function formatEvent(event) {
         .filter(([key]) => !['seq', 'tick', 'type'].includes(key))
         .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : value}`)
         .join(' ');
-      return `? ${event.type} ${extra}`.trim();
+      return `${event.type} ${extra}`.trim();
     }
   }
+}
+
+/**
+ * A whole log line: the type's mark, then what happened. Exported so the line a
+ * viewer actually reads can be tested without a DOM — the mark and the body are
+ * assembled in exactly one place, and this is it.
+ * @param {object} event
+ * @returns {string}
+ */
+export function describeEvent(event) {
+  return `${prefixFor(event.type)} ${formatEvent(event)}`;
 }
 
 function eventClass(event) {
@@ -294,7 +315,7 @@ export class EventLog {
       // (`<until t1205>`, `→`), so they are escaped first and linkified second.
       // Reversing that order would let an event's own punctuation become markup.
       const line = document.createElement('span');
-      line.innerHTML = linkifyIds(escapeHtml(formatEvent(event)));
+      line.innerHTML = linkifyIds(escapeHtml(describeEvent(event)));
       item.append(line);
       fragment.append(item);
     }

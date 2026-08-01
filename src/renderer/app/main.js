@@ -17,6 +17,7 @@ import { MetricsPanel } from './ui/MetricsPanel.js';
 import { EventLog } from './ui/EventLog.js';
 import { Controls } from './ui/Controls.js';
 import { makeSectionsCollapsible } from './ui/collapsible.js';
+import { makeColumnsResizable } from './ui/columnResize.js';
 
 const params = new URLSearchParams(window.location.search);
 const fixtureMode = params.get('mode') === 'fixture' || params.get('fixture') === '1';
@@ -75,6 +76,9 @@ ui.controls = new Controls(document.getElementById('controls-panel'), {
   onRestart: (command) => appRef.current.restart(command),
   onRecenter: () => appRef.current.recenter(),
   onReconnect: () => appRef.current.reconnect(),
+  // The command result is drawn in the status bar, beside the run state it
+  // explains — this panel reports, the status bar shows.
+  onStatus: (text, kind) => ui.statusPanel.setCommandStatus(text, kind),
 });
 
 // Each h2-headed panel folds up when its header is clicked (the Legend is
@@ -84,6 +88,12 @@ makeSectionsCollapsible([
   document.getElementById('metrics-panel'),
   document.getElementById('event-log-panel'),
 ]);
+
+// Each aside can be widened by dragging its inner edge. The default width is
+// also the minimum, so a drag only ever makes a column wider; a double-click on
+// the handle puts it back. The app watches the grid wrapper with a
+// ResizeObserver, so no callback is needed to keep the canvas fitted.
+makeColumnsResizable();
 
 const app = new RendererApp({
   store,

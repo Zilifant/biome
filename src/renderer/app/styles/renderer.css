@@ -72,37 +72,110 @@ body {
 .bad { color: var(--dracula-red); }
 .dim { color: var(--dracula-comment); }
 
+/* The result of the last command, at the right-hand end of the status bar —
+   beside the run state it usually explains. Cleared the moment another command
+   is sent (RendererApp), so it never captions a command that has been
+   superseded. `margin-left: auto` keeps it out of the way of the readings on
+   the left as they change width. */
+#command-status {
+  margin-left: auto;
+  text-align: right;
+  min-height: 1.4em;
+}
+
 /* ---- main area ----
-   Three columns: the event log has its own column on the left, the grid in the
-   middle, the controls/inspector/legend/metrics sidebar on the right. */
+   Four columns: the event log on the left, the grid in the middle, then
+   population, then the controls/inspector/legend sidebar. Each aside's width is
+   a custom property so a drag handle can rewrite it (ui/columnResize.js); the
+   fallbacks here are also the minimum widths, ⚠ and are restated in
+   RESIZABLE_COLUMNS — they have to agree, or the first drag jumps. */
 #main {
   display: grid;
-  grid-template-columns: 260px 1fr 300px;
+  grid-template-columns:
+    var(--events-width, 260px)
+    1fr
+    var(--population-width, 300px)
+    var(--sidebar-width, 300px);
   gap: 4px;
   min-height: 0;
 }
 
-/* ---- events column (left) ---- */
+/* ⚠ **Every child of `#main` is placed explicitly**, and that is not tidiness.
+   The drag handles overlay the columns rather than taking tracks of their own,
+   so they are placed by hand — and a grid with *some* items placed by hand
+   auto-places the rest into whatever cells are left, which put each aside one
+   track to the right of where it belongs and pushed the sidebar onto a second
+   row. The symptom is a page that still looks roughly right while half of it
+   cannot be clicked, so nothing here may rely on auto-placement. */
+#main > * {
+  grid-row: 1;
+}
+
 #events-column {
+  grid-column: 1;
+}
+
+#viewport-wrap {
+  grid-column: 2;
+}
+
+#population-column {
+  grid-column: 3;
+}
+
+#sidebar {
+  grid-column: 4;
+}
+
+/* ---- column drag handles ----
+   Each handle shares a grid track with the column it resizes and is pulled half
+   over the gap, so it overlays that column's inner edge without taking a track
+   of its own. Invisible until hovered: it is a target, not a decoration. */
+.col-resizer {
+  width: 7px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.col-resizer:hover,
+.col-resizer:focus-visible,
+.col-resizer.dragging {
+  background: var(--dracula-current-line);
+  outline: none;
+}
+
+.col-resizer[data-resize='events-column'] {
+  grid-column: 1;
+  justify-self: end;
+  margin-right: -5px;
+}
+
+.col-resizer[data-resize='population-column'] {
+  grid-column: 3;
+  justify-self: start;
+  margin-left: -5px;
+}
+
+.col-resizer[data-resize='sidebar'] {
+  grid-column: 4;
+  justify-self: start;
+  margin-left: -5px;
+}
+
+/* ---- panel columns ----
+   The three asides are the same thing in different places, so they share one
+   rule rather than one per id: a panel behaves identically whichever column it
+   is in, which is what let the population panel move out of the sidebar without
+   touching its own styling. */
+.panel-column {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
-}
-
-#events-column section {
-  background: var(--dracula-background-dark);
-  border: 1px solid var(--dracula-selection);
-  padding: 6px 8px;
-}
-
-#events-column h2 {
-  margin: 0 0 6px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--dracula-purple);
 }
 
 #viewport-wrap {
@@ -135,22 +208,14 @@ body {
   outline: none;
 }
 
-/* ---- sidebar ---- */
-#sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-#sidebar section {
+/* ---- panels, in whichever column they sit ---- */
+.panel-column section {
   background: var(--dracula-background-dark);
   border: 1px solid var(--dracula-selection);
   padding: 6px 8px;
 }
 
-#sidebar h2 {
+.panel-column h2 {
   margin: 0 0 6px;
   font-size: 12px;
   text-transform: uppercase;
@@ -158,7 +223,7 @@ body {
   color: var(--dracula-purple);
 }
 
-#sidebar h3 {
+.panel-column h3 {
   margin: 8px 0 4px;
   font-size: 11px;
   color: var(--dracula-comment);
@@ -170,30 +235,25 @@ body {
    ui/collapsible.js); the open-set is remembered in localStorage. The Legend is
    already a <details>, so it collapses on its own. A text +/- marker keeps the
    panels monospace-honest and matches the inspector's collapsible sections. */
-#sidebar section > h2,
-#events-column section > h2 {
+.panel-column section > h2 {
   cursor: pointer;
   user-select: none;
 }
 
-#sidebar section > h2::before,
-#events-column section > h2::before {
+.panel-column section > h2::before {
   content: "- ";
 }
 
-#sidebar section.collapsed > h2::before,
-#events-column section.collapsed > h2::before {
+.panel-column section.collapsed > h2::before {
   content: "+ ";
 }
 
 /* Collapsed: keep the header, hide everything else in the panel. */
-#sidebar section.collapsed > :not(h2),
-#events-column section.collapsed > :not(h2) {
+.panel-column section.collapsed > :not(h2) {
   display: none;
 }
 
-#sidebar section.collapsed > h2,
-#events-column section.collapsed > h2 {
+.panel-column section.collapsed > h2 {
   margin-bottom: 0;
 }
 
@@ -299,11 +359,6 @@ select:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--dracula-purple);
   outline-offset: 1px;
-}
-
-.command-status {
-  margin: 4px 0 0;
-  min-height: 1.4em;
 }
 
 /* ---- inspector ---- */

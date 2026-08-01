@@ -267,6 +267,35 @@ export function resolveVegetationAppearance(level) {
   return VEGETATION_APPEARANCE[level] ?? (level > 0 ? VEGETATION_APPEARANCE.at(-1) : null);
 }
 
+/** Every appearance `resolveVegetationAppearance` can return, for identity tests. */
+const VEGETATION_APPEARANCES = new Set(VEGETATION_APPEARANCE.filter(Boolean));
+
+/**
+ * Whether a ground appearance is vegetation rather than the terrain under it.
+ *
+ * The ramp entries are frozen singletons, so this is an identity test rather
+ * than a glyph comparison — which matters because vegetation and terrain share
+ * glyphs (`.` is bare ground *and* the sparsest grass) and only the identity
+ * says which layer the answer came from.
+ *
+ * Used by the grid to fade grass under an animal (see `AsciiGridRenderer`): the
+ * animal's glyph is the informative one, and a `"` behind a `g` is noise.
+ * @param {{glyph: string, colorToken: string} | null} appearance
+ * @returns {boolean}
+ */
+export function isVegetationAppearance(appearance) {
+  return VEGETATION_APPEARANCES.has(appearance);
+}
+
+/**
+ * Opacity of a vegetation glyph in a cell an animal is standing in. Faint
+ * enough that the animal reads as the only thing in the cell, present enough
+ * that the ground it is standing on is still legible when you look for it —
+ * the alternative, drawing nothing, would make a grazing herd punch holes in
+ * the grass it is grazing.
+ */
+export const OCCUPIED_VEGETATION_ALPHA = 0.2;
+
 /**
  * Ground animals wore (protocol v27). Renderer-owned: the protocol sends a
  * cell, a kind, and a depth, and says nothing about how any of it should look.

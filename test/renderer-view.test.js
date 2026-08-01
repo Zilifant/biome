@@ -15,7 +15,12 @@ import {
   FEATURE_APPEARANCE,
   DISTURBANCE_APPEARANCE,
   MEMORY_APPEARANCE,
+  VEGETATION_APPEARANCE,
+  resolveVegetationAppearance,
+  isVegetationAppearance,
+  OCCUPIED_VEGETATION_ALPHA,
 } from '../src/renderer/app/rendering/EntityAppearance.js';
+import { AsciiGridRenderer } from '../src/renderer/app/rendering/AsciiGridRenderer.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend } from '../src/renderer/app/ui/Legend.js';
 import { indexHistory } from '../src/renderer/app/ui/MetricsPanel.js';
@@ -27,8 +32,10 @@ import {
   PASSING,
   OTHER_EVENTS,
   filterIdFor,
+  prefixFor,
   isLastingEvent,
 } from '../src/renderer/app/state/EventCatalog.js';
+import { describeEvent } from '../src/renderer/app/ui/EventLog.js';
 // The renderer may not import the protocol; a *test* may, and that is what
 // keeps the catalog's hand-copied list in step with the engine's.
 import { EventTypes } from '../src/protocol/events.js';
@@ -104,6 +111,142 @@ describe('entity appearance', () => {
     assert.deepEqual(sorted.map((entity) => entity.id), [2, 9, 4, 5]);
     assert.equal(topOccupant([plant, carcass, animalNew]).id, 9);
     assert.equal(topOccupant([plant, carcass]).id, 4);
+  });
+});
+
+describe('vegetation under an animal', () => {
+  // Both glyphs land in the same cell and the animal's is the informative one,
+  // so the grass behind it is drawn faint (AsciiGridRenderer). The renderer
+  // decides *which* layer to fade by identity, not by glyph — vegetation and
+  // terrain share glyphs, and only the identity says which layer answered.
+  test('every vegetation level resolves to something the fade recognizes', () => {
+    for (let level = 1; level < VEGETATION_APPEARANCE.length + 2; level += 1) {
+      const appearance = resolveVegetationAppearance(level);
+      assert.ok(appearance, `level ${level} should resolve to a vegetation glyph`);
+      assert.ok(isVegetationAppearance(appearance), `level ${level} is not recognized as vegetation`);
+    }
+  });
+
+  test('bare ground and terrain are not vegetation, even where they share a glyph', () => {
+    assert.equal(resolveVegetationAppearance(0), null);
+    assert.equal(isVegetationAppearance(null), false);
+    // `.` is bare ground *and* the sparsest grass; only identity tells them apart.
+    assert.equal(TERRAIN_APPEARANCE.ground.glyph, resolveVegetationAppearance(1).glyph);
+    assert.equal(isVegetationAppearance(TERRAIN_APPEARANCE.ground), false);
+    for (const appearance of Object.values(TERRAIN_APPEARANCE)) {
+      assert.equal(isVegetationAppearance(appearance), false);
+    }
+  });
+
+  test('the occupied fade is faint but not invisible', () => {
+    // Drawing nothing would make a grazing herd punch holes in the grass it is
+    // grazing; drawing it fully is the two-character smear this replaced.
+    assert.ok(OCCUPIED_VEGETATION_ALPHA > 0 && OCCUPIED_VEGETATION_ALPHA < 0.5);
+  });
+});
+
+/**
+ * The canvas renderer, driven through a stub 2D context that records what was
+ * drawn and at what opacity.
+ *
+ * ⚠ This is the one place the *drawing* is asserted rather than the data behind
+ * it. It works because `AsciiGridRenderer` asks its canvas for a context and
+ * nothing else — `#color` falls back to the exact Dracula values when there is
+ * no `getComputedStyle` — so the whole pass runs in node with no DOM
+ * dependency, exactly as the rest of the suite does.
+ */
+function recordDraw(occupants = [], vegetationLevel = 3) {
+  const ops = [];
+  const context = {
+    globalAlpha: 1,
+    fillStyle: '',
+    font: '',
+    textAlign: '',
+    textBaseline: '',
+    setTransform() {},
+    fillRect() {},
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    stroke() {},
+    fillText(glyph, px, py) {
+      ops.push({ glyph, px, py, alpha: this.globalAlpha });
+    },
+  };
+  const renderer = new AsciiGridRenderer({ style: {}, width: 0, height: 0, getContext: () => context });
+  renderer.resize(60, 60, 1);
+
+  const world = { width: 4, height: 4 };
+  const entities = occupants.map((occupant, index) => ({
+    id: index + 1,
+    x: occupant.cellX + 0.5,
+    y: occupant.cellY + 0.5,
+    ...occupant,
+  }));
+  const camera = new Camera();
+  camera.centerOn(world.width / 2, world.height / 2);
+  renderer.draw({
+    store: {
+      world,
+      features: [],
+      disturbances: [],
+      selection: null,
+      followedEntityId: null,
+      vegetationLevelAt: () => vegetationLevel,
+      terrainNameAt: () => 'ground',
+      getEntitiesInBounds: () => entities,
+      getEntity: (id) => entities.find((entity) => entity.id === id) ?? null,
+    },
+    camera,
+  });
+  return ops;
+}
+
+/** A living gazelle standing in the given cell. */
+const gazelleAt = (cellX, cellY) => ({ kind: 'animal', alive: true, speciesId: 'herbivore.gazelle', cellX, cellY });
+
+describe('the grid renderer', () => {
+  // The vegetation ramp for level 3 is `"`; the gazelle is `g`.
+  const vegetationGlyph = resolveVegetationAppearance(3).glyph;
+
+  test('vegetation under a living animal is drawn faint, and everywhere else solid', () => {
+    // Both glyphs land in the same cell and the animal's is the informative
+    // one: a full-strength `"` behind a `g` reads as a two-character smear.
+    const ops = recordDraw([gazelleAt(1, 1)]);
+    const animal = ops.find((op) => op.glyph === 'g');
+    assert.ok(animal, 'the animal was drawn');
+
+    const grass = ops.filter((op) => op.glyph === vegetationGlyph);
+    assert.ok(grass.length > 1, 'the world is vegetated');
+    const under = grass.filter((op) => op.px === animal.px && op.py === animal.py);
+    assert.equal(under.length, 1, 'exactly one vegetation glyph shares the animal cell');
+    assert.equal(under[0].alpha, OCCUPIED_VEGETATION_ALPHA);
+    for (const op of grass) {
+      if (op === under[0]) continue;
+      assert.equal(op.alpha, 1, 'vegetation nobody is standing in stays solid');
+    }
+    // ⚠ And the fade is put back: leaving globalAlpha low would fade every
+    // later pass — the animals, the overlays, the selection mark.
+    assert.equal(animal.alpha, 1);
+  });
+
+  test('with nothing standing anywhere, no vegetation is faded', () => {
+    for (const op of recordDraw()) assert.equal(op.alpha, 1);
+  });
+
+  test('bare ground under an animal is not faded — only vegetation is', () => {
+    // Terrain is the shape of the map, so a herd crossing a ridge must not
+    // erase the ridge. At level 0 the ground glyph is terrain, not grass.
+    for (const op of recordDraw([gazelleAt(1, 1)], 0)) assert.equal(op.alpha, 1);
+  });
+
+  test('a carcass does not fade the ground it is lying on', () => {
+    // A body is part of the ground's story rather than something standing on
+    // it; fading the grass under every carcass would make a die-off read as a
+    // drought.
+    const ops = recordDraw([{ kind: 'carcass', alive: false, decayStage: 0, cellX: 1, cellY: 1 }]);
+    assert.ok(ops.some((op) => op.glyph === '%'), 'the carcass was drawn');
+    for (const op of ops) assert.equal(op.alpha, 1);
   });
 });
 
@@ -680,6 +823,37 @@ describe('event log filters', () => {
       assert.ok(entry.group.length > 0, `${entry.type} has no group`);
       assert.ok([LASTING, PASSING].includes(entry.retention), `${entry.type} has no retention tier`);
     }
+  });
+
+  test('every event type has a one-character prefix, and no two share one', () => {
+    // The mark at the head of a line is the only part of it that is scannable
+    // in a column of a hundred, so it has to be exactly one column wide and it
+    // has to mean one thing. Both halves were broken before this: `!!` and `++`
+    // and `::` were two columns, and `+` meant *both* a birth and an injury
+    // healing while `!` meant both a wound and an alarm call.
+    const prefixes = EVENT_CATALOG.map((entry) => entry.prefix);
+    for (const entry of EVENT_CATALOG) {
+      assert.equal(
+        typeof entry.prefix === 'string' && [...entry.prefix].length,
+        1,
+        `${entry.type} has a prefix of ${JSON.stringify(entry.prefix)}, which is not one character`,
+      );
+      assert.notEqual(entry.prefix.trim(), '', `${entry.type} has a blank prefix`);
+    }
+    assert.equal(
+      new Set(prefixes).size,
+      prefixes.length,
+      `two event types share a prefix in ${prefixes.join(' ')}`,
+    );
+  });
+
+  test('a log line is its type\'s prefix, and an unnamed type gets the catch-all\'s', () => {
+    assert.equal(prefixFor('entity.sickened'), '"');
+    assert.ok(describeEvent({ type: 'entity.sickened', entityId: 7 }).startsWith('" sickened'));
+    // A newer engine's event reads as "something this build cannot name" rather
+    // than borrowing a mark that means something else.
+    assert.equal(prefixFor('entity.somethingNewInV30'), prefixFor(OTHER_EVENTS));
+    assert.ok(describeEvent({ type: 'entity.somethingNewInV30', entityId: 7 }).startsWith(prefixFor(OTHER_EVENTS)));
   });
 
   test('the default filter is births and deaths, and both are real types', () => {
