@@ -14,7 +14,9 @@ body {
 body {
   background: var(--dracula-background-darker);
   color: var(--dracula-foreground);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   font-size: 12px;
   line-height: 1.45;
   font-variant-ligatures: none;
@@ -67,10 +69,18 @@ body {
   background: var(--dracula-orange);
 }
 
-.ok { color: var(--dracula-green); }
-.warn { color: var(--dracula-orange); }
-.bad { color: var(--dracula-red); }
-.dim { color: var(--dracula-comment); }
+.ok {
+  color: var(--dracula-green);
+}
+.warn {
+  color: var(--dracula-orange);
+}
+.bad {
+  color: var(--dracula-red);
+}
+.dim {
+  color: var(--dracula-comment);
+}
 
 /* The result of the last command, at the right-hand end of the status bar —
    beside the run state it usually explains. Cleared the moment another command
@@ -146,19 +156,19 @@ body {
   outline: none;
 }
 
-.col-resizer[data-resize='events-column'] {
+.col-resizer[data-resize="events-column"] {
   grid-column: 1;
   justify-self: end;
   margin-right: -5px;
 }
 
-.col-resizer[data-resize='population-column'] {
+.col-resizer[data-resize="population-column"] {
   grid-column: 3;
   justify-self: start;
   margin-left: -5px;
 }
 
-.col-resizer[data-resize='sidebar'] {
+.col-resizer[data-resize="sidebar"] {
   grid-column: 4;
   justify-self: start;
   margin-left: -5px;
@@ -289,8 +299,8 @@ body {
    panel. `select` and `button` are themed the same way below; keep new controls
    reachable by a shared selector rather than a per-id rule. Widths are the only
    thing set per-id, since only the field itself knows how wide it wants to be. */
-input[type='number'],
-input[type='text'] {
+input[type="number"],
+input[type="text"] {
   font: inherit;
   color: var(--dracula-foreground);
   background: var(--dracula-background-light);
@@ -534,6 +544,7 @@ input:focus-visible {
    as an inline `var(--dracula-…)`, never from here. */
 .metrics-glyph {
   font-weight: bold;
+  text-transform: uppercase;
 }
 
 /* ---- entity references ----
@@ -637,13 +648,27 @@ input:focus-visible {
   text-overflow: ellipsis;
 }
 
-.event-died { color: var(--dracula-red); }
-.event-created { color: var(--dracula-green); }
-.event-removed { color: var(--dracula-orange); }
-.event-moved { color: var(--dracula-comment); }
-.event-fed { color: var(--dracula-cyan); }
-.event-birth { color: var(--dracula-pink); }
-.event-other { color: var(--dracula-purple); }
+.event-died {
+  color: var(--dracula-red);
+}
+.event-created {
+  color: var(--dracula-green);
+}
+.event-removed {
+  color: var(--dracula-orange);
+}
+.event-moved {
+  color: var(--dracula-comment);
+}
+.event-fed {
+  color: var(--dracula-cyan);
+}
+.event-birth {
+  color: var(--dracula-pink);
+}
+.event-other {
+  color: var(--dracula-purple);
+}
 
 /* ---- help bar ---- */
 #help-bar {
