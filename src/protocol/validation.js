@@ -19,6 +19,7 @@ import {
   MAX_SEED,
   MAX_SPEED_MULTIPLIER,
   MAX_TERRAIN_PREVALENCE,
+  MAX_ROUNDNESS,
   MAX_WORLD_DIMENSION,
   MIN_WORLD_DIMENSION,
   SEXES,
@@ -220,6 +221,9 @@ export function validateCommand(command) {
       // maps to generator formation counts, not a count itself.
       validateOptionalIntInRange(command.rocks, 'rocks', 0, MAX_TERRAIN_PREVALENCE, errors);
       validateOptionalIntInRange(command.thickets, 'thickets', 0, MAX_TERRAIN_PREVALENCE, errors);
+      // World shape: 0 (rectangle) .. MAX_ROUNDNESS (ellipse). A level, like the
+      // two above, but the level is the setting rather than a stand-in for one.
+      validateOptionalIntInRange(command.roundness, 'roundness', 0, MAX_ROUNDNESS, errors);
       break;
     case CommandTypes.ENTITY_SPAWN:
       validateSpawnEntity(command.entity, errors);

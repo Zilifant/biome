@@ -4038,6 +4038,45 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`,
 `decision`, `predation`, `demo`.
 
+⚠ **`world` holds the map's *dimensions*; `terrain.roundness` holds its *shape***
+(2026-08-02), and the split is deliberate rather than an oversight. Roundness is
+consumed by the terrain generator — `World` hands `config.terrain` to
+`TerrainGrid` as its params — so putting it beside `width`/`height` would mean
+plumbing one field down a second path and giving the world's outline two homes.
+The UI presents all three together in the World panel regardless; where a value
+*lives* is decided by who reads it, not by how it is grouped on screen.
+
+The shape is a **superellipse**, `|x/a|^n + |y/b|^n = 1`, over five levels
+0..`MAX_ROUNDNESS`: level 0 is `n = ∞` (the rectangle), level 4 is `n = 2` (an
+ellipse inscribed in the world bounds — an oval on a non-square map, a circle on
+a square one). One exponent spans the whole family, which a corner-radius
+formulation cannot: a maximal corner radius on a 160×120 map yields a *stadium*,
+never an oval. Cells outside the shape become **ROCK**, because `codeAt` already
+reports ROCK out of bounds — so the rim reads to movement, perception, the
+renderer, and the protocol exactly as the world edge always has, with no new
+terrain code and no protocol bump. ⚠ Specifically *not* deep water: an ocean rim
+would put drinkable shallows within reach of every coastal animal and quietly
+retire the lake as the thing hydration is about.
+
+Two traps, both caught by tests in `test/roundness.test.js`:
+
+- ⚠ **Generation runs after the carve and must respect it.** `#stampDisc` writes
+  water unconditionally, so a lake rolled near the rim would punch a passable
+  channel straight through the outline; the exterior mask is checked per cell.
+- ⚠⚠ **The connectivity pass walks through rock, and the rim is rock.** Left
+  unmasked it happily routes the shortest corridor *around the coast* and carves
+  a ground causeway through the sea — reconnecting the map by destroying its
+  shape. The BFS is masked, which also made "unreachable" possible for the first
+  time, so the stranded-component search now skips the `dist === -1` sentinel
+  instead of treating it as the nearest cell.
+
+Level 0 ships as the default and is a **true no-op** (D30) — it skips the carve
+entirely, so every existing seed generates exactly the world it did before. Raising
+it shrinks the playable area without changing `world.width`/`height`: usable
+fraction by level is 1.000, 0.978, 0.927, 0.873, 0.785. Since the founding roster
+is a flat count, a level-4 world is ~27% denser in animals than a level-0 one of
+the same dimensions.
+
 **Twelve** of these (`metabolism`, `hydration`, `aging`, `perception`, `traits`,
 `genetics`, `disease`, `reproduction`, and — from 2026-07-28 — `feeding`,
 `hunting`, `behavior`, and `predation`) double as **species-block defaults** —

@@ -517,13 +517,21 @@ export function buildDemoConfig(options = {}) {
   // formation count and `thickets` is the thicket count (see TerrainGrid); the
   // partial terrain block merges recursively over the defaults, so the other
   // terrain params are untouched.
-  if (options.rocks !== undefined || options.thickets !== undefined) {
+  if (options.rocks !== undefined || options.thickets !== undefined || options.roundness !== undefined) {
     config.terrain = {};
     if (options.rocks !== undefined) {
       config.terrain.ridges = formationCountForPrevalence(options.rocks, FORMATION_COUNT_AT_DEFAULT.ridges);
     }
     if (options.thickets !== undefined) {
       config.terrain.thickets = formationCountForPrevalence(options.thickets, FORMATION_COUNT_AT_DEFAULT.thickets);
+    }
+    // ⚠ Passed straight through, *not* mapped. Rock and thicket prevalence are
+    // abstractions over a generator count, so they need a translation; roundness
+    // is already the setting itself on both sides of the protocol. Running it
+    // through `formationCountForPrevalence` would be a translation between a
+    // scale and itself.
+    if (options.roundness !== undefined) {
+      config.terrain.roundness = options.roundness;
     }
   }
   // ⚠ **A roster replaces the whole default roster; role aliases patch it.**

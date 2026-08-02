@@ -67,6 +67,15 @@ const MAX_FOUNDING_TOTAL = 30000;
 const MAX_TERRAIN_PREVALENCE = 10;
 
 /**
+ * World roundness is a 0..MAX shape scale (matching the protocol's
+ * MAX_ROUNDNESS): 0 is the plain rectangle, the top of the scale is an ellipse
+ * inscribed in the world's dimensions, and the levels between round the corners
+ * off progressively. Restated here for the same reason the constants above are
+ * — the renderer may import nothing from `src/simulation` or `src/protocol`.
+ */
+const MAX_ROUNDNESS = 4;
+
+/**
  * Default world composition, restated so the restart fields open on the demo's
  * actual starting values. The host still applies its own defaults for any field
  * a command omits; these only prefill the inputs. Keep in step with
@@ -83,6 +92,7 @@ const DEFAULTS = Object.freeze({
   // internals (DOCS §14).
   rocks: 2,
   thickets: 2,
+  roundness: 0,
 });
 
 /**
@@ -105,6 +115,25 @@ function prevalenceSelect(id, selected, ariaLabel) {
       return `<option value="${level}"${level === selected ? " selected" : ""}>${label}</option>`;
     },
   ).join("");
+  return `<select id="${id}" aria-label="${ariaLabel}">${options}</select>`;
+}
+
+/**
+ * A `<select>` for the world's shape, 0..MAX_ROUNDNESS. Labelled at the
+ * endpoints rather than numbered like prevalence: "4" says nothing on its own,
+ * "ellipse" says what the map will look like, and the shape is the one
+ * composition field whose effect is visible before a single tick runs.
+ * @param {string} id @param {number} selected @param {string} ariaLabel
+ * @returns {string}
+ */
+function roundnessSelect(id, selected, ariaLabel) {
+  const labels = ["0 (rectangle)", "1", "2", "3", `${MAX_ROUNDNESS} (ellipse)`];
+  const options = labels
+    .map(
+      (label, level) =>
+        `<option value="${level}"${level === selected ? " selected" : ""}>${label}</option>`,
+    )
+    .join("");
   return `<select id="${id}" aria-label="${ariaLabel}">${options}</select>`;
 }
 
@@ -213,6 +242,11 @@ export class Controls {
             <label for="ctl-thickets" class="dim">Thickets</label>
             ${prevalenceSelect("ctl-thickets", DEFAULTS.thickets, "Thicket prevalence")}
           </div>
+          <p class="hint">World shape — 0 is a plain rectangle, ${MAX_ROUNDNESS} rounds it off to an ellipse. Ground outside the shape is impassable, so a rounder world is a smaller one.</p>
+          <div class="control-row">
+            <label for="ctl-roundness" class="dim">Roundness</label>
+            ${roundnessSelect("ctl-roundness", DEFAULTS.roundness, "World roundness")}
+          </div>
         </div>
       </details>`;
     this.#els = {
@@ -236,6 +270,7 @@ export class Controls {
       founding: container.querySelector("#ctl-founding"),
       rocks: container.querySelector("#ctl-rocks"),
       thickets: container.querySelector("#ctl-thickets"),
+      roundness: container.querySelector("#ctl-roundness"),
     };
 
     this.#els.run.addEventListener("click", () => callbacks.onToggleRun());
@@ -399,7 +434,7 @@ export class Controls {
 
   /**
    * Read and validate the world-composition fields. Returns
-   * `{ width, height, rocks, thickets, founding? }` or null (after setting a
+   * `{ width, height, rocks, thickets, roundness, founding? }` or null (after setting a
    * status message) if any field is out of range. Bounds mirror the host's; the
    * host validates again regardless.
    * @returns {object | null}
@@ -412,6 +447,7 @@ export class Controls {
       // formality — but it keeps every composition field validated the same way.
       ["rocks", this.#els.rocks, 0, MAX_TERRAIN_PREVALENCE],
       ["thickets", this.#els.thickets, 0, MAX_TERRAIN_PREVALENCE],
+      ["roundness", this.#els.roundness, 0, MAX_ROUNDNESS],
     ];
     const params = {};
     for (const [key, element, min, max] of fields) {
@@ -558,6 +594,7 @@ export class Controls {
       this.#els.worldH,
       this.#els.rocks,
       this.#els.thickets,
+      this.#els.roundness,
       ...this.#els.steps,
       // ⚠ The founder fields are *generated* from the host's roster, so they may
       // not exist yet — and when they do arrive, `setSpecies` has to re-apply

@@ -178,11 +178,83 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
  */
 export const DEFAULT_TERRAIN_PARAMS = defaultSimulationConfig.terrain;
 
+/**
+ * Highest `roundness` level. The scale is 0..MAX_ROUNDNESS inclusive — five
+ * levels, not a continuous knob, for the same reason `rocks` and `thickets` are
+ * levels: the UI offers a dropdown and the config stays in whole steps.
+ */
+export const MAX_ROUNDNESS = 4;
+
+/**
+ * Roundness level → superellipse exponent, `|x/a|^n + |y/b|^n = 1`.
+ *
+ * The Lamé family is the whole reason this is one number rather than a corner
+ * radius: n → ∞ is the rectangle, n = 2 is the exact ellipse, and everything
+ * between is a squircle. A corner-radius formulation cannot reach the requested
+ * endpoint — on a 160×120 map a maximal corner radius gives a *stadium* (flat
+ * sides, semicircular ends), not an oval. Here level 4 is a true ellipse
+ * inscribed in the world bounds, which on a non-square map is the oval asked
+ * for.
+ *
+ * ⚠ Level 0 is `Infinity`, and it is not merely "a very square rectangle": it
+ * short-circuits the carve entirely, so a level-0 world is byte-identical to a
+ * world generated before roundness existed. That is what makes this switchable
+ * groundwork rather than a change to every existing seed (DOCS §14: every
+ * mechanism ships with a reproducible off state).
+ *
+ * Usable area as a fraction of the bounding box, by level: 1.000, 0.978, 0.927,
+ * 0.873, 0.785 (the last being π/4, the ellipse).
+ */
+export const ROUNDNESS_EXPONENTS = Object.freeze([Infinity, 8, 4, 2.8, 2]);
+
+/** Clamp an arbitrary input to a whole roundness level in 0..MAX_ROUNDNESS. */
+function clampRoundness(roundness) {
+  const level = Math.round(roundness ?? 0);
+  if (!Number.isFinite(level) || level <= 0) return 0;
+  return level > MAX_ROUNDNESS ? MAX_ROUNDNESS : level;
+}
+
+/**
+ * Whether a cell falls outside the world's rounded shape, and is therefore not
+ * part of the playable map.
+ *
+ * Exported because the shape must have exactly one definition (§19): the grid
+ * carves it, and the tests assert against it. Anything that later needs to ask
+ * "is this inside the world?" — a spawner, a renderer overlay — reads it here
+ * rather than re-deriving the curve.
+ *
+ * Measured from cell *centres*, so the extreme rows and columns of a level-0
+ * world sit just inside the boundary rather than exactly on it.
+ *
+ * @param {number} cellX
+ * @param {number} cellY
+ * @param {number} width
+ * @param {number} height
+ * @param {number} roundness 0..MAX_ROUNDNESS
+ * @returns {boolean}
+ */
+export function isOutsideShape(cellX, cellY, width, height, roundness) {
+  const exponent = ROUNDNESS_EXPONENTS[clampRoundness(roundness)];
+  if (!Number.isFinite(exponent)) return false; // level 0 — the full rectangle
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const nx = Math.abs((cellX + 0.5 - halfW) / halfW);
+  const ny = Math.abs((cellY + 0.5 - halfH) / halfH);
+  return nx ** exponent + ny ** exponent > 1;
+}
+
 export class TerrainGrid {
   #width;
   #height;
   /** @type {Uint8Array} row-major, length width*height */
   #cells;
+  /**
+   * Cells outside the rounded outline (1 = outside), or null at roundness 0
+   * where the world is the full rectangle and there is nothing to mask. Kept
+   * after generation so no later pass can write into the sea.
+   * @type {Uint8Array|null}
+   */
+  #exterior = null;
 
   /**
    * @param {object} options
@@ -306,6 +378,12 @@ export class TerrainGrid {
   // --- generation (deterministic; runs once) -------------------------------
 
   #generate(random, params) {
+    // First, so every later step sees the finished outline: `#stampDisc` refuses
+    // to write outside it (a lake near the rim is clipped by the coast rather
+    // than punched through it) and `#ensureConnectivity` refuses to tunnel
+    // through it. ⚠ It draws **no randomness** — the shape is pure geometry — so
+    // adding it shifts no stream and a level-0 world is unchanged (§4).
+    this.#buildExterior(params);
     this.#carveLakes(random, params);
     this.#carveRockFormations(random, params);
     this.#growCoverPatches(random, params);
@@ -317,6 +395,33 @@ export class TerrainGrid {
     // cell reaches every other passable cell without crossing rock. Thicket is
     // passable, so it neither strands ground nor is carved through.
     this.#ensureConnectivity();
+  }
+
+  /**
+   * Carve the world down to its rounded outline: everything outside becomes
+   * ROCK, and is remembered in `#exterior` so later passes leave it alone.
+   *
+   * ROCK rather than a new terrain code, deliberately. `codeAt` already reports
+   * ROCK out of bounds, so the rim reads to every existing consumer — movement,
+   * perception, the renderer, the protocol — exactly as the world edge always
+   * has. A new "outside" code would mean a protocol bump and a branch in each of
+   * them to say the same thing. ⚠ It is specifically *not* deep water: an ocean
+   * rim would put drinkable shallows within reach of every coastal animal and
+   * quietly retire the lake as the thing hydration is about.
+   */
+  #buildExterior(params) {
+    const roundness = clampRoundness(params.roundness);
+    if (roundness === 0) return; // rectangle: no mask, no carve, nothing changes
+    const exterior = new Uint8Array(this.#width * this.#height);
+    for (let y = 0; y < this.#height; y += 1) {
+      for (let x = 0; x < this.#width; x += 1) {
+        if (!isOutsideShape(x, y, this.#width, this.#height, roundness)) continue;
+        const idx = this.#index(x, y);
+        exterior[idx] = 1;
+        this.#cells[idx] = TerrainType.ROCK;
+      }
+    }
+    this.#exterior = exterior;
   }
 
   /**
@@ -336,6 +441,7 @@ export class TerrainGrid {
         const dy = y - cy;
         if (dx * dx + dy * dy <= rSquared) {
           const idx = this.#index(x, y);
+          if (this.#exterior !== null && this.#exterior[idx] === 1) continue; // past the coast
           if (!onlyGround || this.#cells[idx] === TerrainType.GROUND) this.#cells[idx] = code;
         }
       }
@@ -465,6 +571,15 @@ export class TerrainGrid {
     // Multi-source BFS across the whole grid (stepping through any cell,
     // including rock) from every mainland cell, recording each cell's distance
     // to the mainland and the neighbor it was reached from.
+    //
+    // ⚠ The exterior is excluded, and it has to be: this walks through rock, and
+    // the rim *is* rock, so an unmasked BFS would happily route the shortest
+    // corridor out around the coast and carve a ground causeway through the sea
+    // — reconnecting the map by destroying its shape. Masking it here means a
+    // pocket that can only be reached that way stays stranded, which is the
+    // correct outcome; the guarantee below is scoped to the playable map.
+    const exterior = this.#exterior;
+    const blocked = exterior === null ? () => false : (i) => exterior[i] === 1;
     const dist = new Int32Array(n).fill(-1);
     const parent = new Int32Array(n).fill(-1);
     const queue = new Int32Array(n);
@@ -473,14 +588,20 @@ export class TerrainGrid {
     for (let i = 0; i < n; i += 1) {
       if (comp[i] === mainId) { dist[i] = 0; queue[qTail++] = i; }
     }
+    const visit = (from, to) => {
+      if (dist[to] !== -1 || blocked(to)) return;
+      dist[to] = dist[from] + 1;
+      parent[to] = from;
+      queue[qTail++] = to;
+    };
     while (qHead < qTail) {
       const i = queue[qHead++];
       const x = i % w;
       const y = (i - x) / w;
-      if (x > 0 && dist[i - 1] === -1) { dist[i - 1] = dist[i] + 1; parent[i - 1] = i; queue[qTail++] = i - 1; }
-      if (x < w - 1 && dist[i + 1] === -1) { dist[i + 1] = dist[i] + 1; parent[i + 1] = i; queue[qTail++] = i + 1; }
-      if (y > 0 && dist[i - w] === -1) { dist[i - w] = dist[i] + 1; parent[i - w] = i; queue[qTail++] = i - w; }
-      if (y < h - 1 && dist[i + w] === -1) { dist[i + w] = dist[i] + 1; parent[i + w] = i; queue[qTail++] = i + w; }
+      if (x > 0) visit(i, i - 1);
+      if (x < w - 1) visit(i, i + 1);
+      if (y > 0) visit(i, i - w);
+      if (y < h - 1) visit(i, i + w);
     }
 
     // For each stranded component, carve the shortest corridor to the mainland:
@@ -491,6 +612,12 @@ export class TerrainGrid {
       let best = -1;
       for (let i = 0; i < n; i += 1) {
         if (comp[i] !== id) continue;
+        // ⚠ `dist === -1` means "never reached", not "adjacent". Without this
+        // guard the unreachable sentinel compares as nearer than every real
+        // distance and wins the search, and the carve below then walks a
+        // `parent` chain that was never written. Unreachable only became
+        // possible when the exterior mask did.
+        if (dist[i] === -1) continue;
         if (best === -1 || dist[i] < dist[best]) best = i;
       }
       if (best === -1) continue;

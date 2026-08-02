@@ -40,6 +40,21 @@ export const defaultSimulationConfig = Object.freeze({
   // retuning a generator default silently changed the terrain under every
   // existing save. Add new generation params here, never there.
   terrain: Object.freeze({
+    // World shape, 0..MAX_ROUNDNESS (5 levels). 0 is the full rectangle; 4 is a
+    // true ellipse inscribed in `world.width` × `world.height` — an oval on a
+    // non-square map, a circle on a square one. Between them the corners round
+    // off progressively (a superellipse; see TerrainGrid ROUNDNESS_EXPONENTS).
+    // Everything outside becomes impassable ROCK, which is what the engine
+    // already reports beyond the world edge, so the rim needs no new terrain
+    // type and no protocol change.
+    //
+    // ⚠ **Level 0 ships as the default and is a true no-op** — it skips the
+    // carve entirely, so every existing seed generates exactly the world it did
+    // before roundness existed. Raising it shrinks the *playable* area without
+    // changing `world.width`/`height`: usable fraction by level is 1.000, 0.978,
+    // 0.927, 0.873, 0.785. Since the founding roster is a flat count, a level-4
+    // world is ~27% denser in animals than a level-0 one of the same dimensions.
+    roundness: 0,
     lakes: 1,
     lakeRadiusFraction: 0.14,
     // Fraction of a lake's radius that is deep (impassable) water at its centre,

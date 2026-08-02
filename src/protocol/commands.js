@@ -17,7 +17,7 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
-  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets? }
+  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets?, roundness? }
   // ⚠ v29 replaced the per-role counts with a roster. `herbivores` /
   // `predators` / `scavengers` are still accepted as **deprecated aliases** for
   // one version; see FOUNDING_ROLE_ALIASES below.
@@ -138,6 +138,21 @@ export const MAX_FOUNDING_SCAVENGERS = 5000;
  */
 export const MAX_TERRAIN_PREVALENCE = 10;
 export const DEFAULT_TERRAIN_PREVALENCE = 2;
+
+/**
+ * `roundness` is the world's *shape*, 0..MAX_ROUNDNESS: 0 is the plain
+ * rectangle the world has always been, MAX_ROUNDNESS is an ellipse inscribed in
+ * `width` × `height` (a circle when they are equal), and the levels between
+ * round the corners off progressively. Everything outside the shape is
+ * impassable.
+ *
+ * ⚠ Unlike `rocks` and `thickets` this is **not** a prevalence abstraction over
+ * some generator quantity — the level is the setting, and the host stores it
+ * verbatim. It is five levels rather than a continuous ratio so the UI can offer
+ * a dropdown, matching the terrain controls beside it.
+ */
+export const MAX_ROUNDNESS = 4;
+export const DEFAULT_ROUNDNESS = 0;
 
 /**
  * Successful command result.
