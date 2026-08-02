@@ -75,6 +75,9 @@ const MAX_TERRAIN_PREVALENCE = 10;
  */
 const MAX_ROUNDNESS = 4;
 
+/** Matches the host's MAX_PRESET_NAME_LENGTH, restated for the same reason. */
+const MAX_PRESET_NAME_LENGTH = 60;
+
 /**
  * Default world composition, restated so the restart fields open on the demo's
  * actual starting values. The host still applies its own defaults for any field
@@ -227,6 +230,17 @@ export class Controls {
             <button type="button" id="ctl-restart-same">Replay Current</button>
           </div>
           <div class="control-row">
+            <label for="ctl-preset" class="dim">Preset</label>
+            <select id="ctl-preset" aria-label="Saved world presets"><option value="">(none saved)</option></select>
+            <button type="button" id="ctl-preset-load" title="Fill the fields below from this preset">Load</button>
+            <button type="button" id="ctl-preset-delete" title="Delete this preset">Delete</button>
+          </div>
+          <div class="control-row">
+            <input type="text" id="ctl-preset-name" maxlength="${MAX_PRESET_NAME_LENGTH}" placeholder="name this world" aria-label="Preset name" />
+            <button type="button" id="ctl-preset-save" title="Save the fields below as a preset">Save</button>
+          </div>
+          <p class="hint">Loading a preset fills the fields — press Restart to build it.</p>
+          <div class="control-row">
             <label for="ctl-world-w" class="dim">World</label>
             <input type="number" id="ctl-world-w" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.width}" aria-label="World width" />
             <span class="dim">×</span>
@@ -268,6 +282,11 @@ export class Controls {
       worldW: container.querySelector("#ctl-world-w"),
       worldH: container.querySelector("#ctl-world-h"),
       founding: container.querySelector("#ctl-founding"),
+      preset: container.querySelector("#ctl-preset"),
+      presetName: container.querySelector("#ctl-preset-name"),
+      presetLoad: container.querySelector("#ctl-preset-load"),
+      presetSave: container.querySelector("#ctl-preset-save"),
+      presetDelete: container.querySelector("#ctl-preset-delete"),
       rocks: container.querySelector("#ctl-rocks"),
       thickets: container.querySelector("#ctl-thickets"),
       roundness: container.querySelector("#ctl-roundness"),
@@ -320,6 +339,17 @@ export class Controls {
       const current = Math.round(Number(this.#els.seed.value));
       this.#restart(Number.isFinite(current) ? current : undefined);
     });
+
+    this.#els.presetSave.addEventListener("click", () => this.#savePreset());
+    this.#els.presetLoad.addEventListener("click", () => this.#loadPreset());
+    this.#els.presetDelete.addEventListener("click", () => this.#deletePreset());
+    // Selecting a preset offers its name for the next save, so re-saving one you
+    // just loaded overwrites it rather than silently creating a near-duplicate.
+    this.#els.preset.addEventListener("change", () => {
+      const option = this.#els.preset.selectedOptions[0];
+      if (option?.value) this.#els.presetName.value = option.textContent ?? "";
+    });
+    void this.refreshPresets({ quiet: true });
 
     this.setRunState(this.#runState);
   }
@@ -374,6 +404,153 @@ export class Controls {
       input.disabled = !this.#enabled.enabled;
       input.title = this.#enabled.enabled ? "" : this.#enabled.reason;
     }
+  }
+
+  // --- world presets -------------------------------------------------------
+  //
+  // ⚠ Presets are **host** state reached over plain REST, not protocol commands,
+  // because none of this changes the running world: saving stores the fields,
+  // loading fills them, and only the ordinary Restart button below builds
+  // anything. That is deliberate — a dropdown that destroys a running world the
+  // moment you brush it is a control that punishes curiosity — and it keeps
+  // `simulation.restart` the single path by which a world is ever replaced.
+
+  /**
+   * A preset request. Errors are swallowed and reported in the status bar.
+   *
+   * ⚠ `quiet` exists for the **startup** listing, and it is not politeness. The
+   * panel refreshes its presets as soon as it is built, and in fixture mode —
+   * where the renderer is served with no host behind it — that request is
+   * *expected* to fail. Reporting it would greet every fixture-mode viewer with
+   * a red error about a feature they did not ask for and cannot use. Failures
+   * from what a person actually clicked are always reported.
+   *
+   * @param {string} method @param {string} url
+   * @param {object} [body]
+   * @param {boolean} [quiet] report nothing on failure
+   * @returns {Promise<object|null>}
+   */
+  async #presetRequest(method, url, body, quiet = false) {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: body ? { "content-type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (!quiet) {
+          this.setStatus(payload?.error?.message ?? `preset request failed (${response.status})`, "bad");
+        }
+        return null;
+      }
+      return payload;
+    } catch {
+      if (!quiet) this.setStatus("the host is not reachable for presets", "bad");
+      return null;
+    }
+  }
+
+  /**
+   * Re-read the saved presets and rebuild the dropdown.
+   *
+   * The option *value* is the host's slug and the option *text* is the display
+   * name, so the client addresses presets by the id the host gave it and never
+   * has to derive one — the slug rules are a filesystem security boundary and
+   * belong in exactly one place (see the host's `presetSlug`).
+   */
+  async refreshPresets({ quiet = false } = {}) {
+    const payload = await this.#presetRequest("GET", "/api/presets", undefined, quiet);
+    const presets = Array.isArray(payload?.presets) ? payload.presets : [];
+    const previous = this.#els.preset.value;
+    this.#els.preset.innerHTML =
+      presets.length === 0
+        ? `<option value="">(none saved)</option>`
+        : presets
+            .map(
+              (preset) =>
+                `<option value="${escapeHtml(preset.slug)}">${escapeHtml(preset.name)}</option>`,
+            )
+            .join("");
+    // Keep the selection across a refresh when it still exists.
+    if (presets.some((preset) => preset.slug === previous)) this.#els.preset.value = previous;
+    return presets;
+  }
+
+  /** Save the current composition fields under the typed name. */
+  async #savePreset() {
+    const name = this.#els.presetName.value.trim();
+    if (name.length === 0) {
+      this.setStatus("name the preset before saving it", "bad");
+      return;
+    }
+    // Reuses the same read-and-validate the restart buttons use, so a preset can
+    // never store a world the panel would have refused to build.
+    const world = this.#compositionParams();
+    if (world === null) return;
+    const seed = Math.round(Number(this.#els.seed.value));
+    if (Number.isFinite(seed) && seed >= 0) world.seed = seed;
+
+    const payload = await this.#presetRequest("POST", "/api/presets", { name, world });
+    if (payload === null) return;
+    await this.refreshPresets();
+    this.#els.preset.value = payload.preset.slug;
+    this.setStatus(`saved preset "${payload.preset.name}"`, "ok");
+  }
+
+  /** Fill the composition fields from the selected preset. Builds nothing. */
+  async #loadPreset() {
+    const slug = this.#els.preset.value;
+    if (!slug) {
+      this.setStatus("no preset selected", "bad");
+      return;
+    }
+    const payload = await this.#presetRequest("GET", `/api/presets/${encodeURIComponent(slug)}`);
+    if (payload === null) return;
+    const world = payload.preset?.world ?? {};
+
+    const setValue = (element, value) => {
+      if (element && value !== undefined) element.value = String(value);
+    };
+    setValue(this.#els.seed, world.seed);
+    setValue(this.#els.worldW, world.width);
+    setValue(this.#els.worldH, world.height);
+    setValue(this.#els.rocks, world.rocks);
+    setValue(this.#els.thickets, world.thickets);
+    setValue(this.#els.roundness, world.roundness);
+
+    // ⚠ A species in the preset that this host does not offer is *skipped*, and
+    // one the host offers that the preset omits is set to 0 rather than left at
+    // whatever the field happened to hold. Otherwise loading a preset would
+    // leave a stale count behind and build a world the preset never described.
+    const counts = new Map((world.founding ?? []).map((entry) => [entry.speciesId, entry.count]));
+    for (const input of this.#els.foundingInputs ?? []) {
+      input.value = String(counts.get(input.dataset.species) ?? 0);
+    }
+    const missing = [...counts.keys()].filter(
+      (id) => !(this.#els.foundingInputs ?? []).some((input) => input.dataset.species === id),
+    );
+    this.#els.presetName.value = payload.preset.name ?? "";
+    this.setStatus(
+      missing.length > 0
+        ? `loaded "${payload.preset.name}" — this host has no ${missing.join(", ")}; press Restart`
+        : `loaded "${payload.preset.name}" — press Restart to build it`,
+      missing.length > 0 ? "warn" : "ok",
+    );
+  }
+
+  /** Delete the selected preset. */
+  async #deletePreset() {
+    const slug = this.#els.preset.value;
+    if (!slug) {
+      this.setStatus("no preset selected", "bad");
+      return;
+    }
+    const label = this.#els.preset.selectedOptions[0]?.textContent ?? slug;
+    const payload = await this.#presetRequest("DELETE", `/api/presets/${encodeURIComponent(slug)}`);
+    if (payload === null) return;
+    await this.refreshPresets();
+    this.setStatus(payload.removed ? `deleted preset "${label}"` : `no preset "${label}" to delete`, "ok");
   }
 
   #renderWatchCount() {
@@ -595,6 +772,11 @@ export class Controls {
       this.#els.rocks,
       this.#els.thickets,
       this.#els.roundness,
+      this.#els.preset,
+      this.#els.presetName,
+      this.#els.presetLoad,
+      this.#els.presetSave,
+      this.#els.presetDelete,
       ...this.#els.steps,
       // ⚠ The founder fields are *generated* from the host's roster, so they may
       // not exist yet — and when they do arrive, `setSpecies` has to re-apply

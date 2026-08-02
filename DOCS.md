@@ -3506,6 +3506,60 @@ system descriptors.
 `createEngineFromSave(saved, { registerSystems })` restores it; a restored
 simulation continues **identically** to an uninterrupted one (tested).
 
+### World presets — not saves
+
+⚠ **A preset is a named `simulation.restart` payload, stored as one JSON file**
+(`src/server/PresetStore.js`, 2026-08-02), and the distinction from a save is the
+whole point. A save is a world *mid-life* — every animal, every genome, the tick
+it stopped on — and is machine-written, enormous, and not meant to be read. A
+preset is the handful of numbers a world is *started from*: seed, dimensions,
+`rocks`/`thickets`/`roundness`, and the founding roster. It stays small enough to
+open, hand-edit, diff, and commit.
+
+Being a restart payload rather than a schema of its own buys three things that
+would otherwise have to be re-earned:
+
+- The payload validates through the **existing** `validateCommand`, so there is
+  no second validator to drift from the first.
+- **Loading one is the ordinary restart command**, so commands remain the only
+  path by which world state ever changes. The client fetches the world and then
+  sends `simulation.restart`; there is deliberately no "apply preset" route,
+  because that would be a second such path to save one HTTP call.
+- A preset written **by hand** is checked exactly as strictly as one the UI saved.
+
+⚠ Presets are a **host** concern. `src/simulation` performs no file I/O at all —
+`SimulationSerializer` produces and consumes plain objects and lets its caller
+decide where they go — and presets keep that line: they are the host remembering
+what you asked for, not simulation state. The runner neither knows nor needs to
+know they exist.
+
+⚠⚠ **The slug is a security boundary, not a formatting nicety.** A preset name
+becomes a filename, so `presetSlug` is built from an *allowlist* (lowercase
+alphanumerics and single dashes) rather than by stripping traversal sequences —
+`..` is not expressible in that alphabet at all, so there is no encoding to
+out-clever. `#resolve` re-checks containment anyway: one defence that must never
+fail is worse than two that agree. A traversal name is **sanitised into** the
+directory rather than refused, because containment is the property that matters
+and refusing a name someone typed innocently is not.
+
+⚠ **Every file in the directory is untrusted input**, because the directory is
+meant to be hand-editable. A preset is validated on read, not only on write, so a
+tampered file is reported by name instead of loaded. One malformed file is
+*skipped* by `list()` rather than thrown on — otherwise a single bad file would
+hide every good one.
+
+REST, on the host only: `GET /api/presets`, `POST /api/presets` (host derives the
+slug — this is what the renderer uses, so client code never restates the slug
+rules), `GET|PUT|DELETE /api/presets/:slug`. ⚠ On `PUT` the **path** decides where
+a preset is stored and the body supplies only the label, so a request cannot take
+effect somewhere other than where it was addressed.
+
+In the restart panel, Load **fills the fields and builds nothing** — a dropdown
+that destroys a running world the moment you brush it is a control that punishes
+curiosity. The startup listing is deliberately quiet (`quiet: true`): in fixture
+mode that request is *expected* to fail, and reporting it would greet every
+fixture-mode viewer with a red error about a feature they cannot use.
+
 **Derived state is not saved and is rebuilt on load:** the spatial grid, the
 terrain layer (regenerated from the seed + `config.terrain`), per-entity
 perception summaries, the shared neighbourhood buffer, and the metrics report

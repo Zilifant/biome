@@ -10,6 +10,7 @@ import express from 'express';
 import { createDemoSimulation, buildDemoConfig } from '../fixtures/createDemoSimulation.js';
 import { SimulationRunner } from './SimulationRunner.js';
 import { createHttpRouter } from './transports/HttpTransport.js';
+import { PresetStore } from './PresetStore.js';
 import { attachWebSocketTransport } from './transports/WebSocketTransport.js';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -17,11 +18,16 @@ const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 // static files (ES modules, styles, protocol fixtures). No renderer code runs
 // on the server and nothing here imports it.
 const rendererDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../renderer');
+// World presets live beside the project rather than inside `src`: they are user
+// data the host reads and writes at runtime, and they are meant to be opened,
+// edited, and committed by hand.
+const defaultPresetDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../presets');
 
 /**
  * @param {object} [options]
  * @param {number} [options.seed]
  * @param {number} [options.tickIntervalMs]
+ * @param {string} [options.presetDirectory] where world presets are stored
  * @returns {{app: import('express').Express, httpServer: import('node:http').Server,
  *            runner: SimulationRunner, engine: import('../simulation/engine/SimulationEngine.js').SimulationEngine,
  *            listen: (port?: number) => Promise<import('node:net').AddressInfo>, close: () => Promise<void>}}
@@ -29,6 +35,7 @@ const rendererDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export function createServer({
   seed = Number(process.env.SIM_SEED ?? 42),
   tickIntervalMs = Number(process.env.SIM_TICK_MS ?? 1000),
+  presetDirectory = process.env.SIM_PRESET_DIR ?? defaultPresetDir,
 } = {}) {
   const engine = createDemoSimulation({ seed });
   // The runner can rebuild the world on a `simulation.restart` command, but it
@@ -41,9 +48,13 @@ export function createServer({
       createDemoSimulation({ seed: nextSeed, config: buildDemoConfig(options ?? {}) }),
   });
 
+  // Presets are host state, not simulation state — the runner neither knows nor
+  // needs to know that they exist (see PresetStore).
+  const presets = new PresetStore({ directory: presetDirectory });
+
   const app = express();
   app.use(express.json());
-  app.use('/api', createHttpRouter(runner));
+  app.use('/api', createHttpRouter(runner, { presets }));
   app.use('/renderer', express.static(rendererDir));
   app.use(express.static(publicDir));
 
@@ -55,6 +66,7 @@ export function createServer({
     httpServer,
     runner,
     engine,
+    presets,
     listen(port = Number(process.env.PORT ?? 3000)) {
       return new Promise((resolve, reject) => {
         httpServer.once('error', reject);
