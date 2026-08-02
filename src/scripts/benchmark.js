@@ -16,6 +16,7 @@
  */
 import { createDemoSimulation } from '../fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../simulation/persistence/SimulationSerializer.js';
+import { defaultSimulationConfig } from '../simulation/config/defaultSimulationConfig.js';
 
 /**
  * Scenarios scale the animal population and world size (vegetation is a
@@ -48,7 +49,7 @@ import { captureSimulationState } from '../simulation/persistence/SimulationSeri
  * @type {Array<{name: string, world: object, founding: Array<{speciesId: string, count: number}>}>}
  */
 const SCENARIOS = [
-  { name: 'demo-default', world: { width: 128, height: 128 }, founding: [
+  { name: 'demo-default', world: { ...defaultSimulationConfig.world }, founding: [
       { speciesId: 'herbivore.gazelle', count: 120 },
       { speciesId: 'herbivore.wildebeest', count: 30 },
       { speciesId: 'herbivore.zebra', count: 15 },

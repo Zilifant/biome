@@ -74,8 +74,13 @@ const MAX_TERRAIN_PREVALENCE = 10;
  * DEFAULT_TERRAIN_PREVALENCE.
  */
 const DEFAULTS = Object.freeze({
-  width: 128,
-  height: 128,
+  width: 160,
+  height: 120,
+  // Prevalence levels, not formation counts: DEFAULT_TERRAIN_PREVALENCE means
+  // "whatever the demo generates", so these are unaffected when the demo's rock
+  // and thicket counts are retuned. Only the dimensions above have to be
+  // re-synced by hand, and only because the renderer may not import simulation
+  // internals (DOCS §14).
   rocks: 2,
   thickets: 2,
 });

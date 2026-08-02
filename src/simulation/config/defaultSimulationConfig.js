@@ -6,9 +6,14 @@
  * will be replaced by species/environment definitions as real systems land.
  */
 export const defaultSimulationConfig = Object.freeze({
+  // ⚠ Several parameters elsewhere in this file are absolute distances or rates
+  // that were calibrated against a specific map (see `disturbance.maxRadius` and
+  // the `engineering` decay/wear balance). They do **not** rescale with these
+  // dimensions; changing the world changes what those mechanisms mean as a
+  // fraction of it. The comments there name the map they were measured on.
   world: Object.freeze({
-    width: 128,
-    height: 128,
+    width: 160,
+    height: 120,
     cellSize: 8,
   }),
   // Time model (see PLAN.md §3). The engine holds no timer; these values only
@@ -22,9 +27,25 @@ export const defaultSimulationConfig = Object.freeze({
   // Seeded terrain generation parameters (see world/TerrainGrid.js). Terrain
   // is derived deterministically from the engine seed + these params, so it is
   // regenerated on load rather than stored.
+  //
+  // ⚠ **This block is the single home for terrain generation** (§19: a value
+  // must have exactly one home). `TerrainGrid.DEFAULT_TERRAIN_PARAMS` is this
+  // object, re-exported — not a second copy. Until 2026-08-02 it *was* a second
+  // copy, and seven of these keys (`lakeDeepFraction` and all six thicket
+  // params) lived only there, so the demo's thicket count could not be found or
+  // changed from the config at all. The duplicated ten were silently equal,
+  // which is the D11 failure case rather than the neutral one: editing either
+  // file appeared to work. Worse, a param absent from the config is absent from
+  // the save file, and terrain is *regenerated* from these on load — so
+  // retuning a generator default silently changed the terrain under every
+  // existing save. Add new generation params here, never there.
   terrain: Object.freeze({
     lakes: 1,
     lakeRadiusFraction: 0.14,
+    // Fraction of a lake's radius that is deep (impassable) water at its centre,
+    // leaving a shallow drinkable ring of the remaining radius. 0 disables it (a
+    // fully shallow lake). See TerrainGrid #carveLakes.
+    lakeDeepFraction: 0.55,
     // Rock is generated as several irregular formations of varying size
     // scattered around the map, never one long dividing ridge. `ridges` is the
     // formation count (0 disables rock entirely, which the flat-world tests
@@ -32,14 +53,29 @@ export const defaultSimulationConfig = Object.freeze({
     // its outline is organic rather than a line or a circle. After all terrain
     // is placed, a connectivity pass carves the minimum rock needed so that no
     // passable region is walled off from the rest (see world/TerrainGrid.js).
-    ridges: 8,
+    ridges: 5,
     rockFormationMinRadius: 1.5,
     rockFormationMaxRadius: 4,
     rockFormationMinSteps: 2,
     rockFormationMaxSteps: 7,
     rockFormationDrift: 1,
+    // Cover grows in clumps, not per-cell noise: patches keep the run-length
+    // encoding compact on large worlds (per-cell scatter fragmented it into
+    // ~1 run per cell). Density is patches per 1000 cells — the one terrain
+    // quantity already expressed per unit area, so it rescales with the map on
+    // its own.
     coverPatchDensity: 1.5,
     coverPatchRadius: 3,
+    // Thicket stands, placed exactly like rock formations (a short random walk
+    // of overlapping discs, organic outline) but on open ground only.
+    // `thickets` is the formation count (0 disables). See TerrainGrid
+    // #carveThicketFormations.
+    thickets: 5,
+    thicketMinRadius: 1.5,
+    thicketMaxRadius: 4,
+    thicketMinSteps: 2,
+    thicketMaxSteps: 7,
+    thicketDrift: 1,
   }),
   // Cell-level vegetation biomass (see world/VegetationGrid.js). Seeded from
   // the engine seed; grows logistically toward terrain-derived capacity.
@@ -236,7 +272,7 @@ export const defaultSimulationConfig = Object.freeze({
     // Decay sets the **traffic rate a cell must beat to accumulate anything**:
     // roughly one animal-crossing per `trailWearPerUnit / decayPerTick` ticks
     // breaks even, and anything rarer fades. At 0.035 and 0.0016 that is one
-    // crossing per ~22 ticks. Ordinary ground on a 128×128 map with ~100 animals
+    // crossing per ~22 ticks. Ordinary ground on a 160×120 map with ~100 animals
     // sees far less traffic than that, so it never forms a trail; the routes
     // animals actually converge on (around water, through gaps) do. That gap is
     // the entire mechanism, and it is narrow — 0.0006 paved 7% of the map.
@@ -303,9 +339,11 @@ export const defaultSimulationConfig = Object.freeze({
     // Hard cap on simultaneous disturbances. Bounds both the per-animal cost
     // (which is O(animals × active)) and the snapshot payload.
     maxActive: 3,
-    // Bounded in space as well as number: a disturbance is a local event, and
-    // 16 units on a 128-wide map is about 1.5% of it. "Global catastrophes" are
-    // explicitly out of scope for this step.
+    // Bounded in space as well as number: a disturbance is a local event, and a
+    // 16-unit radius covers about 1.3% of a 160×120 map (1.6% of the 128×128 it
+    // was set on). "Global catastrophes" are explicitly out of scope for this
+    // step. ⚠ Absolute units, so this is a *smaller* share of a bigger world —
+    // it does not rescale with `world`.
     minRadius: 6,
     maxRadius: 16,
     // One draw sets radius *and* duration together, so a bigger disturbance

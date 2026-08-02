@@ -1,4 +1,5 @@
 import { SeededRandom } from '../random/SeededRandom.js';
+import { defaultSimulationConfig } from '../config/defaultSimulationConfig.js';
 
 /**
  * Static terrain layer: one cell code per world cell, generated once at world
@@ -163,40 +164,19 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
   0.1, // thicket — passable, but a crawl; an animal only pushes through to escape
 ]);
 
-export const DEFAULT_TERRAIN_PARAMS = Object.freeze({
-  lakes: 1,
-  lakeRadiusFraction: 0.14,
-  // Fraction of a lake's radius that is deep (impassable) water at its centre,
-  // leaving a shallow drinkable ring of the remaining radius. 0 disables it (a
-  // fully shallow lake). See #carveLakes.
-  lakeDeepFraction: 0.55,
-  // Rock is placed as irregular formations of varying size, not one straight
-  // ridge. `ridges` is the formation count (0 disables rock); each formation is
-  // a short random walk of overlapping discs whose radii and step count vary,
-  // so no two are the same shape or size and none spans the map. See
-  // #carveRockFormations.
-  ridges: 8,
-  rockFormationMinRadius: 1.5,
-  rockFormationMaxRadius: 4,
-  rockFormationMinSteps: 2,
-  rockFormationMaxSteps: 7,
-  rockFormationDrift: 1,
-  // Cover grows in clumps, not per-cell noise: patches keep the run-length
-  // encoding compact on large worlds (per-cell scatter fragmented it into
-  // ~1 run per cell). Density is patches per 1000 cells.
-  coverPatchDensity: 1.5,
-  coverPatchRadius: 3,
-  // Thicket stands, placed exactly like rock formations (a short random walk of
-  // overlapping discs, organic outline) but **more prevalent** than rock and on
-  // open ground only. `thickets` is the formation count (0 disables). See
-  // #carveThicketFormations.
-  thickets: 14,
-  thicketMinRadius: 1.5,
-  thicketMaxRadius: 4,
-  thicketMinSteps: 2,
-  thicketMaxSteps: 7,
-  thicketDrift: 1,
-});
+/**
+ * Generation parameters used when a caller supplies none — the fallback for a
+ * `TerrainGrid` built directly (the tests do this) rather than through a
+ * configured `World`.
+ *
+ * ⚠ **This is the config's terrain block, re-exported — not a second copy.**
+ * Until 2026-08-02 it was a hand-maintained duplicate: ten keys restated with
+ * identical values, and seven (`lakeDeepFraction`, the six thicket params)
+ * present *only* here, so the demo's thicket count was unreachable from the
+ * config and absent from every save file. Each param is documented at its one
+ * home in `config/defaultSimulationConfig.js`; add new ones there.
+ */
+export const DEFAULT_TERRAIN_PARAMS = defaultSimulationConfig.terrain;
 
 export class TerrainGrid {
   #width;

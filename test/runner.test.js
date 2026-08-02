@@ -4,6 +4,7 @@ import { SimulationRunner } from '../src/server/SimulationRunner.js';
 import { createDemoSimulation, buildDemoConfig } from '../src/fixtures/createDemoSimulation.js';
 import { applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
+import { defaultSimulationConfig } from '../src/simulation/config/defaultSimulationConfig.js';
 
 /** A paused runner over the demo world, with every emission captured. */
 function pausedRunner(seed = 42) {
@@ -155,11 +156,19 @@ describe('runner: restart', () => {
     // buildDemoConfig is the bridge from the UI's abstract 0..10 prevalence to
     // the generator's formation counts. Level 2 (the demo's default) reproduces
     // the demo's own terrain, 0 clears the type, and higher is denser.
-    assert.equal(buildDemoConfig({ rocks: 2 }).terrain.ridges, 8, 'level 2 rock == demo default');
-    assert.equal(buildDemoConfig({ thickets: 2 }).terrain.thickets, 14, 'level 2 thicket == demo default');
+    //
+    // ⚠ Asserted against the config, not against literals. This read
+    // `.ridges, 8` and `.thickets, 14` until 2026-08-02, which could not fail
+    // the way the test name claims: retuning the demo's terrain broke the
+    // "level 2 == the demo" contract while leaving 8 === 8 true, so the test
+    // went on passing. The relationship is the claim, so the relationship is
+    // what gets compared.
+    const { ridges, thickets } = defaultSimulationConfig.terrain;
+    assert.equal(buildDemoConfig({ rocks: 2 }).terrain.ridges, ridges, 'level 2 rock == demo default');
+    assert.equal(buildDemoConfig({ thickets: 2 }).terrain.thickets, thickets, 'level 2 thicket == demo default');
     assert.equal(buildDemoConfig({ rocks: 0 }).terrain.ridges, 0, 'level 0 clears rock');
     assert.equal(buildDemoConfig({ thickets: 0 }).terrain.thickets, 0, 'level 0 clears thicket');
-    assert.ok(buildDemoConfig({ rocks: 10 }).terrain.ridges > 8, 'the top of the scale is denser');
+    assert.ok(buildDemoConfig({ rocks: 10 }).terrain.ridges > ridges, 'the top of the scale is denser');
     // Omitting them leaves terrain entirely to the defaults — no override object.
     assert.equal(buildDemoConfig({ herbivores: 5 }).terrain, undefined);
   });

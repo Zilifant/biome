@@ -458,16 +458,22 @@ function populateDemoWorld(engine) {
  * protocol in "how much" while the config stays in "how many formations".
  *
  * The map is linear through the default: level DEFAULT_TERRAIN_PREVALENCE lands
- * on the demo's own formation count (rock 8, thicket 14 — kept in step with
- * defaultSimulationConfig.terrain.ridges and TerrainGrid's `thickets` default),
- * level 0 clears the terrain, and the top of the scale is several times the
- * default — enough discs that, after they overlap, the type dominates open
- * ground. The counts are restated here rather than imported so this file owns
- * the "level 2 == the demo you know" contract, exactly as DEFAULTS does in the
- * renderer's Controls.
+ * on the demo's own formation count, level 0 clears the terrain, and the top of
+ * the scale is several times the default — enough discs that, after they
+ * overlap, the type dominates open ground.
+ *
+ * ⚠ **Read from the config, never restated.** These were hardcoded (8 and 14)
+ * until 2026-08-02, which made "level 2 == the demo you know" unenforceable: the
+ * demo's counts live in `defaultSimulationConfig.terrain`, so retuning them
+ * there left this mapping pointing at the old world and the dropdown's default
+ * level silently stopped reproducing the demo. Deriving it means the contract
+ * holds by construction rather than by anyone remembering to edit both.
  * @type {Record<'ridges'|'thickets', number>} config key → count at the default level
  */
-const FORMATION_COUNT_AT_DEFAULT = Object.freeze({ ridges: 8, thickets: 14 });
+const FORMATION_COUNT_AT_DEFAULT = Object.freeze({
+  ridges: defaultSimulationConfig.terrain.ridges,
+  thickets: defaultSimulationConfig.terrain.thickets,
+});
 
 /**
  * The prevalence level that reproduces the demo's own terrain. Restated here

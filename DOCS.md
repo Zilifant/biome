@@ -4107,6 +4107,27 @@ beside them; equal values are the failure case, not the neutral one"):
   food. Both perception and decision now read the species' own value, which
   matters because they must agree: otherwise an animal walks to a cell its senses
   called food and then declines to eat it.
+- **The whole `terrain` block** was duplicated in `TerrainGrid`'s
+  `DEFAULT_TERRAIN_PARAMS` (2026-08-02). Ten keys were restated with identical
+  values — the D11 failure case, where editing either file appears to work — and
+  seven (`lakeDeepFraction` and all six thicket params) lived **only** there, so
+  the demo's thicket count could not be found or changed from the config at all.
+  ⚠ The sharper consequence is persistence: terrain is *regenerated* from these
+  params on load rather than stored, and a param absent from the config is absent
+  from the save file, so retuning a generator default silently changed the
+  terrain under every existing save. `DEFAULT_TERRAIN_PARAMS` is now
+  `defaultSimulationConfig.terrain` re-exported — same object identity, not a
+  synced copy.
+- **The prevalence mapping restated the same counts a third time.**
+  `FORMATION_COUNT_AT_DEFAULT` in the demo fixture hardcoded `{ ridges: 8,
+  thickets: 14 }` to hold the contract "level `DEFAULT_TERRAIN_PREVALENCE`
+  reproduces the demo's own terrain". Because it was a literal, retuning the
+  demo's terrain broke that contract silently — and the test guarding it
+  (`runner.test.js`) compared against the *same* literals, so it could not fail
+  the way its own name claimed: `8 === 8` stayed true while the invariant died.
+  Both now read the config. ⚠ **A test that restates the value it is guarding is
+  asserting a tautology** — when the claim is a relationship, compare the
+  relationship.
 
 ---
 
