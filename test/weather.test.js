@@ -240,13 +240,66 @@ describe('weather: thermal stress and shelter', () => {
     const coldSpend = before - engine.world.entities.get(coldId).energy;
     assert.ok(coldSpend > comfortableSpend, `the cold costs more (${coldSpend.toFixed(3)} vs ${comfortableSpend.toFixed(3)})`);
 
-    // Run one down to nothing in deep cold: it dies of exposure, not hunger.
-    const dyingId = spawnGrazer(engine, { x: 20, y: 10, energy: 0.5 });
+    // ⚠⚠ **This assertion was inverted on 2026-08-01, deliberately** (A67). It
+    // used to run a sound adult down to nothing in deep cold and assert it died
+    // of `exposure`. That is exactly the behaviour that turned out to be wrong:
+    // measured over three demo seeds, exposure killed **47 sound adults** against
+    // the world's 14 starvations, none of them in a storm, because
+    // thermoregulation was a standing 23–40% tax on the energy budget rather than
+    // an event. A healthy adult in bad weather should get hungry, not freeze.
+    //
+    // So the rule is now conditional on the animal, and both arms are asserted
+    // here — a floor the weather cannot charge through for a sound adult, and no
+    // floor at all for one that is wounded or ill.
+    const soundId = spawnGrazer(engine, { x: 20, y: 10, energy: 0.5 });
     const seq = engine.events.lastSeq;
     engine.step(30);
-    const died = engine.eventsSince(seq).find((e) => e.type === 'entity.died' && e.entityId === dyingId);
+    const soundDeath = engine.eventsSince(seq).find((e) => e.type === 'entity.died' && e.entityId === soundId);
+    assert.ok(soundDeath, 'it still dies — the weather made it burn what it had');
+    assert.equal(soundDeath.cause, 'starvation', 'but a sound adult starves rather than freezing');
+
+    // The same cold, the same reserve, on an animal carrying a wound: the thermal
+    // charge is multiplied by its frailty and nothing floors it, so this one does
+    // freeze — which is where exposure is supposed to bite.
+    const hurtId = spawnGrazer(engine, { x: 24, y: 10, energy: 0.5, impairment: 0.5 });
+    const seq2 = engine.events.lastSeq;
+    engine.step(30);
+    const hurtDeath = engine.eventsSince(seq2).find((e) => e.type === 'entity.died' && e.entityId === hurtId);
+    assert.ok(hurtDeath, 'the wounded one died too');
+    assert.equal(hurtDeath.cause, 'exposure', 'and for it the cold is what did it');
+  });
+
+  test('⚠ a wound makes the same weather cost more — exposure worsens what is already wrong', () => {
+    const engine = sandbox({
+      systems: [new MetabolismSystem({ ...CONFIG.metabolism, ...CONFIG.locomotion })],
+    });
+    // Well fed, so the sound animal's floor never engages and the two are being
+    // compared on the charge itself rather than on the clamp.
+    const soundId = spawnGrazer(engine, { x: 10, y: 10 });
+    const hurtId = spawnGrazer(engine, { x: 14, y: 10, impairment: 0.5 });
+    engine.world.environment = { ...engine.world.environment, temperature: GRAZER.comfortMin - 10 };
+    engine.step(20);
+    const soundSpend = GRAZER.maxEnergy - engine.world.entities.get(soundId).energy;
+    const hurtSpend = GRAZER.maxEnergy - engine.world.entities.get(hurtId).energy;
+    assert.ok(hurtSpend > soundSpend, `a wounded animal pays more for the same cold (${hurtSpend.toFixed(3)} vs ${soundSpend.toFixed(3)})`);
+  });
+
+  test('⚠ a death is only called exposure when the animal was cold enough to have acted on it', () => {
+    // The old `exposureStressThreshold` (0.35 C) fired well below the stress at
+    // which an animal will walk to cover (2 C), so 127 709 animal-ticks on seed 1
+    // sat in a band where a death was recorded as freezing and the animal had no
+    // reason to move. One threshold now serves both.
+    const engine = sandbox({
+      systems: [new MetabolismSystem({ ...CONFIG.metabolism, ...CONFIG.locomotion })],
+    });
+    // 1 C below the band: enough to charge for, not enough to act on.
+    const id = spawnGrazer(engine, { x: 10, y: 10, energy: 0.5, impairment: 0.5 });
+    engine.world.environment = { ...engine.world.environment, temperature: GRAZER.comfortMin - 1 };
+    const seq = engine.events.lastSeq;
+    engine.step(30);
+    const died = engine.eventsSince(seq).find((e) => e.type === 'entity.died' && e.entityId === id);
     assert.ok(died, 'it died');
-    assert.equal(died.cause, 'exposure', 'and the cause says why');
+    assert.equal(died.cause, 'starvation', 'below the threshold the animal acts on, it is not exposure');
   });
 
   test('an animal out in the weather heads for cover; a comfortable one does not', () => {
@@ -291,6 +344,43 @@ describe('weather: thermal stress and shelter', () => {
 
     const mild = build((GRAZER.comfortMin + GRAZER.comfortMax) / 2);
     assert.notEqual(mild.action, 'shelter', 'a comfortable animal has no reason to');
+  });
+
+  test('⚠⚠ a thicket is shelter, and perception says so — it used to report COVER only', () => {
+    // The gap this pins: `world.isShelteredAt` counts cover, **thicket**, and a
+    // burrow, and `thermalStress` takes its relief from that — while perception
+    // filled the one shelter cue an animal has by testing `code === COVER`. On
+    // seed 1 that hid 953 thicket cells behind 615 of cover, and 15.4% of all
+    // "cold and out in the open" animal-ticks had sheltering ground inside the
+    // animal's own perception radius and were told there was none (D11: one rule,
+    // two readers, and the readers disagreed).
+    const engine = sandbox({
+      size: 48,
+      config: { terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0, thickets: 4 } },
+      systems: [new PerceptionSystem(CONFIG.perception)],
+    });
+    const world = engine.world;
+    let spot = null;
+    for (let cellY = 2; cellY < 46 && !spot; cellY += 1) {
+      for (let cellX = 4; cellX < 46 && !spot; cellX += 1) {
+        if (world.terrain.codeAt(cellX, cellY) !== TerrainType.THICKET) continue;
+        // Stand it two cells off, on open ground, with no cover anywhere near —
+        // so the only thing that can fill the cue is the thicket itself.
+        if (world.isShelteredAt(cellX - 2 + 0.5, cellY + 0.5)) continue;
+        spot = { x: cellX - 2 + 0.5, y: cellY + 0.5 };
+      }
+    }
+    assert.ok(spot, 'the generated world has a thicket to shelter in');
+    assert.equal(world.terrain.countByType()[TerrainType.COVER] ?? 0, 0, 'and no cover at all, so the cue can only be the thicket');
+    const id = spawnGrazer(engine, spot);
+    engine.step(1);
+    const perceived = world.perception.get(id);
+    assert.ok(perceived.nearestShelter, 'the thicket is reported as shelter');
+    assert.equal(
+      world.isShelteredAt(perceived.nearestShelter.cellX + 0.5, perceived.nearestShelter.cellY + 0.5),
+      true,
+      'and what is reported is genuinely shelter by the one definition that decides it',
+    );
   });
 });
 

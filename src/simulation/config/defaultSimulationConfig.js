@@ -623,13 +623,33 @@ export const defaultSimulationConfig = Object.freeze({
     ticksPerYear: 8000,
     spellTicks: 400, // how long one weather state holds before re-rolling
     meanTemperature: 14, // °C, annual mean
-    // °C: summer peaks ~25, winter troughs ~3. Measured — at an amplitude of 14
+    // °C: summer peaks ~23, winter troughs ~5. Measured — at an amplitude of 14
     // the bare seasons alone pushed animals outside their comfort band all
     // winter and predators died out in 3 of 5 seeds; at 11 both species survive
     // in 4 of 5. It also models better: the *weather* is what bites (snow at
     // −6, drought at +5 on top of the season), rather than winter being
     // uniformly lethal.
-    temperatureAmplitude: 11,
+    //
+    // ⚠⚠ **11 → 9 on 2026-08-01, and this time against a stated criterion rather
+    // than a survival count.** At 11 the bare seasonal cycle is 3…25 °C, which
+    // still sits outside somebody's comfort band at both ends — and the cost of
+    // that is not an occasional hard winter, it is a **standing tax**:
+    // thermoregulation measured at **40.1% of the leopard's entire energy budget**,
+    // 23.7% of the wildebeest's and 22.8% of the gazelle's, with the leopard
+    // stressed on 23% of its animal-ticks. It produced 59 exposure deaths across
+    // three seeds against 14 starvations, **47 of them sound adults**, and not one
+    // of them had a storm on it. A healthy animal in ordinary weather should get
+    // hungry, not die.
+    //
+    // The criterion: the **intersection of every species' comfort band** is
+    // 5…24 °C (the vulture's `comfortMin: 5` and the leopard's `comfortMax: 24`),
+    // so an amplitude at or below 9.5 around a mean of 14 puts the *bare seasons*
+    // inside every band in the roster. 9 gives 5…23 and leaves the weather doing
+    // exactly the job the note above says it should: snow takes winter to −1,
+    // drought takes summer to 28, and a storm is −10 on top of either. ⚠ This
+    // changes an energy sink for every animal in the world, so it is swept, not
+    // assumed — see DOCS §1.1 A67 and §9 Metabolism.
+    temperatureAmplitude: 9,
   }),
   // Carcasses and decay (see systems/CarcassSystem.js). A body is a resource on
   // a clock: it passes through decay stages, its flesh is worth less at each
@@ -909,13 +929,38 @@ export const defaultSimulationConfig = Object.freeze({
     // burning an animal out — which is what hypothermia is. Cover halves it.
     thermalCostFactor: 0.06, // energy per °C outside the species' comfort band
     shelterRelief: 0.55, // fraction of that stress cover removes
-    exposureStressThreshold: 0.35, // stress at which an energy death reads as `exposure`
+    // ⚠⚠ **`exposureStressThreshold` was deleted on 2026-08-01, not retuned.** It
+    // was 0.35 °C — the stress at which an energy death was *called* exposure —
+    // while `shelterStressThreshold` below, the stress at which an animal will
+    // actually walk to cover, was 2 °C. Measured on seed 1, **127 709
+    // animal-ticks** sat in that gap: cold enough to be recorded as having frozen
+    // to death, not cold enough to have any reason to do something about it. Two
+    // numbers for one fact, and the label was the one that lied. `MetabolismSystem`
+    // now reads `shelterStressThreshold` for both (D11: one rule, one home).
+    //
     // ⚠ `shelterWeight` moved to `behavior` on 2026-07-28 — how hard the weather
     // pulls an animal toward cover is biology, and nothing but the decision
     // system read it. The two below stayed: they are °C thresholds describing
     // *when the pull engages at all*, which is machinery shared by every animal.
-    shelterStressThreshold: 2, // °C of stress before moving is worth it
+    shelterStressThreshold: 2, // °C of stress before moving is worth it — and before a death reads as `exposure`
     shelterStressSpan: 10, // °C at which that pull is at full strength
+    // ⚠⚠ **What the weather does depends on the condition of the animal it finds**
+    // (2026-08-01). Exposure was killing sound adults four times as often as
+    // starvation did, which is the wrong shape for an ecosystem: an animal in its
+    // prime does not freeze in ordinary weather, it gets hungry. See §9
+    // Metabolism for the mechanism and the measurement.
+    //
+    // `exposureFrailty` is how much a wound or an illness multiplies the
+    // thermoregulation cost — the one direction in which exposure *should* bite,
+    // and 0 restores a flat cost as the control. `exposureFloorFraction` is the
+    // reserve fraction the thermal charge alone may not take a **sound adult**
+    // below; it still pays and still ends up hungry, but the weather can no longer
+    // be the blow that empties it, so it dies of the food it then fails to find.
+    // 0 restores the pre-2026-08-01 behaviour and is the arm this was measured
+    // against. Calves, subadults, senescent animals, the wounded and the sick are
+    // all unfloored and can still freeze.
+    exposureFrailty: 1.5,
+    exposureFloorFraction: 0.05,
     // Soft per-cell crowding cap. A number N refuses a step INTO a world cell
     // that already holds N living animals — the same treatment a wall or a
     // thicket edge gets, so a blocked animal simply turns and re-commits. It
@@ -1362,6 +1407,30 @@ export const defaultSimulationConfig = Object.freeze({
     // the pre-fix "straight away from the threat" behaviour.
     fleeWallMargin: 6,
     fleeLookahead: 8,
+    // ⚠⚠ **Obstacle deflection for directed actions** (2026-08-01) — the same
+    // wall-awareness as the two lines above, for the ten actions that never had
+    // it. `seekWater`, `recallWater`, `seekFood`, `recallFood`, `seekMate`,
+    // `followParent`, `tend`, `shelter`, `leaveThicket` and `stalk` all aim
+    // straight at a target and re-commit every tick, which meant the movement
+    // system's "blocked → turn around → re-commit" recovery was thrown away
+    // wholesale: an animal aimed at water through a rock re-aimed at the same
+    // rock until it died. Only `flee` and `wander` were ever exempt, because one
+    // computes an `escapeHeading` and the other reads its previous intent.
+    //
+    // Measured on seed 1, 5600 ticks, blocked-and-immobile share of directed
+    // animal-ticks: demo defaults **15.6%** before, and at `rocks=6 thickets=8`
+    // **40.6%**, with unbroken stalls of 372 and 964 ticks respectively — the
+    // latter holding `seekWater` at 0% hydration. The refusal was crowding 45.8%
+    // / rock 35.3% / thicket 16.0% in the demo world. See DOCS §9 Decision.
+    //
+    // `detourEnabled: false` restores the pre-fix behaviour exactly and is the
+    // control arm; `detourCommitTicks` is how long a chosen way-around is held
+    // (shorter and the animal alternates into and away from the obstacle;
+    // longer and it walks past its target), and `detourLookahead` is how far
+    // open room is judged, in world units.
+    detourEnabled: true,
+    detourCommitTicks: 6,
+    detourLookahead: 6,
     // How many range radii the patrol pull ramps over before reaching full
     // strength, and the most consequential number in this step. **Patrolling
     // competes with wandering**, and wandering is how an animal finds the next

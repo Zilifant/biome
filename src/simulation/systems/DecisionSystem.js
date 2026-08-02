@@ -77,6 +77,7 @@ import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
 import { forageOf, forageQualityAt, NEUTRAL_QUALITY } from '../habitat/forage.js';
+import { normalizeStepRules, stepLength, stepRefused } from '../locomotion/steps.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -276,6 +277,22 @@ export class DecisionSystem extends SimulationSystem {
     // has to break past a predator (option 5). Roughly a sprint's worth of
     // horizon; larger sees more escape routes at more grid reads.
     fleeLookahead = 8,
+    // ⚠⚠ **Obstacle deflection for directed actions** (2026-08-01) — the half of
+    // the wall-awareness above that `flee` has had since Step 8 and every other
+    // directed action never did. `false` restores the pre-fix behaviour exactly
+    // (walk straight at the target, stop dead at the first obstacle) and is the
+    // control this was measured against.
+    detourEnabled = true,
+    detourCommitTicks = 6,
+    detourLookahead = 6,
+    // The step probe must ask the movement system's own question, so it needs
+    // the movement system's own numbers. Wired from `config.locomotion`,
+    // `config.injury` and `config.disease` — their one home — rather than
+    // restated here, the same D11 discipline as `drinkRange` and `carcassRange`.
+    sprintMultiplier = undefined,
+    injurySpeedPenalty = undefined,
+    diseaseSpeedPenalty = undefined,
+    maxOccupantsPerCell = null,
     updateInterval = 1,
   } = {}) {
     super({ id: 'decision', phase: 'decision', priority: 0, updateInterval });
@@ -359,6 +376,15 @@ export class DecisionSystem extends SimulationSystem {
     this.forageQualityFloor = forageQualityFloor;
     this.fleeWallMargin = fleeWallMargin;
     this.fleeLookahead = fleeLookahead;
+    this.detourEnabled = detourEnabled;
+    this.detourCommitTicks = detourCommitTicks;
+    this.detourLookahead = detourLookahead;
+    this.stepRules = normalizeStepRules({
+      sprintMultiplier,
+      injurySpeedPenalty,
+      diseaseSpeedPenalty,
+      maxOccupantsPerCell,
+    });
   }
 
   update(world, context) {
@@ -526,7 +552,12 @@ export class DecisionSystem extends SimulationSystem {
       // reason to walk to cover — and none at all once it is already there, so
       // the pull is gated on actually being out in it.
       const stress = thermalStress(world, entity, this.shelterRelief);
-      const cover = perceived?.nearestCover ?? null;
+      // ⚠ `nearestShelter`, not `nearestCover` (2026-08-01). It used to be the
+      // nearest COVER *terrain* cell while the stress it answers takes its relief
+      // from `world.isShelteredAt` — cover **or thicket or a burrow** — so an
+      // animal freezing beside a thicket was told there was nowhere to go. One
+      // rule, one definition, and perception is the other reader (§9 Perception).
+      const cover = perceived?.nearestShelter ?? null;
       const wantsShelter = stress >= this.shelterStressThreshold && cover !== null && !world.isShelteredAt(entity.x, entity.y);
 
       // Predation (Step 16). Fleeing overrides everything — a grazing animal
@@ -1067,6 +1098,43 @@ export class DecisionSystem extends SimulationSystem {
         if (action === 'stalk' && this.coverConcealment && stalksFromCover(world.species.get(entity.speciesId))) {
           heading = concealedApproach(world, entity, heading, entity.speed);
         }
+        // ⚠⚠ **Deflection around an obstacle** (2026-08-01), and the thing that
+        // makes every action in this group able to fail and recover rather than
+        // only fail. `flee` has been boundary-honest since Step 8 —
+        // `escapeHeading`'s along-wall glide — while these ten walked straight at
+        // their target and stopped dead at the first rock, thicket edge or full
+        // cell, forever, because the movement system's turn-around lands on an
+        // intent this branch replaces wholesale every tick.
+        //
+        // Two states, and the movement system's `ttl = 0` on a block is what
+        // keeps them exclusive:
+        //   * **just refused** — probe a small fixed ladder of offsets and commit
+        //     to the best one that is actually steppable;
+        //   * **mid-detour** — hold that heading for `detourCommitTicks`, exactly
+        //     as `wander` holds a commitment, so the animal slides *along* the
+        //     obstacle instead of alternating into and away from it every tick.
+        //
+        // Pure geometry and grid reads, no draws, so the two-draw budget and
+        // determinism hold. It costs nothing at all on a tick that was not
+        // blocked and is not already detouring, which is ~85% of directed
+        // animal-ticks in the demo and ~60% at rocks=6 thickets=8.
+        let detour = null;
+        let ttl = 1;
+        if (this.detourEnabled) {
+          const prior = entity.moveIntent;
+          if (prior?.refused === true) {
+            const deflected = detourHeading(world, entity, heading, this.detourLookahead, this.stepRules);
+            if (deflected !== null) {
+              heading = deflected;
+              detour = action;
+              ttl = this.detourCommitTicks;
+            }
+          } else if (prior?.detour === action && prior.ttl > 0 && prior.moving === true) {
+            heading = prior.heading;
+            detour = action;
+            ttl = prior.ttl - 1;
+          }
+        }
         // A desperate animal pushes through a thin thicket band to reach water or
         // food just beyond it (the corner-lake case). Only for the resource-seeking
         // actions, only when the need is real and the resource is a few cells away
@@ -1075,11 +1143,22 @@ export class DecisionSystem extends SimulationSystem {
         // animal dies of thirst at the water's edge.
         const seekingWater = action === 'seekWater' || action === 'recallWater';
         const seekingFood = action === 'seekFood' || action === 'recallFood';
+        // ⚠ **`shelter` joined this gate on 2026-08-01, and it had to.** A thicket
+        // is sheltering ground (`world.isShelteredAt`) and perception now says so,
+        // but the movement system refuses a step into one — so without this the
+        // fix above would only walk an animal to the edge of the cover it needs
+        // and stop it there, which is the corner-lake failure with a different
+        // resource. The need is thermal stress against the same threshold the
+        // action engages at, normalized over `shelterStressSpan`, so the same
+        // "a real need, a thin band, and close by" test decides all three.
+        const seekingShelter = action === 'shelter';
         let breakThicket = false;
-        if (seekingWater || seekingFood) {
+        if (seekingWater || seekingFood || seekingShelter) {
           const need = seekingWater
             ? entity.maxHydration > 0 ? 1 - entity.hydration / entity.maxHydration : 0
-            : entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0;
+            : seekingShelter
+              ? clamp01(thermalStress(world, entity, this.shelterRelief) / this.shelterStressSpan)
+              : entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0;
           const distance = Math.hypot(tx - entity.x, ty - entity.y);
           breakThicket =
             need >= this.thicketReachNeed &&
@@ -1088,11 +1167,23 @@ export class DecisionSystem extends SimulationSystem {
         }
         // Stalking closes at a walk — spending the sprint budget before the
         // prey is even in range is how a predator loses a chase.
-        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false, breakThicket };
+        return { heading: normalizeAngle(heading), ttl, moving: true, sprint: false, breakThicket, detour };
       }
       case 'wander':
       default: {
         const intent = entity.moveIntent;
+        // ⚠ **A live detour commitment is honoured here too, and that is
+        // deliberate** (2026-08-01). An animal that gives up on `seekWater`
+        // half-way around a rock arrives in this branch still holding the
+        // detour's heading and ttl, and the continuation path below carries it
+        // (jittered) until the commitment runs out — so it finishes going *round*
+        // the obstacle rather than immediately striking out into the face of it.
+        // The mechanism is the ttl this branch already reads; the only thing that
+        // changed is that a directed intent's ttl can now exceed 1. Nothing is
+        // needed to make this work, which is why there is a comment here instead
+        // of a guard: the next person to read `intent.ttl` in this branch should
+        // know a detour can be what set it.
+        //
         // Ranging: an animal with an unmet need (hunger or thirst) and no
         // migration drift to point it anywhere strikes out in longer, straighter
         // excursions rather than milling — it covers new ground instead of
@@ -1146,6 +1237,22 @@ export class DecisionSystem extends SimulationSystem {
     }
   }
 }
+
+// Obstacle-deflection tuning (2026-08-01). The ladder a blocked directed step
+// tries, in order — see `detourHeading` for why the order is behaviour. Shallow
+// offsets first so an animal shaves past an obstacle it barely clipped rather
+// than turning broadside to it; the ± pairs are what make a symmetric obstacle
+// resolve the same way every tick instead of oscillating.
+const DETOUR_OFFSETS = Object.freeze([
+  Math.PI / 4, -Math.PI / 4, // 45°  — shave past
+  Math.PI / 2, -Math.PI / 2, // 90°  — slide along the face
+  (3 * Math.PI) / 4, -(3 * Math.PI) / 4, // 135° — back out of a pocket
+]);
+// How much a detour is allowed to win on open room alone rather than on progress
+// toward the target. Same shape and same value as `ESCAPE_AWAY_BIAS`: at 0.5 a
+// heading that turns away needs twice the room of one that still closes, so
+// backing out of a pocket happens only when the shallow ways past are walled.
+const DETOUR_PROGRESS_BIAS = 0.5;
 
 // Cornered break-past (option 5) tuning. Fixed and small so a flee decision
 // costs the same whatever the world looks like — the perf convention the rest
@@ -1277,6 +1384,68 @@ export function escapeHeading(world, px, py, fromX, fromY, margin, lookahead, av
     }
   }
   return normalizeAngle(best);
+}
+
+/**
+ * A heading around the obstacle that just refused a directed step, or `null`
+ * when nothing is steppable and the animal should keep its direct bearing (the
+ * pre-2026-08-01 behaviour, so this can never be worse than not trying).
+ *
+ * Each candidate is judged on two things and nothing else: whether the very next
+ * step is actually *takeable* — asked through `stepRefused`, the movement
+ * system's own predicate, so a heading this returns can never be one that system
+ * then refuses — and how much open room lies along it, biased toward the offsets
+ * that still make progress toward the target. That is `escapeHeading`'s scoring
+ * with the target's bearing in place of the threat's, which is DOCS §9
+ * Decision's rule about checking whether the behaviour you want is already
+ * described by something here and merely unimplemented on one branch.
+ *
+ * ⚠ **The offsets are a fixed, symmetric, ordered ladder, and that is what makes
+ * this a wall-follow rather than a jitter.** A symmetric obstacle scores its two
+ * sides identically; the tie goes to the first offset listed, every tick, so the
+ * animal keeps choosing the *same* side and slides along the obstacle instead of
+ * alternating. Reordering `DETOUR_OFFSETS` re-derives which way animals go around
+ * rocks — it is behaviour, not style. ±180° is deliberately absent: the movement
+ * system already turns a blocked animal around and it never helped.
+ *
+ * Pure geometry and grid reads — no draws — so the decision system's fixed
+ * two-draw budget per animal per tick is untouched and determinism holds. Cost is
+ * at most `DETOUR_OFFSETS.length` step probes and that many `roomAhead` walks,
+ * paid only on the tick a directed step was actually refused.
+ *
+ * @param {{width:number,height:number,isPassableAt:Function,isThicketAt:Function,cellOf:Function,speedModifierAt:Function}} world
+ * @param {object} entity the blocked animal, at its current position
+ * @param {number} direct bearing straight at the target
+ * @param {number} lookahead how far ahead open room is judged, in world units
+ * @param {import('../locomotion/steps.js').DEFAULT_STEP_RULES} stepRules
+ * @returns {number | null} a committed detour heading, or null
+ */
+export function detourHeading(world, entity, direct, lookahead, stepRules) {
+  const step = stepLength(world, entity, false, stepRules);
+  // An animal already standing in thicket must not read thicket as a wall, or it
+  // would score every way out at zero room and stay in the crawl — the same
+  // exemption `escapeHeading` makes for a prey already inside cover.
+  const avoidThicket = !world.isThicketAt(entity.x, entity.y);
+  let best = null;
+  let bestScore = 0;
+  for (const offset of DETOUR_OFFSETS) {
+    const h = direct + offset;
+    const tx = entity.x + Math.cos(h) * step;
+    const ty = entity.y + Math.sin(h) * step;
+    if (tx < 0 || tx > world.width || ty < 0 || ty > world.height) continue;
+    // `breakThicket` is false here on purpose: a detour is a way *around*, and
+    // pushing into cover stays the last resort the thicket-reach gate owns.
+    if (stepRefused(world, entity, tx, ty, false, stepRules.maxOccupantsPerCell)) continue;
+    const room = roomAhead(world, entity.x, entity.y, h, lookahead, avoidThicket);
+    if (room <= 0) continue;
+    const toward = (Math.cos(offset) + 1) / 2; // 1 = straight on, 0 = straight back
+    const score = room * (DETOUR_PROGRESS_BIAS + (1 - DETOUR_PROGRESS_BIAS) * toward);
+    if (score > bestScore) {
+      bestScore = score;
+      best = h;
+    }
+  }
+  return best === null ? null : normalizeAngle(best);
 }
 
 /**

@@ -32,6 +32,42 @@ they are not re-opened by accident.
   extinct. Closing it means building a world that demonstrates selection, not
   tuning the existing one.
 
+- **⚠ A66 — Obstacle deflection leaves a residual, and its ecological effect is
+  not established.** Three things left open by the A65 fix (DOCS §1.1). (1) Seven
+  animals at `rocks=6 thickets=8` are still pinned for 50+ ticks (longest 114,
+  against 964 before), all of them wedged in the corner between the west map edge
+  and rock — the *wide concave pocket* limit `escapeHeading` already documents,
+  where local room probing cannot tell a way out from a diagonal that merely
+  stays clear within the horizon. (2) Crowding is now the dominant refusal, 79.2%
+  of a much smaller number; the cheapest correction is letting acute need suspend
+  the cap, the shape `needOverridesTerritory` already has. (3) ✅ The ten-seed
+  gate **passed** on 2026-08-01 — every species alive, buffalo +16.8, wildebeest
+  +7.6, zebra +7.5, leopard +2.7, and extinction events 3 → 2 — with the gazelle
+  (−19.2) and vulture (−73.1) falling because fewer stalled animals means fewer
+  carcasses. ⚠ The one residual question is the gazelle's 9/10: seed 7 loses it
+  where the control keeps it, and the carcass-supply story does not explain that
+  one.
+
+- **⚠ A71 — An animal that has never seen water has almost no way to find it.**
+  With A65 and A67 closed this is the single largest finding in the ethologist's
+  sweep: "died of thirst having NEVER perceived water", roaming the whole map,
+  dying on the arithmetic clock (~3057 ticks for a gazelle). Dehydration is still
+  the leading cause of death in all six worlds. C4 in a form memory cannot close —
+  memory needs the animal to have drunk somewhere once, and these never did.
+  `migration.tracksWater` only bends a *freshly committed* wander heading at
+  ≤ 0.5 × thirst, so it is a nudge on a random walk against a lake covering ~1.5%
+  of the map. Levers in DOCS §1.1 A71.
+
+- **A70 — Extinction events rose 2 → 3 in the exposure gate** _(from 2026-08-01,
+  A67)_. The ten-seed gate for the thermoregulation change passes on every
+  species and improves seven of eight mean populations, but the arm loses the
+  gazelle on seed 1 (t14069), the leopard on seed 2 (t13131) and the hyena on
+  seed 8 (t14690) against the control's two losses. All three are in the last
+  tenth of the run and every species clears the ≥6/10 gate, so this is a
+  judgement recorded rather than a failure — but it is the one column that moved
+  against the change, and three late single-seed losses in a world with more
+  animals in it is worth a second look before it is called noise.
+
 ## Engine — implemented, tested, and near-inert
 
 - **⚠ A34 — Patrolling / site fidelity.** Ramped over six range radii

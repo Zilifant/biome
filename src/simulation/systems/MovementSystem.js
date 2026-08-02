@@ -21,7 +21,7 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
-import { diseaseSeverity } from '../disease/disease.js';
+import { normalizeStepRules, stepLength, stepRefused } from '../locomotion/steps.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -48,29 +48,18 @@ export class MovementSystem extends SimulationSystem {
     // A finite, positive cap turns the crowding check on; anything else is "off".
     this.maxOccupantsPerCell =
       typeof maxOccupantsPerCell === 'number' && maxOccupantsPerCell > 0 ? maxOccupantsPerCell : null;
-  }
-
-  /**
-   * Whether the target cell already holds the maximum number of living animals.
-   * Counted through the spatial grid (never a global scan), and only same-cell
-   * occupants count — a query radius of 1.5 safely covers a 1×1 cell, then exact
-   * cell equality filters the rest out. The mover itself and any carcasses are
-   * excluded. No randomness; the grid reflects every earlier move this tick, so
-   * the outcome is a deterministic function of iteration order.
-   * @param {import('../world/World.js').World} world
-   * @param {number} cellX @param {number} cellY @param {number} moverId
-   * @returns {boolean}
-   */
-  #cellFull(world, cellX, cellY, moverId) {
-    let count = 0;
-    for (const id of world.grid.queryRadius(cellX + 0.5, cellY + 0.5, 1.5)) {
-      if (id === moverId) continue;
-      const other = world.entities.get(id);
-      if (!other || other.kind !== 'animal' || !other.alive) continue;
-      const cell = world.cellOf(other.x, other.y);
-      if (cell.cellX === cellX && cell.cellY === cellY && (count += 1) >= this.maxOccupantsPerCell) return true;
-    }
-    return false;
+    // ⚠ **What a step is, and when it is refused, moved to `locomotion/steps.js`
+    // on 2026-08-01** — because the decision system now *probes* a step before
+    // committing a heading (see `detourHeading`), and two copies of this
+    // rule would drift into an animal that deflects onto a heading this system
+    // then refuses. Same one-predicate-two-readers shape as `possession.js`.
+    // The fields above are kept as the system's own record of its tuning.
+    this.stepRules = normalizeStepRules({
+      sprintMultiplier,
+      injurySpeedPenalty,
+      diseaseSpeedPenalty,
+      maxOccupantsPerCell,
+    });
   }
 
   update(world, context) {
@@ -89,15 +78,11 @@ export class MovementSystem extends SimulationSystem {
       if (sprinting) {
         entity.stamina = Math.max(0, entity.stamina - this.sprintStaminaCost);
       }
-      const pace = sprinting ? this.sprintMultiplier : 1;
-      // An injured animal limps (Step 17): `impairment` is the cached total
-      // severity of its wounds, so this is one multiply, not a list walk.
-      const injured = 1 - entity.impairment * this.injurySpeedPenalty;
-      // Illness slows an animal the same way a wound does (Step 25), and the
-      // two stack — a sick, mauled animal is in real trouble. Derived from the
-      // compartment on read, so it can never disagree with the disease state.
-      const ill = 1 - diseaseSeverity(entity, this.diseaseSpeedPenalty);
-      const step = entity.speed * pace * injured * ill * world.speedModifierAt(entity.x, entity.y);
+      // Base speed, scaled by pace, by what is wrong with the animal (an injury
+      // limps it, an illness slows it, and the two stack), and by the ground it
+      // is standing on. `stepLength` owns that arithmetic so the decision
+      // system's probe measures the same step this one takes.
+      const step = stepLength(world, entity, sprinting, this.stepRules);
 
       // Reflect the heading off any world wall this step would cross, so an
       // animal aimed off-map turns back inward instead of sliding along the edge
@@ -117,37 +102,19 @@ export class MovementSystem extends SimulationSystem {
       const targetX = world.clampX(entity.x + dx);
       const targetY = world.clampY(entity.y + dy);
 
-      // Thicket is passable but a crawl, so an animal treats its edge as a wall
-      // and turns away. Two exceptions, and *only* two: it is already inside one
-      // (so it can push back out rather than being trapped), or the decision
-      // system has explicitly marked this step a **break-in** (`intent.breakThicket`).
-      // The decision system sets that flag in exactly two situations, both of
-      // last resort: a *cornered* flee with no open ground left to skirt to, and
+      // The three ways a step fails — impassable terrain, a thicket edge the
+      // animal has not been cleared to break into, and a full cell — all live in
+      // `stepRefused`. Thicket is passable but a crawl, so an animal treats its
+      // edge as a wall unless it is already inside one (and can push back out) or
+      // the decision system has explicitly marked this step a **break-in**
+      // (`intent.breakThicket`), which it does in exactly two last-resort
+      // situations: a *cornered* flee with no open ground left to skirt to, and
       // an animal in acute need pushing through a thin band toward water or food
-      // just beyond it (the corner-lake case). Merely fleeing is no longer enough
-      // to drive an animal into cover (A18): a pursuer that is not itself cornered
-      // stops at the edge, and so does the prey until it must juke inside. Standing
-      // still (eat/rest/drink) never triggers this — only a committed step does.
-      const refusesThicket =
-        world.isThicketAt(targetX, targetY) &&
-        !world.isThicketAt(entity.x, entity.y) &&
-        intent.breakThicket !== true;
-
-      // Soft crowding cap (optional): a step into a *different* cell that is
-      // already full is refused like a wall. Moving within the current cell, or
-      // out of a full one, is always allowed — occupancy only gates entry — so
-      // the cap thins stacking without ever trapping an animal. A cheap grid
-      // count, skipped entirely when the cap is off.
-      let refusesCrowd = false;
-      if (this.maxOccupantsPerCell !== null) {
-        const here = world.cellOf(entity.x, entity.y);
-        const there = world.cellOf(targetX, targetY);
-        refusesCrowd =
-          (there.cellX !== here.cellX || there.cellY !== here.cellY) &&
-          this.#cellFull(world, there.cellX, there.cellY, entity.id);
-      }
-
-      if (world.isPassableAt(targetX, targetY) && !refusesThicket && !refusesCrowd) {
+      // just beyond it (the corner-lake case). The crowding cap gates *entry*
+      // only, so moving within a full cell or out of one is always allowed.
+      // Standing still (eat/rest/drink) never reaches here — only a committed
+      // step does.
+      if (!stepRefused(world, entity, targetX, targetY, intent.breakThicket === true, this.maxOccupantsPerCell)) {
         const from = { x: entity.x, y: entity.y };
         world.moveEntity(entity, targetX, targetY, heading);
         entity.lastMoveDistance = Math.hypot(entity.x - from.x, entity.y - from.y);
@@ -160,9 +127,26 @@ export class MovementSystem extends SimulationSystem {
       } else {
         // Blocked: turn around and expire the commitment so the decision
         // system re-commits a fresh heading next tick.
+        //
+        // ⚠⚠ **`refused` is the whole reason a blocked seeker ever gets free**
+        // (2026-08-01). The turn-around above only ever worked for `wander`,
+        // which reads the previous intent; every *directed* action builds a fresh
+        // intent from `atan2(target - self)` each tick and threw this recovery
+        // away, so an animal aimed at water through a rock re-aimed at the same
+        // rock forever. Measured before the fix, seed 1 demo: 15.6% of directed
+        // animal-ticks were blocked-and-immobile, with runs of up to 372
+        // consecutive ticks holding `seekWater` at 6% hydration; at rocks=6
+        // thickets=8, 40.6% and runs of 964. The flag is what lets the decision
+        // system see the block and deflect around it.
+        //
+        // Safe to set without ever clearing: `#intentFor` allocates a **new**
+        // intent object on every branch on every tick, so this one can never be
+        // read a second time. A branch that starts reusing an intent object must
+        // clear it.
         entity.lastMoveDistance = 0;
         intent.heading = normalizeAngle(intent.heading + Math.PI);
         intent.ttl = 0;
+        intent.refused = true;
         entity.heading = intent.heading;
       }
     }

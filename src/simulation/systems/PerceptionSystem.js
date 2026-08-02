@@ -18,7 +18,7 @@
  * vegetation. No randomness.
  */
 import { SimulationSystem } from './SimulationSystem.js';
-import { TerrainType, isPassableCode } from '../world/TerrainGrid.js';
+import { TerrainType, isPassableCode, SHELTERING_BY_CODE } from '../world/TerrainGrid.js';
 import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
 import { isConcealed } from '../parenting/hiding.js';
 import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
@@ -384,7 +384,30 @@ export class PerceptionSystem extends SimulationSystem {
           obstacleX = cx;
           obstacleY = cy;
         }
-        if (wantCover && code === TerrainType.COVER) {
+        // ⚠⚠ **Anything `world.isShelteredAt` calls shelter, not COVER alone**
+        // (2026-08-01). This slot is the *only* cue the `shelter` action has, and
+        // it used to report COVER while the thing it feeds — `thermalStress` —
+        // took its relief from COVER **or thicket or a burrow**. So two thirds of
+        // the demo's sheltering ground (953 thicket cells against 615 of cover on
+        // seed 1) was invisible to the animal standing next to it: measured,
+        // 15.4% of all "cold and out in the open" animal-ticks had sheltering
+        // ground inside the animal's own perception radius and were told there
+        // was none. Classic D11 — one rule, two readers, and the readers
+        // disagreed. `SHELTERING_BY_CODE` is now the one definition, and
+        // `World.isShelteredAt` reads the same table.
+        //
+        // ⚠⚠ **Terrain only, and a burrow is a measured exclusion rather than an
+        // oversight.** `isShelteredAt` counts burrows too, but they live on the
+        // *feature* grid, and one `sheltersAt(features, cx, cy)` here cost **+56%
+        // of a whole tick** at large-5k (130.6 → 203.2 ms). The
+        // `featureCount === 0` early-out inside it saves nothing: any world with
+        // **trails** has features, so the guard is true and the call runs for
+        // essentially every cell of every scan of every animal. Measured
+        // behavioural cost of leaving burrows out: **none** — the "shelter in
+        // range but not reported" rate is 1.5% either way. This is the hottest
+        // loop in the engine (§1.4 C6), and the rule it leaves behind is
+        // explicit: **nothing in this scan may consult a second grid.**
+        if (wantCover && SHELTERING_BY_CODE[code]) {
           coverDist = distSquared;
           coverX = cx;
           coverY = cy;
@@ -407,7 +430,7 @@ export class PerceptionSystem extends SimulationSystem {
           : { cellX: foodX, cellY: foodY, level: foodLevel, distance: Math.sqrt(foodDist) },
       nearestWater: cellRecord(waterX, waterY, waterDist),
       nearestObstacle: cellRecord(obstacleX, obstacleY, obstacleDist),
-      nearestCover: cellRecord(coverX, coverY, coverDist),
+      nearestShelter: cellRecord(coverX, coverY, coverDist),
     };
   }
 }

@@ -394,6 +394,47 @@ world size, not entity count). End counts now *exceed* the start because
 animals reproduce (Step 12). All scenarios sit far under the one-second
 authoritative tick budget.
 
+### Behaviour fixes: obstacle deflection, thermoregulation, the shelter cue (2026-08-01, A65/A67/A68)
+
+Three defect fixes, and one of them found the **most expensive line this project
+has ever written into the perception scan**. Everything below is a same-session
+re-baseline at `--ticks=1200` (§"Re-baseline in the same session"), so the numbers
+are comparable to each other and to nothing above this line.
+
+large-5k, 9649 → ~10 220 entities:
+
+| build | ms/tick | vs baseline |
+| --- | ---: | ---: |
+| unmodified main, re-baselined today | 130.63 | — |
+| **shipped** (all three fixes) | **134.46** | **+2.9%** |
+| all three, shelter cue via `sheltersAt` behind a `hasFeatures` guard | 203.22 | +55.6% |
+| all three, shelter cue calling `sheltersAt` unconditionally | ~218 | +67% |
+| all three, shelter cue left COVER-only (i.e. A68 not fixed) | 133.54 | +2.2% |
+
+⚠⚠ **The lesson, and it is a new one only in its address: nothing in the
+`(2r+1)²` cell scan may consult a second grid.** A68's honest fix is "report
+anything `isShelteredAt` calls shelter", and `isShelteredAt` counts burrows, which
+live on the **feature** grid. One `sheltersAt(features, cx, cy)` per cell cost
+**+56% of a whole tick**. The `featureCount === 0` early-out inside it does not
+save you: any world with **trails** has features, which is all of them, so the
+guard is true and the call runs for essentially every cell of every scan of every
+animal. Guarding it at the call site with a hoisted boolean changed nothing for
+the same reason.
+
+The shipped cue is therefore **terrain-only**, indexing a `Uint8Array`
+(`SHELTERING_BY_CODE`) that `World.isShelteredAt` reads too — so the definition
+still has one home, and the hot path is one typed-array load rather than a call.
+⚠ Measured behavioural cost of excluding burrows: **none.** The "shelter in range
+but not reported" rate is 1.5% either way on seed 1, so the exclusion buys 56% of
+a tick for nothing.
+
+The residual **+2.9%** is the rest of the work — the shared step predicate in
+movement, the frailty term in metabolism, and the detour check in decision — and
+it is recorded rather than absorbed because §13 puts the noise floor at ~1%. The
+detour was A/B'd on its own switch and is **not** in it: `detourEnabled: false`
+measured 230.44 against 218.32 with it on, i.e. inside the variance of the
+then-current (slow) build.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

@@ -671,7 +671,24 @@ describe('batch 2: the two mechanisms in the demo world', () => {
   // checked to hold at every cumulative total across seeds 1, 42, 2, 3 and 7
   // before this pair was chosen, so this is a better-sampled cell rather than a
   // seed picked for its answer.
-  const SEEDS = [42, 2];
+  //
+  // ⚠⚠ **Widened again on 2026-08-01, and the tripwire fired exactly as predicted
+  // above.** A67 (thermoregulation stopped being a standing tax on sound adults)
+  // moved the demo's trajectory and `[42, 2]` fell to **n=2** on a threshold of 3.
+  // Same story as before: not a regression, and the odds are what settle it —
+  // re-measured per seed on the new world, `soloMobbed` runs 0.18–0.44 against a
+  // `soloClean` of 0.37–0.48 everywhere it has any sample at all.
+  //
+  // Following this block's own method rather than inventing one: the two claims
+  // were checked at **every cumulative total** across 42, 2, 3, 7, 1, 5 first.
+  // Mobbing holds at all six; cooperation fails on seed 42 *alone* (0.419 against
+  // 0.434, n=8) and holds from the second seed on — which is the same "one seed is
+  // a trajectory" point one more time. `[42, 2, 3, 5]` takes the thin cell to
+  // **n=7** with both claims holding at each step, so this is again a
+  // better-sampled cell and not a seed picked for its answer. It costs the suite
+  // two more demo runs; the alternative is a 3-attempt sample deciding whether
+  // mobbing works.
+  const SEEDS = [42, 2, 3, 5];
   const TICKS = 6000;
 
   const observed = (() => {

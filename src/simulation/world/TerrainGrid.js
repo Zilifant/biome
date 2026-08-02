@@ -117,6 +117,38 @@ export function isSightBlockingCode(code) {
 }
 
 /**
+ * Which terrain breaks the weather (2026-08-01). Cover is low brush and thicket
+ * is a dense stand; both of them are somewhere to be in a cold snap, and neither
+ * of them is the *only* shelter in the world — a burrow is shelter an animal
+ * made, and that lives on the feature grid rather than here (`World.isShelteredAt`
+ * is the definition that folds the two together).
+ *
+ * ⚠ **A table rather than a pair of comparisons, because perception reads it per
+ * cell.** The shelter cue is filled inside the (2r+1)² scan that is the hottest
+ * loop in the engine (§1.4 C6): the first cut of A68 asked
+ * `code === COVER || code === THICKET || sheltersAt(features, …)` there and cost
+ * **62% of a tick** at large-5k (129 → 210 ms), almost all of it the cross-module
+ * call that could not be inlined. One array index restores it. This is D28's
+ * lesson in a different disguise, and it is the second time this exact loop has
+ * charged for a change that looked free.
+ */
+export const SHELTERING_BY_CODE = Uint8Array.from(
+  TERRAIN_LEGEND.map((entry) => (entry.code === TerrainType.COVER || entry.code === TerrainType.THICKET ? 1 : 0)),
+);
+
+/**
+ * Whether a terrain code shelters from the weather, for callers that already
+ * have the code. ⚠ Terrain only — a caller that wants the whole answer (burrows
+ * included) must ask `World.isShelteredAt`, which is the one definition the
+ * thermal relief and the `shelter` action both read.
+ * @param {number} code
+ * @returns {boolean}
+ */
+export function isShelteringCode(code) {
+  return SHELTERING_BY_CODE[code] === 1;
+}
+
+/**
  * Per-code traversal speed multiplier (authoritative movement cost, not
  * presentation). Ground is unimpeded; wading water and pushing through cover
  * are slower; rock is impassable so its value is unused. Indexed by

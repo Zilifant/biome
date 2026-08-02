@@ -197,6 +197,17 @@ export function registerDemoSystems(engine) {
       // `enabled` turns the whole mechanism off, `approach` turns off only this
       // half, so the two can be measured apart.
       coverConcealment: engine.config.concealment.enabled && engine.config.concealment.approach,
+      // Obstacle deflection (2026-08-01): this system now *probes* a step before
+      // committing a directed heading, and the probe has to ask the movement
+      // system's own question or an animal deflects onto a heading that system
+      // then refuses. The rule itself lives in `locomotion/steps.js` with one
+      // home and two readers; these are its inputs, wired from where they
+      // actually live rather than restated (D11), exactly as `drinkRange` and
+      // `carcassRange` are above.
+      maxOccupantsPerCell: engine.config.locomotion.maxOccupantsPerCell,
+      sprintMultiplier: engine.config.locomotion.sprintMultiplier,
+      injurySpeedPenalty: engine.config.injury.speedPenalty,
+      diseaseSpeedPenalty: engine.config.disease.speedPenalty,
     }),
   );
   engine.registerSystem(
@@ -272,7 +283,13 @@ export function registerDemoSystems(engine) {
       staminaRecoveryPerTick: engine.config.locomotion.staminaRecoveryPerTick,
       thermalCostFactor: engine.config.locomotion.thermalCostFactor,
       shelterRelief: engine.config.locomotion.shelterRelief,
-      exposureStressThreshold: engine.config.locomotion.exposureStressThreshold,
+      // ⚠ One threshold for two readers (2026-08-01): the stress at which an
+      // animal walks to cover is the stress at which an energy death reads as
+      // exposure. They were two config fields at 2 °C and 0.35 °C, and the gap
+      // was 127 709 animal-ticks of a label with no behaviour behind it.
+      shelterStressThreshold: engine.config.locomotion.shelterStressThreshold,
+      exposureFrailty: engine.config.locomotion.exposureFrailty,
+      exposureFloorFraction: engine.config.locomotion.exposureFloorFraction,
     }),
   );
   engine.registerSystem(new HydrationSystem({ ...engine.config.hydration, maxMemories: engine.config.memory.maxMemories }));

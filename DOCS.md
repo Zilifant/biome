@@ -73,10 +73,10 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | 946 passing / 0 failing, 241 suites _(2026-07-31)_     |
+| Tests                 | **1004 passing / 0 failing, 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
 | `PROTOCOL_VERSION`    | **30** — reproductive state in bulk snapshots (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
-| Benchmark (large-5k)  | **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
+| Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **nine** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30 (§8). ⚠ **Eight of the twelve blocks and all nine fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, and the **leopard `crypsis`** (phase 14). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
@@ -128,6 +128,89 @@ such setting drove the population extinct.
 The test now asserts what the fixture genuinely shows and claims **no
 direction** — it has not been papered over. Closing this means _building_ a
 world that demonstrates selection, not tuning the existing one.
+
+**⚠ A66 — Obstacle deflection leaves a residual, and its ecological effect is
+not established** _(from 2026-08-01, A65)_
+
+Two separate open questions left by the A65 fix, recorded together because they
+were measured in the same run.
+
+**The residual stalls are real but bounded.** At `rocks=6 thickets=8`, seven
+animals were still pinned for 50+ ticks (longest 114, against 964 before). Every
+one of them is wedged at **x ≈ 0.8–1.0** — the corner between the west map edge
+and rock, with water 2.8–5.4 cells away. That is exactly the limit
+`escapeHeading` already documents for `flee`: a *wide concave pocket* whose exit
+is farther than the lookahead cannot be told, by local room probing, from a
+diagonal that merely stays clear within the horizon. `detourLookahead` (6) is a
+lever; real exit-detection is the honest fix and neither is worth building until
+there is more restrictive terrain to tune against.
+
+**Crowding is now the dominant refusal**, at **79.2%** of a much smaller number
+on the demo defaults (5421 of 6842 blocked ticks). `locomotion` says of the cap
+that "it never traps: a blocked animal simply turns and re-commits" — which is
+now true, but only because the deflection makes it true. The cap is a soft
+de-stacking device and the cheapest correction, if this is revisited, is the one
+`patrol`/`retreat` already use: let acute need suspend it (`needOverridesTerritory`
+has that exact shape).
+
+✅ **The ecological question is settled, and the answer was better than the
+six-world sample suggested.** Ten seeds × 15 000 ticks against the
+`decision.detourEnabled: false` control, 2026-08-01 — **every species passes**,
+and the mean living population at t15000 moves:
+
+| | detour | control | |
+| --- | --- | --- | --- |
+| buffalo | **40.0** | 23.2 | +16.8 |
+| wildebeest | **21.1** | 13.5 | +7.6 |
+| zebra | **24.3** | 16.8 | +7.5 |
+| leopard | **11.6** | 8.9 | +2.7 |
+| hyena | 8.3 | 7.7 | +0.6 |
+| lion | 14.8 | 15.8 | −1.0 |
+| gazelle | 69.5 | 88.7 | −19.2 |
+| vulture | 235.4 | 308.5 | −73.1 |
+
+The two that fall are the two most abundant, and both fall for the same reason
+the others rise: **fewer animals stall and die**, so there are fewer carcasses.
+Vulture carrion feeds went 258 975 → 199 567, and its population tracks that
+supply. Dehydration deaths fell across the board — buffalo 103 → 30, wildebeest
+91 → 28, zebra 71 → 28, gazelle 1732 → 1543 — which is the mechanism showing up
+directly. Extinction events fell 3 → 2 (the control loses both the leopard *and*
+the lion on seed 2 at t9357; the arm loses only the leopard, and 3500 ticks
+later). Group churn nearly halved: 7272 founded / 3562 dissolved → 4102 / 1980,
+because an animal pinned against a rock is an animal separated from its group.
+
+⚠ The gazelle's own 9/10 is worth naming rather than burying: seed 7 loses it at
+t13038 where the control keeps it. One seed is a trajectory (D1), the species
+clears the ≥6/10 gate comfortably, and every other herbivore is markedly better —
+but it is the one number in this table that moved the wrong way for a reason the
+carcass supply does not explain.
+
+**⚠ A71 — An animal that has never seen water has almost no way to find it, and
+it is now the single largest finding in the report** _(from 2026-08-01)_
+
+With A65 and A67 closed, the ethologist's six-world sweep is dominated by one
+class: **"died of thirst having NEVER perceived water (world has reachable
+water)", roaming `x[0..128] y[0..128]`** — the whole map — and dying on the
+arithmetic clock (`maxHydration / dehydrationRate` + `maxHealth /
+dehydrationDamage` ≈ 3057 ticks for a gazelle, which is where the founding cohort
+dies in a batch). Dehydration is still the leading cause of death in all six
+worlds (49–162 per world).
+
+This is C4 (§1.6) in a form memory cannot close, and the distinction is the
+point: memory works once an animal *has* drunk somewhere, and every animal in
+this class never did. What it has instead is `migration.tracksWater`, and that
+cue only **bends a freshly committed wander heading** at `waterBiasWeight ×
+thirst` (≤ 0.5) — so it is a 45%-weighted nudge on a random walk, re-rolled every
+8–24 ticks, against a single lake occupying ~1.5% of a 128×128 map. It is enough
+to bias a wander and not enough to cross a map.
+
+_The levers, in the order they should be tried:_ raise `waterBiasWeight` toward
+its ceiling and re-gate it on thirst alone (cheapest, and measurable against the
+existing control); let the drift apply to a *held* wander commitment rather than
+only to a fresh one, which is the same "the recovery is written where nobody
+reads it" shape as A65; or give thirst its own directed action driven by
+`world.nearestWater` rather than by perception, which is the honest fix and the
+one that costs an entry in the utility table (§9 Decision's standing warning).
 
 ### 1.2 Implemented, tested, and near-inert
 
@@ -561,6 +644,10 @@ fewer cells per animal, or staggering perception — not another cleanup pass. S
 | A54 | ⚠ **Persistent groups and carcass possession were invisible through the protocol.** Both shipped engine-side (phases 3 and 4) with no projection and no events, so an observer watching the demo saw a scavenger stop eating for no stated reason | **Closed 2026-07-28 by protocol v29.** Held back on purpose for two phases rather than bumping twice in a row and regenerating renderer fixtures twice for nothing — the debt was recorded, scheduled, and paid in the same version as the founding-roster rework it was waiting for. v29 added the `group` block and `possessorId` to entity inspection, a `groups` aggregate to `/api/metrics`, and three event types (`entity.robbed`, `entity.grouped`, `entity.ungrouped`). ⚠ Reusing `entity.contested` for a carcass fight was considered and **rejected**: the renderer labels it "contests over a mate", so it would have made the UI lie |
 | A33 | **Mobbing** — prey collectively attacking a predator                                                                        | **Closed 2026-07-30** (built phase 10, demonstrated phase 11). ⚠ Not a new action: it is the *groupmate* half of `defend`, which §7 Decision had described since Step 23 with only the kin half implemented. The buffalo declares `behavior.mobWeight` and a mobbed hunt drops the lion's mean capture chance 0.508 → 0.277 (§9 Hunting). ⚠ Phase 11 corrected one thing phase 10 got wrong: the hunted animal **stands its ground** too, because a fleeing target is carried away from the herd by the chase and no mob ever reaches the attempt |
 | C8  | ⚠ Animals piled up at the world boundary (~49% of time in the 2-cell edge band, a 13× concentration) because movement _clamped_ off-map steps to the wall and animals slid along it | **Closed 2026-07-21** — movement now **reflects** the heading off a world wall instead of clamping the target, so an animal aimed off-map bounces back inward. Ten-seed demo measurement: edge occupancy **49.4% → 14.0%**, all ten seeds still surviving with equal-or-higher populations (155–178 → 164–183). See §7 Movement. The two boundary-sensitive residency-sandbox tests (D1) were recalibrated from single-endpoint snapshots to over-the-run measures, since a wall-bouncing animal no longer pins to the edge. **Follow-up 2026-07-22:** reflection closed only the _wander_ half; the residual crowding was predator-driven `flee` re-aiming into the wall every tick, closed at the decision layer by edge-aware fleeing (`escapeHeading`, §7 Decision). 2-cell edge occupancy ~19% → ~9%, acute corner pinning ~×4–9 → ~×1.5, survival unchanged. Remaining outer-ring occupancy is a herd-distribution effect for the forage-taper change, not flee-pinning |
+| A69 | ⚠⚠ **The `exposure` death label fired where the shelter behaviour did not, so it named deaths the animal had no reason to try to avoid.** `exposureStressThreshold` was 0.35 °C; `shelterStressThreshold` — the stress at which an animal will actually walk to cover — was 2 °C. Measured on seed 1: **127 709 animal-ticks** sat in the gap, cold enough to be recorded as having frozen to death, not cold enough to act on. Two numbers for one fact, and the label was the one that lied | **Closed 2026-08-01** — `exposureStressThreshold` was **deleted**, not retuned; `MetabolismSystem` reads `shelterStressThreshold` for both, so a death can only read as exposure when the animal was past the threshold it acts on (D11). ⚠ A second clause was needed on top: a sound adult's thermal charge is floored (A67), so the weather demonstrably was not what emptied it, and without `!sound` the label still fired on a charge the animal had been protected from |
+| A68 | ⚠⚠ **Perception reported COVER as the only shelter, while `isShelteredAt` — the definition the thermal relief actually uses — counts cover, thicket **and** burrows.** So the single cue the `shelter` action reads was blind to two thirds of the sheltering ground in the world (953 thicket cells against 615 of cover on seed 1): **15.4% of all "cold and out in the open" animal-ticks** had shelter inside the animal's own perception radius and were told there was none. Animals froze beside thickets they could not know were there | **Closed 2026-08-01** — the cell scan indexes `SHELTERING_BY_CODE`, the same table `isShelteredAt` reads, and the field is renamed `nearestShelter` because it no longer means the COVER terrain type. ⚠ Half a fix on its own: the movement system refuses a step into thicket, so `shelter` also joined the thicket-reach gate (§9 Decision) with thermal stress as its need — otherwise the fix would only walk an animal to the edge of the cover it needs and stop it there, which is the corner-lake failure with a different resource. ⚠⚠ **Burrows are excluded from the cue and it is measured, not assumed**: consulting the feature grid per cell cost **+56% of a tick** (130.6 → 203.2 ms at large-5k), because `featureCount > 0` is true in any world with trails so the early-out never fires. §9 Perception |
+| A67 | ⚠⚠ **Exposure was a standing tax rather than a weather event, and it killed sound adults four times as often as starvation did.** Three demo seeds × 6000 ticks: **59 exposure deaths against 14 starvations, 47 of them sound adults**, none of them in a storm — because thermoregulation was **40.1% of the leopard's whole energy budget**, 23.7% of the wildebeest's and 22.8% of the gazelle's, at peak stresses of only 2–6 °C. A charge that size is not weather, it is a species that cannot feed itself | **Closed 2026-08-01** in three parts (§9 Metabolism): `temperatureAmplitude` 11 → 9 so the bare seasonal cycle sits inside the intersection of all eight comfort bands (5…24 °C) and only snow, drought and storms push an animal out of one; the thermal charge scaled by `1 + exposureFrailty × (impairment + diseaseSeverity)` so the weather bites what is already wrong; and a floor no thermal charge may take a **sound adult** through, so cold kills a healthy animal only by way of the food it then fails to find. Exposure deaths **59 → 2**, sound adults **47 → 0**, starvation 14 → 11 — the deaths did not merely change their name |
+| A65 | ⚠⚠ **A directed animal walked straight at its target and stopped dead at the first obstacle, forever.** The movement system's blocked-step recovery (turn around, expire the commitment) is written onto an intent that `#intentFor` replaces wholesale every tick for all ten directed actions, so only `wander` — which reads its previous intent — ever benefited. Measured seed 1 / 5600 ticks: **15.6%** of directed animal-ticks blocked and immobile on the demo defaults and **40.6%** at `rocks=6 thickets=8`, with unbroken stalls of **372** and **964** ticks, the latter holding `seekWater` at 0% hydration; 72 and 137 animals pinned for 50+ ticks. Refusal cause was crowding 45.8% / rock 35.3% / thicket 16.0%, so it was never only terrain | **Closed 2026-08-01** — `detourHeading` (§9 Decision) gives the directed actions the wall-awareness `flee` has had since Step 8, triggered by a new `intent.refused` flag and committed for `detourCommitTicks` so the animal wall-follows instead of jittering. Same worlds after: **2.6%** and **6.3%**, longest stall **13** and **114** ticks, zero animals pinned 50+ on the demo. Ethologist anomalies across its six-world sweep **94/131/142/163/149/193 → 51/46/50/53/52/66**, and the "died of thirst with water N cells away" class that led the report in five of six worlds is gone from every top-12. ⚠ Found by instrumenting the ethologist's `unresolved-intent` leads, not by a test — the suite was green throughout, because every field involved was correct and nothing was ever null (D35). See A66 for the residual |
 | A64 | ⚠ **A dispersing animal left its persistent group on one tick and was re-admitted on the next, for its whole dispersal walk.** The leave rule asked whether the animal was *inside* its dispersal window — true for hundreds of ticks — but only the leaving side consulted it, so the ordinary proximity join put it straight back into the group it was standing in. Measured at **901 membership changes in 2430 ticks for one lion** against its own `dispersalTicks: 900`, costing ~3400 spurious group events per 6000-tick run and inflating every group-churn figure taken before it | **Closed 2026-07-31** — one predicate (`#dispersingOut`) now gates both sides, so "you leave" and "you do not join yet" cannot drift apart; events fell **3399 → 107**. Gated on the §9 sweep against a `groups.rejoinWhileDispersing: true` control: all eight species pass, none materially worse. Found by the ethologist, not by a test — ⚠ the dispersal test stepped exactly **one** tick and asserted the animal had left, which it always had. See §9 Persistent groups |
 
 ---
@@ -929,11 +1016,17 @@ last-resort:
   so movement lets it juke into cover. ⚠ **Merely fleeing is not enough** to drive
   an animal in (it was, before 2026-07-24): a pursuer that is not itself cornered
   stops at the edge, and so does the prey until it must.
-- **Pushing through a thin band to walled water or food.** A thirsty or hungry
-  animal will crawl into thicket toward a resource within a few cells of it
+- **Pushing through a thin band to walled water, food, or shelter.** A thirsty or
+  hungry animal will crawl into thicket toward a resource within a few cells of it
   (`thicketReachDistance`), the corner-lake case where the only water is ringed by
   thicket and refusing the crawl means dying at its edge. Tightly gated so it is
-  never a shortcut into deep cover.
+  never a shortcut into deep cover. ⚠ **`shelter` joined this gate on 2026-08-01
+  (A68), and it had to**: a thicket *is* sheltering ground and perception now says
+  so, but movement refuses a step into one — so without it the shelter fix would
+  walk a freezing animal to the edge of the cover it needs and stop it there,
+  which is the corner-lake failure with a different resource. Its need is thermal
+  stress over `shelterStressSpan`, so one test — a real need, a thin band, close
+  by — decides all three.
 - **Already inside** — it can always push back out, and in fact **prioritizes
   leaving** (the `leaveThicket` action, §7 Decision): a safe animal caught in a
   thicket heads for the nearest open cell rather than crawling around in it,
@@ -1273,9 +1366,43 @@ updateInterval }` and an `update(world, context)`.
 
 Each living animal builds a bounded summary within its species' radius: nearby
 animals via `SpatialGrid.queryRadius`, and the nearest food cell, water cell,
-obstacle, and cover via a radius-bounded local cell scan. Never a global read.
-Summaries live in a transient `world.perception` Map, rebuilt every tick and
+obstacle, and **shelter** via a radius-bounded local cell scan. Never a global
+read. Summaries live in a transient `world.perception` Map, rebuilt every tick and
 never serialized.
+
+⚠⚠ **`nearestShelter` was `nearestCover`, and it reported the wrong thing for
+five steps (2026-08-01, A68).** It filled the one shelter cue an animal has by
+testing `code === COVER`, while the stress that cue answers takes its relief from
+`world.isShelteredAt` — cover **or thicket or a burrow**. On seed 1 that hid 953
+thicket cells behind 615 of cover, and **15.4% of every "cold and out in the
+open" animal-tick had sheltering ground inside the animal's own perception radius
+and was told there was none** — an animal freezing beside a thicket, with no way
+to know. Classic D11: one rule, two readers, and the readers disagreed. The scan
+now indexes `SHELTERING_BY_CODE`, the same table `isShelteredAt` reads, so the
+two cannot drift again. ⚠ It is renamed as well as fixed, because "cover" in this
+codebase names a terrain type and the field no longer means that one.
+
+⚠⚠ **The cue is terrain-only, and a burrow is a deliberate, measured exclusion.**
+`isShelteredAt` still counts burrows — one an animal is standing on shelters it —
+but the *cue* does not steer an animal to a burrow it can see. That is not
+fastidiousness: burrows live on the feature grid, so including them means a
+`sheltersAt(features, …)` call inside the (2r+1)² scan, and `featureCount > 0` is
+true in any world with **trails** — which is all of them — so the early-out never
+fires and the call runs for essentially every cell. Measured at large-5k:
+
+| shelter cue | ms/tick |
+| --- | ---: |
+| baseline (COVER only, wrong) | 130.6 |
+| terrain table, `SHELTERING_BY_CODE[code]` | **134.5** |
+| + `sheltersAt` behind `hasFeatures &&` | 203.2 |
+| + `sheltersAt` unconditional (first cut) | ~218 |
+
+**+56% of a whole tick for one grid lookup per cell.** This is D28's lesson at a
+different address, and the third time this loop has charged for a change that
+read as free — so the standing rule now has a corollary: **nothing in this scan
+may consult a second grid.** If a burrow should ever pull an animal toward it,
+that wants a different mechanism (its own occupant knows where it is), not a
+lookup here.
 
 Classification rides _inside_ the neighbour loop it was already walking: what I
 hunt, what hunts me, my guardian, and a bounded set of mate candidates all come
@@ -1494,6 +1621,45 @@ could not — see §7 Movement):
    restrictive terrain exists to tune against (`test/escape-heading.test.js`
    pins the current behaviour).
 
+⚠⚠ **Obstacle deflection for directed actions (`detourEnabled`, 2026-08-01) —
+the same wall-awareness, for the ten actions that never had it.** `flee` has
+computed an `escapeHeading` since Step 8 and `wander` recovers from a block by
+reading its previous intent. Every *directed* action — `seekWater`,
+`recallWater`, `seekFood`, `recallFood`, `seekMate`, `followParent`, `tend`,
+`shelter`, `leaveThicket`, `stalk` — rebuilt its intent from
+`atan2(target − self)` every tick and therefore **discarded the movement
+system's blocked-step recovery wholesale**. An animal aimed at water through a
+rock re-aimed at the same rock, tick after tick, until it died of thirst.
+
+Measured before the fix, seed 1, 5600 ticks, blocked-and-immobile share of
+directed animal-ticks: **15.6%** on the demo defaults and **40.6%** at
+`rocks=6 thickets=8`, with unbroken stalls of **372** and **964** ticks — the
+latter holding `seekWater` at 0% hydration. 72 and 137 animals respectively were
+pinned for 50 ticks or more. The refusal was **crowding 45.8% / rock 35.3% /
+thicket 16.0%** on the demo, so this was never only a terrain problem.
+
+The fix is `detourHeading`, and it is `escapeHeading`'s scoring with the target's
+bearing in place of the threat's: on the tick after a refusal, probe a fixed
+ladder of angular offsets (±45°, ±90°, ±135°), keep only those whose next step
+is actually takeable, and score the survivors on open room biased toward the ones
+still making progress. The chosen way-around is then **committed for
+`detourCommitTicks`**, exactly as a wander heading is, so the animal slides
+*along* the obstacle instead of alternating into and away from it. ⚠ The offset
+ladder's order is behaviour, not style: a symmetric obstacle scores both sides
+identically and the tie goes to the first offset listed, which is what makes the
+detour a consistent wall-follow rather than a jitter.
+
+After (same worlds, same probe): **2.6%** and **6.3%**, longest stall **13** and
+**114** ticks, and **zero** animals pinned for 50+ ticks on the demo defaults.
+The ethologist's anomaly counts across its six-world sweep fell **94/131/142/163
+→ 51/46/50/53**. ⚠ **It also moves populations in both directions** — see A66 for
+what is and is not established about that.
+
+Pure geometry and grid reads, so the fixed two-draw budget holds, and it costs
+nothing on a tick that was neither blocked nor already detouring. `stepRefused`
+in `locomotion/steps.js` is the movement system's own predicate (§10), so a
+heading this returns can never be one that system then refuses.
+
 ⚠ **Thicket is one of those walls (`avoidThicket`, 2026-07-24).** A fleeing
 animal that is not already inside a thicket treats its edge exactly as `roomAhead`
 treats a rock, so the along-wall glide and the break-past route it **along** the
@@ -1550,6 +1716,22 @@ A pure **executor** since the decision system took over heading selection: it
 steps along the intent, applies the terrain speed modifier, refuses impassable
 cells, and on a block turns around (π) and expires the commitment so decision
 re-commits. Sprinting spends stamina; exhausted animals drop to a walk.
+
+⚠⚠ **A blocked step sets `intent.refused`, and that flag is the whole reason a
+blocked seeker ever gets free** (2026-08-01). Turning the intent around and
+expiring its commitment has been the documented recovery since Step 8, and for
+every *directed* action it was inert — the decision system replaces those intents
+wholesale each tick, so it never saw the turn-around. The flag makes the block a
+fact the decision system can read, and it deflects around the obstacle (§9
+Decision). It is safe to set without ever clearing because `#intentFor`
+allocates a **new** intent object on every branch on every tick; a branch that
+starts reusing one must clear it.
+
+⚠ **When a step is refused now lives in `locomotion/steps.js` (§10), not here.**
+The decision system probes a step before committing a heading, and two copies of
+the passability/thicket/crowding chain would drift into an animal that deflects
+onto a heading this system then refuses — the D11 shape `drinkRange`,
+`foodMinLevel` and `carcassRange` each had. One predicate, two readers.
 
 ⚠ **A step that would cross a world wall is reflected, not clamped** (this
 closed C8, §1.6). If the raw target leaves the map on an axis, that velocity
@@ -1624,6 +1806,83 @@ metabolic efficiency, plus a thermoregulation term.
 animal out — which is what hypothermia is. No separate death path was needed; an
 animal that empties while under stress dies of `exposure` rather than
 `starvation`. Same mechanism, accurate label.
+
+⚠⚠ **What the weather does now depends on the condition of the animal it finds
+(2026-08-01, A67), because charged flat it was not a weather event at all — it
+was a tax nothing could out-earn.** Measured on three demo seeds × 6000 ticks
+before the change: **59 exposure deaths against 14 starvations, and 47 of the 59
+were sound adults**. Not one had a storm on it. The reason is in the energy
+budget rather than in any extreme: thermoregulation was **40.1% of the leopard's
+entire energy expenditure**, 23.7% of the wildebeest's and 22.8% of the
+gazelle's, with peak stress only 2–6 °C. A standing charge of that size does not
+read as weather; it reads as a species that cannot quite feed itself.
+
+Three changes, and the order matters — the first is the world, the second is the
+biology, the third is the label:
+
+1. **The climate was moved inside the roster's comfort bands.**
+   `temperatureAmplitude` 11 → 9. The criterion, stated this time rather than
+   settled on a survival count: the **intersection of all eight comfort bands is
+   5…24 °C** (the vulture's `comfortMin: 5`, the leopard's `comfortMax: 24`), so
+   an amplitude at or below 9.5 puts the *bare seasonal cycle* inside every band
+   and leaves snow (−6), drought (+5) and a storm (−10) as the only things that
+   push an animal out of one. That is what the amplitude note has claimed since
+   Step 19 and 11 did not deliver.
+2. **Frailty, and a floor.** The thermal charge is multiplied by
+   `1 + exposureFrailty × min(1, impairment + diseaseSeverity)` — so the weather
+   bites hardest on what is already wrong, which is where exposure belongs. And
+   for a **sound adult** (`lifeStage === 'adult'`, no wound, no illness) the
+   thermal charge alone may not take the animal below `exposureFloorFraction` of
+   its reserve. It still pays, it still ends up hungry, and basal cost and travel
+   can still empty it — but then it starved, which is the honest cause. Cold now
+   kills a healthy adult only by way of the food it then fails to find.
+3. **The label follows the mechanism.** A death reads as `exposure` only when the
+   animal was stressed past the threshold it acts on **and** was not floored.
+   Without that second clause the floor still let sound adults die "of exposure"
+   on a charge they had been protected from.
+
+After, same three seeds: **exposure deaths 59 → 2, sound adults 47 → 0** (the two
+are one wounded adult and one juvenile — exactly what the cause should mean), and
+starvation barely moved (14 → 11), so the deaths did not simply change their
+name. Thermal share of the energy budget: gazelle 22.8% → 6.1%, wildebeest 23.7%
+→ 6.1%, buffalo/zebra/lion to ~0.
+
+✅ **Gated at ten seeds × 15 000 ticks against a control restoring all three
+(`temperatureAmplitude=11, exposureFrailty=0, exposureFloorFraction=0`),
+2026-08-01 — every species passes and most improve:**
+
+| | arm | control | |
+| --- | ---: | ---: | --- |
+| vulture | **423.4** | 284.8 | +138.6 |
+| gazelle | **79.1** | 58.5 | +20.6 |
+| lion | **18.3** | 13.6 | +4.7 |
+| buffalo | **46.3** | 41.9 | +4.4 |
+| wildebeest | **22.0** | 19.2 | +2.8 |
+| zebra | **28.0** | 26.6 | +1.4 |
+| hyena | 6.8 | 6.4 | +0.4 |
+| leopard | 12.7 | 13.4 | −0.7 |
+
+Exposure deaths over all ten seeds: gazelle **291 → 38**, vulture **271 → 90**,
+leopard **24 → 8**, hyena 4 → 1. ⚠ And *starvation* fell with it rather than
+absorbing it — gazelle 91 → 47 — which is the check that matters: the deaths did
+not change their name, the animals lived. ⚠ Extinction events went 2 → 3 (gazelle
+seed 1 t14069, leopard seed 2 t13131, hyena seed 8 t14690, all in the last tenth
+of the run) against the control's two. Every species clears the ≥6/10 gate and
+none is materially worse, but that is the one column that did not move in the
+arm's favour.
+
+⚠ The sweep's arm predates the `!sound` clause on the death *label* by an hour.
+`deathCause` is recorded and reported and never read back by any system, so the
+populations above are exactly what the shipped code produces; only the
+exposure/starvation split is affected, and in the favourable direction — the
+shipped code calls fewer of those deaths exposure, not more.
+
+⚠ **The leopard is still at 30.1%, and that is left alone deliberately.** Its
+`comfortMax: 24` is the lowest in the roster and is species character —
+"tolerates the cold better and the heat worse" — so a drought summer at 28 °C
+costs it real energy. What changed is that the cost is no longer a death
+sentence: it is stressed on 12.9% of its animal-ticks and floored on all of them.
+Widening its band would erase the differentiation the roster exists to express.
 
 ⚠ **Check whether a per-tick field is consumed before you read it.**
 `lastMoveDistance` is an accumulator that metabolism _consumes and zeroes_ in
@@ -2995,6 +3254,7 @@ rather than in a scheduled pass that would have to hunt for work each tick:
 | `infect`, `recover`, `clearImmunity`, `isSymptomatic`            | `disease/disease.js`     | disease, social                                                      |
 | `beginDispersal`, `isDispersing`, `blendHeadings`                | `migration/migration.js` | parenting, decision                                                  |
 | `isReproductivelyReady`                                          | `ReproductionSystem`     | reproduction **and** decision — so the eligibility rule cannot drift |
+| `stepLength`, `stepRefused`, `cellFull`                          | `locomotion/steps.js`    | movement **and** decision — so what a step is, and when it is refused, cannot drift |
 
 **Keeping the append and the bound in one place is what makes a cap
 trustworthy** — no future writer can bypass it.
@@ -3656,6 +3916,8 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | D29   | A test spawned two animals, asserted they formed a herd, and got `null`. `social.minGroupSize: 2` is compared against **groupmates** — how many *others* are in range — so it means "three animals", and the comment beside it ("a lone animal is not a herd of one") reads as though it means "two". Two test iterations to notice                                                                     | **A threshold named for an aggregate is often counted on a part.** When a parameter's name describes one quantity (group *size*) and the code compares it against another (neighbour *count*), the off-by-one is invisible in both the name and the comment. State which quantity beside the number, not just what it is for — the same discipline D11 asks for a threshold defined on another parameter |
 | ⚠⚠ D33 | **A predator subsidised by carrion is not limited by its prey, so it eats that prey out — and it happened twice before it was recognised.** The hyena (phase 7) at `minHungerToHunt: 0.35` drove the **gazelle extinct in 7 of 10 seeds** against a control where it never went extinct; carrion supplied 37% of everything the world's scavengers took, the population more than doubled on that subsidy, and the subsidised population then hunted. ⚠ Lowering the founding count was tried and does nothing: the count sets the ramp, the carrion sets the ceiling. Four phases later the **lion** repeated it exactly — buffalo alive on 5/10 seeds, 317 of 501 buffalo deaths from predation, while the pride *grew* on 37.6% of all carrion in the world | **Apparent competition is a real result, not a tuning failure — and the lever is `minHungerToHunt`, i.e. hunt only when scavenging has failed to feed you.** Check it *first* for any species that both hunts and scavenges. ⚠ The window can be narrow and the tension is structural: for the lion, 0.3 fires cooperative hunting and loses the buffalo, 0.6 saves the buffalo and fires nothing, and **0.45 does both** — the same number that keeps the prey alive is the one that stops the mechanism demonstrating itself |
 | ⚠ D34 | **A weight that has already been spent must not be spent again**, and it was built wrong twice under two names four phases apart. Phase 9's forage preference was first a *symmetric* window, which double-counts scarcity — a nearly-bare cell already hands an animal almost nothing, because `consumeAt` returns only what is there — and the ten-seed gate came back **gazelle 3/10 against the control's 10/10**. Phase 12's association weight was first applied to the herd *pull* as well as to the centroid it is already inside; measured, a follower held station no better than one with the mechanism off (16.1 units either way) and **every weight below ~0.58 was inert**, because herding is the weakest utility in the table and a second discount caps the pull below `wanderBias` | **Before adding a discount, ask what the quantity you are discounting already accounts for.** Both failures measured as *no effect* rather than as an error, which is why they look like bad tuning: the mechanism is charging the animal twice for one fact, and the second charge is invisible in the code because it sits in a different function from the first. ⚠ A one-sided falloff was the fix in both cases — spend the weight in exactly one place and let the other side fall out of machinery that already exists (mass-scaled intake; the centroid) |
+| ⚠⚠ D35 | **A recovery whose consumer throws it away is not a recovery, and it read as tuning for thirty steps.** The movement system has answered a blocked step by turning the intent around and expiring its commitment since Step 8. That only ever worked for `wander`, the one action that *reads its previous intent*; all ten directed actions rebuild theirs from `atan2(target − self)` every tick, so the recovery was written to an object that was discarded before anyone read it. Animals stood against rocks holding `seekWater` for up to 964 consecutive ticks and died of thirst with the lake in sight — 15.6% of directed animal-ticks blocked and immobile on the demo, 40.6% at `rocks=6 thickets=8`. It surfaced as high dehydration mortality, as `circling-in-need`, and as `unresolved-intent`, i.e. as three symptoms in three subsystems, none of them named "the animal cannot get around a rock" | **When one system writes a recovery and another owns the state it is written to, check that the owner reads it.** The write succeeded, the field was correct, and nothing was ever null — which is why no test caught it and why every symptom pointed somewhere else. ⚠ The tell was available all along: `wander` was exempt, and *why* it was exempt is the whole bug. When a mechanism works for exactly one consumer, ask what that consumer does differently before concluding the others are merely tuned badly |
+| ⚠⚠ D36 | **A mortality label that fires where its behaviour does not is a lie the whole model tells back to you.** `exposure` was assigned at 0.35 °C of thermal stress while the animal would not walk to cover until 2 °C — 127 709 animal-ticks per seed in the gap. So the death log said "froze" about animals that had no reason to move, the ethologist ranked those deaths as preventable-in-place, and the obvious reading was "the shelter behaviour is broken". The shelter behaviour was fine. The **cost** was the problem: thermoregulation was 23–40% of an energy budget, so animals were being taxed to death and the label was pointing at the last thing that touched them | **Read a death cause as a hypothesis, not a datum — and check it against the behaviour the animal actually had available.** Two smells, both present here and both cheap to test: a cause that fires *more often than starvation* in a world where nothing is starving, and a threshold that appears in a label but nowhere in a decision. ⚠ And measure the **energy budget by component** before tuning any of it: "40% of a leopard's expenditure is thermoregulation" is one number that reframes the whole question, and no death-by-cause table contains it |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
 ---

@@ -1,6 +1,6 @@
 import { EntityManager } from './EntityManager.js';
 import { SpatialGrid } from './SpatialGrid.js';
-import { TerrainGrid, TerrainType } from './TerrainGrid.js';
+import { TerrainGrid, TerrainType, isShelteringCode } from './TerrainGrid.js';
 import { VegetationGrid } from './VegetationGrid.js';
 import { initialEnvironment } from './Environment.js';
 import { ScentGrid } from './ScentGrid.js';
@@ -268,9 +268,12 @@ export class World {
    */
   isShelteredAt(x, y) {
     const { cellX, cellY } = this.cellOf(x, y);
-    const code = this.terrain.codeAt(cellX, cellY);
     // Cover (low brush) and thicket (a dense stand) both break the weather.
-    if (code === TerrainType.COVER || code === TerrainType.THICKET) return true;
+    // ⚠ Through `isShelteringCode` rather than a pair of comparisons here, so
+    // that "which terrain shelters" has one definition and the perception cue
+    // (which fills the only shelter *cue* an animal has) cannot drift from the
+    // relief the thermal cost actually applies. That drift was A68.
+    if (isShelteringCode(this.terrain.codeAt(cellX, cellY))) return true;
     // A burrow is shelter an animal made (Step 28). Landing it here rather than
     // in the metabolism system means thermoregulation and the `shelter` action
     // both pick it up for free, and neither of them knows the difference between

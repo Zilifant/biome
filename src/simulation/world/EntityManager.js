@@ -76,7 +76,14 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {number | null} mateSearchSince tick this animal became receptive
  * @property {{tick: number, candidateId: number, quality: number,
  *   threshold: number, accepted: boolean} | null} lastCourtship last assessment
- * @property {{heading: number, ttl: number, moving: boolean} | null} moveIntent movement intent
+ * @property {{heading: number, ttl: number, moving: boolean, breakThicket?: boolean, refused?: boolean, detour?: string|null} | null} moveIntent
+ *            movement intent. ⚠ `refused` is written by the movement system when
+ *            a step is blocked and read by the decision system on the next tick
+ *            to deflect around the obstacle; `detour` names the action a
+ *            way-around is committed for, so the commitment cannot leak into a
+ *            different one. Both are optional and absent means false — a save
+ *            written before 2026-08-01 loads and behaves identically, since
+ *            every intent is rebuilt from scratch on the first tick anyway.
  * @property {number} lastMoveDistance distance travelled this tick (movement → metabolism)
  * @property {boolean} lowEnergy set by metabolism when energy is low
  * @property {number} edibleMass carcass edible mass (0 while alive)
