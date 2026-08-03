@@ -59,17 +59,35 @@ export const MAX_MANUAL_STEP_TICKS = 10000;
 
 /**
  * Bounds for the optional world-composition fields on `simulation.restart`.
- * Chosen to let a caller push the engine toward its performance ceiling — a
- * ~1M-cell world and tens of thousands of founders — without an out-of-memory
- * or a runaway build: terrain/vegetation layers are typed arrays that stay in
- * the tens of MB at the maximum dimension, founder spawning always terminates
- * (rejection sampling falls back to a deterministic scan), and the runner ticks
- * on a wall clock so a heavy world slows the tick rather than wedging the host.
+ * Chosen to let a caller push the engine toward its performance ceiling without
+ * an out-of-memory or a runaway build: founder spawning always terminates
+ * (rejection sampling falls back to a deterministic scan) and the runner ticks
+ * on a wall clock, so a heavy world slows the tick rather than wedging the host.
  * They are the guardrails, not recommendations; a caller combining both maxima
  * on the same world will find it very slow, just not broken.
+ *
+ * ⚠ **Raised from 1024 to 5120 on 2026-08-03** to admit landscape-scale worlds —
+ * the Ngorongoro presets model a real crater at 4700×3950. The old ceiling was
+ * set for "a ~1M-cell world … typed arrays in the tens of MB", and that
+ * description no longer holds, so here is what was actually measured (seed 42,
+ * roundness 4, 10 000 founders) rather than an estimate:
+ *
+ * |         world |      cells | build |  per tick |   RSS |
+ * | ------------: | ---------: | ----: | --------: | ----: |
+ * |     1050×885  |      929 k | 131ms |      10ms | 154MB |
+ * |    1485×1250  |     1.86 M | 169ms |     192ms | 282MB |
+ * |    4700×3950  |     18.6 M | 856ms |     280ms | 565MB |
+ *
+ * So the top of the scale is **hundreds of MB, not tens**, and a tick costs a
+ * few hundred ms — still inside the runner's 1 s default, so such a world runs
+ * in real time at 1× and merely falls behind at high speed multipliers. The
+ * square of the new maximum (5120² ≈ 26 M cells) is the worst case and was not
+ * measured; it extrapolates to roughly 800 MB. ⚠ A host that cannot afford that
+ * should bound it there rather than here — this is the protocol's outer limit,
+ * and a deployment's budget is not the protocol's business.
  */
 export const MIN_WORLD_DIMENSION = 16;
-export const MAX_WORLD_DIMENSION = 1024;
+export const MAX_WORLD_DIMENSION = 5120;
 
 /**
  * ⚠ **The founding roster stopped being three role counts at v29.**

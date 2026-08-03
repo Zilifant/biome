@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "name": "ngorongoro-1k-10x",
+  "savedAt": "2026-08-03T18:15:34.447Z",
+  "world": {
+    "seed": 42,
+    "width": 470,
+    "height": 395,
+    "rocks": 4,
+    "thickets": 4,
+    "roundness": 4,
+    "founding": [
+      {
+        "speciesId": "predator.lion",
+        "count": 10
+      },
+      {
+        "speciesId": "scavenger.hyena",
+        "count": 19
+      },
+      {
+        "speciesId": "herbivore.buffalo",
+        "count": 197
+      },
+      {
+        "speciesId": "herbivore.gazelle",
+        "count": 122
+      },
+      {
+        "speciesId": "herbivore.wildebeest",
+        "count": 443
+      },
+      {
+        "speciesId": "predator.leopard",
+        "count": 3
+      },
+      {
+        "speciesId": "herbivore.zebra",
+        "count": 197
+      },
+      {
+        "speciesId": "scavenger.vulture",
+        "count": 9
+      }
+    ]
+  }
+}

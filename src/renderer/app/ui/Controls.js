@@ -45,7 +45,7 @@ const MAX_SEED = 0xffffffff;
  * letting through a value certain to be refused.
  */
 const MIN_WORLD_DIMENSION = 16;
-const MAX_WORLD_DIMENSION = 1024;
+const MAX_WORLD_DIMENSION = 5120;
 /**
  * ⚠ **Per species, not per role, since protocol v29.** This panel used to carry
  * three hardcoded number fields — Herbivores, Predators, Scavengers — which is

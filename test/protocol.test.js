@@ -10,6 +10,7 @@ import {
   PUBLIC_ENTITY_FIELDS,
 } from '../src/protocol/snapshots.js';
 import { buildEventBatch } from '../src/protocol/events.js';
+import { MIN_WORLD_DIMENSION, MAX_WORLD_DIMENSION } from '../src/protocol/commands.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { MetabolismSystem } from '../src/simulation/systems/MetabolismSystem.js';
@@ -34,8 +35,13 @@ describe('command validation', () => {
     { type: 'entity.remove', entityId: -1 },
     { type: 'entity.remove', entityId: 1.5 },
     { type: 'simulation.restart', seed: -1 },
-    { type: 'simulation.restart', width: 8 }, // below MIN_WORLD_DIMENSION
-    { type: 'simulation.restart', height: 4096 }, // above MAX_WORLD_DIMENSION
+    // ⚠ Derived, not restated. These read `width: 8` / `height: 4096` against a
+    // 1024 ceiling until 2026-08-03, and the second silently stopped testing
+    // anything the moment the cap was raised past 4096 — a bound-check case that
+    // no longer sits outside the bound is a row that passes for the wrong
+    // reason. Same lesson as the terrain-prevalence test (DOCS §19).
+    { type: 'simulation.restart', width: MIN_WORLD_DIMENSION - 1 },
+    { type: 'simulation.restart', height: MAX_WORLD_DIMENSION + 1 },
     { type: 'simulation.restart', width: 128.5 },
     { type: 'simulation.restart', herbivores: -1 },
     { type: 'simulation.restart', predators: 999999 },
