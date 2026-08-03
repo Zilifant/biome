@@ -14,7 +14,6 @@ DO NOT REFERENCE
 
 ### Ideas - Sim
 
-- deep water
 - sparser/localized vegetation so grazers are forced to actually path between different locations on the map
 - non-circular water
 - elevation changes
@@ -22,7 +21,6 @@ DO NOT REFERENCE
 - sea creatures
 - paths aren't very path-y
 - open/closed mode; in open mode, new animals can spawn in based on population size
+- wet/dry season
 
 ### Ideas - UI
-
-- event feed filters
