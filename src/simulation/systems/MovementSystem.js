@@ -46,13 +46,17 @@ export class MovementSystem extends SimulationSystem {
    *        already holding this many living animals; null disables the cap
    * @param {number} [options.updateInterval]
    */
-  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, maxOccupantsPerCell = null, climbing = false, updateInterval = 1 } = {}) {
+  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, maxOccupantsPerCell = null, climbing = false, cacheHaulReach = 1.5, updateInterval = 1 } = {}) {
     super({ id: 'movement.execute', phase: 'movement', priority: 0, updateInterval });
     // Elevation (phase T2). ⚠ The world-level switch, from `config.climbing` —
     // it cannot live in a species block, because a species block beats the
     // config (DOCS §8). Off, every animal is on the ground and this system is
     // exactly what it was.
     this.climbing = climbing;
+    // How close a hauled carcass must stay to the animal dragging it (phase
+    // T3). Matched to `feeding.carcassRange` by the composition root, since
+    // it is the same reach: what you can eat from, you can drag.
+    this.cacheHaulReach = cacheHaulReach;
     this.sprintMultiplier = sprintMultiplier;
     this.sprintStaminaCost = sprintStaminaCost;
     this.diseaseSpeedPenalty = diseaseSpeedPenalty;
@@ -72,6 +76,34 @@ export class MovementSystem extends SimulationSystem {
       diseaseSpeedPenalty,
       maxOccupantsPerCell,
     });
+  }
+
+  /**
+   * Drag the carcass this animal is hauling to its own position, and hoist it
+   * into the canopy once it is standing under a tree (phase T3).
+   *
+   * ⚠ **The arrival test is the hauler's own cell, not a distance to the target
+   * cell**, and that is deliberate: the decision system picks the tree, the
+   * animal walks to it through whatever detours the terrain forces, and the only
+   * thing that decides "arrived" is standing on a tree. So a cat that ends up
+   * under a *different* tree on the way has still cached its kill, which is the
+   * honest outcome rather than a bug.
+   *
+   * ⚠ The carcass is dropped rather than dragged if it has drifted out of reach —
+   * something took it, or the hauler was pushed off it — and the decision system
+   * re-decides from scratch next tick. There is no stuck state to clear.
+   */
+  #haul(world, entity) {
+    const carcass = world.entities.get(entity.cacheTargetId);
+    if (!carcass || carcass.kind !== 'carcass') return;
+    if (Math.hypot(carcass.x - entity.x, carcass.y - entity.y) > this.cacheHaulReach) return;
+    world.moveEntity(carcass, entity.x, entity.y, carcass.heading);
+    // ⚠ The hauler stays on the ground — `cache` is deliberately not one of the
+    // actions that keep a climber aloft (see `locomotion/climbing.js`), because
+    // an animal in the canopy does not step and a mid-haul climb would freeze
+    // the haul. It hoists the body and remains below it; being *able* to climb
+    // is what lets it feed there afterwards.
+    if (world.isTreeAt(entity.x, entity.y)) carcass.elevation = CANOPY;
   }
 
   update(world, context) {
@@ -151,6 +183,13 @@ export class MovementSystem extends SimulationSystem {
         world.moveEntity(entity, targetX, targetY, heading);
         entity.lastMoveDistance = Math.hypot(entity.x - from.x, entity.y - from.y);
         if (bounced) intent.heading = heading;
+        // Hauling a kill (phase T3). ⚠ **The first thing in this engine that ever
+        // moves a carcass**, which is why it goes through `world.moveEntity` like
+        // every other position change — the spatial grid is what scavenging
+        // queries, and a body dragged behind the index would be invisible to
+        // everything looking for it. Nothing else about a carcass changes: it
+        // decays on the same clock and returns the same nutrients.
+        if (this.climbing && entity.cacheTargetId !== null) this.#haul(world, entity);
         context.emit(EventTypes.ENTITY_MOVED, {
           entityId: entity.id,
           from,

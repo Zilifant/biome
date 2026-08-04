@@ -651,6 +651,20 @@ export const defaultSimulationConfig = Object.freeze({
   // byte-identical before either moved.
   climbing: Object.freeze({
     enabled: true,
+    // ⚠⚠ **The reproducible control for kill caching, and it has to be here.**
+    // The biology is `behavior.cacheWeight`, which lives in a **species block** —
+    // and a species block *beats* the config (DOCS §8), so
+    // `--set=behavior.cacheWeight=0` would be silently overridden by the
+    // leopard's own 1.2 and the "off" arm would measure the mechanism against
+    // itself. That is the exact trap phase 8 lost an afternoon to with
+    // `aging.hiddenUntil`, and it was nearly shipped again here: the mechanism
+    // fired in the demo before anyone noticed it could not be switched off.
+    //
+    // Separate from `enabled` on purpose, so the two halves of vertical refuge
+    // can be measured apart: resting above competitors is fidelity that does no
+    // measurable work (nothing hunts a leopard), while caching a kill is the
+    // half that changes who eats.
+    caching: true,
   }),
   breeding: Object.freeze({
     // False ⇒ every species breeds year-round whatever it declares: the measured
@@ -1456,6 +1470,16 @@ export const defaultSimulationConfig = Object.freeze({
     // point — mobbing competes with fleeing, never with foraging. The buffalo
     // arrives in phase 11 and is what it will be tuned against.
     mobWeight: 0,
+    // Caching a kill in a tree (phase T3). ⚠ **0 for every species but the
+    // leopard**, and the whole expression short-circuits on it, so this is one
+    // comparison and then nothing for the rest of the roster — the shape
+    // `mobWeight` and `cooperationWeight` both have.
+    //
+    // Scaled by `1 - hunger` where it is read, so it never needs a threshold:
+    // a comfortable cat secures the kill, a desperate one eats it. The weight
+    // is sized against `eat` (`eatBias` 0.2 + hunger), not against the other
+    // behaviour weights.
+    cacheWeight: 0,
     // Territory (Step 24). Patrolling is what an animal does *instead of*
     // wandering aimlessly, so it sits just above wander and below everything
     // else; retreating off a rival's ground beats settling down on it but never

@@ -482,6 +482,19 @@ export const STATUS_APPEARANCE = Object.freeze([
     label: 'dispersing',
     applies: (entity) => entity.dispersing === true,
   }),
+  Object.freeze({
+    id: 'aloft',
+    shape: 'diamond',
+    colorToken: 'bright-green',
+    label: 'up a tree',
+    // ⚠ **The only status a carcass may carry**, and the reason `remains` exists
+    // at all: a leopard's kill hoisted out of the hyenas' reach is the most
+    // legible thing the elevation mechanism produces, and a cached body drawn
+    // exactly like one lying in the grass would make the whole phase invisible.
+    // Everything else in this list is a fact about a living animal.
+    remains: true,
+    applies: (entity) => entity.elevation === 1,
+  }),
 ]);
 
 /** How long each status of a multi-status animal is shown before the next. */
@@ -500,9 +513,16 @@ export const STATUS_CYCLE_MS = 500;
  * @returns {ReadonlyArray<object>}
  */
 export function statusesOf(entity) {
-  if (entity?.kind !== 'animal' || entity.alive === false) return NO_STATUSES;
+  // ⚠ Living animals carry every status; remains carry only those marked
+  // `remains` (elevation, and nothing else so far). Without that filter a
+  // carcass would light up as *hurt* — its `healthFraction` is 0 — which is a
+  // true statement about a dead animal and a useless one to draw.
+  const living = entity?.kind === 'animal' && entity.alive !== false;
+  const remains = entity?.kind === 'carcass';
+  if (!living && !remains) return NO_STATUSES;
   let found = null;
   for (const status of STATUS_APPEARANCE) {
+    if (!living && status.remains !== true) continue;
     if (!status.applies(entity)) continue;
     if (found === null) found = [status];
     else found.push(status);

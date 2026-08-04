@@ -73,7 +73,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1060 passing / 0 failing** _(2026-08-03, +11 for trees and +15 for elevation; 5 preset-HTTP suites are cancelled in a sandboxed shell and fail identically on clean HEAD)_. Was **1004 / 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
+| Tests                 | **1106 passing / 0 failing** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching, plus the sprite-mode suites; 5 preset-HTTP suites are cancelled in a sandboxed shell and fail identically on clean HEAD)_. Was **1004 / 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
 | `PROTOCOL_VERSION`    | **31** — `elevation` in bulk snapshots (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | **30** — elevation, the `climbing` section, and the tree terrain params. ⚠ The bump is for the **config**, not the field: entities serialize whole so a new field rides free, but terrain is *regenerated* from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
@@ -218,6 +218,17 @@ one that costs an entry in the utility table (§9 Decision's standing warning).
 
 Real mechanisms that demonstrably almost never fire in the demo. Recorded
 because "implemented" and "doing visible work" are different claims.
+
+**A73 — Kill caching moved carrion off the hyena** _(from 2026-08-03, phase T3)_
+
+The mechanism works and every link is attributable (§7 Terrain, kill caching):
+the leopard's share of all carrion goes 16.3% → 18.2%, the hyena's 10.5% → 8.1%,
+hyena **starvation deaths double (10 → 21)**, and its mean population falls
+8.6 → 6.8. ⚠ Not a gate failure — 9/10 seeds in both arms — but it is the one
+species the change costs, and it now loses that seed with less margin. Worth a
+second look before anything *else* is taken off the clan; **B7's
+`carcass.decayTicks` and the vulture's discovery network (plan phase V2) both
+would**.
 
 **⚠ A72 — The habitat preference's effect on the demo is no longer separable
 from noise** _(from 2026-08-03, phase T1)_
@@ -1239,6 +1250,66 @@ demo is byte-identical across seeds 1/2/42 × 1500 ticks with
 `config.climbing.enabled` on and off. Every added predicate is the identity when
 every elevation is 0, and nothing draws.
 
+#### Kill caching, and who actually pays for it _(2026-08-03, phase T3)_
+
+A leopard that has killed on a comfortable stomach drags the body to the nearest
+tree and hoists it, where only a climber can reach it. `cache` is the **one new
+action** these three phases added, and the bar §9 Decision sets is that a new
+movement behaviour competes with foraging and foraging must win. What it competes
+with is **`eat`, for one animal, on the carcass it is already standing on** — and
+the crossover is a product, not a threshold: `cache` scores
+`cacheWeight × (1 − hunger)` against `eat`'s `0.2 + hunger`, so a fed cat secures
+the kill and a starving one eats where it stands, with nothing to tune.
+
+**It fires**: 0.66–0.97% of leopard animal-ticks, ~500 firings per 6000 ticks per
+seed, against `patrol`'s 0–1 per 3000 that made A34 an action item.
+
+⚠⚠ **The leopard barely grows and the hyena pays for the whole mechanism.**
+_Ten-seed gate, 15 000 ticks, caching on against off:_
+
+| | on | off |
+| --- | ---: | ---: |
+| leopard's share of all carrion | **18.2%** (36 074 kg) | 16.3% (33 309 kg) |
+| hyena's share | **8.1%** (16 004 kg) | 10.5% (21 437 kg) |
+| hyena starvation deaths | **21** | 10 |
+| hyena mean population | **6.8** | 8.6 |
+| leopard mean population | 13.8 | 13.4 |
+
+The chain is attributable end to end, which is rarer here than a large effect:
+carrion moves off the clan and onto the cat, the cat was not carrion-limited so
++2.8 tonnes buys it +0.4 animals, and the clan *was*, so −5.4 tonnes doubles its
+starvation deaths and costs it a fifth of its numbers. ⚠ **The hyena is the
+species to watch** — 9/10 seeds in both arms, so not a gate failure, but with
+less margin than before.
+
+⚠ **Only ~26% of leopard kills get cached**, because a tree has to be within
+`cacheHaulDistance` and trees are 2.45% of the map. That is the same ceiling A57
+and the ambush both hit, from a third direction.
+
+⚠⚠ **Two traps this phase re-sprang, both caught only by building the control
+arm.** `cacheWeight` lives in the leopard's `behavior` **block**, so
+`--set=behavior.cacheWeight=0` is silently overridden by the species and the
+"off" arm measures the mechanism against itself — phase 8's trap exactly, and the
+mechanism was already firing in the demo before anyone noticed. Hence
+`config.climbing.caching`. The same check found that `#haul` hoisted carcasses
+even with `climbing.enabled: false`, so the axis's own switch did not fully
+switch it off.
+
+⚠ **And the plan's proposed instrument could not see the claim.** It asked for
+"carcasses lost to a stronger scavenger", which in this engine is the
+`entity.robbed` event — and that event needs a **holder**. A leopard hauling a
+kill is not feeding, so it holds nothing, so the theft that matters emits
+nothing; measured that way caching looked *worse* (31.7% of kills stolen against
+23.1%). The honest instrument attributes every mouthful taken off a
+leopard-killed body by species. **An event records a mechanism firing, not the
+thing the mechanism is about.**
+
+⚠ **The refuge half is fidelity, not a survival mechanism, and the plan's
+`flee`-toward-a-tree rule was dropped rather than built.** Nothing hunts a
+leopard — no species lists it in `preySpeciesIds` — so `flee` cannot fire for
+one, and a heading rule inside it would have been provably unreachable. A
+resting leopard in a tree is out of reach of something that was never coming.
+
 ⚠ **`publicEntityView` and `PUBLIC_ENTITY_FIELDS` are two spellings of one rule,
 and this phase found that out the hard way.** The protocol whitelist had
 `elevation` and the engine's projection literal did not, so `cloneEntity` read
@@ -1417,7 +1488,7 @@ half the test suite runs engines with different configs in one process.
 | `herbivore.wildebeest` | prey, herbivore       |  200 |                 7 | The only species with a **breeding window** — a rut, and a calving season that emerges from it; mid tier   |
 | `herbivore.zebra`      | prey, herbivore       |  300 |                 8 | Coarse-grass tier; the first **prey animal** on the persistent group registry (a band, not a harem)        |
 | `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
-| `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory |
+| `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory. ⚠ From 2026-08-03 the only species that **climbs** — it caches kills in trees, which is what finally closes the limitation its own file has stated since phase 14 |
 | `predator.lion`        | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming           |
 | `scavenger.vulture`    | obligate scavenger    |    6 |                14 | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty                    |
 | `scavenger.hyena`      | facultative scavenger |   60 |                13 | Hunts gazelle, and wildebeest **calves** — by a mass ratio written two batches earlier that now binds       |

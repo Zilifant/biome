@@ -20,7 +20,7 @@ import { PROTOCOL_VERSION } from '../src/protocol/protocolVersion.js';
 import { PUBLIC_ENTITY_FIELDS, buildFullSnapshot, buildDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { SUPPORTED_PROTOCOL_VERSION } from '../src/renderer/app/state/RendererStore.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
-import { CANOPY, GROUND } from '../src/simulation/locomotion/climbing.js';
+import { CANOPY, GROUND, canClimb } from '../src/simulation/locomotion/climbing.js';
 import fullSnapshotFixture from '../src/renderer/fixtures/example-full-snapshot.json' with { type: 'json' };
 import deltaFixture from '../src/renderer/fixtures/example-delta.json' with { type: 'json' };
 import eventsFixture from '../src/renderer/fixtures/example-events.json' with { type: 'json' };
@@ -52,15 +52,24 @@ describe('protocol v31: elevation rides in bulk snapshots', () => {
     }
   });
 
-  test('⚠ every entity is on the ground in a world with no climbing species', () => {
-    // The inertness claim, asserted through the protocol rather than inferred:
-    // no shipped species declares `climbs`, so the field is uniformly 0 and the
-    // projection costs a delta nothing it was not already costing.
+  test('⚠ only a declared climber, or a body one cached, is ever off the ground', () => {
+    // ⚠ **This asserted "nothing is ever aloft" at phase T2, and was designed to
+    // be replaced here**: that was the inertness claim, and T3 spends it by
+    // making the leopard a climber. The durable invariant is narrower and more
+    // useful — nothing gets off the ground *by accident*. An animal aloft must
+    // be a species that declared `climbs`, and a carcass aloft must be one a
+    // climber hauled there. Anything else is elevation leaking.
     const engine = createDemoSimulation({ seed: SEED });
-    engine.step(600);
+    engine.step(2000);
     const snapshot = buildFullSnapshot(engine.getSnapshotData());
-    const aloft = snapshot.entities.filter((entity) => entity.elevation !== GROUND);
-    assert.deepEqual(aloft, [], 'nothing leaves the ground until a species says it can');
+    for (const entity of snapshot.entities) {
+      if (entity.elevation === GROUND) continue;
+      const species = engine.world.species.get(entity.speciesId);
+      assert.ok(
+        entity.kind === 'carcass' || canClimb(species),
+        `${entity.kind} ${entity.id} (${entity.speciesId}) is aloft and cannot climb`,
+      );
+    }
   });
 
   test('a change in elevation dirties a delta, so a climb is watchable', () => {

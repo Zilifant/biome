@@ -136,6 +136,10 @@ function createEntity(id, definition) {
     stamina: definition.stamina ?? maxStamina,
     maxStamina,
     huntTargetId: definition.huntTargetId ?? null,
+    // The carcass this animal is hauling to a tree (phase T3), owned by the
+    // decision system and read by movement — the same shape as `huntTargetId`
+    // above, and null for every animal that is not a caching climber.
+    cacheTargetId: definition.cacheTargetId ?? null,
     lastHuntTick: definition.lastHuntTick ?? null,
     // Elevation (phase T2): 0 on the ground, 1 up a tree. A **flag, not a
     // coordinate** — nothing about distance, the spatial index, or the world's

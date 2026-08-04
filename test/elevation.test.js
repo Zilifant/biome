@@ -127,12 +127,16 @@ describe('elevation: the predicates', () => {
     const engine = sandbox();
     assert.equal(canClimb(engine.species.require(CLIMBER.id)), true);
     assert.equal(canClimb(engine.species.require(GROUNDLING.id)), false);
-    // ⚠ Every shipped species is a groundling — the mechanism is inert until one
-    // declares otherwise, which is what makes T2 measurable against itself.
-    for (const species of engine.species.all()) {
-      if (species.id.startsWith('test.')) continue;
-      assert.equal(canClimb(species), false, `${species.id} must not climb yet`);
-    }
+    // ⚠ **This assertion was "no shipped species climbs" at phase T2 and was
+    // designed to be replaced here** — that was the inertness claim, and phase T3
+    // spends it by giving the leopard the mechanism. What stays true, and is the
+    // durable form of the claim, is that climbing is *declared*: exactly the
+    // species that ask for it get it, and adding a climber is a config edit.
+    const climbers = engine.species
+      .all()
+      .filter((species) => !species.id.startsWith('test.') && canClimb(species))
+      .map((species) => species.id);
+    assert.deepEqual(climbers, ['predator.leopard'], 'the leopard climbs; nothing else in the roster does');
   });
 
   test('sharing an elevation is symmetric — a treed hunter cannot reach the ground either', () => {

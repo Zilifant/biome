@@ -156,14 +156,60 @@ export const predatorLeopard = Object.freeze({
   // refused. Thicket is *above* cover here and nowhere else in the roster — every
   // other species treats a dense stand as something to be avoided at 0.3–0.4, and
   // this is the one animal for which it is home.
-  habitat: Object.freeze({ cover: 1.6, thicket: 1.25, ground: 0.85, water: 0.9 }),
-  // ⚠ **No `behavior` block, and one experiment is why.** Concealment costs this
-  // animal completed hunts — prey that never sees it never *flees*, and a fleeing
-  // target is what used to force the sprint (`chasing = … || prey.fleeing`), so a
-  // stalk now converts to a chase more slowly. Raising `chaseRange` 4 → 6 to commit
-  // sooner is the obvious compensation; measured over 3 seeds × 15 000 ticks it was
-  // **worse** (2/3 seeds, mean 7.0, against 10/10 and 8.2 at the default). Left at
-  // the config default and recorded rather than tuned around.
+  // ⚠ `tree: 1.5` joined on 2026-08-03 (phase T3). It sits just under cover,
+  // because what a leopard wants a tree for is not concealment — a scattered
+  // canopy conceals *less* than brush (0.4 against 0.55) — it is the larder and
+  // the refuge above it. This is also the first entry any species has made for
+  // the tree terrain, and it is half the fix for the artifact phase T1 measured:
+  // every herbivore weights `ground` at 1.1–1.2 and names no tree, so converting
+  // open ground to trees quietly shrank the preferred habitat of every grazer.
+  // ⚠ The *other* half — giving the herbivores a tree weight — is deliberately
+  // not in this phase: it would move four species' habitat in the same gate that
+  // is measuring one predator's new behaviour, and neither result would be
+  // attributable (A12).
+  habitat: Object.freeze({ cover: 1.6, tree: 1.5, thicket: 1.25, ground: 0.85, water: 0.9 }),
+  // ⚠⚠ **Vertical refuge, thirteen phases after the file said it was deferred**
+  // (A67, phases T1–T3). The header below still describes the deferral; this is
+  // what replaced it, and the two halves are worth separating because only one
+  // of them does any work:
+  //
+  //   - **Resting above competitors is fidelity, and mechanically near-inert.**
+  //     A resting or sheltering leopard standing under a tree is in it, with no
+  //     new code at all — `rest` already existed and `elevationFor` does the
+  //     rest. But *nothing hunts a leopard*: no species lists it in
+  //     `preySpeciesIds`, so being out of reach is being out of reach of
+  //     something that was never coming. It is visible, correct, and not a
+  //     survival mechanism. ⚠ This is also why the plan's **flee-toward-a-tree
+  //     heading rule was dropped rather than built**: `flee` fires from a
+  //     perceived threat or a conspecific's alarm, and a leopard can have
+  //     neither, so the rule would have been provably unreachable — A34's shape,
+  //     caught before shipping instead of after.
+  //   - ⚠ **Caching a kill is the half that does the work**, and it closes the
+  //     limitation the header states outright: *"this leopard cannot protect a
+  //     kill from the hyena clan, and the carcass-possession contest resolves on
+  //     dominance alone, so it loses kills a real one would keep."* A carcass in
+  //     the canopy feeds climbers and nobody else.
+  climbs: true,
+  behavior: Object.freeze({
+    // Sized against `eat` rather than against the other behaviour weights, since
+    // that is the only action it ever competes with: `eat` scores
+    // `0.2 + hunger`, this scores `1.2 × (1 − hunger)`. They cross at hunger
+    // ≈ 0.45 — so a leopard that has just made a kill on a comfortable stomach
+    // hauls it to a tree first, and one that hunted because it was starving eats
+    // where it stands. ⚠ Below `fleeWeight` (2.0) and `defendWeight` (2.6) at
+    // every hunger, so a cat under threat drops the kill.
+    cacheWeight: 1.2,
+  }),
+  // ⚠ **`chaseRange` is deliberately still absent from the block above, and one
+  // experiment is why.** Concealment costs this animal completed hunts — prey
+  // that never sees it never *flees*, and a fleeing target is what used to force
+  // the sprint (`chasing = … || prey.fleeing`), so a stalk converts to a chase
+  // more slowly. Raising `chaseRange` 4 → 6 to commit sooner is the obvious
+  // compensation; measured over 3 seeds × 15 000 ticks it was **worse** (2/3
+  // seeds, mean 7.0, against 10/10 and 8.2 at the default). Left at the config
+  // default and recorded rather than tuned around. _(This note read "no
+  // `behavior` block" until phase T3 gave the species one for `cacheWeight`; the
+  // measurement it records is unchanged.)_
 
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

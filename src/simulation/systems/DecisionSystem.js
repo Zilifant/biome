@@ -73,6 +73,7 @@ import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
+import { canClimb, isAloft } from '../locomotion/climbing.js';
 import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
@@ -211,6 +212,17 @@ export class DecisionSystem extends SimulationSystem {
     // thin band, not a march to death across a crawl at 0.1 speed).
     thicketReachNeed = 0.45,
     thicketReachDistance = 4,
+    // How far a climber will haul a kill to reach a tree (phase T3). ⚠ Short
+    // on purpose: a cat that drags a carcass across the map is not caching, it
+    // is commuting, and the whole point is securing the kill *before* the
+    // scavengers arrive. Machinery rather than biology, so it lives in
+    // `config.decision` and not in the species block beside `cacheWeight`
+    // (DOCS §9 Decision: what an animal wants is biology, how far a search
+    // ring reaches is not).
+    cacheHaulDistance = 5,
+    // The world-level switch for caching, from `config.climbing.caching` (see
+    // there for why it cannot live beside `cacheWeight` in the species block).
+    caching = true,
     huntWeight = 1.4,
     stalkDiscount = 0.8,
     chaseRange = 4.0,
@@ -333,6 +345,8 @@ export class DecisionSystem extends SimulationSystem {
     this.rangingJitterScale = rangingJitterScale;
     this.thicketReachNeed = thicketReachNeed;
     this.thicketReachDistance = thicketReachDistance;
+    this.cacheHaulDistance = cacheHaulDistance;
+    this.caching = caching;
     this.huntWeight = huntWeight;
     this.stalkDiscount = stalkDiscount;
     this.chaseRange = chaseRange;
@@ -708,6 +722,28 @@ export class DecisionSystem extends SimulationSystem {
       // predator is within a few spaces, in which case the thicket is refuge and
       // it stays (flee/hunt logic takes over anyway). The exit scan runs only for
       // the few animals actually in thicket, so it is free on open ground.
+      // ⚠⚠ **Caching a kill** (phase T3) — the one action this plan adds, and the
+      // bar it had to clear is DOCS §9 Decision's most expensive rule: a new
+      // movement behaviour competes with foraging, and foraging must win.
+      //
+      // What it competes with is **`eat`, for one animal, for a few ticks, on the
+      // carcass it is already standing on** — it delays its own meal to secure
+      // it, which is a trade-off the animal is making with itself rather than a
+      // new claim on a foraging animal's attention. Every other animal in the
+      // world scores it 0 on the first comparison (`cacheWeight` is 0 for every
+      // species but the leopard, and the whole expression short-circuits there).
+      //
+      // ⚠ **The hunger term is what keeps it from being a way to starve.** It is
+      // `1 - hunger`, so a comfortable cat secures the kill and a desperate one
+      // eats it: at the shipped weight a leopard at hunger 0.3 scores 0.84
+      // against `eat`'s 0.5, and at hunger 0.8 scores 0.24 against `eat`'s 1.0.
+      // The animal changes its mind on its own, with no threshold to tune.
+      const cacheWeight = this.caching && carnivore ? (behavior.cacheWeight ?? 0) : 0;
+      const cacheTarget =
+        cacheWeight > 0 && onFood && carcass !== null && canClimb(species) && !isAloft(world.entities.get(carcass.id))
+          ? nearestTreeCell(world, entity.x, entity.y, this.cacheHaulDistance)
+          : null;
+
       const inThicket = world.isThicketAt(entity.x, entity.y);
       const predatorNear = threat !== null && threat.distance <= this.thicketRefugeRadius;
       const thicketExit =
@@ -723,6 +759,7 @@ export class DecisionSystem extends SimulationSystem {
         stalk: willHunt && !chasing ? behavior.huntWeight * hunger * behavior.stalkDiscount : 0,
         drink: atWater ? this.drinkBias + thirstDrive : 0,
         seekWater: nearestWater && !atWater ? thirstDrive : 0,
+        cache: cacheTarget ? cacheWeight * (1 - hunger) : 0,
         eat: onFood && !nursing ? this.eatBias + hungerDrive * forageQualityHere : 0,
         seekFood: nearestFood && !onFood && !nursing ? hungerDrive * forageQualityThere : 0,
         recallWater: recalledWater ? thirstDrive * behavior.recallWeight : 0,
@@ -749,6 +786,12 @@ export class DecisionSystem extends SimulationSystem {
       // The prey this predator has committed to — the hunting system reads it
       // to resolve capture attempts, and only ever reads it.
       entity.huntTargetId = action === 'chase' || action === 'stalk' ? prey.id : null;
+      // The body this animal is dragging, owned here exactly as `huntTargetId`
+      // is and read by the movement system exactly as `huntTargetId` is read by
+      // the hunting system. ⚠ An **id on the entity** rather than a lookup in
+      // `MovementSystem`, so that system never learns what possession or a
+      // carcass is — it drags whatever it is told it is dragging.
+      entity.cacheTargetId = action === 'cache' ? carcass.id : null;
       // seekMate, followParent, tend, chase/stalk, and defend steer toward
       // another animal's position rather than a cell; herding steers at the
       // group's centre of mass, which is a position but nobody's in particular.
@@ -785,7 +828,9 @@ export class DecisionSystem extends SimulationSystem {
                   ? cover
                   : action === 'leaveThicket'
                     ? thicketExit
-                    : null;
+                    : action === 'cache'
+                      ? cacheTarget
+                      : null;
       entity.actionTarget = target
         ? { cellX: target.cellX ?? Math.floor(target.x), cellY: target.cellY ?? Math.floor(target.y) }
         : null;
@@ -1080,6 +1125,12 @@ export class DecisionSystem extends SimulationSystem {
       case 'recallWater':
       case 'shelter':
       case 'leaveThicket':
+      // Hauling a kill to a tree is an ordinary directed walk toward a cell —
+      // the load it is dragging is the movement system's business, not the
+      // heading's. ⚠ It belongs in this group and not beside `chase`: it walks,
+      // it deflects around obstacles like any other directed action, and it must
+      // never sprint (a cat towing a carcass is not sprinting).
+      case 'cache':
       case 'stalk': {
         // Cell targets aim at the cell centre; a mate target carries an exact
         // position.
@@ -1496,6 +1547,47 @@ function nearestOpenCell(world, x, y, maxRadius) {
   return null;
 }
 
+/**
+ * The nearest cell with a tree on it, or null — where a climber hauls a kill to
+ * (phase T3).
+ *
+ * `nearestOpenCell`'s ring walk with one predicate swapped, deliberately rather
+ * than generalized into a shared scanner: the two differ in what they are
+ * looking for and in nothing else, and a `predicate` parameter would put a
+ * closure call inside a grid scan for the sake of nine shared lines.
+ *
+ * Bounded by `maxRadius` and reached only by a climber standing on an uncached
+ * kill — a handful of animal-ticks per thousand — so it costs the rest of the
+ * world nothing. Pure grid reads, no draws.
+ *
+ * @param {{cellOf: Function, isTreeAt: Function}} world
+ * @param {number} x @param {number} y
+ * @param {number} maxRadius rings to search outward (cells)
+ * @returns {{cellX: number, cellY: number} | null}
+ */
+function nearestTreeCell(world, x, y, maxRadius) {
+  const { cellX, cellY } = world.cellOf(x, y);
+  for (let r = 1; r <= maxRadius; r += 1) {
+    let best = null;
+    let bestDistance = Infinity;
+    for (let dy = -r; dy <= r; dy += 1) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const gx = cellX + dx;
+        const gy = cellY + dy;
+        if (!world.isTreeAt(gx + 0.5, gy + 0.5)) continue;
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = { cellX: gx, cellY: gy };
+        }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
 /** Highest-utility action; ties broken by a fixed, deterministic order. */
 function argmaxUtility(utilities) {
   const order = [
@@ -1507,6 +1599,12 @@ function argmaxUtility(utilities) {
     'flee',
     'chase',
     'drink',
+    // Securing a kill before eating it (phase T3). ⚠ Above `eat` only as a
+    // *tie*-break — which of the two actually wins is decided by the utilities,
+    // where `cache` scales with `1 - hunger` and `eat` with hunger, so a hungry
+    // cat eats and a comfortable one hauls. Below `drink` and everything above
+    // it: an animal does not secure its larder while dying of thirst.
+    'cache',
     'eat',
     'seekWater',
     'seekFood',

@@ -147,6 +147,8 @@ export function registerDemoSystems(engine) {
       // global precisely so the off switch cannot be overridden by a species.
       foragePreference: engine.config.forage.enabled,
       forageQualityFloor: engine.config.forage.qualityFloor,
+      // Kill caching (phase T3) — the switch, from `config.climbing`.
+      caching: engine.config.climbing.enabled && engine.config.climbing.caching,
       drinkRange: engine.config.hydration.drinkRange,
       carcassRange: engine.config.feeding.carcassRange,
       // Carcass possession lives in `config.carcass` and is read by two systems
@@ -222,6 +224,9 @@ export function registerDemoSystems(engine) {
       // it into the locomotion block would have put the switch one merge away
       // from a species being able to override it.
       climbing: engine.config.climbing.enabled,
+      // One reach, two readers: what a carnivore can eat from is what it can
+      // drag (D11 — the same reason `carcassRange` has one home).
+      cacheHaulReach: engine.config.feeding.carcassRange,
     }),
   );
   engine.registerSystem(

@@ -445,7 +445,11 @@ the demo does not run in it.
 
 ---
 
-### Phase T3 — the leopard in the tree
+### Phase T3 — the leopard in the tree ✅ **SHIPPED 2026-08-03**
+
+**As built.** The `cache` action and the habitat weight shipped as planned; the
+`flee`-toward-a-tree heading rule was **dropped on evidence** and one design
+error was caught late. Both at the end of the section.
 
 **Ships:** the leopard declares `climbs: true` and a `tree` habitat weight; the
 `flee`-toward-a-tree heading rule; and the `cache` action.
@@ -490,6 +494,86 @@ proposal.
 **Measure the shift:** carcasses lost to a stronger scavenger, per leopard kill,
 with the mechanism on against off. That is the claim. The population number is
 context.
+
+#### As built — one mechanism dropped, one design error, one instrument replaced
+
+**The mechanism fires**, which was the open question: `cache` is **0.66–0.97% of
+leopard animal-ticks** (~500 firings per 6000 ticks per seed), against `patrol`'s
+0–1 per 3000 that made A34 an action item. It is not near-inert, and the fallback
+(`cacheInPlace`) was not needed.
+
+**Measured 2026-08-03, 3 seeds × 6000 ticks, caching on against off** — of the
+meat off carcasses a leopard killed, who ate it:
+
+| | leopard | hyena | vulture | lion |
+| --- | ---: | ---: | ---: | ---: |
+| caching **on** | **65.5%** | 12.6% | 9.4% | 12.4% |
+| off | 62.6% | 15.3% | 11.3% | 10.8% |
+
+**+2.9 points to the leopard, taken from the hyena and the vulture.** Modest, and
+the reason is structural rather than tunable: only **26% of leopard kills get
+cached** (49 of 189), because a tree has to be within `cacheHaulDistance` and
+trees are 2.45% of the map. The same ceiling A57 and the ambush both hit.
+
+1. ⚠⚠ **The plan's own instrument could not see the claim, and the first
+   measurement read backwards.** §6 proposed "carcasses lost to a stronger
+   scavenger", which in this engine means the `entity.robbed` event — and that
+   event needs a **holder**. A leopard hauling a kill is not *feeding*, so it
+   holds nothing, so the theft that matters most emits no event at all. Measured
+   that way, caching looked like it made things **worse** (31.7% of kills stolen
+   against 23.1%). The honest instrument attributes every mouthful taken off a
+   leopard-killed body by species, which `entity.fed` supports because it carries
+   `carcassId`. ⚠ The lesson is older than this phase: *an event is a record of a
+   mechanism firing, not of the thing the mechanism is about.*
+
+2. ⚠⚠ **The mechanism was nearly shipped unmeasurable.** `cacheWeight` went into
+   the leopard's `behavior` **block** — and a species block *beats* the config,
+   so `--set=behavior.cacheWeight=0` would have been overridden by the leopard's
+   own 1.2 and the "off" arm would have measured the mechanism against itself.
+   That is precisely the trap DOCS §8 records from phase 8, and it was caught
+   only when the control arm was built — the mechanism was already firing in the
+   demo. Fixed with `config.climbing.caching`, a world-level switch beside the
+   axis switch, which also lets the two halves of vertical refuge be measured
+   apart. ⚠ A related hole in T2 fell out of the same check: `#haul` hoisted
+   carcasses into the canopy even with `climbing.enabled: false`, so the axis's
+   own off switch did not fully switch it off.
+
+3. ⚠ **The `flee`-toward-a-tree heading rule was dropped rather than built**, and
+   the reason is one the plan could have caught: `flee` fires from a perceived
+   threat or a conspecific's alarm, and **nothing hunts a leopard** — no species
+   lists it in `preySpeciesIds` — so the rule would have been *provably*
+   unreachable. Building it would have been A34's shape shipped knowingly. The
+   same argument demotes the resting half of the phase to fidelity: a leopard
+   asleep in a tree is out of reach of something that was never coming.
+
+**The ten-seed gate passes**, and it says something the 3-seed probe did not:
+_2026-08-03, 10 seeds × 15 000 ticks, `climbing.caching` on against off._
+
+| | on | off |
+| --- | ---: | ---: |
+| leopard's share of all carrion taken | **18.2%** (36 074 kg) | 16.3% (33 309 kg) |
+| hyena's share | **8.1%** (16 004 kg) | 10.5% (21 437 kg) |
+| hyena starvation deaths | **21** | 10 |
+| hyena mean population | **6.8** | 8.6 |
+| leopard mean population | 13.8 | 13.4 |
+
+⚠⚠ **The leopard barely grows and the hyena pays for the whole mechanism**, and
+that is the finding rather than a side effect. Caching moves carrion off the
+clan and onto the cat — exactly as designed — but the leopard was not
+carrion-limited, so +2.8 tonnes buys it +0.4 animals; the hyena *was*, so −5.4
+tonnes doubles its starvation deaths (10 → 21) and costs it a fifth of its
+numbers. The chain is fully attributable end to end, which is rarer here than a
+large effect. ⚠ The hyena is the species to watch if this is tuned further: it
+holds 9/10 seeds in **both** arms, so it did not fail the gate, but it is now
+losing a seed with less margin than before.
+
+**Also fixed, from the sprite-mode review:** neither renderer read `elevation`,
+so a treed leopard and a cached kill drew identically to grounded ones — the
+phase's whole visible result was invisible, against the "a renderer cannot show
+what it cannot see" argument v31 was justified by. Added as one `aloft` entry in
+`STATUS_APPEARANCE`, which both renderers consume; `statusesOf` gained a narrow
+`remains` flag so a **carcass** can carry that one mark and no other (its
+`healthFraction` is 0, so every other status would light up on a corpse).
 
 ---
 

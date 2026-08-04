@@ -68,6 +68,17 @@ they are not re-opened by accident.
   against the change, and three late single-seed losses in a world with more
   animals in it is worth a second look before it is called noise.
 
+- **A73 — Kill caching moved carrion off the hyena, and the hyena is the species
+  to watch** _(from 2026-08-03, phase T3)_. The mechanism works and its whole
+  chain is attributable: a leopard hoists ~26% of its kills into a tree, its
+  share of all carrion goes 16.3% → 18.2%, the hyena's goes 10.5% → 8.1%, hyena
+  **starvation deaths double (10 → 21)** and its mean population falls 8.6 → 6.8
+  (−21%). The leopard, not being carrion-limited, gains +0.4 animals for +2.8
+  tonnes. ⚠ Not a gate failure — the hyena holds 9/10 seeds in **both** arms —
+  but it is the one species the change costs, and it now loses its seed with less
+  margin. Worth a second look before anything else is taken off the clan (B7's
+  `carcass.decayTicks` and phase V2's discovery network both would).
+
 ## Engine — implemented, tested, and near-inert
 
 - **⚠ A72 — The habitat preference's effect on the demo is no longer separable
