@@ -47,9 +47,16 @@
  * Blocks a species may override, each falling back to the global config section
  * of the same name. Anything not listed here is either already per-species
  * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, and —
- * from the species plan — `groups`, `forage`, `habitat`, `association`, `crypsis`) or
- * genuinely world-level (terrain, weather, disturbances, the decision weights)
- * and stays in the config.
+ * from the species plan — `groups`, `forage`, `habitat`, `association`, `crypsis`,
+ * and `climbs` from 2026-08-03) or genuinely world-level (terrain, weather,
+ * disturbances, the decision weights) and stays in the config.
+ *
+ * ⚠ **`climbs` is a bare boolean with no config section of its own**, exactly as
+ * `crypsis` is a bare number — there is nothing world-level to say about whether
+ * an animal can get up a tree beyond the switch in `config.climbing`. Adding a
+ * `climbing` *block* here would have been the mistake the note below describes:
+ * a species block beats the config, so `config.climbing.enabled: false` would
+ * stop switching anything off for any species that stated its own.
  *
  * ⚠ **The always-per-species *fields* are not a leftover; they are the shape a
  * mechanism takes when it needs a reproducible control.** A species block beats

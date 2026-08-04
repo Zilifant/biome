@@ -64,6 +64,8 @@ export function registerDemoSystems(engine) {
   // Priority 20 in `environment`: last of the environment systems, and before
   // the `movement` phase whose results it reads next tick.
   engine.registerSystem(new EngineeringSystem(engine.config.engineering));
+  // Elevation (phase T2) is wired from `config.climbing`, its one home, into the
+  // one system that writes the field. See `locomotion/climbing.js`.
   engine.registerSystem(
     new PerceptionSystem({
       ...engine.config.perception,
@@ -215,6 +217,11 @@ export function registerDemoSystems(engine) {
       ...engine.config.locomotion,
       injurySpeedPenalty: engine.config.injury.speedPenalty,
       diseaseSpeedPenalty: engine.config.disease.speedPenalty,
+      // Elevation (phase T2). ⚠ From `config.climbing`, not `config.locomotion`:
+      // it is its own mechanism with its own reproducible control, and folding
+      // it into the locomotion block would have put the switch one merge away
+      // from a species being able to override it.
+      climbing: engine.config.climbing.enabled,
     }),
   );
   engine.registerSystem(

@@ -260,6 +260,24 @@ export class World {
   }
 
   /**
+   * Whether a continuous position stands under a tree — the ground a climber can
+   * leave (phase T2, `locomotion/climbing.js`).
+   *
+   * ⚠ Deliberately the same shape as `isThicketAt` rather than something
+   * cleverer, and for the same reason: one predicate, one home, several readers.
+   * A tree is not otherwise special to any system — it is passable, it grows
+   * grass, and it shelters like anything else — so this exists only to answer
+   * "can an animal be *above* here", which is a question no existing chokepoint
+   * was asking.
+   * @param {number} x @param {number} y
+   * @returns {boolean}
+   */
+  isTreeAt(x, y) {
+    const { cellX, cellY } = this.cellOf(x, y);
+    return this.terrain.codeAt(cellX, cellY) === TerrainType.TREE;
+  }
+
+  /**
    * Whether the cell at a continuous position gives shelter from the weather
    * (Step 19). Cover is the only sheltering terrain today; keeping the test
    * here rather than in a system means "what counts as shelter" has one home.

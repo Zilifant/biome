@@ -54,6 +54,46 @@
  * already share.
  */
 import { dominanceOf } from '../social/dominance.js';
+import { CANOPY, canClimb } from '../locomotion/climbing.js';
+
+/**
+ * Whether this animal can get at this body at all — the question that comes
+ * *before* who holds it (phase T2, A67).
+ *
+ * A carcass cached in a tree is reachable only by a species that climbs. ⚠⚠ **It
+ * tests what the eater *can* do, not where the eater currently is**, and the
+ * alternative was built first and discarded, so the reasoning is worth keeping:
+ *
+ * The obvious rule is `shareElevation(eater, carcass)` — be up the tree to eat
+ * what is up the tree — which is what gates *predation*. It fails here on
+ * ordering. Elevation is resolved in the **movement** phase from the action an
+ * animal chose, and which carcass it is eating is not known until the
+ * **interaction** phase; so a climber choosing `eat` would have to already be at
+ * the right height for a body it has not selected yet. Every fix for that is a
+ * state machine (climb-to-eat, eat, climb-down) with a stored transition, which
+ * is exactly what possession was designed *not* to have — it is held by presence,
+ * with no timer to expire and no state to get stuck in.
+ *
+ * A capability test needs none of that and says the thing that actually matters:
+ * **the hyena clan cannot take this kill.** That is A67's own wording — "cached
+ * carcasses would remain spatially in the same cell but become inaccessible to
+ * non-climbers" — and it is the whole ecological claim. What is given up is
+ * cosmetic: a feeding leopard is not necessarily *drawn* up the tree.
+ *
+ * ⚠ **This is not part of possession and must not be gated on
+ * `possessionEnabled`.** Reachability is a fact about the body; possession is a
+ * contest over it. Both readers call this before they ask anything else, because
+ * a decision system that walks an animal to a body the feeding system then
+ * refuses leaves it choosing `eat` and starving on the spot (D11).
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} carcass @param {object} eater
+ * @returns {boolean}
+ */
+export function reachesCarcass(world, carcass, eater) {
+  if (carcass.elevation !== CANOPY) return true;
+  return canClimb(world.species.get(eater.speciesId));
+}
 
 /**
  * Possession parameters. Held as one object so a system stores a single field
@@ -160,5 +200,6 @@ export function shareFor(holder, eater, possession) {
  * @returns {boolean}
  */
 export function isAvailableTo(world, carcass, eater, possession) {
+  if (!reachesCarcass(world, carcass, eater)) return false;
   return shareFor(holderOf(world, carcass, possession), eater, possession) > 0;
 }

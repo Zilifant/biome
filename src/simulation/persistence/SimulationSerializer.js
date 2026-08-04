@@ -168,10 +168,27 @@
  *       whichever scavenger has the lower id, which is exactly the behaviour
  *       possession replaced. Config is saved verbatim, so the new sections
  *       invalidate v28 saves on their own account too.
+ *  30 — elevation (A67, phase T2 of TREES-FLIGHT-VULTURE-PLAN.md): a per-entity
+ *       `elevation` (0 ground, 1 canopy) on animals **and carcasses**, plus a
+ *       new `config.climbing` section and the `tree` terrain params in
+ *       `config.terrain`.
+ *
+ *       ⚠ **The bump is for the config, not for the field**, and the distinction
+ *       is worth stating because it decides what a future field costs. Entities
+ *       serialize whole (`{ ...entity }`) and restore whole, so a new entity
+ *       field rides along for free and an older save simply lacks it —
+ *       `createEntity` defaults it to 0, which is exactly "on the ground", so a
+ *       v29 save would restore correctly on that account alone. What genuinely
+ *       invalidates v29 is that **terrain is regenerated from `config.terrain`
+ *       on load** and that config is saved verbatim: a v29 save carries no tree
+ *       params, so restoring one into this engine would rebuild its world with
+ *       the *new* defaults underneath animals placed in the old one. That is the
+ *       same hazard the terrain-params consolidation fixed on 2026-08-02, and it
+ *       is why a terrain generator change is always a save-format change.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 29;
+export const SAVE_FORMAT_VERSION = 30;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

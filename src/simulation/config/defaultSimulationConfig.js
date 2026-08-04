@@ -633,6 +633,25 @@ export const defaultSimulationConfig = Object.freeze({
   //
   // Inert until a species declares `reproduction.breedingWindow`, which is `null`
   // for all six. The wildebeest arrives in phase 13.
+  // Elevation and climbing (see locomotion/climbing.js). A67, phase T2 of
+  // TREES-FLIGHT-VULTURE-PLAN.md.
+  //
+  // An animal is on the ground (0) or up a tree (1). ⚠ **A flag, not a
+  // coordinate**: no distance, no spatial index entry, and no perception read
+  // changes with it. It gates exactly two things — whether a predator and a
+  // target can reach each other, and whether a cached carcass can be fed on —
+  // and it is emphatically **not** in perception's visibility gate, which is
+  // A63's trap (a condition there gates mate choice and guardianship too).
+  //
+  // ⚠ This is the world-level **switch**, and it has to live here rather than in
+  // a species block, because a species block beats the config (DOCS §8). The
+  // biology beside it is the per-species `climbs` field, which no species
+  // declares yet — so with `enabled: true` and an empty roster of climbers the
+  // mechanism is still exactly the identity, and both halves were proved
+  // byte-identical before either moved.
+  climbing: Object.freeze({
+    enabled: true,
+  }),
   breeding: Object.freeze({
     // False ⇒ every species breeds year-round whatever it declares: the measured
     // control. Costs nothing when true either — a null window skips the test.

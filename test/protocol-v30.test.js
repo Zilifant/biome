@@ -24,7 +24,11 @@ const SEED = 42;
 
 describe('protocol v30: reproductive state rides in bulk snapshots', () => {
   test('the version moved, and both fields are public', () => {
-    assert.equal(PROTOCOL_VERSION, 30);
+    // ⚠ **A floor, not an equality.** This suite is a record of what v30 added,
+    // and the two fields below are its actual claim; pinning the live constant
+    // to 30 made the *next* bump fail a test about reproductive state, which
+    // says nothing about reproductive state. v31 (elevation) is what found it.
+    assert.ok(PROTOCOL_VERSION >= 30, `reproductive state shipped at v30, and the protocol is at ${PROTOCOL_VERSION}`);
     for (const field of ['gestating', 'seekingMate']) {
       assert.ok(PUBLIC_ENTITY_FIELDS.includes(field), `${field} is a public entity field`);
     }
@@ -77,7 +81,7 @@ describe('protocol v30: reproductive state rides in bulk snapshots', () => {
     const engine = createDemoSimulation({ seed: SEED });
     engine.step(400);
     const snapshot = buildFullSnapshot(engine.getSnapshotData());
-    assert.equal(snapshot.protocolVersion, 30);
+    assert.equal(snapshot.protocolVersion, PROTOCOL_VERSION, 'the builder stamps the live version');
     const carrying = snapshot.entities.find((entity) => entity.gestating);
     assert.ok(carrying, 'the projection survives the snapshot builder');
     assert.equal(typeof carrying.seekingMate, 'boolean', 'both are booleans, never undefined');

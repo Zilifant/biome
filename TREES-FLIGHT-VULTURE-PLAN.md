@@ -359,7 +359,10 @@ at t14384). Full numbers in DOCS §7 Terrain.
 
 ---
 
-### Phase T2 — the elevation axis
+### Phase T2 — the elevation axis ✅ **SHIPPED 2026-08-03**
+
+**As built.** Shipped as designed; the three corrections are at the end of the
+section.
 
 **Ships:** `entity.elevation` (and on carcasses), a `climbs` per-species field
 with `config.climbing.enabled` as the switch, the ascent/descent transition, and
@@ -397,6 +400,48 @@ explicitly rather than relying on falsiness.
 **Assert the mechanism directly, not through a population** (§20 step 4): a test
 that puts a carcass in the canopy and a hyena beside it, and asserts the hyena
 neither walks to it nor eats from it.
+
+#### As built — three corrections
+
+**Inertness held.** No species declares `climbs`; the demo is byte-identical
+across seeds 1/2/42 × 1500 ticks with `config.climbing.enabled` on and off, and
+`test/protocol-v31.test.js` asserts no entity is ever aloft. Every added
+predicate is the identity when all elevations are 0, and nothing draws. Protocol
+**v31**, save **v30**, 1060 tests passing.
+
+1. ⚠⚠ **A cached carcass had to gate on *capability*, not on elevation, and the
+   plan's rule would not have worked.** §3.2 said the possession gate was
+   `shareElevation(eater, carcass)` — be up the tree to eat what is up the tree.
+   That fails on **phase ordering**: elevation resolves in the *movement* phase
+   from an action, while which carcass an animal is eating is not known until the
+   *interaction* phase, so a climber choosing `eat` would need to already be at
+   the right height for a body it has not picked yet. Every repair is a stored
+   climb-to-eat/eat/climb-down state machine — exactly what possession was
+   designed not to have. `reachesCarcass` asks whether the eater *can* climb,
+   which needs no state and says the thing that matters (the clan cannot take
+   this kill). Cost: a feeding leopard is not necessarily drawn up the tree.
+
+2. ⚠⚠ **`publicEntityView` is a second copy of `PUBLIC_ENTITY_FIELDS`, and the
+   existing test could not see the difference.** The whitelist had `elevation`
+   and the engine's projection literal did not, so `cloneEntity` read `undefined`
+   for every entity: the field arrived *absent* rather than as 0, key present, no
+   error. `test/protocol.test.js` compared the two lists' **keys**, which passes
+   vacuously because `cloneEntity` builds its keys *from* the whitelist. It now
+   asserts every whitelisted field carries a defined value. ⚠ This is a general
+   hazard for every future projected field, not a tree thing.
+
+3. ⚠ **A version-pinned literal in a historical bump test.** `test/protocol-v30`
+   asserted `PROTOCOL_VERSION === 30`, so bumping to 31 failed a suite about
+   *reproductive state* — which says nothing about reproductive state. Changed to
+   a floor (`>= 30`) plus "the builder stamps the live version". The v29 suite
+   had already got this right; v30 had not.
+
+**One small behaviour change outside the switch, recorded rather than hidden:**
+`#availableCarcass` used to return the perceived carcass unexamined when
+`possessionEnabled` was false. It now resolves the entity first (to ask about
+reachability), so a carcass that has since been removed reads as `null` instead
+of as a stale target. That is a fix, it only affects the possession-off arm, and
+the demo does not run in it.
 
 ---
 

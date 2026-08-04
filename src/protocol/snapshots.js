@@ -76,6 +76,20 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // Carcass decay (Step 18). Bulk-projected because the renderer ramps the
   // carcass glyph from it; 0 on everything living.
   'decayStage',
+  // Elevation (v31, phase T2). 0 on the ground, 1 up a tree — and on carcasses
+  // as well as animals, because a cached kill is the state worth seeing most.
+  //
+  // Bulk-projected on the same argument `diseaseState` and `gestating` made:
+  // **a renderer cannot show what it cannot see**, and "the leopard is in the
+  // tree and the hyenas are underneath it" is the single most legible thing
+  // this mechanism produces. Inspection-only would have made the one visible
+  // consequence of the phase invisible.
+  //
+  // Cheap by construction: one small integer that changes rarely (an animal
+  // goes up or comes down, not every tick) and is 0 for every entity in a world
+  // with no climbing species, so it dirties no delta it was not already
+  // dirtying.
+  'elevation',
 ]);
 
 function cloneEntity(entity) {

@@ -72,7 +72,7 @@ import { DEFAULT_CONCEALMENT, concealedApproach, stalksFromCover } from '../perc
 import { isKin } from '../social/dominance.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
-import { DEFAULT_POSSESSION, isAvailableTo } from '../predation/possession.js';
+import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
 import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
@@ -901,9 +901,18 @@ export class DecisionSystem extends SimulationSystem {
    */
   #availableCarcass(world, entity, perceived, carnivore) {
     const seen = carnivore ? (perceived?.nearestCarcass ?? null) : null;
-    if (seen === null || !this.possession.enabled) return seen;
+    if (seen === null) return seen;
     const carcass = world.entities.get(seen.id);
     if (!carcass) return null;
+    // ⚠ **Reachability is asked before, and independently of, the possession
+    // switch** (phase T2). A body cached in a tree is out of a non-climber's
+    // reach whether or not anything is contending for it — and if this were
+    // inside the `possessionEnabled` guard below, a world with possession off
+    // would walk a hyena to a cache the feeding system then refuses, leaving it
+    // choosing `eat` and starving on the spot. That is the exact D11 failure the
+    // possession predicates were split out to prevent, one switch removed.
+    if (!reachesCarcass(world, carcass, entity)) return null;
+    if (!this.possession.enabled) return seen;
     return isAvailableTo(world, carcass, entity, this.possession) ? seen : null;
   }
 

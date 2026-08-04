@@ -49,6 +49,7 @@ import { applyInjury, InjuryKinds, MAX_INJURIES } from '../injury/injuries.js';
 import { recordLifeEvent, LifeEventTypes } from './lifeEvents.js';
 import { attackersFor, cooperationBonus, DEFAULT_COOPERATION } from '../predation/cooperation.js';
 import { mobbersFor, DEFAULT_MOBBING } from '../predation/mobbing.js';
+import { isReachablePrey } from '../predation/predation.js';
 
 export class HuntingSystem extends SimulationSystem {
   /**
@@ -169,6 +170,12 @@ export class HuntingSystem extends SimulationSystem {
 
       const prey = world.entities.get(entity.huntTargetId);
       if (!prey || !prey.alive || prey.kind !== 'animal') continue;
+      // ⚠ Elevation, checked here as well as in perception (phase T2), and the
+      // duplication is deliberate: `huntTargetId` is a *commitment* made last
+      // tick, so a target that went up a tree in between is still committed to.
+      // Perception stops a hunt being started across levels; this stops one
+      // being finished across them. Same predicate, so they cannot disagree.
+      if (!isReachablePrey(entity, prey)) continue;
 
       // `hunting` is a species block from 2026-07-28: how an animal captures is
       // the **predator's** biology, so this resolves off the hunter. Falls back

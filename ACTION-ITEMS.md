@@ -278,13 +278,21 @@ they are not re-opened by accident.
   **dispersal** is already built and is not this: `groups.leavingSex` filters the
   existing dispersal event.
 
-- **A67 — Vertical refuge: trees, climbing, and cached kills.** Deferred, and
-  possibly permanently. A complete leopard rests above lions, caches kills above
-  scavengers, and ambushes from height; expressing it needs an entity elevation
-  dimension threaded through perception, movement, and predation, plus tree
-  entities (A3) and a protocol change. A ground-only leopard is a convincing
-  leopard — one shipped at phase 14 and hunts from cover instead. Revisit only if
-  "cached out of reach" can be one more possession state rather than a new axis.
+- **✅ A67 — Vertical refuge: trees, climbing, and cached kills. CLOSED
+  2026-08-03** (phases T1/T2), **on its own stated condition**: "revisit only if
+  *cached out of reach* can be one more possession state rather than a new axis."
+  It can. `entity.elevation` is a **flag, not a coordinate** — 0 or 1, with no
+  third axis, no height in any distance, and nothing in the spatial index — and
+  it gates predation eligibility (both directions) plus access to a cached
+  carcass, and ⚠ **nothing in perception's visibility gate** (A63: a treed animal
+  is still seen, still a mate candidate, still a guardian, and that is asserted
+  rather than trusted). Trees are terrain (T1), not the entities A67 assumed, so
+  A3 stayed shut. The protocol change A67 predicted was real: v31. ⚠ **What is
+  *not* closed** is the behaviour that uses it — no species declares `climbs`
+  yet, so the mechanism ships inert and byte-identical; the leopard's rest and
+  kill-caching are phase T3. ⚠ And one limit is inherent to the flag: **a treed
+  predator can reach nothing below it**, so there is no ambush from height, which
+  A67 listed among the things a complete leopard does.
 
 - **A68 — The species roster stops at eight; the rhino and the elephant are
   deferred** _(decided 2026-07-30)_. Scope rather than work. The **black rhino**

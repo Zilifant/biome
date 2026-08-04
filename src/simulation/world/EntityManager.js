@@ -137,6 +137,13 @@ function createEntity(id, definition) {
     maxStamina,
     huntTargetId: definition.huntTargetId ?? null,
     lastHuntTick: definition.lastHuntTick ?? null,
+    // Elevation (phase T2): 0 on the ground, 1 up a tree. A **flag, not a
+    // coordinate** — nothing about distance, the spatial index, or the world's
+    // geometry knows about it; it gates predation and carcass access and nothing
+    // else. Owned by `MovementSystem`; see `locomotion/climbing.js` for why the
+    // gates are there and emphatically not in perception (A63). Carcasses carry
+    // it too, which is what "a kill cached out of reach" is.
+    elevation: definition.elevation ?? 0,
     // Life stage (Step 11). Owned by the aging system, derived from age.
     lifeStage: definition.lifeStage ?? 'adult',
     // Individual variation (Step 14). Sampled once by whoever creates the

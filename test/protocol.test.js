@@ -115,6 +115,30 @@ describe('snapshots and deltas', () => {
     }
   });
 
+  test('⚠ every public field actually carries a value — the keys agreeing is not enough', () => {
+    // ⚠⚠ **The whitelist and the engine's projection literal are two spellings
+    // of one rule, and the assertion above cannot tell them apart.**
+    // `cloneEntity` builds its keys *from* `PUBLIC_ENTITY_FIELDS`, so the key
+    // comparison passes whatever `publicEntityView` did or did not supply — a
+    // field present in the whitelist and missing from the literal arrives as
+    // `undefined` on every entity, with the key still there and no error
+    // anywhere. That is exactly what `elevation` did at v31 (D11's shape, in a
+    // place nothing was watching), and the next projected field will do it too
+    // unless something checks the values.
+    const engine = createDemoSimulation({ seed: 9 });
+    engine.step(5);
+    const snapshot = buildFullSnapshot(engine.getSnapshotData());
+    for (const entity of snapshot.entities) {
+      for (const field of PUBLIC_ENTITY_FIELDS) {
+        assert.notEqual(
+          entity[field],
+          undefined,
+          `${field} is whitelisted but undefined on entity ${entity.id} — is it missing from publicEntityView?`,
+        );
+      }
+    }
+  });
+
   test('snapshots contain no references to internal mutable engine state', () => {
     const engine = createDemoSimulation({ seed: 9 });
     engine.step(2);

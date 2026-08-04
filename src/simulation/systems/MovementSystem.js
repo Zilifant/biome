@@ -14,14 +14,21 @@
  * Injuries (Step 17) cut the step in the other direction — a wounded animal
  * limps, whether it is walking or sprinting.
  *
- * Ownership: writes `x`, `y`, `heading`, `lastMoveDistance`, drains `stamina`
- * while sprinting (the metabolism system recovers it), and (on a block) adjusts
- * `moveIntent`. No randomness — determinism lives in the decision system's
- * committed heading. No global scans.
+ * Ownership: writes `x`, `y`, `heading`, `lastMoveDistance`, **`elevation`**,
+ * drains `stamina` while sprinting (the metabolism system recovers it), and (on
+ * a block) adjusts `moveIntent`. No randomness — determinism lives in the
+ * decision system's committed heading. No global scans.
+ *
+ * ⚠ **`elevation` is written here and nowhere else** (phase T2). This is the
+ * system that turns a decision into a position, and being up a tree is a
+ * position; putting the write anywhere else would give the field two owners,
+ * which DOCS §5 forbids outright. See `locomotion/climbing.js` for what
+ * elevation gates — and, more importantly, for what it deliberately does not.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { normalizeStepRules, stepLength, stepRefused } from '../locomotion/steps.js';
+import { CANOPY, elevationFor } from '../locomotion/climbing.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -39,8 +46,13 @@ export class MovementSystem extends SimulationSystem {
    *        already holding this many living animals; null disables the cap
    * @param {number} [options.updateInterval]
    */
-  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, maxOccupantsPerCell = null, updateInterval = 1 } = {}) {
+  constructor({ sprintMultiplier = 1.6, sprintStaminaCost = 2.5, injurySpeedPenalty = 0.5, diseaseSpeedPenalty = 0.45, maxOccupantsPerCell = null, climbing = false, updateInterval = 1 } = {}) {
     super({ id: 'movement.execute', phase: 'movement', priority: 0, updateInterval });
+    // Elevation (phase T2). ⚠ The world-level switch, from `config.climbing` —
+    // it cannot live in a species block, because a species block beats the
+    // config (DOCS §8). Off, every animal is on the ground and this system is
+    // exactly what it was.
+    this.climbing = climbing;
     this.sprintMultiplier = sprintMultiplier;
     this.sprintStaminaCost = sprintStaminaCost;
     this.diseaseSpeedPenalty = diseaseSpeedPenalty;
@@ -65,8 +77,28 @@ export class MovementSystem extends SimulationSystem {
   update(world, context) {
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
+      // Elevation (phase T2), and this system owns the field because it is the
+      // one that already turns "what I decided" into "where I am". ⚠ Derived
+      // fresh from the action and the ground underfoot rather than stored as a
+      // transition, so there is no climbing state to get stuck in and no timer
+      // to expire — the same discipline that keeps possession held by presence.
+      // `elevationFor` short-circuits on the switch and then on `climbs`, so for
+      // a roster that declares no climber this is one comparison per animal.
+      if (this.climbing) {
+        entity.elevation = elevationFor(world, entity, world.species.get(entity.speciesId), true);
+      }
       const intent = entity.moveIntent;
       if (!intent || !intent.moving) {
+        entity.lastMoveDistance = 0;
+        continue;
+      }
+      // ⚠ **An animal in a tree does not step, whatever its intent says.** It
+      // reads as "not moving" rather than as a refused step: a refusal sets
+      // `intent.refused`, which the decision system takes as an obstacle to
+      // deflect around (A65), and there is no obstacle here — the animal simply
+      // chose to be where it is. Coming down is choosing to go somewhere, which
+      // `elevationFor` has already resolved above.
+      if (entity.elevation === CANOPY) {
         entity.lastMoveDistance = 0;
         continue;
       }

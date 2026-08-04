@@ -23,6 +23,14 @@
  * stays the species relation; the mass gate runs after it, so the extra
  * comparison only happens on the rare true case.
  *
+ * ⚠ **Elevation joined the gate on 2026-08-03** (phase T2, A67): a hunter and a
+ * target on different levels are not each other's business, in both directions.
+ * This is the *right* home for it — it sits beside the mass ratios, which
+ * already resolve per pair on the rare true case of the species relation — and
+ * it is deliberately **not** in `PerceptionSystem`'s shared visibility gate,
+ * which is A63's trap. A leopard up a tree is plainly visible; it is simply out
+ * of reach.
+ *
  * ⚠ **Nothing in the shipped roster sets a ratio, so this is inert by
  * construction.** `null` means "no bound" and skips the comparison entirely —
  * exactly the identity, not approximately (D16). That is deliberate rather than
@@ -32,6 +40,8 @@
  * a roster that has nothing to gain from it. The species that need ratios
  * declare them when they arrive.
  */
+
+import { shareElevation } from '../locomotion/climbing.js';
 
 /** The predation block of a species, or null if it declares none. */
 export function predationOf(species) {
@@ -84,5 +94,34 @@ export function minPreyMassFor(hunter, predation) {
  * @returns {boolean}
  */
 export function isEligiblePrey(hunter, prey, predation) {
-  return prey.bodyMass <= maxPreyMassFor(hunter, predation) && prey.bodyMass >= minPreyMassFor(hunter, predation);
+  return (
+    shareElevation(hunter, prey) &&
+    prey.bodyMass <= maxPreyMassFor(hunter, predation) &&
+    prey.bodyMass >= minPreyMassFor(hunter, predation)
+  );
+}
+
+/**
+ * Whether a hunter can reach this individual at all, ignoring size — the half of
+ * eligibility that is about *where* the animal is rather than *what* it is.
+ *
+ * ⚠⚠ **This exists as its own predicate because the prey side of perception
+ * cannot call `isEligiblePrey`.** That loop hoists the two mass bounds into
+ * plain numbers once per animal (D28: the neighbour walk is the hottest thing in
+ * the engine and it is arity-sensitive), so it compares them inline rather than
+ * calling in. Both directions therefore need the elevation test spelled out, and
+ * spelling it out *twice* is worse than exporting it once.
+ *
+ * ⚠ **And this is emphatically not in `PerceptionSystem`'s shared gate** — the
+ * `continue` that drops an unseen animal. That gate is **A63**: prey, threats,
+ * mate candidates, a juvenile's guardian and territorial rivals all pass through
+ * it, so a condition added there gates reproduction too, and the failure shows up
+ * as a population number three subsystems away. A treed leopard is still visible,
+ * still courtable, and still somebody's parent. It just cannot be reached.
+ *
+ * @param {object} hunter @param {object} prey
+ * @returns {boolean}
+ */
+export function isReachablePrey(hunter, prey) {
+  return shareElevation(hunter, prey);
 }

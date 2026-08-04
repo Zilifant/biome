@@ -72,6 +72,19 @@ function publicEntityView(entity, tick) {
     action: entity.action,
     alive: entity.alive,
     decayStage: entity.decayStage,
+    // Elevation (v31, phase T2). Stored rather than derived — unlike the two
+    // above it is not a function of anything else — and safe because exactly one
+    // system writes it (`MovementSystem`), which is the guarantee `x` and `y`
+    // have.
+    //
+    // ⚠⚠ **This list and `PUBLIC_ENTITY_FIELDS` are two spellings of one rule,
+    // and adding a field to only one of them fails silently.** That is exactly
+    // what happened here: the protocol whitelist had `elevation` and this
+    // literal did not, so `cloneEntity` read `undefined` for every entity and
+    // the field arrived as absent rather than as 0 — a whole snapshot of animals
+    // with no elevation, and no error anywhere. `test/protocol.test.js` now
+    // asserts the two agree, because the next field will do the same thing.
+    elevation: entity.elevation,
   };
 }
 

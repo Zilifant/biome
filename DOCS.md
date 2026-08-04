@@ -73,12 +73,13 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1045 passing / 0 failing** _(2026-08-03, +11 for trees; 5 preset-HTTP suites are cancelled in a sandboxed shell and fail identically on clean HEAD)_. Was **1004 / 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
-| `PROTOCOL_VERSION`    | **30** — reproductive state in bulk snapshots (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
-| `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
+| Tests                 | **1060 passing / 0 failing** _(2026-08-03, +11 for trees and +15 for elevation; 5 preset-HTTP suites are cancelled in a sandboxed shell and fail identically on clean HEAD)_. Was **1004 / 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
+| `PROTOCOL_VERSION`    | **31** — `elevation` in bulk snapshots (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
+| `SAVE_FORMAT_VERSION` | **30** — elevation, the `climbing` section, and the tree terrain params. ⚠ The bump is for the **config**, not the field: entities serialize whole so a new field rides free, but terrain is *regenerated* from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **nine** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30 (§8). ⚠ **Eight of the twelve blocks and all nine fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, and the **leopard `crypsis`** (phase 14). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
+| Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). Inert: no species declares `climbs`, and the world with `config.climbing.enabled` on is byte-identical to one with it off. See §7 Terrain |
 | Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1, TREES-FLIGHT-VULTURE-PLAN.md): scattered canopy over open ground, 2.45% of the demo map, shade + light concealment + near-open going. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Species phases 0–14 are **committed** — `9fceb4d phase 12` and `83a6dd9 phase 14`, ⚠ the latter carrying phases 13 and 14 together (the user handles git) |
@@ -1184,6 +1185,68 @@ strands pockets before the pass runs. The pass runs once at construction and is
 ⚠ **Cover is generated as clumped patches, not per-cell scatter.** Per-cell
 scatter fragmented the run-length encoding badly — a 1024² snapshot went 916 KB
 against 118 KB for patches.
+
+#### Elevation — being above the ground _(2026-08-03, phase T2, closing A67)_
+
+⚠⚠ **A flag, not a coordinate.** `entity.elevation` is 0 or 1 and nothing about
+the world's geometry knows it exists: no third axis, no height in any distance,
+no elevation in the spatial index. A67 deferred vertical refuge — "possibly
+permanently" — on the cost of *"an elevation dimension threaded through
+perception, movement, and predation"*, and named the one thing that would make it
+affordable: **"revisit only if 'cached out of reach' can be one more possession
+state rather than a new axis."** It can. This is that, and the whole of it is one
+integer, four predicates in `locomotion/climbing.js`, and four call sites.
+
+**What it gates, and — more importantly — what it does not:**
+
+| | |
+| --- | --- |
+| Predation eligibility, **both directions** | `predation/predation.js`, beside the mass ratios. A treed animal is not prey; a treed hunter reaches nothing below it, so there is no ambush from a branch (a flag carries no height) |
+| A cached carcass | `predation/possession.js` — the predicate the decision system and the feeding system already share, so an animal can never walk to a cache it is then refused |
+| Stepping, and burning | A treed animal does not move and a grass fire runs underneath it |
+| ⚠⚠ **Perception's visibility gate** | **Never.** This is **A63** |
+
+⚠⚠ **A63 is why the elevation test is not where it looks like it belongs.** The
+obvious home is perception's shared `continue` — the one test that decides
+whether one animal knows about another — and that is precisely the trap: prey,
+threats, **mate candidates**, a juvenile's guardian and territorial rivals all
+pass through it, so a condition added there gates reproduction too, and the
+failure arrives as a population number three subsystems from its cause (phase 14
+lost the leopard 27 → 19 that way). A leopard up a tree is plainly visible, still
+courtable, and still somebody's mother. It is only out of reach.
+`test/elevation.test.js` asserts that directly rather than trusting it.
+
+⚠ **Climbing is not an action** and has no entry in the utility table — DOCS §9
+Decision's most expensive lesson is that a new movement behaviour competes with
+foraging and foraging must win. Elevation is *derived every tick* from the action
+the animal already chose: a climber that chose `rest`, `shelter`, `hide` or
+`flee` while standing under a tree is up it, and one that chose to go anywhere is
+not. No stored transition, no timer, nothing to get stuck in — the discipline
+that keeps possession held by presence.
+
+⚠ **A cached carcass tests what the eater *can* do, not where it is**, and the
+alternative was built first. The symmetric rule (`shareElevation`, which is what
+gates predation) fails on ordering: elevation resolves in the **movement** phase
+from an action, while *which* carcass an animal is eating is not known until the
+**interaction** phase — so a climber choosing `eat` would need to be at the right
+height for a body it has not selected yet. Every repair is a stored
+climb-to-eat/eat/climb-down state machine. A capability test needs none and says
+the thing that matters: **the hyena clan cannot take this kill.** What is given
+up is cosmetic — a feeding leopard is not necessarily drawn up the tree.
+
+**Inert, and proved rather than asserted:** no species declares `climbs`, and the
+demo is byte-identical across seeds 1/2/42 × 1500 ticks with
+`config.climbing.enabled` on and off. Every added predicate is the identity when
+every elevation is 0, and nothing draws.
+
+⚠ **`publicEntityView` and `PUBLIC_ENTITY_FIELDS` are two spellings of one rule,
+and this phase found that out the hard way.** The protocol whitelist had
+`elevation` and the engine's projection literal did not, so `cloneEntity` read
+`undefined` for every entity — the field arrived *absent* rather than as 0, with
+the key still present and no error anywhere. The existing test compared the two
+lists' **keys**, which passes vacuously because `cloneEntity` builds its keys
+*from* the whitelist. `test/protocol.test.js` now asserts every whitelisted field
+carries a defined value, which is what actually catches it.
 
 ### Vegetation
 

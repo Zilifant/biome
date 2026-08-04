@@ -19,7 +19,7 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode, SHELTERING_BY_CODE } from '../world/TerrainGrid.js';
-import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
+import { isEligiblePrey, isReachablePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
 import { isConcealed } from '../parenting/hiding.js';
 import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
 
@@ -252,11 +252,20 @@ export class PerceptionSystem extends SimulationSystem {
       // *seen*, so it is not prey — which is what finally makes cover a refuge
       // (A18) rather than only a speed modifier. One lying in the open is still
       // taken; concealment needs something to conceal it.
+      // ⚠ `isReachablePrey` is the **elevation** half of eligibility (phase T2,
+      // A67) and it sits on this branch rather than on the `continue` above,
+      // which is the whole care taken over A63: a treed animal is still seen,
+      // still a mate candidate, still a guardian — it is only out of reach. It
+      // is a function call rather than the inline compare the masses get because
+      // the *threat* branch below needs the identical test and two spellings of
+      // one rule is D11's shape; it is reached only on the rare true case of the
+      // species relation either way.
       if (
         world.species.hunts(entity.speciesId, other.speciesId) &&
         (nearestPrey === null || distance < nearestPrey.distance) &&
         other.bodyMass <= maxPreyMass &&
         other.bodyMass >= minPreyMass &&
+        isReachablePrey(entity, other) &&
         !(this.neonatalConcealment && isConcealed(world, other, world.species.get(other.speciesId)))
       ) {
         // `fleeing` is visible to the hunter: prey that has bolted is running,

@@ -30,7 +30,7 @@ import { EventTypes } from '../events/EventTypes.js';
 import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 import { CarcassSystem } from './CarcassSystem.js';
 import { diseaseSeverity } from '../disease/disease.js';
-import { DEFAULT_POSSESSION, holderOf, mayFeedFreely, outranks } from '../predation/possession.js';
+import { DEFAULT_POSSESSION, holderOf, mayFeedFreely, outranks, reachesCarcass } from '../predation/possession.js';
 import { dominanceOf, resolveContest } from '../social/dominance.js';
 import { MAX_INJURIES } from '../injury/injuries.js';
 
@@ -203,6 +203,14 @@ export class FeedingSystem extends SimulationSystem {
       }
     }
     if (!carcass) return;
+    // ⚠ Out of reach beats every other question about a body (phase T2): a
+    // carcass cached in a tree feeds climbers and nobody else. The same
+    // predicate the decision system asks before it walks an animal here, so the
+    // two can never disagree (D11). ⚠ Known limit, inherited rather than new:
+    // this is the *nearest* carcass, so an animal refused a cache does not fall
+    // back to a further free body this tick — exactly the bargain a held body
+    // already makes.
+    if (!reachesCarcass(world, carcass, entity)) return;
 
     // Possession (2026-07-28, PLAN-SPECIES.md §3.9). Until now several
     // carnivores on one body contended only through entity id order — the lower
