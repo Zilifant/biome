@@ -7,6 +7,7 @@ import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 /**
  * Perception + decision + movement, on a small world, so we can drive an
@@ -17,7 +18,7 @@ function foragingEngine() {
     seed: 3,
     // Disable natural terrain features so the sandbox is open ground with one
     // planted food patch (set below).
-    config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 40, height: 40 }, terrain: { ...FLAT_TERRAIN } },
   });
   engine.registerSystem(new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1 }));
   engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));

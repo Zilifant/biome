@@ -39,6 +39,7 @@ import {
   stalksFromCover,
   visibleRange,
 } from '../src/simulation/perception/concealment.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const LEOPARD = getSpecies('predator.leopard');
@@ -80,7 +81,7 @@ function genome() {
 function sandbox({ seed = 5, coverFrom = 30 } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: 64, height: 64 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 64, height: 64 }, terrain: { ...FLAT_TERRAIN } },
   });
   const registry = new SpeciesRegistry([...SPECIES_DEFINITIONS, ...SPECIES], engine.config);
   engine.species = registry;

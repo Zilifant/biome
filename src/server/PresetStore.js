@@ -53,7 +53,7 @@ export const MAX_PRESETS = 500;
  * scavenger — see FOUNDING_ROLE_ALIASES). Persisting them would be writing a
  * known lie to disk with a long shelf life.
  */
-const WORLD_FIELDS = Object.freeze(['seed', 'width', 'height', 'rocks', 'thickets', 'roundness', 'founding']);
+const WORLD_FIELDS = Object.freeze(['seed', 'width', 'height', 'rocks', 'thickets', 'trees', 'roundness', 'founding']);
 
 /**
  * A filesystem-safe slug for a preset name, or null if the name cannot produce

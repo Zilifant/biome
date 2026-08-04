@@ -108,7 +108,7 @@ describe('terrain projection', () => {
     assert.equal(projection.width, 64);
     assert.deepEqual(
       projection.cellTypes.map((entry) => entry.name),
-      ['ground', 'water', 'rock', 'cover', 'deep_water', 'thicket'],
+      ['ground', 'water', 'rock', 'cover', 'deep_water', 'thicket', 'tree'],
     );
     const serialized = JSON.stringify(projection);
     assert.ok(!/glyph|color|dracula/i.test(serialized), 'projection must carry no presentation');

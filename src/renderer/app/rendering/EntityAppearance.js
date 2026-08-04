@@ -230,6 +230,11 @@ export const TERRAIN_APPEARANCE = Object.freeze({
   cover: Object.freeze({ glyph: ',', colorToken: 'comment' }),
   deep_water: Object.freeze({ glyph: '≈', colorToken: 'cyan' }),
   thicket: Object.freeze({ glyph: '♣', colorToken: 'green' }),
+  // A spade beside the thicket's club, and the pairing is the point: the two
+  // woody layers read as one family at a glance, and the taller one gets the
+  // brighter green. Scattered trees are the sparsest layer on the map, so the
+  // glyph has to survive being a single cell in an ocean of grass.
+  tree: Object.freeze({ glyph: '♠', colorToken: 'bright-green' }),
   outOfBounds: Object.freeze({ glyph: '#', colorToken: 'background-lighter' }),
   unknown: Object.freeze({ glyph: '.', colorToken: 'selection' }),
 });
@@ -304,12 +309,18 @@ export function resolveFeatureAppearance(kind) {
  * often *inside*: a `♣` and a `g` in the same 10px cell is the collision this
  * mechanism exists for, and a herd in cover was the hardest thing on the map to
  * read.
+ *
+ * ⚠ **Tree is in it for the same reason, twice over.** An animal *under* a tree
+ * is the ordinary case, and an animal *up* one is what the whole layer exists
+ * to make watchable — a `♠` drawn over either would hide exactly the thing
+ * worth seeing.
  */
 const FADING_LAYERS = new Set([
   ...VEGETATION_APPEARANCE.filter(Boolean),
   TERRAIN_APPEARANCE.water,
   TERRAIN_APPEARANCE.deep_water,
   TERRAIN_APPEARANCE.thicket,
+  TERRAIN_APPEARANCE.tree,
   FEATURE_APPEARANCE.trail,
   FEATURE_APPEARANCE.burrow,
 ]);

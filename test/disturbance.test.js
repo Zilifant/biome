@@ -24,6 +24,7 @@ import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -37,7 +38,7 @@ function sandbox({ seed = 4, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });
@@ -279,7 +280,7 @@ describe('disturbances: what they do', () => {
     // "effects bounded to the region", so the boundary is what gets asserted.
     const control = new SimulationEngine({
       seed: 6,
-      config: { world: { width: 64, height: 64 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+      config: { world: { width: 64, height: 64 }, terrain: { ...FLAT_TERRAIN } },
     });
     let burntOutside = 0;
     let burntInside = 0;

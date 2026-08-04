@@ -24,6 +24,7 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
   initialFraction: 0.5, // initial biomass as a fraction of capacity (× random)
   minFertility: 0.55, // per-cell fertility varies in [minFertility, 1]
   coverSuitability: 1.35, // cover terrain is more fertile than open ground
+  treeSuitability: 1, // ⚠ open woodland grows grass; must stay > 0 (see suitabilityFor)
   quantizeLevels: 4, // biomass projects to integer levels 0..quantizeLevels
   // Edge forage taper (off here; the demo world turns it on). Carrying capacity
   // ramps from 0 at the map boundary up to full over an inland band, so grazers
@@ -39,17 +40,29 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
 
 /**
  * Terrain suitability multiplier for vegetation. Rock and water grow nothing.
+ *
+ * ⚠ **A code that returns 0 here removes a draw from `#seed`** — see the note
+ * there. Adding a terrain type to this switch with a positive value is free;
+ * adding one that returns 0 (or moving an existing one to 0) re-rolls the whole
+ * vegetation field of every world that contains it.
+ *
  * @param {number} terrainCode
  * @param {number} coverSuitability
+ * @param {number} treeSuitability
  */
-function suitabilityFor(terrainCode, coverSuitability) {
+function suitabilityFor(terrainCode, coverSuitability, treeSuitability) {
   switch (terrainCode) {
     case TerrainType.GROUND:
       return 1;
     case TerrainType.COVER:
       return coverSuitability;
+    // Open woodland is grassland with trees standing in it, so the floor grows
+    // grass. Thicket falls through to 0 with rock and water: a dense stand does
+    // not.
+    case TerrainType.TREE:
+      return treeSuitability;
     default:
-      return 0; // water, rock
+      return 0; // water, rock, thicket
   }
 }
 
@@ -215,7 +228,7 @@ export class VegetationGrid {
     for (let y = 0; y < this.#height; y += 1) {
       for (let x = 0; x < this.#width; x += 1) {
         const i = this.#index(x, y);
-        const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability);
+        const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability, params.treeSuitability);
         const fertility = random.float(params.minFertility, 1);
         const baseCapacity = suitability > 0 ? this.#capacity * suitability * fertility : 0;
         const capacity = taper !== null && baseCapacity > 0 ? baseCapacity * taper(x, y) : baseCapacity;

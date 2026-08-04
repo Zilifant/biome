@@ -70,6 +70,24 @@ they are not re-opened by accident.
 
 ## Engine — implemented, tested, and near-inert
 
+- **⚠ A72 — The habitat preference's effect on the demo is no longer separable
+  from noise** _(from 2026-08-03, phase T1)_. `habitat` resolves correctly and is
+  unit-tested from six directions; what cannot be demonstrated any more is that
+  it changes **where the demo's animals end up**. That claim has been rewritten
+  three times without a single regression behind it — the gazelle's cover share
+  (phase 11 reversed it), the buffalo's open-ground share (phase 13 flattened
+  it), the grazers' thicket share (exhausted now). ⚠ The third was killed by
+  **A65's obstacle deflection**, not by trees: it collapsed thicket occupancy from
+  0.25–0.43% to ~0.1% by stopping animals stalling at thicket edges, leaving an
+  assertion that passed on HEAD by a hair; trees tipped it over. Two replacements
+  were measured and rejected — mean habitat weight underfoot reads the *wrong
+  way* on clean HEAD (1.1103 on against 1.1146 off, every seed), and thicket
+  share at 6 seeds × 3000 ticks is reversed and noisy (0.041% on / 0.027% off).
+  The suite now asserts only that the cue is **live**. ⚠ The pattern is the point:
+  every one of those four assertions was a claim about *where a species ends up*,
+  which is only a signal while nothing else competes for the same ground. The
+  lever is a world built to show it (A31's shape), not a fifth occupancy share.
+
 - **⚠ A34 — Patrolling / site fidelity.** Ramped over six range radii
   (`patrolSpanFactor: 6`) so it never fires during normal foraging, because
   patrol competes with wandering and wandering is how an animal finds its next

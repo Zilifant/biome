@@ -24,6 +24,7 @@ import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const ENV = CONFIG.environment;
@@ -32,7 +33,7 @@ const GRAZER = getSpecies('herbivore.gazelle');
 function sandbox({ seed = 3, size = 44, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: size, height: size }, terrain: { ...FLAT_TERRAIN }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -308,7 +309,7 @@ describe('weather: thermal stress and shelter', () => {
     const build = (temperature) => {
       const engine = sandbox({
         size: 48,
-        config: { terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 3 } },
+        config: { terrain: { ...FLAT_TERRAIN, coverPatchDensity: 3 } },
         systems: [
           new PerceptionSystem(CONFIG.perception),
           new DecisionSystem({
@@ -356,7 +357,7 @@ describe('weather: thermal stress and shelter', () => {
     // two readers, and the readers disagreed).
     const engine = sandbox({
       size: 48,
-      config: { terrain: { lakes: 0, ridges: 0, coverPatchDensity: 0, thickets: 4 } },
+      config: { terrain: { ...FLAT_TERRAIN, thickets: 4 } },
       systems: [new PerceptionSystem(CONFIG.perception)],
     });
     const world = engine.world;

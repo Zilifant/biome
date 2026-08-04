@@ -14,6 +14,7 @@ import { getSpecies } from '../src/simulation/config/species/index.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const GRAZER = getSpecies('herbivore.gazelle');
 
@@ -26,7 +27,7 @@ function traits(overrides = {}) {
 function sandbox({ seed = 3, size = 44, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: size, height: size }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: size, height: size }, terrain: { ...FLAT_TERRAIN }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;

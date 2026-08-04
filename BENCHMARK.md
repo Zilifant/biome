@@ -435,6 +435,46 @@ detour was A/B'd on its own switch and is **not** in it: `detourEnabled: false`
 measured 230.44 against 218.32 with it on, i.e. inside the variance of the
 then-current (slow) build.
 
+### Trees (2026-08-03, TREES-FLIGHT-VULTURE-PLAN.md phase T1)
+
+**Flat — and the first three readings said +7.1%, which is the reason this
+section is worth reading.** Trees add a seventh terrain code and a generation
+pass; nothing reads terrain differently, so the expectation was flat and the
+first interleave contradicted it.
+
+large-5k at the default `--ticks=2000`, alternating whole `npm run benchmark`
+runs between this tree and a clean HEAD checkout:
+
+| pass | tree (trees on) | HEAD (no trees) |
+| --- | ---: | ---: |
+| set 1 | 145.23, 145.52 | 135.61 |
+| set 2 | 140.26, 140.48 | 141.64, 142.67 |
+
+⚠ **Set 1 looked like a real +7.1% by this file's own rule** — slower in both
+tree rounds, with the HEAD round taken *between* them, which is supposed to
+control for drift. Set 2, run immediately afterwards by the same command, has the
+tree **faster than HEAD in both passes**. Pooled, the ranges overlap completely
+(tree 140.3–145.5, HEAD 135.6–142.7) and there is no effect to report.
+
+⚠⚠ **Interleaving is not immunity to drift, and that is new.** Every warning in
+this file so far has been about comparing numbers taken at different *hours*;
+this pair was taken minutes apart, alternating, and still moved 7%. The
+distribution has to be built from **several** alternations, not one A/B/A.
+
+The decisive measurement was a different one, and it is the one to copy: trees on
+against trees off **in a single process and a single binary**, three interleaved
+rounds — `+1.3%, −4.2%, −0.5%`. Mixed direction is what no effect looks like, and
+unlike the cross-tree runs it cannot be confounded by anything outside the world
+itself. ⚠ It also separates a question the cross-tree benchmark **cannot**: "does
+the tree code cost anything" from "does having trees in the world cost anything".
+
+Expected to be flat, and the reason is worth stating: a tree is one more entry in
+four tables that were already indexed by terrain code, so every chokepoint does
+exactly the array load it did before. The generation pass runs once at
+construction, which is outside the timed window. And ⚠ at large-5k trees are
+~**0.12%** of a 1024² map anyway — `treeGroves`/`treeSingles` are absolute counts
+like `ridges` and `thickets`, so they do not rescale with the world.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

@@ -16,6 +16,7 @@ import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { buildFullSnapshot } from '../src/protocol/snapshots.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 // Resolved species (Step 29): the accessors take a resolved record, not an id.
@@ -32,7 +33,7 @@ function sandbox({ seed = 2, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });
@@ -564,7 +565,7 @@ describe('territory: the residency sandbox', () => {
       seed,
       config: {
         world: { width: 80, height: 80 },
-        terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+        terrain: { ...FLAT_TERRAIN },
         vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
         environment: { ticksPerYear: 8000, temperatureAmplitude: 0, meanTemperature: 14 },
         // ⚠ `patrolWeight`/`retreatWeight` are `behavior` (a species block) since

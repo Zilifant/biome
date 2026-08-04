@@ -22,5 +22,6 @@ DO NOT REFERENCE
 - paths aren't very path-y
 - open/closed mode; in open mode, new animals can spawn in based on population size
 - wet/dry season
+- established lion prides, hyena clans, etc. on spawn
 
 ### Ideas - UI

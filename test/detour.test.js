@@ -25,6 +25,7 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { recordMemory, MemoryKinds } from '../src/simulation/memory/memories.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const TWO_PI = Math.PI * 2;
 const deg = (r) => (((r % TWO_PI) + TWO_PI) % TWO_PI) * (180 / Math.PI);
@@ -111,7 +112,7 @@ describe('detour: an animal blocked from what it is walking to gets around it', 
       seed: 7,
       config: {
         world: { width: 64, height: 64 },
-        terrain: { lakes: 0, thickets: 0, ridges: 0, coverPatchDensity: 0 },
+        terrain: { ...FLAT_TERRAIN },
       },
     });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 6 }));

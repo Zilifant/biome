@@ -20,6 +20,7 @@ import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const ENG = CONFIG.engineering;
@@ -34,7 +35,7 @@ function sandbox({ seed = 5, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });

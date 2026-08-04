@@ -13,6 +13,7 @@ import { lookupLineage, LineageStatus } from '../src/simulation/world/lineage.js
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const PARENTING = {
   weaningAge: 50,
@@ -27,7 +28,7 @@ const PARENTING = {
 function parentingEngine({ config = {}, ...params } = {}) {
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: 32, height: 32 }, terrain: { ...FLAT_TERRAIN }, ...config },
   });
   engine.registerSystem(new ParentingSystem({ ...PARENTING, ...params }));
   return engine;
@@ -169,7 +170,7 @@ describe('parenting: dependent juveniles follow and do not graze', () => {
   function followEngine() {
     const engine = new SimulationEngine({
       seed: 5,
-      config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+      config: { world: { width: 40, height: 40 }, terrain: { ...FLAT_TERRAIN } },
     });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 8, foodMinLevel: 1, neonatalConcealment: false }));
     // ⚠ **Concealment off for this fixture**, which is about `followParent` — the

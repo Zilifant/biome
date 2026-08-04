@@ -36,6 +36,7 @@ import { yearProgress } from '../src/simulation/world/Environment.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { DEFAULT_BREEDING, breedingWindowOf, inBreedingWindow } from '../src/simulation/mating/breeding.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 
@@ -106,7 +107,7 @@ function sandbox({ seed = 11, config = {}, breedingEnabled = true } = {}) {
     seed,
     config: {
       world: { width: 32, height: 32 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       environment: { ...CONFIG.environment, ticksPerYear: TICKS_PER_YEAR },
       ...config,
     },

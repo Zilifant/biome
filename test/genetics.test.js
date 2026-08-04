@@ -17,6 +17,7 @@ import { getSpecies } from '../src/simulation/config/species/index.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -30,7 +31,7 @@ function uniformGenome(value) {
 function sandbox({ seed = 1, systems = [], config = {} } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 }, ...config },
+    config: { world: { width: 32, height: 32 }, terrain: { ...FLAT_TERRAIN }, ...config },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;

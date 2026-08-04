@@ -44,6 +44,7 @@ import {
   huntsTogether,
 } from '../src/simulation/predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor, mobbersFor } from '../src/simulation/predation/mobbing.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const LION = getSpecies('predator.lion');
@@ -126,7 +127,7 @@ function sandbox({ seed = 7, config = {}, systems = [] } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });

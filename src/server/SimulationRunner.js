@@ -270,7 +270,7 @@ export class SimulationRunner extends EventEmitter {
           // fields to the engine factory and the fixture decides what they mean.
           // `founding` is a roster of `{ speciesId, count }` (v29); the three
           // role fields ride along as deprecated aliases the fixture translates.
-          const { width, height, founding, herbivores, predators, scavengers, rocks, thickets, roundness } = command;
+          const { width, height, founding, herbivores, predators, scavengers, rocks, thickets, trees, roundness } = command;
           const { seed, simulationId } = this.restart(command.seed, {
             width,
             height,
@@ -280,6 +280,7 @@ export class SimulationRunner extends EventEmitter {
             scavengers,
             rocks,
             thickets,
+            trees,
             roundness,
           });
           return okResult({ seed, simulationId, tick: this.engine.tick, paused: this.paused, speed: this.speed });

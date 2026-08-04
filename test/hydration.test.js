@@ -9,6 +9,7 @@ import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 function hydrationOnlyEngine(params = {}) {
   const hydration = { dehydrationRate: 0.05, drinkRate: 5, drinkRange: 1.5, dehydrationDamage: 0.5, ...params };
@@ -112,7 +113,7 @@ describe('decision: thirst competes with hunger', () => {
   test('a very thirsty, mildly hungry animal at water drinks rather than eats', () => {
     const engine = new SimulationEngine({
       seed: 5,
-      config: { world: { width: 40, height: 40 }, terrain: { lakes: 0, ridges: 0, thickets: 0 } },
+      config: { world: { width: 40, height: 40 }, terrain: { ...FLAT_TERRAIN } },
     });
     engine.registerSystem(new PerceptionSystem({ defaultRadius: 8 }));
     engine.registerSystem(new DecisionSystem({ ...engine.config.decision, foodMinLevel: 1 }));

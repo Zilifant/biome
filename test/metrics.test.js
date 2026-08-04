@@ -18,6 +18,7 @@ import { PROTOCOL_VERSION } from '../src/protocol/protocolVersion.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -29,7 +30,7 @@ function uniformGenome(value) {
 function sandbox({ seed = 1, systems = [] } = {}) {
   const engine = new SimulationEngine({
     seed,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 32, height: 32 }, terrain: { ...FLAT_TERRAIN } },
   });
   for (const system of systems) engine.registerSystem(system);
   return engine;
@@ -227,7 +228,7 @@ describe('metrics: selection sandbox', () => {
       seed,
       config: {
         world: { width: 36, height: 36 },
-        terrain: { lakes: 1, ridges: 0, thickets: 0, coverPatchDensity: 0.5 },
+        terrain: { ...FLAT_TERRAIN, lakes: 1, coverPatchDensity: 0.5 },
         demo: { founding: [{ speciesId: 'herbivore.gazelle', count: 70 }] },
         // Sparse food and an expensive body are the pressure, retuned in Step 22
         // (from capacity 1.4 at the default basal rate of 0.04). The old

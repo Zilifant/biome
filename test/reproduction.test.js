@@ -5,6 +5,7 @@ import { ReproductionSystem, isReproductivelyReady } from '../src/simulation/sys
 import { lookupLineage, LineageStatus } from '../src/simulation/world/lineage.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const PARAMS = {
   matingRange: 2.0,
@@ -36,7 +37,7 @@ function reproEngine(params = {}) {
   const reproduction = { ...PARAMS, ...params };
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 32, height: 32 }, terrain: { lakes: 0, ridges: 0, thickets: 0 }, reproduction },
+    config: { world: { width: 32, height: 32 }, terrain: { ...FLAT_TERRAIN }, reproduction },
   });
   engine.registerSystem(new ReproductionSystem(reproduction));
   return engine;

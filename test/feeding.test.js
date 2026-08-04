@@ -4,6 +4,7 @@ import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { FeedingSystem } from '../src/simulation/systems/FeedingSystem.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 /**
  * Engine with only the feeding system on all-ground terrain (no lakes/ridges),
@@ -12,7 +13,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 function feedingEngine(params = {}) {
   const engine = new SimulationEngine({
     seed: 1,
-    config: { world: { width: 16, height: 16 }, terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 } },
+    config: { world: { width: 16, height: 16 }, terrain: { ...FLAT_TERRAIN } },
   });
   engine.registerSystem(
     new FeedingSystem({ intakeRate: 0.6, energyPerBiomass: 10, efficiency: 0.6, ...params }),

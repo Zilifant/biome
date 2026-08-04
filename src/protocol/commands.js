@@ -17,7 +17,7 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
-  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets?, roundness? }
+  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets?, trees?, roundness? }
   // ⚠ v29 replaced the per-role counts with a roster. `herbivores` /
   // `predators` / `scavengers` are still accepted as **deprecated aliases** for
   // one version; see FOUNDING_ROLE_ALIASES below.
@@ -147,12 +147,17 @@ export const MAX_FOUNDING_PREDATORS = 5000;
 export const MAX_FOUNDING_SCAVENGERS = 5000;
 
 /**
- * `rocks` and `thickets` are abstract **prevalence** levels, not counts: how
- * much of the new world the terrain type takes up. 0 is none at all and
+ * `rocks`, `thickets` and `trees` are abstract **prevalence** levels, not counts:
+ * how much of the new world the terrain type takes up. 0 is none at all and
  * MAX_TERRAIN_PREVALENCE is dense enough to crowd out open grazing ground. The
  * mapping from a level to actual generator formation counts lives host-side (see
  * buildDemoConfig), so the protocol stays in terms the UI can offer directly.
  * The demo's default terrain is DEFAULT_TERRAIN_PREVALENCE on this scale.
+ *
+ * ⚠ **`trees` is one level driving two generator quantities** — grove count and
+ * lone-tree count — which is exactly why the abstraction is worth having: the UI
+ * offers "how wooded", and how that divides between woodland and scattered trees
+ * stays a host-side modelling decision the protocol never learns.
  */
 export const MAX_TERRAIN_PREVALENCE = 10;
 export const DEFAULT_TERRAIN_PREVALENCE = 2;

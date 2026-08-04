@@ -36,6 +36,7 @@ import {
   restoreSimulationState,
   SAVE_FORMAT_VERSION,
 } from '../src/simulation/persistence/SimulationSerializer.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 
@@ -101,7 +102,7 @@ function sandbox({ seed = 5, config = {}, species = [CLAN], systems = true } = {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });

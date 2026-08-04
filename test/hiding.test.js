@@ -26,6 +26,7 @@ import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/specie
 import { isHiding, isConcealed, hiddenUntilFor } from '../src/simulation/parenting/hiding.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { FeatureKinds } from '../src/simulation/engineering/features.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const GAZELLE = getSpecies('herbivore.gazelle');
@@ -52,7 +53,7 @@ function hidingEngine({ neonatalConcealment = true, config = {} } = {}) {
     seed: 3,
     config: {
       world: { width: 48, height: 48 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       parenting: { concealment: neonatalConcealment },
       ...config,
     },

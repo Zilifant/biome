@@ -468,11 +468,18 @@ function populateDemoWorld(engine) {
  * there left this mapping pointing at the old world and the dropdown's default
  * level silently stopped reproducing the demo. Deriving it means the contract
  * holds by construction rather than by anyone remembering to edit both.
- * @type {Record<'ridges'|'thickets', number>} config key → count at the default level
+ * ⚠ **`trees` is one level over two counts**, and deriving both from the config
+ * is what keeps the layer's off state honest: while the demo's tree counts are 0
+ * every level maps to 0, so "more trees" in a treeless world correctly yields
+ * none. Raising the defaults brings the control alive by construction rather
+ * than by anyone remembering to edit a second number here.
+ * @type {Record<'ridges'|'thickets'|'treeGroves'|'treeSingles', number>} config key → count at the default level
  */
 const FORMATION_COUNT_AT_DEFAULT = Object.freeze({
   ridges: defaultSimulationConfig.terrain.ridges,
   thickets: defaultSimulationConfig.terrain.thickets,
+  treeGroves: defaultSimulationConfig.terrain.treeGroves,
+  treeSingles: defaultSimulationConfig.terrain.treeSingles,
 });
 
 /**
@@ -502,7 +509,7 @@ function formationCountForPrevalence(level, countAtDefault) {
  * the protocol's responsibility (validated before this runs); this only maps.
  * @param {{width?: number, height?: number, founding?: Array<{speciesId: string, count: number}>,
  *          herbivores?: number, predators?: number, scavengers?: number,
- *          rocks?: number, thickets?: number}} [options] `founding` is the v29
+ *          rocks?: number, thickets?: number, trees?: number, roundness?: number}} [options] `founding` is the v29
  *        roster; the three role counts are deprecated aliases (see below).
  * @returns {object} partial config for createDemoSimulation
  */
@@ -517,13 +524,26 @@ export function buildDemoConfig(options = {}) {
   // formation count and `thickets` is the thicket count (see TerrainGrid); the
   // partial terrain block merges recursively over the defaults, so the other
   // terrain params are untouched.
-  if (options.rocks !== undefined || options.thickets !== undefined || options.roundness !== undefined) {
+  if (
+    options.rocks !== undefined ||
+    options.thickets !== undefined ||
+    options.trees !== undefined ||
+    options.roundness !== undefined
+  ) {
     config.terrain = {};
     if (options.rocks !== undefined) {
       config.terrain.ridges = formationCountForPrevalence(options.rocks, FORMATION_COUNT_AT_DEFAULT.ridges);
     }
     if (options.thickets !== undefined) {
       config.terrain.thickets = formationCountForPrevalence(options.thickets, FORMATION_COUNT_AT_DEFAULT.thickets);
+    }
+    // ⚠ One level, two counts — how a wooded world divides between groves and
+    // scattered trees is a modelling decision, and it stays here rather than in
+    // the protocol or the UI. Both scale together, so the *character* of the
+    // woodland is constant across the scale and only its density changes.
+    if (options.trees !== undefined) {
+      config.terrain.treeGroves = formationCountForPrevalence(options.trees, FORMATION_COUNT_AT_DEFAULT.treeGroves);
+      config.terrain.treeSingles = formationCountForPrevalence(options.trees, FORMATION_COUNT_AT_DEFAULT.treeSingles);
     }
     // ⚠ Passed straight through, *not* mapped. Rock and thicket prevalence are
     // abstractions over a generator count, so they need a translation; roundness

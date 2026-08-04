@@ -45,6 +45,7 @@ import {
   associationWeightFor,
   associationsIn,
 } from '../src/simulation/social/association.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 
@@ -131,7 +132,7 @@ function sandbox({ seed = 5, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
       ...config,
     },

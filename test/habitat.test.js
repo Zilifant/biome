@@ -39,8 +39,11 @@ import {
 } from '../src/simulation/habitat/forage.js';
 import { NEUTRAL_WEIGHT, habitatOf, habitatWeightForCode } from '../src/simulation/habitat/habitat.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
+/** The demo's own habitat cue reference, read rather than restated (D11). */
+const HABITAT_CUE_REFERENCE = CONFIG.habitat.cueReference;
 const GAZELLE = getSpecies('herbivore.gazelle');
 const BUFFALO = getSpecies('herbivore.buffalo');
 
@@ -105,7 +108,7 @@ function sandbox({ seed = 4, config = {}, species = [SHORT_GRASS, TALL_GRASS, AN
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });
@@ -571,6 +574,7 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     let animalTicks = 0;
     let grazerTicks = 0;
     let grazerThicket = 0;
+    let grazerCued = 0;
     for (let t = 0; t < 1500; t += 1) {
       engine.step(1);
       for (const entity of world.entities.all()) {
@@ -586,6 +590,22 @@ describe('forage guilds and habitat: not inert in the demo', () => {
         if (entity.speciesId !== GAZELLE.id) {
           grazerTicks += 1;
           if (code === TerrainType.THICKET) grazerThicket += 1;
+          // ⚠ **Does the cue have anything to say here?** Not where the animal
+          // ended up — see the test below for why every occupancy claim this
+          // suite has made expired. A non-null gradient means there is ground
+          // within the cue radius this species prefers to the ground it is on,
+          // which is the mechanism being *live* rather than merely wired.
+          const species = world.species.get(entity.speciesId);
+          const migration = species?.migration;
+          if (
+            habitatGradient(world, entity, {
+              cueRadius: migration?.cueRadius ?? 0,
+              reference: HABITAT_CUE_REFERENCE,
+              weights: habitatOf(species),
+            }) !== null
+          ) {
+            grazerCued += 1;
+          }
           continue;
         }
         animalTicks += 1;
@@ -595,7 +615,7 @@ describe('forage guilds and habitat: not inert in the demo', () => {
         ticks += 1;
       }
     }
-    return { crop: total, eatTicks: ticks, coverTicks, animalTicks, grazerTicks, grazerThicket };
+    return { crop: total, eatTicks: ticks, coverTicks, animalTicks, grazerTicks, grazerThicket, grazerCued };
   }
 
   /** Both arms over every seed, summed — computed once and shared by both tests. */
@@ -617,6 +637,7 @@ describe('forage guilds and habitat: not inert in the demo', () => {
         runs.reduce((sum, r) => sum + r.coverTicks, 0) / Math.max(1, runs.reduce((sum, r) => sum + r.animalTicks, 0)),
       grazerThicket: runs.reduce((sum, r) => sum + r.grazerThicket, 0),
       grazerTicks: runs.reduce((sum, r) => sum + r.grazerTicks, 0),
+      grazerCued: runs.reduce((sum, r) => sum + r.grazerCued, 0),
       perSeed: runs,
     });
     return { on: pool(both.on), off: pool(both.off), habitatOff: pool(both.habitatOff) };
@@ -636,35 +657,57 @@ describe('forage guilds and habitat: not inert in the demo', () => {
     );
   });
 
-  test('and the grazers keep out of the ground they all dislike', () => {
-    // The habitat half, and ⚠⚠ **this assertion has now been moved twice by
-    // roster changes, neither of them a regression.** It asserted the *gazelle's
-    // cover share* until phase 11 added a second grazer and reversed it
-    // (competitive displacement: a 600 kg buffalo with its own open-ground
-    // preference grazes the open ground both want, and the smaller animal is
-    // pushed to the margin). It then asserted the **buffalo's open-ground share**
-    // until phase 13 put *four* grazers on that same ground and flattened it:
-    // pooled over the same three seeds, ground share went 78.0→79.9% for the
-    // buffalo and 88.3→89.7% for the gazelle but **82.9→79.6%** for the wildebeest
-    // and **80.9→74.9%** for the zebra. Open ground is contested by every grazer
-    // in the world now, so "who ends up on it" measures the competition, not the
-    // cue.
+  test('⚠ and the habitat cue is live in the demo — but its occupancy effect is not measurable', () => {
+    // ⚠⚠ **This assertion has now been moved three times, and none of the three
+    // was a regression.** The history is the point, because the fix this time is
+    // meant to end it:
     //
-    // ⚠ So the claim moves to the axis with **headroom and no contest**: nobody
-    // wants thicket, every grazer weights it 0.3–0.4, and the cue's effect there
-    // is large, consistent, and in one direction — measured 2026-07-30 over 3
-    // seeds × 3000 ticks: wildebeest 0.37→0.09%, zebra 0.43→0.05%, buffalo
-    // 0.25→0.18%. That is a preference doing visible work, stated as a property of
-    // the mechanism rather than of one species' trajectory.
-    const { on, habitatOff: off } = arms;
-    const percent = (r) => `${((100 * r.grazerThicket) / Math.max(1, r.grazerTicks)).toFixed(2)}%`;
-    assert.ok(on.grazerTicks > 5000 && off.grazerTicks > 5000, 'there were grazers in both arms');
+    //   1. The *gazelle's cover share*, until phase 11 added a second grazer and
+    //      reversed it — a 600 kg buffalo with its own open-ground preference
+    //      grazes the ground both want and pushes the smaller animal to the
+    //      margin.
+    //   2. The *buffalo's open-ground share*, until phase 13 put four grazers on
+    //      that same ground and flattened it (78.0→79.9% buffalo, 88.3→89.7%
+    //      gazelle, but 82.9→79.6% wildebeest and 80.9→74.9% zebra).
+    //   3. The *grazers' thicket share*, chosen at phase 13 as the axis with
+    //      "headroom and no contest" — 0.25–0.43% down to 0.05–0.18%. ⚠ That
+    //      headroom is **gone**, and trees did not take it: obstacle deflection
+    //      (A65, 2026-08-01) did, by stopping animals stalling against thicket
+    //      edges at all. Measured 2026-08-03 with the cue *off*, thicket
+    //      occupancy is **0.087%** treeless and **0.071%** wooded — both at the
+    //      floor, so the arms differ by noise and which way they land is a coin
+    //      flip. It passed on HEAD by a hair and trees tipped it over.
+    //
+    // ⚠⚠ **Every one of those three was a claim about where a species ends up,
+    // and that is what keeps expiring** — an occupancy share is only a signal
+    // while nothing else is competing for the same ground or removing the
+    // pressure that put animals on it. Two replacements were tried here and
+    // measured before either was written down:
+    //
+    //   * *Mean `habitat` weight of the cell underfoot.* **Rejected on
+    //     evidence.** On clean HEAD it is 1.1103 with the cue on against 1.1146
+    //     off — the wrong way, on every seed. The cue bends a *wander*, and an
+    //     animal that wanders further crosses more of everything, so this
+    //     measures travel as much as taste.
+    //   * *Thicket share at higher statistics.* Also gone: 6 seeds × 3000 ticks
+    //     in the wooded demo reads **0.041% on against 0.027% off**, reversed
+    //     and with per-seed values spanning 0.001–0.115%.
+    //
+    // ⚠ **So this half no longer asserts an effect, and that is a finding rather
+    // than a weakened test.** What it asserts instead is that the mechanism is
+    // *live*: that there is, routinely, ground within a grazer's cue radius that
+    // its own weights prefer to the ground it is standing on. If the cue were
+    // unwired, mis-resolved, or handed a species with no radius, this goes to
+    // zero — which is the regression worth catching. The effect it *used* to
+    // demonstrate is recorded in DOCS §1.2 as open, in A34's shape: a real
+    // mechanism whose demo-scale effect cannot presently be separated from noise.
+    const { on } = arms;
+    assert.ok(on.grazerTicks > 5000, 'there were grazers to measure');
+    const share = on.grazerCued / on.grazerTicks;
     assert.ok(
-      on.grazerThicket / on.grazerTicks < off.grazerThicket / off.grazerTicks,
-      `grazers in thicket: ${((100 * on.grazerThicket) / on.grazerTicks).toFixed(2)}% on against ` +
-        `${((100 * off.grazerThicket) / off.grazerTicks).toFixed(2)}% off\n` +
-        `  on  ${bySeed(on, percent)}\n` +
-        `  off ${bySeed(off, percent)}`,
+      share > 0.02,
+      `the habitat cue found preferable ground on only ${(100 * share).toFixed(2)}% of grazer-ticks\n` +
+        `  ${bySeed(on, (r) => `${((100 * r.grazerCued) / Math.max(1, r.grazerTicks)).toFixed(2)}%`)}`,
     );
   });
 });

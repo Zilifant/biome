@@ -24,6 +24,7 @@ import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../src/simulatio
 import { holderOf, isAvailableTo, mayFeedFreely, outranks } from '../src/simulation/predation/possession.js';
 import { dominanceOf } from '../src/simulation/social/dominance.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const STALKER = getSpecies('predator.leopard');
@@ -42,7 +43,7 @@ function sandbox({ seed = 4, config = {} } = {}) {
     seed,
     config: {
       world: { width: 64, height: 64 },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...config,
     },
   });

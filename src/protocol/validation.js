@@ -217,10 +217,11 @@ export function validateCommand(command) {
       validateOptionalIntInRange(command.herbivores, 'herbivores', 0, MAX_FOUNDING_HERBIVORES, errors);
       validateOptionalIntInRange(command.predators, 'predators', 0, MAX_FOUNDING_PREDATORS, errors);
       validateOptionalIntInRange(command.scavengers, 'scavengers', 0, MAX_FOUNDING_SCAVENGERS, errors);
-      // Terrain prevalence (rocks, thickets): an abstract 0..MAX level the host
-      // maps to generator formation counts, not a count itself.
+      // Terrain prevalence (rocks, thickets, trees): an abstract 0..MAX level the
+      // host maps to generator formation counts, not a count itself.
       validateOptionalIntInRange(command.rocks, 'rocks', 0, MAX_TERRAIN_PREVALENCE, errors);
       validateOptionalIntInRange(command.thickets, 'thickets', 0, MAX_TERRAIN_PREVALENCE, errors);
+      validateOptionalIntInRange(command.trees, 'trees', 0, MAX_TERRAIN_PREVALENCE, errors);
       // World shape: 0 (rectangle) .. MAX_ROUNDNESS (ellipse). A level, like the
       // two above, but the level is the setting rather than a stand-in for one.
       validateOptionalIntInRange(command.roundness, 'roundness', 0, MAX_ROUNDNESS, errors);

@@ -13,6 +13,7 @@ import { MemoryKinds } from '../src/simulation/memory/memories.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -38,7 +39,7 @@ function sandbox({ seed = 3, size = 44, systems = [], hunting = null } = {}) {
     seed,
     config: {
       world: { width: size, height: size },
-      terrain: { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0 },
+      terrain: { ...FLAT_TERRAIN },
       ...(hunting ? { hunting } : {}),
     },
   });

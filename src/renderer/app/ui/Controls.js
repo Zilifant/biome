@@ -95,6 +95,7 @@ const DEFAULTS = Object.freeze({
   // internals (DOCS §14).
   rocks: 2,
   thickets: 2,
+  trees: 2,
   roundness: 0,
 });
 
@@ -247,7 +248,7 @@ export class Controls {
             <input type="number" id="ctl-world-h" min="${MIN_WORLD_DIMENSION}" max="${MAX_WORLD_DIMENSION}" step="1" value="${DEFAULTS.height}" aria-label="World height" />
           </div>
           <div id="ctl-founding"><p class="hint">Waiting for the host's species list…</p></div>
-          <p class="hint">How much of the map is rock or thicket rather than open grazing ground — 0 is none, ${MAX_TERRAIN_PREVALENCE} crowds it out.</p>
+          <p class="hint">How much of the map is rock, thicket or trees rather than open grazing ground — 0 is none, ${MAX_TERRAIN_PREVALENCE} crowds it out.</p>
           <div class="control-row">
             <label for="ctl-rocks" class="dim">Rocks</label>
             ${prevalenceSelect("ctl-rocks", DEFAULTS.rocks, "Rock prevalence")}
@@ -255,6 +256,10 @@ export class Controls {
           <div class="control-row">
             <label for="ctl-thickets" class="dim">Thickets</label>
             ${prevalenceSelect("ctl-thickets", DEFAULTS.thickets, "Thicket prevalence")}
+          </div>
+          <div class="control-row">
+            <label for="ctl-trees" class="dim">Trees</label>
+            ${prevalenceSelect("ctl-trees", DEFAULTS.trees, "Tree prevalence")}
           </div>
           <p class="hint">World shape — 0 is a plain rectangle, ${MAX_ROUNDNESS} rounds it off to an ellipse. Ground outside the shape is impassable, so a rounder world is a smaller one.</p>
           <div class="control-row">
@@ -289,6 +294,7 @@ export class Controls {
       presetDelete: container.querySelector("#ctl-preset-delete"),
       rocks: container.querySelector("#ctl-rocks"),
       thickets: container.querySelector("#ctl-thickets"),
+      trees: container.querySelector("#ctl-trees"),
       roundness: container.querySelector("#ctl-roundness"),
     };
 
@@ -517,6 +523,7 @@ export class Controls {
     setValue(this.#els.worldH, world.height);
     setValue(this.#els.rocks, world.rocks);
     setValue(this.#els.thickets, world.thickets);
+    setValue(this.#els.trees, world.trees);
     setValue(this.#els.roundness, world.roundness);
 
     // ⚠ A species in the preset that this host does not offer is *skipped*, and
@@ -611,7 +618,7 @@ export class Controls {
 
   /**
    * Read and validate the world-composition fields. Returns
-   * `{ width, height, rocks, thickets, roundness, founding? }` or null (after setting a
+   * `{ width, height, rocks, thickets, trees, roundness, founding? }` or null (after setting a
    * status message) if any field is out of range. Bounds mirror the host's; the
    * host validates again regardless.
    * @returns {object | null}
@@ -624,6 +631,7 @@ export class Controls {
       // formality — but it keeps every composition field validated the same way.
       ["rocks", this.#els.rocks, 0, MAX_TERRAIN_PREVALENCE],
       ["thickets", this.#els.thickets, 0, MAX_TERRAIN_PREVALENCE],
+      ["trees", this.#els.trees, 0, MAX_TERRAIN_PREVALENCE],
       ["roundness", this.#els.roundness, 0, MAX_ROUNDNESS],
     ];
     const params = {};
@@ -771,6 +779,7 @@ export class Controls {
       this.#els.worldH,
       this.#els.rocks,
       this.#els.thickets,
+      this.#els.trees,
       this.#els.roundness,
       this.#els.preset,
       this.#els.presetName,

@@ -29,6 +29,24 @@ export const TerrainType = Object.freeze({
   // spatial refuge (A18). The static MVP of the dynamic shrub layer (A50); it
   // does not grow, is not eaten, and is placed in clumps like rock.
   THICKET: 5,
+  // Tree: standing canopy over open ground — a grove, a pair, or a lone tree on
+  // grassland. ⚠ **Deliberately the opposite of thicket in every property but
+  // shelter**: barely slower to cross (0.9), *not* sight-blocking (you see past a
+  // scattered canopy), lightly concealing (0.4), and it still grows grass under
+  // it. What it shares with thicket is shade, and what it adds is somewhere to be
+  // *above* — see TREES-FLIGHT-VULTURE-PLAN.md phase T2.
+  //
+  // ⚠ A terrain code rather than an entity (A3) or a second sparse grid, and the
+  // reason is a measurement rather than a preference: the perception cell scan is
+  // the hottest loop in the engine and **may not consult a second grid** (one
+  // `sheltersAt` call there cost +56% of a tick). As terrain, a tree is one array
+  // index at every chokepoint that already exists — and, because `habitat`
+  // weights are keyed by this legend's own names, `habitat: { tree: … }` starts
+  // working the moment the legend below has the entry, with no engine change.
+  //
+  // Static, like thicket: it does not grow, is not eaten, and has no woody floor.
+  // The growing, browsable version is still A51.
+  TREE: 6,
 });
 
 /**
@@ -44,6 +62,7 @@ export const TERRAIN_LEGEND = Object.freeze([
   Object.freeze({ code: TerrainType.COVER, name: 'cover', passable: true }),
   Object.freeze({ code: TerrainType.DEEP_WATER, name: 'deep_water', passable: false }),
   Object.freeze({ code: TerrainType.THICKET, name: 'thicket', passable: true }),
+  Object.freeze({ code: TerrainType.TREE, name: 'tree', passable: true }),
 ]);
 
 const PASSABLE_BY_CODE = TERRAIN_LEGEND.map((entry) => entry.passable);
@@ -86,6 +105,13 @@ export function isPassableCode(code) {
  * animal crouched *in* it. Thicket and rock are 1 — you see neither through nor
  * into them — which is exactly what the booleans said before.
  *
+ * ⚠ **A tree is 0.4, and staying under 1 is the load-bearing part.** A scattered
+ * canopy hides less than a stand of brush does, and — because `SIGHT_BLOCKING_BY_CODE`
+ * is derived as `>= 1` — a value under 1 means the raycast's boolean array is
+ * unchanged and `hasLineOfSight` costs exactly what it did. That is phase 14's
+ * discipline held rather than restated: opacity is the *top* of this scale, never
+ * a second pass over it.
+ *
  * Reads go through `world.concealmentAt`, the chokepoint built to fold in
  * non-terrain concealment (a fire's smoke, a future shrub layer) the way
  * `speedModifierAt` folds in disturbances, so nothing here is specific to brush.
@@ -97,6 +123,7 @@ const CONCEALMENT_BY_CODE = Object.freeze([
   0.55, // cover — low brush: it hides a crouching cat, not a standing herd
   0, //    deep water — see across it
   1, //    thicket — tall, dense; opaque
+  0.4, //  tree — a canopy and a trunk break an outline; you still see straight past
 ]);
 
 /**
@@ -124,6 +151,12 @@ export function isSightBlockingCode(code) {
  * made, and that lives on the feature grid rather than here (`World.isShelteredAt`
  * is the definition that folds the two together).
  *
+ * ⚠ **A tree joined them, and it is the one tree property that moves
+ * populations.** Shade and a rain break are the whole reason a tree is worth
+ * standing under, and exposure is the second-leading cause of death in this
+ * world — so this single array entry, and not the concealment or the speed, is
+ * what the phase's ten-seed gate is actually measuring.
+ *
  * ⚠ **A table rather than a pair of comparisons, because perception reads it per
  * cell.** The shelter cue is filled inside the (2r+1)² scan that is the hottest
  * loop in the engine (§1.4 C6): the first cut of A68 asked
@@ -133,8 +166,10 @@ export function isSightBlockingCode(code) {
  * lesson in a different disguise, and it is the second time this exact loop has
  * charged for a change that looked free.
  */
+const SHELTERING_CODES = new Set([TerrainType.COVER, TerrainType.THICKET, TerrainType.TREE]);
+
 export const SHELTERING_BY_CODE = Uint8Array.from(
-  TERRAIN_LEGEND.map((entry) => (entry.code === TerrainType.COVER || entry.code === TerrainType.THICKET ? 1 : 0)),
+  TERRAIN_LEGEND.map((entry) => (SHELTERING_CODES.has(entry.code) ? 1 : 0)),
 );
 
 /**
@@ -162,6 +197,11 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
   0.6, // cover
   0, // deep water (impassable)
   0.1, // thicket — passable, but a crawl; an animal only pushes through to escape
+  // ⚠ Tree is 0.9, and being *close to 1* is deliberate. A thicket is avoided
+  // because it is slow (the movement system treats its edge as a wall); a tree
+  // must not be, or the same machinery would make animals turn away from the
+  // canopy this layer exists to put them under. Walking under a tree is walking.
+  0.9, // tree — open woodland floor: roots and shade, not an obstacle
 ]);
 
 /**
@@ -206,6 +246,28 @@ export const MAX_ROUNDNESS = 4;
  * 0.873, 0.785 (the last being π/4, the ellipse).
  */
 export const ROUNDNESS_EXPONENTS = Object.freeze([Infinity, 8, 4, 2.8, 2]);
+
+/** Clamp an arbitrary input into [0, 1]. */
+function clamp01(value) {
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+/**
+ * The eight cells touching a cell, in a fixed order. Used only by tree clumping,
+ * where the order is *behaviour* rather than style: a companion pick is an index
+ * into this list, so reordering it changes which side of a lone tree its pair
+ * grows on for every seed in the project.
+ */
+const NEIGHBOUR_OFFSETS = Object.freeze([
+  Object.freeze([1, 0]),
+  Object.freeze([-1, 0]),
+  Object.freeze([0, 1]),
+  Object.freeze([0, -1]),
+  Object.freeze([1, 1]),
+  Object.freeze([1, -1]),
+  Object.freeze([-1, 1]),
+  Object.freeze([-1, -1]),
+]);
 
 /** Clamp an arbitrary input to a whole roundness level in 0..MAX_ROUNDNESS. */
 function clampRoundness(roundness) {
@@ -391,6 +453,13 @@ export class TerrainGrid {
     // never shift lakes, rock, or cover — the existing map is unchanged and
     // thicket is simply added on top of open ground.
     this.#carveThicketFormations(random, params);
+    // Trees after thickets, for exactly the same reason thickets come after
+    // cover: the draws spent here can never shift a lake, a rock formation, a
+    // cover patch or a stand, so every existing seed generates precisely the map
+    // it did before trees existed and the layer is simply added on top of open
+    // ground. ⚠ `#scatterTrees` spends **no draws at all** when both counts are
+    // 0, which is what makes that claim provable rather than merely likely.
+    this.#scatterTrees(random, params);
     // Run last, so the guarantee holds over the finished map: every passable
     // cell reaches every other passable cell without crossing rock. Thicket is
     // passable, so it neither strands ground nor is carved through.
@@ -519,6 +588,126 @@ export class TerrainGrid {
         cy += Math.sin(angle) * stepLen;
       }
     }
+  }
+
+  /**
+   * Trees, in the two shapes savanna actually has them: **groves** of
+   * semi-open woodland, and **lone trees, pairs and triplets** out on the
+   * grassland.
+   *
+   * ⚠ **A grove is a scattered disc, not a filled one**, and that is the whole
+   * difference between this and `#carveThicketFormations`. Reusing `#stampDisc`
+   * would fill every cell in the walk and produce a solid stand — which is a
+   * thicket with a different name and a different speed. Instead each open cell
+   * inside the disc becomes a tree with probability `treeGroveDensity`, so the
+   * canopy is broken and animals move and graze *through* it. That is what
+   * "semi-open forest" means here.
+   *
+   * ⚠ **Both passes write onto GROUND only.** A grove never buries a lake, a
+   * rock outcrop, a cover patch or a stand of thicket — trees fill the gaps in
+   * the map that were open, which is also why they cannot affect connectivity
+   * (they are passable, so the pass that follows has nothing to reconnect).
+   *
+   * ⚠ **Fixed draw budgets, in the house style.** A grove step spends 1 draw for
+   * its radius, 1 for its heading, and 1 per *open* cell it considers. A single
+   * spends 5 flat — position, companion count, and **two** companion picks
+   * whatever the count turns out to be — so the stream lands in the same place
+   * whether a lone tree turns out to be a lone tree or a triplet.
+   */
+  #scatterTrees(random, params) {
+    const groves = Math.max(0, Math.round(params.treeGroves ?? 0));
+    const singles = Math.max(0, Math.round(params.treeSingles ?? 0));
+    // ⚠ Before the first draw, not after. This early return is the off switch
+    // that leaves no trace (D30): with both counts at 0 the `terrain` stream is
+    // untouched and the map is byte-identical to one generated before trees.
+    if (groves === 0 && singles === 0) return;
+
+    const density = clamp01(params.treeGroveDensity ?? 0);
+    const minR = Math.max(0.5, params.treeGroveMinRadius);
+    const maxR = Math.max(minR, params.treeGroveMaxRadius);
+    const minSteps = Math.max(1, Math.round(params.treeGroveMinSteps));
+    const maxSteps = Math.max(minSteps, Math.round(params.treeGroveMaxSteps));
+    const drift = params.treeGroveDrift;
+    for (let n = 0; n < groves; n += 1) {
+      let cx = random.float(0, this.#width);
+      let cy = random.float(0, this.#height);
+      const steps = random.int(minSteps, maxSteps);
+      for (let s = 0; s < steps; s += 1) {
+        const r = random.float(minR, maxR);
+        this.#scatterDisc(random, cx, cy, r, density);
+        const angle = random.float(0, Math.PI * 2);
+        const stepLen = r * drift;
+        cx += Math.cos(angle) * stepLen;
+        cy += Math.sin(angle) * stepLen;
+      }
+    }
+
+    // Lone trees, and the pairs and triplets that read as one tree with its
+    // offspring beside it. The companion is placed on an 8-neighbour rather than
+    // anywhere nearby, so a "pair" is genuinely adjacent and the RLE stays as
+    // compact as it can for a scattered layer.
+    const clusterMax = Math.max(0, Math.round(params.treeClusterMax ?? 0));
+    for (let n = 0; n < singles; n += 1) {
+      const cellX = random.int(0, this.#width - 1);
+      const cellY = random.int(0, this.#height - 1);
+      // ⚠ Drawn unconditionally, including at `treeClusterMax: 0` where the
+      // answer can only be 0. Skipping the draw there would make the *clumping
+      // setting* shift the stream, so turning clumping off would move every lone
+      // tree on the map instead of only removing its companions — and the
+      // "no clumps" control would then be a different world rather than the same
+      // one without clumps.
+      const companions = random.int(0, clusterMax);
+      // Always two picks, then apply the first `companions` of them — a fixed
+      // budget, so how large a clump turns out to be cannot shift the stream.
+      const first = random.int(0, NEIGHBOUR_OFFSETS.length - 1);
+      const second = random.int(0, NEIGHBOUR_OFFSETS.length - 1);
+      if (!this.#plantTree(cellX, cellY)) continue; // not open ground — nothing here
+      const picks = [first, second];
+      for (let c = 0; c < companions && c < picks.length; c += 1) {
+        const [dx, dy] = NEIGHBOUR_OFFSETS[picks[c]];
+        this.#plantTree(cellX + dx, cellY + dy);
+      }
+    }
+  }
+
+  /**
+   * Turn a fraction of the open cells inside a disc into trees. The bounding-box
+   * walk and the exterior guard are `#stampDisc`'s, deliberately — only the fill
+   * rule differs.
+   */
+  #scatterDisc(random, cx, cy, r, density) {
+    const rSquared = r * r;
+    const minX = Math.max(0, Math.floor(cx - r));
+    const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
+    const minY = Math.max(0, Math.floor(cy - r));
+    const maxY = Math.min(this.#height - 1, Math.ceil(cy + r));
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy > rSquared) continue;
+        const idx = this.#index(x, y);
+        if (this.#exterior !== null && this.#exterior[idx] === 1) continue; // past the coast
+        // ⚠ The ground test comes *before* the draw, so the number of draws a
+        // grove spends depends only on the geometry of its discs and on which
+        // cells are open — both already fixed by the time this runs.
+        if (this.#cells[idx] !== TerrainType.GROUND) continue;
+        if (random.next() < density) this.#cells[idx] = TerrainType.TREE;
+      }
+    }
+  }
+
+  /**
+   * Plant one tree on open ground. Returns whether anything was planted, so the
+   * caller can skip a clump whose seed cell was water, rock, or already wooded.
+   */
+  #plantTree(cellX, cellY) {
+    if (!this.#inBounds(cellX, cellY)) return false;
+    const idx = this.#index(cellX, cellY);
+    if (this.#exterior !== null && this.#exterior[idx] === 1) return false;
+    if (this.#cells[idx] !== TerrainType.GROUND) return false;
+    this.#cells[idx] = TerrainType.TREE;
+    return true;
   }
 
   /**

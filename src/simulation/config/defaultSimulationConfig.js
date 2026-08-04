@@ -91,6 +91,47 @@ export const defaultSimulationConfig = Object.freeze({
     thicketMinSteps: 2,
     thicketMaxSteps: 7,
     thicketDrift: 1,
+    // Trees (TREES-FLIGHT-VULTURE-PLAN.md phase T1). Two placement passes,
+    // because savanna has trees in two arrangements and one generator cannot
+    // produce both: **groves** of semi-open woodland, and **lone trees, pairs
+    // and triplets** scattered over grassland.
+    //
+    // ⚠ A grove is a random walk of discs like a thicket stand, but each open
+    // cell inside a disc becomes a tree only with probability
+    // `treeGroveDensity` — a *scattered* disc, not a filled one. Filling it
+    // would produce a thicket wearing a different name; the broken canopy is
+    // what makes it woodland an animal walks and grazes through.
+    //
+    // ⚠ **0 is the control these shipped through**, and it still is: with both
+    // counts at 0 `#scatterTrees` returns before its first draw, so a treeless
+    // world is byte-identical to one generated before trees existed — proved on
+    // seeds 1/2/42 × 1500 ticks (state, terrain and vegetation hashes all
+    // matching) before either was raised, per the §20 procedure.
+    //
+    // _Measured 2026-08-03, 10 seeds × 15 000 ticks, `8/60` against `0/0` on the
+    // same seeds:_ the gate **passes** — every species alive on 10/10 seeds
+    // except the gazelle at 9/10 (it loses seed 1 at t14384, in the last 4% of
+    // the run). Means against the control: buffalo +6.9, lion +0.9, wildebeest
+    // +1.0, leopard −0.4, hyena −0.3, zebra −3.8, vulture −30.1 (on 371 vs 401),
+    // and ⚠ **gazelle −15.4 (60.7 against 76.1)**. See DOCS §7 Terrain for what
+    // is and is not established about that last one.
+    //
+    // At these counts trees are **2.45% of the map** (5 seeds, 160×120), which
+    // takes sheltering ground from 5.05% to ~7.5% — the largest single change to
+    // shelter availability since thicket arrived.
+    treeGroves: 8,
+    treeGroveMinRadius: 2,
+    treeGroveMaxRadius: 5,
+    treeGroveMinSteps: 2,
+    treeGroveMaxSteps: 6,
+    treeGroveDrift: 1,
+    treeGroveDensity: 0.4, // fraction of open cells inside a grove that carry a tree
+    // Lone trees, each with 0..`treeClusterMax` companions on an adjacent cell —
+    // so a "single" is a single, a pair, or a triplet. A count rather than a
+    // density because it is the one tree quantity that reads as a number of
+    // *objects* on the map rather than as an area.
+    treeSingles: 60,
+    treeClusterMax: 2,
   }),
   // Cell-level vegetation biomass (see world/VegetationGrid.js). Seeded from
   // the engine seed; grows logistically toward terrain-derived capacity.
@@ -101,6 +142,26 @@ export const defaultSimulationConfig = Object.freeze({
     initialFraction: 0.5,
     minFertility: 0.55,
     coverSuitability: 1.35,
+    // ⚠⚠ **Grass grows under a tree, and it grows exactly as well as it did.**
+    // Two reasons, and the second is the load-bearing one:
+    //
+    //   1. Ecology: scattered savanna trees stand *in* grassland. Thicket grows
+    //      nothing (suitability 0, the `default` branch) because it is a dense
+    //      stand; open woodland is not that.
+    //   2. ⚠ **The vegetation RNG stream.** `#seed` draws fertility for every
+    //      cell but draws initial biomass *only* where capacity is positive, so
+    //      a cell whose suitability crosses zero adds or removes a draw and
+    //      shifts every later cell in the field. Trees are planted on GROUND,
+    //      which already draws twice — so any positive value here leaves the
+    //      stream exactly where it was, and 0 would silently re-roll the whole
+    //      vegetation map of every wooded seed.
+    //
+    // ⚠ **1 rather than a shade discount, deliberately, and only for now.** T1's
+    // claim is that trees are shade and light concealment; giving them a forage
+    // penalty in the same phase would leave a population change unattributable
+    // between "more shelter" and "less grass" (A12). The knob is here for a
+    // later, separately-measured change.
+    treeSuitability: 1,
     quantizeLevels: 4,
     // How fast biomass above the season's ceiling falls back to it (Step 19).
     // Scaling growth alone cannot brown off a field already at capacity.

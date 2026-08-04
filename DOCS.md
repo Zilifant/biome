@@ -73,12 +73,13 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1004 passing / 0 failing, 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
+| Tests                 | **1045 passing / 0 failing** _(2026-08-03, +11 for trees; 5 preset-HTTP suites are cancelled in a sandboxed shell and fail identically on clean HEAD)_. Was **1004 / 252 suites** _(2026-08-01, +8 for obstacle deflection (A65) and +3 for thermoregulation (A67/A68/A69))_. Was 946 / 241 _(2026-07-31)_ |
 | `PROTOCOL_VERSION`    | **30** — reproductive state in bulk snapshots (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | 29 — carcass possession (§9 Carcasses)                 |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **nine** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30 (§8). ⚠ **Eight of the twelve blocks and all nine fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, and the **leopard `crypsis`** (phase 14). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
+| Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1, TREES-FLIGHT-VULTURE-PLAN.md): scattered canopy over open ground, 2.45% of the demo map, shade + light concealment + near-open going. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Species phases 0–14 are **committed** — `9fceb4d phase 12` and `83a6dd9 phase 14`, ⚠ the latter carrying phases 13 and 14 together (the user handles git) |
 
@@ -216,6 +217,45 @@ one that costs an entry in the utility table (§9 Decision's standing warning).
 
 Real mechanisms that demonstrably almost never fire in the demo. Recorded
 because "implemented" and "doing visible work" are different claims.
+
+**⚠ A72 — The habitat preference's effect on the demo is no longer separable
+from noise** _(from 2026-08-03, phase T1)_
+
+`habitat` resolves correctly and is unit-tested from six directions (the gradient
+points at preferred ground, steers by preference rather than biomass, picks the
+least-rank direction among equals, is exactly neutral for a species that declares
+nothing, and has nowhere to act without a cue radius). What can no longer be
+demonstrated is that it changes **where the demo's animals end up**.
+
+`test/habitat.test.js` has now had that claim rewritten **three times, none of
+them a regression** — the gazelle's cover share (phase 11 reversed it), the
+buffalo's open-ground share (phase 13 flattened it), and the grazers' thicket
+share (phase T1 exhausted it). ⚠ **The third one was not killed by trees**: A65's
+obstacle deflection (2026-08-01) had already collapsed grazer thicket occupancy
+from 0.25–0.43% to ~0.1% by stopping animals stalling against thicket edges at
+all, leaving an assertion that passed on HEAD by a hair. Trees tipped it over.
+
+Two replacements were built and **measured before being written down, and both
+were rejected**:
+
+- _Mean `habitat` weight of the cell underfoot._ On clean HEAD it reads **1.1103
+  with the cue on against 1.1146 off** — the wrong way, on every seed. The cue
+  bends a *wander*, and an animal that wanders further crosses more of
+  everything, so this measures travel as much as taste.
+- _Thicket share at higher statistics._ 6 seeds × 3000 ticks in the wooded demo:
+  **0.041% on against 0.027% off**, reversed, per-seed 0.001–0.115%.
+
+The suite now asserts only that the cue is **live** — that there is routinely
+ground within a grazer's cue radius its own weights prefer to the ground it is
+on — which catches an unwired or mis-resolved cue and claims nothing more.
+
+⚠ **The pattern is the transferable part, and it is why this is an item rather
+than a test edit: every one of those four assertions was a claim about *where a
+species ends up*, and that is only a signal while no other species and no other
+mechanism is competing for the same ground.** The lever, if this is revisited, is
+a world built to show it (A31's shape) rather than a fifth occupancy share.
+Related: phase T3 will give species a `tree` weight, which is the first new thing
+for the cue to act on since phase 9.
 
 **⚠ A34 — Patrolling / site fidelity** _(from Step 24)_
 
@@ -988,15 +1028,81 @@ methods.
 
 ### Terrain
 
-Six cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
-`COVER (3)`, `DEEP_WATER (4, impassable)`, `THICKET (5)` — generated
+Seven cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
+`COVER (3)`, `DEEP_WATER (4, impassable)`, `THICKET (5)`, `TREE (6)` — generated
 deterministically at world init from circular lakes, **irregular rock
 formations**, clumped cover patches, and **thicket stands**, then finished by a
 **connectivity pass**. Out-of-bounds cells report `ROCK`, so passability checks
 are safe without a separate bounds guard.
 
-Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, thicket 0.1, rock and
-deep water 0 (impassable).
+Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, **tree 0.9**,
+thicket 0.1, rock and deep water 0 (impassable).
+
+#### Trees _(2026-08-03, TREES-FLIGHT-VULTURE-PLAN.md phase T1)_
+
+⚠ **A tree is the opposite of a thicket in every property but shade**, and that
+contrast is the design rather than a coincidence of tuning:
+
+| | thicket | tree |
+| --- | ---: | ---: |
+| speed | 0.1 (a crawl) | **0.9** (walking) |
+| blocks sight | yes (opacity 1) | **no** (concealment 0.4) |
+| shelters | yes | yes |
+| grows grass | **no** (suitability 0) | **yes** (suitability 1) |
+
+A thicket is somewhere an animal is kept *out* of by the movement system; a tree
+is somewhere it walks under without noticing. ⚠ The speed is 0.9 rather than
+something lower **because slow ground is avoided ground**: the movement system
+treats a slow cell's edge as a wall, so a cheaper tree would have made animals
+turn away from the canopy the layer exists to put them under.
+
+⚠ **Concealment is 0.4 and must stay under 1**, because `blocksSightAt` is
+derived as `concealment >= 1` — so the raycast's boolean array is unchanged and
+`hasLineOfSight` costs exactly what it did (phase 14's discipline: opacity is the
+top of the scale, not a second pass over it).
+
+**Two placement passes**, because savanna has trees in two arrangements and one
+generator cannot make both: `treeGroves` random-walk discs where each open cell
+becomes a tree with probability `treeGroveDensity` (a *scattered* disc — filling
+it would be a thicket wearing another name), and `treeSingles` lone trees each
+with 0–2 adjacent companions, so a "single" is a single, a pair, or a triplet.
+Measured at the shipped 8/60: ~97% of scattered clumps are 1–3 cells and the rest
+are two clumps landing adjacent by chance.
+
+⚠ **Placed last among the generation steps**, after thicket and before
+connectivity, so the draws can never shift a lake, an outcrop, a cover patch or a
+stand — and `#scatterTrees` returns **before its first draw** when both counts
+are 0. That is what made the layer provably inert: seeds 1/2/42 × 1500 ticks,
+byte-identical to a clean HEAD checkout on state, terrain **and** vegetation.
+
+⚠ **Grass grows under a tree, and `vegetation.treeSuitability` must stay above
+0.** `VegetationGrid#seed` draws fertility for every cell but initial biomass
+only where capacity is positive, so a suitability that crossed zero would add or
+remove a draw and **re-roll the entire vegetation field** of every wooded seed.
+At the shipped 1 the field is byte-identical to the treeless one, which also
+keeps T1's population measurements attributable to shelter and concealment rather
+than to forage. A shade discount is a later, separately-measured change.
+
+_Measured 2026-08-03, ten-seed gate, `treeGroves: 8, treeSingles: 60` against
+`0/0` on the same seeds × 15 000 ticks._ Trees are **2.45% of the map**, taking
+sheltering ground from 5.05% to ~7.5%. **The gate passes** — 10/10 seeds for
+every species except the gazelle at 9/10 (lost on seed 1 at t14384, in the last
+4% of the run). Means against the control: buffalo +6.9, wildebeest +1.0, lion
++0.9, hyena −0.3, leopard −0.4, zebra −3.8, vulture −30.1 (371 vs 401), and
+⚠ **gazelle −15.4 (60.7 against 76.1)**.
+
+⚠ **The gazelle number is recorded rather than tuned around, and what is *not*
+established about it matters.** Total gazelle deaths are the same in both arms
+(3691 against 3683) with almost the same profile, so this is not a mortality
+story; and the per-seed final range is **0–131 against the control's 12–194**,
+which is D14's signature exactly — a spread far wider than the difference. The
+3-seed exploratory sweep read it as −38% and the leopard as +19%; at ten seeds
+the gazelle gap halved and the leopard's reversed to −0.4. ⚠ One structural
+contributor *is* identified and is worth knowing before phase T3: **every
+herbivore weights `ground` at 1.1–1.2 and none names `tree`**, so converting open
+ground to trees quietly shrinks the preferred habitat of every grazer in the
+world. Naming `tree` in the species blocks is the fix, and it was deliberately
+not done here — it would have confounded this gate.
 
 ⚠ **A thicket is a spatial refuge (A18), the static MVP of the shrub layer
 (A51).** A dense stand of tall brush / small trees, generated in clumps exactly
