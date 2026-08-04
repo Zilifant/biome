@@ -22,6 +22,12 @@ test.describe('accessibility (axe)', () => {
     expect(blocking, JSON.stringify(summarize(blocking), null, 2)).toEqual([]);
   });
 
+  test('the sprite editor has no serious or critical violations', async ({ editorPage: page }) => {
+    const results = await axe(page).analyze();
+    const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    expect(blocking, JSON.stringify(summarize(blocking), null, 2)).toEqual([]);
+  });
+
   test('the inspector, once open, has no serious or critical violations', async ({ appPage: page }) => {
     // Selecting a cell mounts the inspector popover (role=dialog) — its own DOM
     // to check, distinct from the resting layout.

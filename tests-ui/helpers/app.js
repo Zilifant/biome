@@ -91,6 +91,19 @@ export const test = base.extend({
     }
   },
 
+  // The sprite editor page, booted and with its slot list built.
+  editorPage: async ({}, use) => {
+    const { browser, page } = await launchAndNavigate(async (p) => {
+      await p.goto('/sprite-editor.html', { waitUntil: 'load' });
+      await p.waitForSelector('#slots-panel .slot-row');
+    });
+    try {
+      await use(page);
+    } finally {
+      await browser.close().catch(() => {});
+    }
+  },
+
   // Live mode against a mocked host: the WebSocket delivers the fixture snapshot
   // (so a world renders and controls are live) and captures the commands the UI
   // sends. Provides `{ page, commands }`, where `commands` is the array of
