@@ -142,26 +142,6 @@ export const defaultSimulationConfig = Object.freeze({
     initialFraction: 0.5,
     minFertility: 0.55,
     coverSuitability: 1.35,
-    // ⚠⚠ **Grass grows under a tree, and it grows exactly as well as it did.**
-    // Two reasons, and the second is the load-bearing one:
-    //
-    //   1. Ecology: scattered savanna trees stand *in* grassland. Thicket grows
-    //      nothing (suitability 0, the `default` branch) because it is a dense
-    //      stand; open woodland is not that.
-    //   2. ⚠ **The vegetation RNG stream.** `#seed` draws fertility for every
-    //      cell but draws initial biomass *only* where capacity is positive, so
-    //      a cell whose suitability crosses zero adds or removes a draw and
-    //      shifts every later cell in the field. Trees are planted on GROUND,
-    //      which already draws twice — so any positive value here leaves the
-    //      stream exactly where it was, and 0 would silently re-roll the whole
-    //      vegetation map of every wooded seed.
-    //
-    // ⚠ **1 rather than a shade discount, deliberately, and only for now.** T1's
-    // claim is that trees are shade and light concealment; giving them a forage
-    // penalty in the same phase would leave a population change unattributable
-    // between "more shelter" and "less grass" (A12). The knob is here for a
-    // later, separately-measured change.
-    treeSuitability: 1,
     quantizeLevels: 4,
     // How fast biomass above the season's ceiling falls back to it (Step 19).
     // Scaling growth alone cannot brown off a field already at capacity.
@@ -820,7 +800,17 @@ export const defaultSimulationConfig = Object.freeze({
     // stream sees the identical sequence — which is what makes the off arm a
     // byte-identical proof rather than an argument, and what makes
     // `--set=cohorts.clustered=… --controlSet=…` a one-command A/B (§20).
-    clustered: false,
+    //
+    // ⚠⚠ **On since 2026-08-04, and the gate it passed is not a clean win** —
+    // read A80 before treating this number as settled. Ten seeds × 15 000 ticks
+    // put every species over the bar and the lion up on 8 of 10 seeds, but every
+    // other species' mean is a coin flip in its per-seed ordering (D41), and it
+    // costs the leopard a seed. The honest summary is that clustering makes the
+    // world *start* the way it was going to end up: measured over six seeds,
+    // group counts and sizes converge on the scattered world's by tick 10 000
+    // (7.5 × 5.3 against 7.8 × 5.3). What it buys is the first ten thousand
+    // ticks, in which a scattered world has no societies at all.
+    clustered: true,
     groupSize: 1, // one animal per cluster: independent placement, as before
     spread: 5, // radius in world units around a cluster's anchor
     // Rejection budget for one animal's offset before it falls back to the

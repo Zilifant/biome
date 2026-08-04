@@ -690,7 +690,7 @@ reminder.
 | A77 | **The vulture's carcass-discovery network** — birds that find food by watching other vultures descend _(from the retired trees/flight/vulture plan, phase V2)_                  | Open, **designed and not built**. It is `#joinedHunt` with a different noun: a scavenger with no carcass of its own in sight adopts the one a nearby conspecific has committed to, filling `seekFood`'s existing target — so it adds no action, no draw and no third neighbour walk, and being gated on "nothing of my own" means it can only ever *add* a searcher to a body. Biology in `scavenging: { followsKin, followRange }`, switch in `config.scavenging.enabled`; measure ticks from a carcass's creation to the *n*th feeder. ⚠⚠ **Read A73 and A76 first** — it takes carrion off the guild three phases have already reshuffled, by speeding up the species that now holds 45% of it |
 | A78 | **The vulture's slow life history** — slow maturation, one chick, long dependency _(from the retired plan, phase V3)_                                                           | Open and **now overdue rather than optional**. It was flight's named counterweight; F2 shipped with its own brake and held its gate, then V1 took the bird to 416.0 against 295.4 and 45.0% of all carrion (**A76**). ⚠ The extra meat is mostly *new* (the pool grows 193 → 221 t), so **B7**'s mass-blind `carcass.decayTicks` may be the better lever; **A62** caps how far the life history itself can honestly go, since the real knob is `ticksPerYear`. Needs ten seeds and per-seed pairs (**D41**) |
 | A79 | **Four of eight species do not name `tree`**, so adding a terrain code still shrinks every grazer's preferred habitat _(from 2026-08-03, phase T1)_                             | Open. A general property rather than a fact about trees: an unnamed terrain resolves to neutral 1 while the ground it replaced was weighted above 1, so **any** new code does this to every species that enumerates terrain by name. The leopard (T3) and vulture (V1) have caught up; the four herbivores have not. One weight apiece — ⚠ but it moves four species' habitat at once and wants its own arm, which is why T1 left it out of the gate measuring one terrain type |
-| A80 | **Founding cohorts are built, gated, and shipped off** — `config.cohorts.clustered` is `false` _(2026-08-04)_                                                                   | Open **by decision, not by defect**. The mechanism works and the gate's stated bar is met (10 seeds × 15 000: every species ≥6/10, worst 9/10). It is off because the *evidence does not support flipping it*. Per-seed pairs (**D41**) resolve exactly one effect — the **lion**, up on 8 of 10 seeds (12.7 → 15.9), which is the social predator being founded as prides. Every other mean is a coin flip in the ordering: leopard 4up/6down, hyena 2up/5down/3tie, vulture 3up/7down, gazelle 5up/4down/1tie despite a +11.5 mean. ⚠ It costs the leopard a seed (10/10 → 9/10, starvation deaths 2 → 8), and **D14** says a one-seed disagreement at ten seeds needs more seeds rather than a parameter. ⚠⚠ And it makes **A56** materially worse: group foundings 8818 → 15388 (+75%) with peak concurrent groups *down* 12 → 10, which is churn rather than society. **Fix A56's hysteresis first**, then re-run this gate — the two are now entangled and the order matters |
+| A80 | **Founding cohorts ship on, on a gate that passed rather than convinced** — `config.cohorts.clustered` is `true` _(2026-08-04)_                                                  | Open as a **watch item**, not a defect. The gate's bar is met (10 seeds × 15 000: every species ≥6/10, worst 9/10) but per-seed pairs (**D41**) resolve exactly one effect — the **lion**, up on 8 of 10 seeds (12.7 → 15.9), the social predator founded as prides. Every other mean is a coin flip in its ordering: leopard 4up/6down, hyena 2up/5down/3tie, vulture 3up/7down, gazelle 5up/4down/1tie despite a +11.5 mean. ⚠ It costs the leopard a seed (10/10 → 9/10, starvation 2 → 8); **D14** says that wants more seeds rather than a parameter. ⚠ Its honest claim is narrow: group count and size converge on the scattered world's by tick 10 000 (7.5 × 5.3 against 7.8 × 5.3), so what it buys is a world that **starts** where it was going to end up, not a more social one. ⚠⚠ Group foundings rose 8818 → 15388 (+75%), which makes **A56**'s hysteresis fix worth building — three clan-forming species now flap against it. **Still to do: re-baseline `npm run benchmark`** (denser tick-0 neighbourhoods change perception cost) |
 | A3  | **Individual tree/shrub entities.** Vegetation is a cell-level biomass field, not thousands of plant entities                                                                  | Open. The `plant` entity kind is reserved for them. Needed only by a step that wants _point_ vegetation                                                                                                                                                                                                                                          |
 | A5  | **Renderer debug overlay of perceived cells**                                                                                                                                  | Open — a later renderer pass                                                                                                                                                                                                                                                                                                                     |
 | A7  | **Action glyph tint.** The current action is textual in the inspector only                                                                                                     | Open — `action` already rides in the bulk snapshot, so this is renderer-only work                                                                                                                                                                                                                                                                |
@@ -1222,7 +1222,7 @@ contrast is the design rather than a coincidence of tuning:
 | speed | 0.1 (a crawl) | **0.9** (walking) |
 | blocks sight | yes (opacity 1) | **no** (concealment 0.4) |
 | shelters | yes | yes |
-| grows grass | **no** (suitability 0) | **yes** (suitability 1) |
+| grows grass | **no** (suitability 0) | **no** (suitability 0) |
 
 A thicket is somewhere an animal is kept *out* of by the movement system; a tree
 is somewhere it walks under without noticing. ⚠ The speed is 0.9 rather than
@@ -1249,13 +1249,10 @@ stand — and `#scatterTrees` returns **before its first draw** when both counts
 are 0. That is what made the layer provably inert: seeds 1/2/42 × 1500 ticks,
 byte-identical to a clean HEAD checkout on state, terrain **and** vegetation.
 
-⚠ **Grass grows under a tree, and `vegetation.treeSuitability` must stay above
-0.** `VegetationGrid#seed` draws fertility for every cell but initial biomass
-only where capacity is positive, so a suitability that crossed zero would add or
-remove a draw and **re-roll the entire vegetation field** of every wooded seed.
-At the shipped 1 the field is byte-identical to the treeless one, which also
-keeps T1's population measurements attributable to shelter and concealment rather
-than to forage. A shade discount is a later, separately-measured change.
+⚠ **A tree cell is grass-free.** `VegetationGrid` gives trees zero carrying
+capacity, and both initial seeding and regrowth leave them at zero biomass. The
+initial-biomass RNG draw is still consumed for unsuitable cells, so removing
+grass from tree cells does not shift the seeded vegetation values elsewhere.
 
 _Measured 2026-08-03, ten-seed gate, `treeGroves: 8, treeSingles: 60` against
 `0/0` on the same seeds × 15 000 ticks._ Trees are **2.45% of the map**, taking
@@ -3323,31 +3320,44 @@ hops; and no founding cluster exceeds `groups.maxMembers`, since placing animals
 together that the registry then refuses to enrol reads as a bug in the registry
 rather than as the arithmetic it is. A test asserts the second against the config.
 
-⚠⚠ **Ships `clustered: false`, and it is worth reading why, because the gate
-passed.** Measured 2026-08-04, 10 seeds × 15 000 ticks against a
+#### What the gate said, and what it did not
+
+**On since 2026-08-04**, and the measurement is recorded in full because it is a
+pass rather than a clean win. 10 seeds × 15 000 ticks against a
 `clustered=false` control: every species alive on 10/10 seeds bar the leopard on
 9/10, well clear of the ≥6/10 bar, with the gazelle at 51 → 62.5, the buffalo
-48.1 → 56 and the lion 12.7 → 15.9. Reported as means, that reads as a clean win.
+48.1 → 56 and the lion 12.7 → 15.9. Reported as means, that reads as a clear win.
 
-**Per-seed pairs say otherwise, and they are the honest instrument here (D41).**
+⚠⚠ **Per-seed pairs say much less, and they are the honest instrument (D41).**
 Exactly one effect survives: the **lion**, up on 8 of 10 seeds — the social
 predator founded as prides, which is the result the mechanism actually predicts.
 Everything else is a coin flip in its ordering (leopard 4up/6down, hyena
 2up/5down/3tie, vulture 3up/7down, and the gazelle 5up/4down/1tie *despite* its
-+11.5 mean, which two outlier seeds carry). It also costs the leopard a seed,
-and D14 says a one-seed disagreement at ten seeds wants more seeds rather than a
-parameter.
++11.5 mean, which two outlier seeds carry). It also costs the leopard a seed
+(starvation deaths 2 → 8), and D14 is explicit that a one-seed disagreement at
+ten seeds wants more seeds rather than a parameter.
 
-The blocking finding is a different one. Group **foundings** rose 8818 → 15388
-(+75%) while **peak concurrent groups fell** 12 → 10: more founding producing
-fewer standing groups is **A56**'s two-member flapping, amplified by giving it
-three clan-forming species to do it with. A56 deferred its hysteresis fix until
-there was more than one such species to tune against — this is the change that
-makes that fix pay, and it should come first. The whole item is **A80**.
+⚠ **What clustering actually buys is the first ten thousand ticks, not a
+different world.** Measured over six seeds, group count and mean size converge on
+the scattered world's by tick 10 000 — **7.5 groups × 5.3 members against
+7.8 × 5.3**. The difference is all early: at tick 1 the clustered world holds
+~6 groups of ~4.7 and the scattered world holds *none*, and at tick 1000 it is
+6.0 × 4.6 against 8.5 × 3.2 — the same animals in fewer, fuller groups. So the
+claim this mechanism can support is that the world **starts** the way it was
+going to end up, which is exactly what a founding condition should do and is not
+the same claim as "more sociality".
 
-⚠ This is the shape §20 warns about from the other side. The gate is a verdict
-and it said pass; the thing that decided the outcome was a cheap per-seed
-reading taken *after* it, and a churn statistic the gate reports for free.
+⚠⚠ **It sharpens A56, and that is the cost to watch.** Group foundings rose
+8818 → 15388 (+75%) across the gate. Peak concurrent groups fell 12 → 10, but
+the size measurement above says that is fewer-and-fuller rather than churn, so
+the founding count is the honest signal and the peak is not. A56's two-member
+flapping now has three clan-forming species to do it with, and its deferred
+hysteresis fix has become worth building. **A80** carries the whole reading.
+
+⚠ The transferable part is the shape: the gate is a verdict and it said pass, and
+two cheap measurements taken *after* it — per-seed pairs, and group size beside
+group count — are what turned a headline result into an accurate one. Neither
+needed a second gate.
 
 ### Territory and home range
 
@@ -4563,7 +4573,7 @@ populations for stochastic runs.
 | —   | Worn-path sandbox            | a trail due east bends wander headings                    | mean cos(heading) > trail-free control                                   |
 | —   | Shared-walk equivalence      | the two neighbour paths agree                             | 400 demo ticks byte-identical                                            |
 | —   | Clan sandbox                 | an invented group-forming species founds, joins, separates, and dissolves | membership outlives a separation the herd label does not; a clan-forming world and a control are identical animal for animal |
-| —   | Founding cohorts             | the demo world founded in herds, prides, clans and roosts rather than scattered | herd labels and `world.groups` records exist on tick 1 and outnumber a scattered control's, though placement writes neither; the leopard, which declares no `cohort`, is drawn from the same distribution in both arms; the off arm is byte-identical to the default world |
+| —   | Founding cohorts             | the demo world founded in herds, prides, clans and roosts rather than scattered | herd labels and `world.groups` records exist on tick 1 and outnumber a scattered control's, though placement writes neither; the leopard, which declares no `cohort`, is drawn from the same distribution in both arms; the off arm still hashes to the pre-clustering placement, held as a **recorded digest** because the world it reproduces is no longer the default one |
 | —   | Carcass-possession sandbox   | two carnivores, one body: the holder eats, the weaker waits, the stronger takes it | the weaker gains no energy while the claim stands; a clanmate does; the disabled control is the exact id-ordered queue |
 | —   | Forage-guild sandbox         | a short-grass grazer settles on the flush and walks off the rank sward; a tolerant one stays | the same two cells rank oppositely for the two species; a starving animal eats either; the demo gazelle feeds on visibly shorter grass than a preference-off control |
 | —   | Habitat sandbox              | a cover-liking animal drifts toward cover; a satisfied one still does | the drift exists where no need-cue would produce one; the demo **buffalo** spends more of its life on the open ground it prefers than a preference-off control. ⚠ This asserted the *gazelle's* cover share until phase 11, when a second grazer reversed it — competitive displacement, not a broken cue (§6 of the handoff) |

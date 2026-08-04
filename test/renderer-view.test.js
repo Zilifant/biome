@@ -382,6 +382,13 @@ describe('the grid renderer', () => {
     );
   });
 
+  test('tree terrain remains visible when its cell is bare', () => {
+    const treeGlyph = TERRAIN_APPEARANCE.tree.glyph;
+    const ops = recordDraw([], 0, [], 0, null, 'tree');
+    assert.ok(ops.some((op) => op.glyph === treeGlyph), 'tree is drawn');
+    assert.equal(ops.some((op) => op.glyph === forageGlyph), false, 'forage does not hide the tree');
+  });
+
   test('a carcass covers the ground it is lying on, exactly as an animal does', () => {
     const ops = recordDraw([{ kind: 'carcass', alive: false, decayStage: 0, cellX: 1, cellY: 1 }]);
     const carcass = ops.find((op) => op.glyph === '%');

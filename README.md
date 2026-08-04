@@ -681,18 +681,25 @@ stops instead of becoming a chain reaction that never runs out of fuel. An
 animal that has been warned but has seen nothing itself still runs — away from
 where it was _told_ the danger was.
 
-**Where they start is a mechanism too — and it is switched off.** Founding
-animals are placed independently at uniform random over the whole map, so a lion
-pride begins as eight animals scattered across the world and every social
-structure has to reassemble itself from nothing. `config.cohorts` (2026-08-04)
-lays each cohort down as herds, prides, clans and roosts instead, and needs no
-new social machinery at all to do it: the herd label and the group registry are
-both seeded by _proximity_, so placing bodies together produces both on the first
-tick. It ships `clustered: false`. The ten-seed gate passed and the per-seed
-pairs did not back it up — one real effect (the lion, up on 8 of 10 seeds) and a
-75% rise in group founding with fewer groups actually standing, which is the
-known `A56` churn defect amplified. Fix that first, then re-run. See
-[`ACTION-ITEMS.md`](ACTION-ITEMS.md) **A80**.
+**And the world starts grouped.** Founding animals used to be placed
+independently at uniform random over the whole map, so a lion pride began as
+eight animals scattered across the world and every social structure had to
+reassemble itself from nothing. `config.cohorts` (2026-08-04) lays each cohort
+down as herds, prides, clans and roosts instead — and it needs no new social
+machinery whatsoever, because the herd label and the group registry are both
+seeded by _proximity_. Placing bodies together produces both on the first tick,
+through the systems that already own them; the mechanism writes no social state
+at all. A solitary leopard declares no group size and is still scattered, which
+is the difference stated as data.
+
+⚠ **What that buys is the first ten thousand ticks, not a different world.**
+Group counts and sizes converge on the scattered world's by tick 10 000
+(7.5 groups × 5.3 members against 7.8 × 5.3); at tick 1 the clustered world has
+six real prides and clans and the scattered one has none. Its ten-seed gate
+passed on the stated bar, but only one per-seed effect survives — the lion, up
+on 8 of 10 seeds, which is the social predator founded as prides. See
+[`ACTION-ITEMS.md`](ACTION-ITEMS.md) **A80** for the full reading, including what
+it costs the leopard.
 
 Herding is deliberately the weakest thing an animal can want. It loses to
 hunger, thirst, weather and predators, which is what makes a herd loose and

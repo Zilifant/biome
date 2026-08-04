@@ -209,6 +209,7 @@ describe('sprite slots: ground resolution agrees with groundAppearanceAt', () =>
       { store: storeWith({ vegetation: () => 9 }), cellX: 1, cellY: 1 },
       { store: storeWith({ terrain: () => 'water' }), cellX: 2, cellY: 2 },
       { store: storeWith({ terrain: () => 'thicket' }), cellX: 2, cellY: 2 },
+      { store: storeWith({ terrain: () => 'tree' }), cellX: 2, cellY: 2 },
       { store: storeWith({ terrain: () => null }), cellX: 3, cellY: 3 },
     ];
     for (const { store, cellX, cellY } of cases) {
@@ -220,6 +221,12 @@ describe('sprite slots: ground resolution agrees with groundAppearanceAt', () =>
       assert.equal(slot.glyph, appearance.glyph, slotId);
       assert.equal(slot.colorToken, appearance.colorToken, slotId);
     }
+  });
+
+  test('tree terrain uses the tree slot when its cell is bare', () => {
+    const store = storeWith({ vegetation: () => 0, terrain: () => 'tree' });
+    assert.equal(groundSlotAt(store, 0, 0, world), 'terrain:tree');
+    assert.equal(groundAppearanceAt(store, 0, 0, world), TERRAIN_APPEARANCE.tree);
   });
 
   test('an unmapped terrain name has no slot (glyph fallback instead)', () => {

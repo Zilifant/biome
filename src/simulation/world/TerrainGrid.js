@@ -32,8 +32,8 @@ export const TerrainType = Object.freeze({
   // Tree: standing canopy over open ground — a grove, a pair, or a lone tree on
   // grassland. ⚠ **Deliberately the opposite of thicket in every property but
   // shelter**: barely slower to cross (0.9), *not* sight-blocking (you see past a
-  // scattered canopy), lightly concealing (0.4), and it still grows grass under
-  // it. What it shares with thicket is shade, and what it adds is somewhere to be
+  // scattered canopy), lightly concealing (0.4), and no grass grows in its cell.
+  // What it shares with thicket is shade, and what it adds is somewhere to be
   // *above* — see TREES-FLIGHT-VULTURE-PLAN.md phase T2.
   //
   // ⚠ A terrain code rather than an entity (A3) or a second sparse grid, and the

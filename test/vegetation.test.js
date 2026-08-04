@@ -18,14 +18,14 @@ describe('vegetation grid', () => {
     assert.equal(a.totalBiomass(), b.totalBiomass());
   });
 
-  test('nothing grows on water or rock (suitability zero)', () => {
+  test('nothing grows on water, rock, or trees (suitability zero)', () => {
     const { terrain, vegetation } = makeVegetation(42);
     // Grow to saturation, then confirm unsuitable cells stayed bare.
     for (let i = 0; i < 200; i += 1) vegetation.grow({ growthRate: 0.2, seedFloor: 0.1 });
     for (let y = 0; y < terrain.height; y += 1) {
       for (let x = 0; x < terrain.width; x += 1) {
         const code = terrain.codeAt(x, y);
-        if (code === TerrainType.WATER || code === TerrainType.ROCK) {
+        if (code === TerrainType.WATER || code === TerrainType.ROCK || code === TerrainType.TREE) {
           assert.equal(vegetation.biomassAt(x, y), 0, `growth on unsuitable cell ${x},${y}`);
           assert.equal(vegetation.levelAt(x, y), 0);
         }

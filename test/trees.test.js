@@ -11,10 +11,9 @@ import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
  *
  *   1. **Off leaves no trace.** With both counts at 0 the generator returns
  *      before its first draw, so a world is bit-for-bit the world it was.
- *   2. **On shifts nothing that came before it.** Trees are placed last, so
- *      lakes, rock, cover and thicket land on exactly the same cells with trees
- *      on as with them off — and (because a tree grows grass exactly as well as
- *      the ground it replaced) so does the whole vegetation field.
+ *   2. **Tree cells are not forage cells.** Trees are placed last, so lakes,
+ *      rock, cover and thicket land on exactly the same cells with trees on as
+ *      with them off; tree cells themselves have zero grass capacity.
  *
  * Both are asserted directly rather than inferred from a population number.
  */
@@ -153,22 +152,54 @@ describe('trees: placement', () => {
 });
 
 describe('trees: vegetation', () => {
-  test('⚠⚠ grass grows under a tree, and the vegetation field is unshifted', () => {
-    // The load-bearing half: `#seed` draws initial biomass only where capacity
-    // is positive, so a suitability that crossed zero would re-roll the whole
-    // field of every wooded seed. At treeSuitability 1 the field is identical.
-    const bare = new VegetationGrid({ terrain: grid(TREELESS), seed: 7, params: {} });
-    const wooded = new VegetationGrid({ terrain: grid(WOODED), seed: 7, params: {} });
-    assert.deepEqual(wooded.serialize(), bare.serialize());
+  test('tree cells are bare and stay bare through regrowth', () => {
+    const terrain = grid(WOODED);
+    const vegetation = new VegetationGrid({ terrain, seed: 7, params: {} });
+    let trees = 0;
+    for (let y = 0; y < terrain.height; y += 1) {
+      for (let x = 0; x < terrain.width; x += 1) {
+        if (terrain.codeAt(x, y) !== TerrainType.TREE) continue;
+        trees += 1;
+        assert.equal(vegetation.capacityAt(x, y), 0, `tree cell ${x},${y} has grass capacity`);
+        assert.equal(vegetation.biomassAt(x, y), 0, `tree cell ${x},${y} starts with grass`);
+        assert.equal(vegetation.levelAt(x, y), 0, `tree cell ${x},${y} projects forage`);
+      }
+    }
+    assert.ok(trees > 0, 'the wooded world has trees');
+    for (let i = 0; i < 200; i += 1) vegetation.grow({ growthRate: 0.2, seedFloor: 0.1 });
+    for (let y = 0; y < terrain.height; y += 1) {
+      for (let x = 0; x < terrain.width; x += 1) {
+        if (terrain.codeAt(x, y) !== TerrainType.TREE) continue;
+        assert.equal(vegetation.biomassAt(x, y), 0, `tree cell ${x},${y} regrew grass`);
+      }
+    }
   });
 
-  test('a tree cell carries carrying capacity, unlike a thicket', () => {
+  test('zero-capacity tree cells do not perturb non-tree seeded vegetation', () => {
+    const bare = new VegetationGrid({ terrain: grid(TREELESS), seed: 7, params: {} });
+    const wooded = new VegetationGrid({ terrain: grid(WOODED), seed: 7, params: {} });
+    const terrain = grid(WOODED);
+    for (let y = 0; y < terrain.height; y += 1) {
+      for (let x = 0; x < terrain.width; x += 1) {
+        if (terrain.codeAt(x, y) === TerrainType.TREE) continue;
+        assert.equal(
+          wooded.biomassAt(x, y),
+          bare.biomassAt(x, y),
+          `non-tree vegetation shifted at ${x},${y}`,
+        );
+      }
+    }
+  });
+
+  test('restoring legacy biomass cannot put grass under a tree', () => {
     const terrain = grid(WOODED);
     const vegetation = new VegetationGrid({ terrain, seed: 7, params: {} });
     const [tx, ty] = firstCell(terrain, TerrainType.TREE);
-    const [hx, hy] = firstCell(terrain, TerrainType.THICKET);
-    assert.ok(vegetation.capacityAt(tx, ty) > 0, 'open woodland grows grass');
-    assert.equal(vegetation.capacityAt(hx, hy), 0, 'a dense stand does not');
+    const saved = vegetation.serialize();
+    saved.biomass[ty * terrain.width + tx] = 5;
+    vegetation.restore(saved);
+    assert.equal(vegetation.biomassAt(tx, ty), 0);
+    assert.equal(vegetation.levelAt(tx, ty), 0);
   });
 });
 

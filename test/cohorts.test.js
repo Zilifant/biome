@@ -21,6 +21,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
 
@@ -53,28 +54,36 @@ function meanNearestNeighbour(animals) {
 }
 
 describe('cohorts: off is the previous world, exactly', () => {
-  test('the default config ships clustering off', () => {
-    // ⚠ The gate has not been run yet (DOCS §20). Until it has, the demo world
-    // must be the one every measurement in the docs was taken against.
+  test('the default config ships clustering on', () => {
+    // Flipped 2026-08-04 after the ten-seed gate (A80). ⚠ The gate passed on its
+    // stated bar rather than cleanly — see the config comment and DOCS §9.
     const engine = createDemoSimulation({ seed: 42 });
-    assert.equal(engine.config.cohorts.clustered, false);
+    assert.equal(engine.config.cohorts.clustered, true);
   });
 
-  test('an explicit off arm is byte-identical to the default world', () => {
+  test('the off arm still reproduces the pre-clustering world exactly', () => {
     // The proof that the switch is a true no-op rather than an argument: with
     // `groupSize` resolving to 1 the offset draw never happens, so the
     // `worldgen` stream sees the identical sequence and every downstream stream
     // is untouched. This is §20 step 1 in a test rather than in a session log.
+    //
+    // ⚠ Held as a **digest recorded while the default was still off** rather than
+    // as a live comparison, because the thing being compared against no longer
+    // exists in the tree once `clustered` ships true. It is the same reason the
+    // renderer keeps committed fixtures: a baseline you can still generate is
+    // not a baseline. If this fails, founding placement moved for a world that
+    // asked for none — which is the one change here that would be a defect.
+    const EXPECTED = new Map([
+      [1, '962914c27f1e6f24'],
+      [2, '85c45ea7d8a245fb'],
+      [42, 'e7894e1ca8ee0408'],
+    ]);
     for (const seed of SEEDS) {
-      const plain = createDemoSimulation({ seed });
-      const off = world(seed, false);
-      plain.step(50);
-      off.step(50);
-      assert.equal(
-        JSON.stringify([...off.world.entities.all()]),
-        JSON.stringify([...plain.world.entities.all()]),
-        `seed ${seed}: the off arm diverged from the default world`,
-      );
+      const digest = createHash('sha256')
+        .update([...world(seed, false).world.entities.all()].map((e) => `${e.speciesId}:${e.x},${e.y}`).join('|'))
+        .digest('hex')
+        .slice(0, 16);
+      assert.equal(digest, EXPECTED.get(seed), `seed ${seed}: unclustered founding placement moved`);
     }
   });
 
@@ -259,13 +268,11 @@ describe('cohorts: the switch cannot be overridden by a species', () => {
   test('clustering off ignores every species cohort block', () => {
     // Not merely that the world is unchanged, but that it is unchanged *because*
     // the resolution never reaches the species — the gazelle declares a group
-    // size of 20 and is still placed one per anchor.
-    const off = cohortOf(world(42, false), 'herbivore.gazelle');
-    const plain = cohortOf(createDemoSimulation({ seed: 42 }), 'herbivore.gazelle');
+    // size of 20 and is still placed one per anchor, which is visible as a
+    // nearest-neighbour distance the clustered arm gets nowhere near.
     assert.ok(getSpecies('herbivore.gazelle').cohort.groupSize > 1, 'the gazelle declares a real group size');
-    for (let i = 0; i < off.length; i += 1) {
-      assert.equal(off[i].x, plain[i].x);
-      assert.equal(off[i].y, plain[i].y);
-    }
+    const off = meanNearestNeighbour(cohortOf(world(42, false), 'herbivore.gazelle'));
+    const on = meanNearestNeighbour(cohortOf(world(42, true), 'herbivore.gazelle'));
+    assert.ok(off > on * 3, `the off arm clustered anyway: ${off} against ${on}`);
   });
 });

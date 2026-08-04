@@ -29,12 +29,12 @@ const MONO_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 
 /**
- * What a cell's ground looks like, in the protocol's own precedence: cells
- * beyond the world edge, then vegetation where a cell carries any, then the
- * terrain beneath it. Shared by the terrain pass and the selection overlay so
- * the two can never disagree about what is under a selected cell. Exported so
- * an alternative grid renderer (SpriteGridRenderer) shares the same precedence
- * rather than re-deriving it.
+ * What a cell's ground looks like: cells beyond the world edge, then the tree
+ * marker (which must remain visible through the grass that grows beneath it),
+ * then vegetation, then the terrain beneath it. Shared by the terrain pass and
+ * the selection overlay so the two can never disagree about what is under a
+ * selected cell. Exported so an alternative grid renderer (SpriteGridRenderer)
+ * shares the same precedence rather than re-deriving it.
  * @param {import('../state/RendererStore.js').RendererStore} store
  * @param {number} cellX @param {number} cellY
  * @param {{width: number, height: number} | null} world
@@ -42,9 +42,13 @@ const MONO_STACK =
 export function groundAppearanceAt(store, cellX, cellY, world) {
   const inWorld = world && cellX >= 0 && cellY >= 0 && cellX < world.width && cellY < world.height;
   if (!inWorld) return TERRAIN_APPEARANCE.outOfBounds;
+  const name = store.terrainNameAt(cellX, cellY);
+  // Trees are the one terrain marker that cannot yield to vegetation: tree
+  // cells intentionally support grass, so the old vegetation-first order made
+  // every generated tree disappear behind its forage glyph.
+  if (name === 'tree') return TERRAIN_APPEARANCE.tree;
   const vegetation = resolveVegetationAppearance(store.vegetationLevelAt(cellX, cellY));
   if (vegetation) return vegetation;
-  const name = store.terrainNameAt(cellX, cellY);
   return name ? resolveTerrainAppearance(name) : TERRAIN_APPEARANCE.ground;
 }
 

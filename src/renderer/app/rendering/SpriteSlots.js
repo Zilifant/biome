@@ -210,8 +210,8 @@ export function slotIdForEntity(entity) {
 
 /**
  * The slot a ground cell draws from, sharing groundAppearanceAt's precedence
- * (out-of-bounds → vegetation where a cell carries any → terrain). Returns
- * null where the ASCII path would fall back to the `unknown` terrain
+ * (out-of-bounds → tree → vegetation where a cell carries any → terrain).
+ * Returns null where the ASCII path would fall back to the `unknown` terrain
  * appearance — an unmapped terrain name has no slot, and the sprite renderer
  * draws the fallback glyph instead.
  * @param {import('../state/RendererStore.js').RendererStore} store
@@ -222,11 +222,15 @@ export function slotIdForEntity(entity) {
 export function groundSlotAt(store, cellX, cellY, world) {
   const inWorld = world && cellX >= 0 && cellY >= 0 && cellX < world.width && cellY < world.height;
   if (!inWorld) return 'terrain:outOfBounds';
+  const name = store.terrainNameAt(cellX, cellY);
+  // Keep the tree visible through the grass that grows beneath it, matching
+  // groundAppearanceAt. Without this branch sprite mode would select a
+  // vegetation slot while its fallback glyph selected the tree slot.
+  if (name === 'tree') return 'terrain:tree';
   const level = store.vegetationLevelAt(cellX, cellY);
   if (VEGETATION_APPEARANCE[level] ?? (level > 0 ? VEGETATION_APPEARANCE.at(-1) : null)) {
     return `vegetation:${Math.min(level, VEGETATION_APPEARANCE.length - 1)}`;
   }
-  const name = store.terrainNameAt(cellX, cellY);
   if (!name) return 'terrain:ground';
   return name !== 'unknown' && TERRAIN_APPEARANCE[name] ? `terrain:${name}` : null;
 }

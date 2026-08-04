@@ -12,7 +12,7 @@ import { TerrainType } from './TerrainGrid.js';
  * snapshot projection and per-tick deltas can be gated cheaply.
  *
  * Suitability (which cells can grow anything) is authoritative and derived
- * from terrain: rock and water support no vegetation.
+ * from terrain: rock, water, thicket, and tree cells support no grass.
  */
 
 const EPSILON = 1e-6;
@@ -24,7 +24,6 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
   initialFraction: 0.5, // initial biomass as a fraction of capacity (× random)
   minFertility: 0.55, // per-cell fertility varies in [minFertility, 1]
   coverSuitability: 1.35, // cover terrain is more fertile than open ground
-  treeSuitability: 1, // ⚠ open woodland grows grass; must stay > 0 (see suitabilityFor)
   quantizeLevels: 4, // biomass projects to integer levels 0..quantizeLevels
   // Edge forage taper (off here; the demo world turns it on). Carrying capacity
   // ramps from 0 at the map boundary up to full over an inland band, so grazers
@@ -39,28 +38,20 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
 });
 
 /**
- * Terrain suitability multiplier for vegetation. Rock and water grow nothing.
- *
- * ⚠ **A code that returns 0 here removes a draw from `#seed`** — see the note
- * there. Adding a terrain type to this switch with a positive value is free;
- * adding one that returns 0 (or moving an existing one to 0) re-rolls the whole
- * vegetation field of every world that contains it.
+ * Terrain suitability multiplier for vegetation. Trees are canopy/trunk cells,
+ * not grass cells, so they deliberately have no carrying capacity.
  *
  * @param {number} terrainCode
  * @param {number} coverSuitability
- * @param {number} treeSuitability
  */
-function suitabilityFor(terrainCode, coverSuitability, treeSuitability) {
+function suitabilityFor(terrainCode, coverSuitability) {
   switch (terrainCode) {
     case TerrainType.GROUND:
       return 1;
     case TerrainType.COVER:
       return coverSuitability;
-    // Open woodland is grassland with trees standing in it, so the floor grows
-    // grass. Thicket falls through to 0 with rock and water: a dense stand does
-    // not.
     case TerrainType.TREE:
-      return treeSuitability;
+      return 0;
     default:
       return 0; // water, rock, thicket
   }
@@ -216,24 +207,25 @@ export class VegetationGrid {
   /**
    * Seed static carrying capacity (terrain suitability × per-cell fertility ×
    * optional edge taper) and an initial biomass field. Two draws per cell, fixed
-   * order → seeded and deterministic.
+   * order → seeded and deterministic. The initial-biomass draw is consumed even
+   * for unsuitable cells so adding a zero-growth terrain does not shift the
+   * vegetation values of later cells.
    *
-   * The taper multiplies the *stored* capacity but not the draw decision: both
-   * draws still happen exactly when `suitability > 0`, as before, so turning the
-   * taper on shifts no part of the RNG stream — only the capacity and initial
-   * biomass values in the edge band change. Initial biomass is clamped to the
-   * tapered capacity so an edge cell never starts above what it can sustain.
+   * The taper multiplies the *stored* capacity but not the draw decision. Initial
+   * biomass is clamped to the tapered capacity so an edge cell never starts above
+   * what it can sustain.
    */
   #seed(random, terrain, params, taper) {
     for (let y = 0; y < this.#height; y += 1) {
       for (let x = 0; x < this.#width; x += 1) {
         const i = this.#index(x, y);
-        const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability, params.treeSuitability);
+        const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability);
         const fertility = random.float(params.minFertility, 1);
         const baseCapacity = suitability > 0 ? this.#capacity * suitability * fertility : 0;
         const capacity = taper !== null && baseCapacity > 0 ? baseCapacity * taper(x, y) : baseCapacity;
         this.#capacityPerCell[i] = capacity;
-        this.#biomass[i] = baseCapacity > 0 ? Math.min(capacity, baseCapacity * random.float(0, params.initialFraction)) : 0;
+        const initialBiomass = random.float(0, params.initialFraction);
+        this.#biomass[i] = baseCapacity > 0 ? Math.min(capacity, baseCapacity * initialBiomass) : 0;
       }
     }
     this.#revision += 1;
@@ -295,7 +287,12 @@ export class VegetationGrid {
   grow({ growthRate, seedFloor, capacityScale = 1, diebackRate = 0.04 }) {
     for (let i = 0; i < this.#biomass.length; i += 1) {
       const fullCapacity = this.#capacityPerCell[i];
-      if (fullCapacity <= 0) continue;
+      if (fullCapacity <= 0) {
+        // Also cleans up any legacy/restored biomass in a cell that is no
+        // longer suitable, including tree cells after this rule changed.
+        if (this.#biomass[i] > 0) this.#biomass[i] = 0;
+        continue;
+      }
       const capacity = fullCapacity * capacityScale;
       const biomass = this.#biomass[i];
       if (biomass > capacity) {
@@ -375,7 +372,14 @@ export class VegetationGrid {
   /** @param {ReturnType<VegetationGrid['serialize']>} saved */
   restore(saved) {
     this.#biomass = Float32Array.from(saved.biomass);
-    this.#revision = saved.revision;
+    let sanitized = false;
+    for (let i = 0; i < this.#biomass.length; i += 1) {
+      if (this.#capacityPerCell[i] <= 0 && this.#biomass[i] > 0) {
+        this.#biomass[i] = 0;
+        sanitized = true;
+      }
+    }
+    this.#revision = (saved.revision ?? 0) + (sanitized ? 1 : 0);
   }
 }
 
