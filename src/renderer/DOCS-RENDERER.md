@@ -1031,6 +1031,12 @@ species, and any number of conditions can ride along.
   as _up_ at the floor, and because **colour is the channel that actually has to
   carry a mark at 10px** — which is what the no-shared-colour test is protecting.
   This is not an invitation to a fourth shape.
+- ✅ **The `up a tree` mark gained a second species with no renderer change at all**
+  (2026-08-04, engine phase V1: the vulture now climbs as well as the leopard). The
+  predicate is `elevation === 1`, which is a fact about an entity rather than about a
+  species — so a mechanism spreading to another animal costs the renderer nothing,
+  the same claim §9 makes for a species batch, one level up. ⚠ In practice it will be
+  almost unseen: the engine measures a vulture aloft ~0.01% of the time (its A75).
 - ⚠ **`flying` is drawn cyan, which is the water reservation, and that is
   deliberate rather than an oversight.** A status is a small mark in the cell's
   _upper-left corner_, never a fill and never a glyph colour, so it cannot be

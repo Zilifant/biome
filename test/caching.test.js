@@ -29,6 +29,7 @@ import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const LEOPARD = getSpecies('predator.leopard');
 const HYENA = getSpecies('scavenger.hyena');
+const VULTURE = getSpecies('scavenger.vulture');
 
 function sandbox({ seed = 5, config = {} } = {}) {
   const engine = new SimulationEngine({
@@ -206,5 +207,31 @@ describe('caching: hauling and hoisting', () => {
     cat.energy = cat.maxEnergy * 0.1;
     engine.step(1);
     assert.equal(cat.action, 'eat', 'the climber feeds on its own cache');
+  });
+
+  test('⚠⚠ but a vulture can, from 2026-08-04 — the cache is proof against the clan, not against the air', () => {
+    // Phase V1 gives the vulture `climbs: true` so it can roost, and `climbs` is
+    // the same flag `reachesCarcass` tests — so the bird reaches a cached kill and
+    // the clan still does not. That is ecologically right (a vulture gets into a
+    // leopard's larder; a hyena cannot) and it **partly reverses T3**, whose
+    // measurable half was that caching moved carrion off the birds as well as off
+    // the clan.
+    //
+    // ⚠ T3's stated claim survives exactly as written, and that is why this is a
+    // refinement rather than a regression: the leopard's own file says *"this
+    // leopard cannot protect a kill from the hyena clan"*, and it still can. It
+    // simply cannot protect one from above.
+    const engine = sandbox();
+    plantTrees(engine, 14);
+    spawnAnimal(engine, LEOPARD, { x: 10.5, y: 10.5 });
+    const carcass = spawnCarcass(engine, { x: 10.5, y: 10.5 });
+    for (let t = 0; t < 40 && carcass.elevation !== CANOPY; t += 1) engine.step(1);
+    assert.equal(carcass.elevation, CANOPY, 'precondition: it got cached');
+
+    const bird = spawnAnimal(engine, VULTURE, { x: carcass.x, y: carcass.y, energyFraction: 0.2 });
+    const hyena = spawnAnimal(engine, HYENA, { x: carcass.x, y: carcass.y, energyFraction: 0.2 });
+    engine.step(1);
+    assert.equal(bird.action, 'eat', 'the bird reaches what the clan cannot');
+    assert.notEqual(hyena.action, 'eat', 'and the clan is still refused');
   });
 });

@@ -73,13 +73,13 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1127 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, and +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| Tests                 | **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
 | `PROTOCOL_VERSION`    | **32** — `flying` in bulk snapshots (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | **31** — `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eleven** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30, `climbs` on 2026-08-03, **`flight` on 2026-08-04** (§8). ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all eleven fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
-| Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). The **leopard** is the only climber, and caches kills (phase T3). See §7 Terrain |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eleven** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30, `climbs` on 2026-08-03, **`flight` on 2026-08-04** (§8). ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all eleven fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
+| Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
 | Flight                | **A pace on the intent, not a simulation of flight** — `entity.flying`, added 2026-08-04 (phase F1). Faster travel with the terrain modifier bypassed, a wider sight radius, cheaper distance, nothing refusing the step, and out of reach of predation and fire. No altitude, no thermals, no takeoff cost. The **vulture** is the only flier (phase F2), and its ground radius dropped 14 → 9 so that flying restores exactly the 14 it had — the world's widest radius does not move. See §9 Movement |
 | Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1, TREES-FLIGHT-VULTURE-PLAN.md): scattered canopy over open ground, 2.45% of the demo map, shade + light concealment + near-open going. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
@@ -239,6 +239,69 @@ named, unbuilt, and the reason a flying animal's status mark blinks (renderer P1
 Real mechanisms that demonstrably almost never fire in the demo. Recorded
 because "implemented" and "doing visible work" are different claims.
 
+**⚠⚠ A75 — Roosting is inert by construction: this engine can express a *place*,
+not a *rest*** _(opened 2026-08-04, phase V1)_
+
+The vulture declares `climbs: true` and `habitat: { tree: 1.6 }`, and **the cue is
+live** — the weight resolves, a cue radius exists for it to act through, and the
+gradient points at trees, all unit-asserted on the shipped species. ⚠ What cannot be
+shown is that it changes **where the bird ends up**: the tree share reads 2.0% → 2.8%,
+and an arm containing no steering mechanism at all reads *higher* than the cue's. See
+**A72** and **D40**.
+
+What does not happen is the roost. Being in the canopy is `elevationFor`'s
+conjunction of a tree cell **and** one of four actions, and for this species two of
+the four are *structurally impossible*:
+
+| canopy action | share of vulture animal-ticks | why |
+| --- | ---: | --- |
+| `hide` | **0%, structurally** | it declares no `aging.hiddenUntil` |
+| `flee` | **0%, structurally** | **nothing hunts a vulture** — the leopard's T3 situation exactly |
+| `shelter` | **0.000%** measured | never chosen; loses to `wander`, `seekMate`, `herd` |
+| `rest` | **0.03–0.11%** measured | a small-tanked scavenger is hungry almost always, and `rest` scales with `1 − max(hunger, thirst)` |
+
+Against a 2.8% tree share the product is ~1 animal-tick in 100 000 — measured at
+**0.000–0.022%**. ⚠ **Both obvious levers are already closed:** scaling `rest` by
+the ground underfoot was declined as born-inert at phase 9 (§9 Habitat) *and would
+not help*, because the problem is that `rest` itself is 0.1%; and a `roost` action
+would compete with foraging, which is §9 Decision's most expensive rule. What would
+close it is a **reason to be still** — a diurnal cycle (**A49**), since a roost is a
+night behaviour and this world has no night. A49 had no concrete consumer before
+this; now it has one.
+
+⚠ **The phase is not therefore empty**, and this is the part worth carrying: the
+`climbs` flag it needed has a *second* consequence the plan never named — a bird
+that can perch in a tree can reach a **cached** kill (`reachesCarcass` tests the
+same flag). That is the measurable half. See §7 Terrain, kill caching.
+
+**⚠⚠ A76 — V1 moved the vulture +41% and the lion −21%, and which of its three lines
+did it is not established** _(opened 2026-08-04, phase V1)_
+
+The ten-seed gate **passes** — every species 10/10 except the gazelle at 9/10 in
+**both** arms, losing the same seed at the same tick — and the control (a copied tree
+with the species file reverted, since `--set` cannot reach a species field) reproduced
+F2's own gate number for number, so the comparison is sound. What it says:
+
+| | V1 on | control (= F2) |
+| --- | ---: | ---: |
+| vulture mean | **416.0** | 295.4 |
+| vulture share of all carrion | **45.0%** (99.5 t) | 35.6% (68.6 t) |
+| lion mean | **12.7** | 16.1 |
+| lion share of all carrion | **29.0%** (64.1 t) | 36.0% (69.5 t) |
+| hyena mean | 8.4 | 6.4 |
+
+⚠ **The extra meat is mostly new rather than stolen**: the carrion pool grows
+193 → 221 tonnes and the vulture's +31 t is close to the pool's +28 t. That is a
+compounding loop — more birds, more bird carcasses (2872 deaths against 2079, nearly
+all of age), more carrion, more birds — running on **B7**'s mass-blind
+`carcass.decayTicks`. The lion's loss is real but secondary.
+
+⚠ **A 5-seed decomposition at 6000 ticks cannot attribute it** (off 40.8, `climbs`
+39.8, `cue` 41.6, both 46.8): the divergence is almost entirely after t10 000, since
+the bird goes 34 → 117 → 416 across the run. **Until it is attributed, V1 makes
+F2-without-V3 worse rather than better**, which the plan's §9 names as the one
+combination to avoid — so V3 stops being an optional counterweight.
+
 **A73 — Kill caching moved carrion off the hyena** _(from 2026-08-03, phase T3)_
 
 The mechanism works and every link is attributable (§7 Terrain, kill caching):
@@ -257,6 +320,13 @@ mechanisms in two days have moved carrion off the hyena and no single gate sees 
 pair** — which is the general hazard of measuring each phase against its own control:
 a species can be inside every individual gate and outside the sum of them. Read this
 item before phase V2.
+
+⚠ **V1 then moved it back, and that sharpens the item rather than closing it.** The
+clan recovers to 8.4 (from 6.4) while the **lion** drops 16.1 → 12.7 and the vulture
+gains 41% (**A76**). Three consecutive phases have reshuffled the same guild's
+carrion, each measured only against its own control, and **which species ends up
+short depends on which pair you compare.** The hyena is the example; the item is the
+arithmetic.
 
 **⚠ A72 — The habitat preference's effect on the demo is no longer separable
 from noise** _(from 2026-08-03, phase T1)_
@@ -296,6 +366,24 @@ mechanism is competing for the same ground.** The lever, if this is revisited, i
 a world built to show it (A31's shape) rather than a fifth occupancy share.
 Related: phase T3 will give species a `tree` weight, which is the first new thing
 for the cue to act on since phase 9.
+
+⚠⚠ **A fifth occupancy share was written anyway at phase V1 (2026-08-04), and this
+time the null control caught it before anyone believed it.** The vulture's share of
+ticks on tree cells reads **2.0% → 2.8%** with its new `tree: 1.6` preference on —
+a clean-looking +38% on every arm and every seed. Then the three lines were run
+separately over 5 seeds × 6000 ticks, and the arm containing **no steering mechanism
+whatsoever** (`climbs` alone) read **3.65%** against the actual cue's **2.94%** and
+the control's 2.83%. The null arm beat the mechanism, and per seed the ordering is
+arbitrary — so the sweep cannot resolve its own claim.
+
+**The transferable method, which this item did not previously state:** *run the arm
+that should not be able to change the number.* A control that shares the phase's
+perturbation but not its mechanism is the only thing that distinguishes an effect
+from divergence — and it is cheap, because it is usually one field. V1's habitat
+claim is therefore asserted as a **cue** on the shipped species
+(`test/habitat.test.js`: the weight resolves, a radius exists for it to act through,
+that radius exceeds even the bird's *flying* sight, and the gradient points at the
+trees) and not as an occupancy number.
 
 **⚠ A34 — Patrolling / site fidelity** _(from Step 24)_
 
@@ -597,7 +685,7 @@ reminder.
 | A46 | **Disturbance mortality is rare in the demo** — 0–12 deaths across ten seeds, against **852 burns** over the same runs                                                         | _Settled._ A region covers ~1% of the map and animals walk out of it, so the cost is local and **sublethal** rather than demographic — the same shape disease turned out to have. The lethal path is exercised in a controlled test. Making it demographically significant means bigger or more frequent events, which breaks recovery (see D18) |
 | A47 | **Animals do not seek other animals' burrows.** A burrow shelters whoever stands on it, but only trails exert a pull                                                           | Open. Giving burrows one means teaching the perception hot loop about features                                                                                                                                                                                                                                                                   |
 | A48 | **Grazing clearings are not a feature**                                                                                                                                        | _Settled._ Vegetation biomass already drops visibly where animals graze and regrows after; a separate "clearing" would be a second mechanism for something the world already does                                                                                                                                                                |
-| A49 | **"Activity pattern" is not a schema field** — ⚠ half of this item **closed 2026-07-29**                                                                                        | Open, and now only half of what it was: there is still no diurnal cycle for an activity pattern to exist in. **Habitat preference closed** as a per-species `habitat` field consumed by the long-range cue (§9 Migration); it is no longer expressed only through `migration.tracksForage` and the comfort band                                    |
+| A49 | **"Activity pattern" is not a schema field** — ⚠ half of this item **closed 2026-07-29**                                                                                        | Open, and now only half of what it was: there is still no diurnal cycle for an activity pattern to exist in. **Habitat preference closed** as a per-species `habitat` field consumed by the long-range cue (§9 Migration); it is no longer expressed only through `migration.tracksForage` and the comfort band. ⚠⚠ **It gained its first concrete consumer on 2026-08-04** (phase V1): a **roost exists and has no night to want it** — see **A75**. A diurnal cycle is the one lever that can make an animal want to *be still somewhere* without adding an action that competes with foraging, which is why it is A75's honest fix rather than a nicety |
 | A50 | **The species roster is a hand-written import list**, not a directory scan or a runtime-loaded data file                                                                       | _Settled_ — runtime species authoring is explicitly out of scope, and a static import list is the honest form of "species definitions are code"                                                                                                                                                                                                  |
 | A58 | **Perception reports the _nearest_ food cell, not the best-scoring one** _(from 2026-07-29, phase 9)_                                                                       | Open, and a stated bargain rather than an oversight. Forage preference (§9 Feeding) discounts a cell once the animal is standing on it, but perception still picks the nearest cell with anything on it — so a grazer walks to ordinary grass with a better patch two cells further off. Ranking cells by preference means scoring every candidate instead of only cells nearer than the best so far, in the hottest loop in the engine (D28: one extra _argument_ there cost 12% of a tick). ⚠ **Phase 11 found the same limit on the predator side, and there it was decisive:** perception reports the *nearest eligible prey*, so a lion that listed both gazelle and buffalo spent its life on gazelle (six times more numerous) and engaged a buffalo twice in 4000 ticks — batch 2 with neither of phase 10's mechanisms firing. That was solved by narrowing `preySpeciesIds` rather than by ranking candidates, but it is the same bargain and the same fix would close both. ⚠ **Re-examined at batch 3 (2026-07-30), and it did not bite on the herbivore side.** Three grazers now disagree about what a good cell is, and the preference still moved each of them in its declared direction (gazelle −0.97/−1.64 standing crop against the mechanism off, wildebeest −0.51/−0.62, the two bulk feeders ~0) — because the *discount* does the work once the animal is standing there, and a grazer walks to the nearest grass often enough. It stays open on the predator side, where the lion's list went to three entries and the nearest-eligible rule is what decides which of them it lives on |
 | A51 | **Dynamic shrub layer (large bush / small tree)** — a growing, grazable, maturing plant, not a terrain code                                                                    | Open, planned. A dynamic layer mirroring vegetation (seeded capacity + biomass + a woody floor): blocks sight when mature, passable-but-slowing, weather shelter, edible-but-not-preferred with a woody floor once mature (eat the leaves, the trunk and its cover remain), clumped with some mature at init, denser than rock. The static **thicket** terrain is its shipped MVP (§7 Terrain); the growth/grazing/maturity superset is the full build — plan in [`ACTION-ITEMS.md`](ACTION-ITEMS.md). Relates to A3 (reserved `plant` entity) and A18 (refuge). ⚠ **Two shipped limitations now share this one lever**: A57 (a fawn is concealed only if born on cover) and the leopard's ambush ceiling are the same finding from two directions — **cover is 3% of the map**, and more of it raises both with no behavioural change at all |
@@ -1279,10 +1367,23 @@ climb-to-eat/eat/climb-down state machine. A capability test needs none and says
 the thing that matters: **the hyena clan cannot take this kill.** What is given
 up is cosmetic — a feeding leopard is not necessarily drawn up the tree.
 
-**Inert, and proved rather than asserted:** no species declares `climbs`, and the
-demo is byte-identical across seeds 1/2/42 × 1500 ticks with
-`config.climbing.enabled` on and off. Every added predicate is the identity when
-every elevation is 0, and nothing draws.
+⚠⚠ **And on 2026-08-04 that sentence became the exact limit of the claim** (phase
+V1). The vulture declares `climbs: true` so it can roost, and `canClimb` is the
+same flag this predicate tests — so **a bird reaches a cached kill and the clan
+still does not.** Right rather than leaked: a vulture does get into a leopard's
+larder. Measured, the vulture takes 8.9% → 12.1% of the meat off leopard-killed
+bodies, the hyena 17.0% → 13.4%, and the leopard's own share is flat (it is standing
+on its cache and eats first either way). ⚠ The claim survives *as written* because it
+was always about the clan; what is no longer true is the broader reading. **A cache
+is proof against the ground, not against the air.** ⚠ `canClimb` is doing double
+duty — perch *and* larder — and the moment a species needs one without the other is
+the moment to split it.
+
+**Inert when it shipped, and proved rather than asserted:** at phase T2 no species
+declared `climbs` and the demo was byte-identical across seeds 1/2/42 × 1500 ticks
+with `config.climbing.enabled` on and off. Every added predicate is the identity
+when every elevation is 0, and nothing draws. **Two species declare it now** — the
+leopard (T3) and the vulture (V1).
 
 #### Kill caching, and who actually pays for it _(2026-08-03, phase T3)_
 
@@ -1471,6 +1572,18 @@ with `aging.hiddenUntil`, and the shape of the fix is now a rule: **any per-spec
 mechanism that needs a reproducible control puts the switch in a global section and
 the biology in an always-per-species field.**
 
+⚠⚠ **The rule has a limit, and phase V1 found it: when the *whole change* is
+biology, there is no switch to put anywhere** (2026-08-04). V1 is three lines in one
+species file — `climbs: true`, `habitat: { tree: 1.6 }`, `migration.cueRadius: 18` —
+and every one of them is a species field or block, so `--set`/`--controlSet` cannot
+reach any of it and there is no `config.roosting.enabled` for there to be. The same
+is true of F2's `perception.radius` drop. **The only honest control is a second tree
+with the species file reverted**, which doubles a twenty-minute ten-seed gate — and
+⚠ `git stash` will not produce it while more than one phase is uncommitted, because
+stash reverts to HEAD rather than to the previous phase. Budget the copied tree, and
+note what the discipline above does and does not buy: **it protects mechanisms, not
+biology.**
+
 ⚠⚠ **`climbs` (2026-08-03) and `flight` (2026-08-04) are the same rule with the
 test sharpened.** `climbs` is a bare boolean beside `config.climbing`, in `crypsis`'s
 shape. `flight` is an **object** of three multipliers
@@ -1543,7 +1656,7 @@ half the test suite runs engines with different configs in one process.
 | `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
 | `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory. ⚠ From 2026-08-03 the only species that **climbs** — it caches kills in trees, which is what finally closes the limitation its own file has stated since phase 14 |
 | `predator.lion`        | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming           |
-| `scavenger.vulture`    | obligate scavenger    |    6 |     9 (14 flying) | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty. ⚠ From 2026-08-04 the only species that **flies** (phase F2), and the radius drop is the point of the edit rather than a cost of it: 9 × 1.55 restores the 14 it always had, so the world's widest radius never moves |
+| `scavenger.vulture`    | obligate scavenger    |    6 |     9 (14 flying) | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty. ⚠ From 2026-08-04 the only species that **flies** (phase F2), and the radius drop is the point of the edit rather than a cost of it: 9 × 1.55 restores the 14 it always had, so the world's widest radius never moves. ⚠ Also **climbs** (V1) — for a roost that is inert by construction (**A75**) and a leopard's larder that is not |
 | `scavenger.hyena`      | facultative scavenger |   60 |                13 | Hunts gazelle, and wildebeest **calves** — by a mass ratio written two batches earlier that now binds       |
 
 ⚠ **`predator.stalker` became `predator.leopard` on 2026-07-30** (phase 14), which
@@ -3200,14 +3313,26 @@ tried first:
 - ⚠ **It needs a `cueRadius` to act through.** Three of the four shipped species set
   that to 0 deliberately (they track no forage either), so a habitat preference on
   the stalker, vulture, or hyena would have nowhere to act. A cover-loving predator
-  needs a cue radius first — batch-4 work.
+  needs a cue radius first — batch-4 work. ✅ **Needed twice since, by the species
+  predicted and one more:** the leopard went 0 → 8 at phase 14 for cover, and the
+  **vulture 0 → 18** at phase V1 for trees. **Six of the eight species now declare
+  `habitat` and every one carries a non-zero cue** — so this written-down trap has
+  caught nobody, which is what a written-down trap is for. ⚠ The vulture's 18 is set
+  against its **flying** radius (13.95) rather than its ground one (9): a cue is
+  supposed to reach beyond what the animal can see, and for a flier the wider number
+  is what it can see.
 
 **Two candidate consumers `PLAN-SPECIES.md` §3.4 named were declined on
 measurement**, and the reasons matter more than the decision. Scaling `rest` by the
 ground underfoot — "linger where you like it" — is the obvious local half and would
 have been **born near-inert**: `rest` is 0.8–1.6% of animal-ticks in the demo
 (measured 2026-07-29 across four species over 2000 ticks) and is already gated to
-satisfied animals. That is A34's shape exactly. And weighting the **home range**
+satisfied animals. That is A34's shape exactly. ⚠⚠ **That refusal came due at phase
+V1 and was still right** (2026-08-04): roosting is exactly "linger where you like
+it" plus an ascent, and the vulture's `rest` measures **0.03–0.11%** of its
+animal-ticks — so scaling a 0.1% action by terrain could not have produced a roost
+either. The lever is a *reason to be still* (a diurnal cycle, **A49**), not a
+weight; see **A75**. And weighting the **home range**
 would turn a running average of where an animal has actually been into a statement
 of preference, breaking what makes it a measurement; its only consumer, `patrol`, is
 near-inert anyway.
@@ -4245,7 +4370,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-1127 tests, 283 suites _(2026-08-04)_, plus **13 browser spec files in `tests-ui`**,
+1131 tests, 283 suites _(2026-08-04)_, plus **13 browser spec files in `tests-ui`**,
 which are a separate run (`npx playwright test`) and are the only thing that
 exercises the renderer's DOM — see D32 for the class of bug the node suite
 structurally cannot see. Layers:
@@ -4406,6 +4531,8 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | ⚠⚠ D36 | **A mortality label that fires where its behaviour does not is a lie the whole model tells back to you.** `exposure` was assigned at 0.35 °C of thermal stress while the animal would not walk to cover until 2 °C — 127 709 animal-ticks per seed in the gap. So the death log said "froze" about animals that had no reason to move, the ethologist ranked those deaths as preventable-in-place, and the obvious reading was "the shelter behaviour is broken". The shelter behaviour was fine. The **cost** was the problem: thermoregulation was 23–40% of an energy budget, so animals were being taxed to death and the label was pointing at the last thing that touched them | **Read a death cause as a hypothesis, not a datum — and check it against the behaviour the animal actually had available.** Two smells, both present here and both cheap to test: a cause that fires *more often than starvation* in a world where nothing is starving, and a threshold that appears in a label but nowhere in a decision. ⚠ And measure the **energy budget by component** before tuning any of it: "40% of a leopard's expenditure is thermoregulation" is one number that reframes the whole question, and no death-by-cause table contains it |
 | ⚠ D37 | **A mechanism that removes a constraint invalidates every test that asserted the constraint universally, and all three failures look like one bug.** Flight (2026-08-04) makes a step refusable by nothing, so an airborne animal crosses rock and open water — and `test/movement.test.js`, `test/terrain.test.js` and `test/roundness.test.js` each asserted "no animal is ever on an impassable cell". None was trajectory churn and none was a regression; each was a claim that had quietly become **too strong**, and the surviving form is narrower ("no *grounded* animal is") | **Before shipping a mechanism that lifts a restriction, grep for the restriction rather than waiting for the suite.** The tests that break are the ones that state the old rule *universally*, they are findable by text, and re-aiming them is a design decision worth taking deliberately — the movement suite's now asserts the strong form (an animal on an impassable cell **must** be flying), which catches both the old failure and the new one the lift could introduce |
 | ⚠⚠ D38 | **A flicker rate without its breakdown pointed at the wrong mechanism entirely.** Flight is derived from the chosen action, and the plan predicted a committed wander heading would carry the flight state, naming `flight.takeoffCost` as the lever if transitions were high. They were — **289 per 1000 animal-ticks** — and the named lever would have "fixed" it by charging energy for a transition. Breaking the transitions down **by action** showed almost all of them were one pair, `herd` (classified grounded) against `wander` (classified flying): two near-tied discretionary actions that trade places tick by tick, because the *action* is re-chosen every tick even when the heading is committed. Five actions were simply missing from the plan's enumeration; classifying them by its own stated criterion took the rate to 52 | **A rate is a symptom; the breakdown is the diagnosis — and a pre-named lever is a hypothesis, not a fix.** Charging for takeoff would have masked a classification error as an energetics problem, made the mechanism look correctly tuned, and left the underlying rule wrong. When a measurement comes back high and a plan already names the remedy, spend one query on *what is generating the number* before spending the remedy |
+| ⚠⚠ D40 | **An occupancy measurement believed without a null control is trajectory noise wearing a result's clothes.** Phase V1 gave the vulture a `tree: 1.6` habitat preference and measured its share of ticks on tree cells at **2.0% → 2.8%** — +38%, every arm, every seed, exactly the number the phase's plan asked for. Then the three lines were run separately over 5 seeds: the arm with no steering mechanism in it at all (`climbs` alone) read **3.65%** against the actual cue's **2.94%** and the control's 2.83%. **The null arm beat the mechanism**, and the "clean" result had already been written down | **Run the arm that should not be able to change the number.** A control that shares the phase's *perturbation* but not its *mechanism* is the only thing separating an effect from divergence, and it is nearly always one field — far cheaper than the seeds it saves. ⚠ This is A72's finding arriving for the fifth time (three occupancy claims rewritten, two replacements rejected, now this), and A72 had already named the fix: **assert the cue, not the occupancy.** The durable version is a unit test on the real species — the weight resolves, a cue radius exists, and the gradient points at the ground in question — which no sweep can contaminate |
+| ⚠⚠ D39 | **A mechanism that is a *conjunction* of two rare states is inert at the product, and the product is knowable before it is built.** Roosting (phase V1) is "on a tree cell" **and** "doing one of `rest`/`shelter`/`hide`/`flee`". The first is ~2.8% after a habitat cue that works; the second is **0.1%** for the vulture — because two of the four actions are structurally impossible for it (no hidden stage, so no `hide`; nothing hunts it, so no `flee`) and the other two lose to `wander`/`seekMate`/`herd`. Measured time aloft: **0.000–0.022%**, i.e. one animal-tick in ~100 000. The phase's own stated instrument measured only the *first* share, moved as predicted, and therefore could not fail | **Multiply the shares before writing the code.** Two measurements this project already had — `rest` is 0.8–1.6% of animal-ticks, trees are 2.45% of the map — predict the outcome to an order of magnitude, and neither needed a run. ⚠ Two corollaries. **(1) Check whether the conjunction's parts are even reachable for the species in question**: `hide` and `flee` were 0% *by construction*, which no amount of weight fixes and which the roster states plainly (`aging.hiddenUntil`, `preySpeciesIds`). **(2) An instrument aimed at the cue cannot see the outcome** — "share of ticks on tree cells" is a fact about a preference, not about a roost |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
 ---

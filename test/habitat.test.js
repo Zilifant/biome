@@ -511,6 +511,43 @@ describe('habitat preference (A49)', () => {
     );
   });
 
+  test('⚠ the vulture prefers trees, on the shipped roster and not on a synthetic species', () => {
+    // Phase V1 (2026-08-04). ⚠ **This is a mechanism assertion on purpose, and A72
+    // is why.** V1's stated instrument was "share of vulture ticks on tree cells",
+    // and that share cannot be separated from trajectory noise — a *null* change to
+    // the bird's biology moves it as much as the preference does. A72 already says
+    // so in general ("the lever is a world built to show it, not a fifth occupancy
+    // share"), so what is pinned here is that the **cue is live for the real
+    // species**: the weight resolves, there is a radius for it to act through, and
+    // the drift points at trees when trees are what is out there.
+    const engine = sandbox({ species: [] });
+    const vulture = engine.species.require('scavenger.vulture');
+    const weights = habitatOf(vulture);
+    assert.equal(habitatWeightForCode(TerrainType.TREE, weights), 1.6, 'it wants trees');
+    assert.equal(habitatWeightForCode(TerrainType.GROUND, weights), NEUTRAL_WEIGHT, '⚠ and nothing else — one claim');
+    assert.equal(habitatWeightForCode(TerrainType.COVER, weights), NEUTRAL_WEIGHT);
+    // ⚠ A weight with no radius is decorative; this is the pairing the leopard
+    // needed at phase 14 and the vulture at V1.
+    assert.ok(vulture.migration.cueRadius > 0, 'and somewhere for the preference to act');
+    // ⚠ And above what it can see *on the wing* (9 × 1.55), not merely above its
+    // ground radius — a cue is supposed to reach past perception.
+    const flyingRadius = vulture.perception.radius * vulture.flight.visionMultiplier;
+    assert.ok(vulture.migration.cueRadius > flyingRadius, `cue ${vulture.migration.cueRadius} > flying sight ${flyingRadius}`);
+
+    const id = spawn(engine, { speciesId: 'scavenger.vulture', x: 32.5, y: 32.5 });
+    const entity = engine.world.entities.get(id);
+    const terrain = engine.world.terrain;
+    const realCodeAt = terrain.codeAt.bind(terrain);
+    terrain.codeAt = (x, y) => (x > 36 ? TerrainType.TREE : realCodeAt(x, y));
+    const pull = habitatGradient(engine.world, entity, {
+      cueRadius: vulture.migration.cueRadius,
+      reference: engine.config.habitat.cueReference,
+      weights,
+    });
+    assert.ok(pull, 'the woodland is a reason to go somewhere');
+    assert.ok(angleBetween(pull.heading, 0) < 1e-9, `expected due east, got ${pull.heading}`);
+  });
+
   test('the off switch removes the drift entirely', () => {
     const engine = sandbox({ species: [COVER_DWELLER], config: { habitat: { enabled: false } } });
     engine.registerSystem(

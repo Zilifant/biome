@@ -132,11 +132,48 @@ describe('elevation: the predicates', () => {
     // spends it by giving the leopard the mechanism. What stays true, and is the
     // durable form of the claim, is that climbing is *declared*: exactly the
     // species that ask for it get it, and adding a climber is a config edit.
+    // ⚠ The **vulture** joined on 2026-08-04 (phase V1), which is the second time
+    // this list has been edited by a config-only change and no engine change.
     const climbers = engine.species
       .all()
       .filter((species) => !species.id.startsWith('test.') && canClimb(species))
       .map((species) => species.id);
-    assert.deepEqual(climbers, ['predator.leopard'], 'the leopard climbs; nothing else in the roster does');
+    assert.deepEqual(
+      climbers,
+      ['predator.leopard', 'scavenger.vulture'],
+      'the leopard and the vulture climb; nothing else in the roster does',
+    );
+  });
+
+  test('⚠⚠ the vulture ascends correctly and roosting is still inert — both halves matter', () => {
+    // Phase V1's fidelity half, asserted because "inert" must mean *unused*, not
+    // *broken*: put the bird on a tree, have it rest, and it is in the canopy.
+    const engine = sandbox();
+    plantTree(engine, 10, 10);
+    const vulture = engine.species.require('scavenger.vulture');
+    const bird = spawn(engine, { speciesId: 'scavenger.vulture', x: 10.5, y: 10.5 });
+
+    bird.action = 'rest';
+    assert.equal(elevationFor(engine.world, bird, vulture, true), CANOPY, 'a resting bird on a tree is in it');
+    bird.action = 'wander';
+    assert.equal(elevationFor(engine.world, bird, vulture, true), GROUND, 'and a travelling one is not');
+
+    // ⚠⚠ **And the reason it almost never happens, as a property rather than a
+    // measurement.** Being aloft needs a tree cell *and* one of four actions, and
+    // for this species two of the four cannot fire at all: it declares no hidden
+    // stage, so `hide` is impossible, and **nothing hunts it** — no species lists
+    // it in `preySpeciesIds` — so `flee` is unreachable. Measured on the demo, the
+    // remaining two are `shelter` at 0.000% of its animal-ticks and `rest` at
+    // 0.03–0.11%, against a ~2% tree share. That is A75, and it is structural: the
+    // levers are a `roost` action (which would compete with foraging, DOCS §9
+    // Decision) or scaling `rest` by the ground underfoot (declined as born-inert
+    // at phase 9, DOCS §9 Habitat).
+    assert.equal(vulture.aging.hiddenUntil ?? 0, 0, '`hide` cannot fire: no hidden stage');
+    const hunters = engine.species
+      .all()
+      .filter((species) => species.preySpeciesIds?.includes('scavenger.vulture'))
+      .map((species) => species.id);
+    assert.deepEqual(hunters, [], '`flee` cannot fire: nothing hunts a vulture');
   });
 
   test('sharing an elevation is symmetric — a treed hunter cannot reach the ground either', () => {

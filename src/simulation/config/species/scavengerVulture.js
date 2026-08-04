@@ -35,6 +35,16 @@
  * first world where the two contend, and carcass possession (§3.9) is what is
  * supposed to leave this species a living: arrive first, eat, and leave when the
  * big animals come.
+ *
+ * ⚠⚠ **Three phases in two days have made this bird better at the clan's expense,
+ * and that is worth knowing before a fourth.** F2 gave it flight (its carrion share
+ * 33.2% → 35.6%, the hyena's 11.1% → 9.6%), V1 gave it `climbs` and with it access
+ * to a leopard's cached kills (its share of leopard-killed meat 8.9% → 12.1%, the
+ * hyena's 17.0% → 13.4%), and T3's caching had already moved carrion off the clan
+ * before either. Each change passed its own ten-seed gate against its own control;
+ * **no gate saw the other two.** Engine item **A73** carries the running total, and
+ * the plan's phase V2 — a carcass-discovery network for this same species — takes
+ * from the same place a fourth time.
  */
 export const scavengerVulture = Object.freeze({
   id: 'scavenger.vulture',
@@ -153,6 +163,59 @@ export const scavengerVulture = Object.freeze({
   // needs the lake, but a thirsty scavenger far from it needs a long-range steer
   // rather than to circle its patch until it dies. The cue only bends a wander
   // and only while thirsty.
-  migration: Object.freeze({ tracksForage: false, tracksWater: true, cueRadius: 0, dispersalTicks: 500 }),
+  //
+  // ⚠ `cueRadius: 0 → 18` on 2026-08-04 (phase V1), and it is what the `habitat`
+  // block below acts through — the leopard needed exactly this fix at phase 14,
+  // and a habitat preference with no cue radius has nowhere to act at all
+  // (`habitat/habitat.js` says so rather than leaving it to be discovered).
+  //
+  // ⚠ **18 rather than the leopard's 8, because the cue's whole modelling
+  // assumption is that it reaches *beyond* what the animal can see.** This bird
+  // perceives 9 on the ground and 13.95 on the wing (see `flight` above), so
+  // anything at or under ~14 would be a "coarse long-range sense" of ground the
+  // animal is already looking at. 18 is also what the three grazers use, so it is
+  // not a novel number — and the widest-ranging animal in the world is the last
+  // one that should have the shortest cue.
+  migration: Object.freeze({ tracksForage: false, tracksWater: true, cueRadius: 18, dispersalTicks: 500 }),
+  // ⚠⚠ **Woodland preference — and the honest name for what phase V1 delivered**
+  // (`vulture.md` asks for communal roosting and nest-site fidelity).
+  //
+  // One weight and nothing else. Every other terrain stays exactly neutral, which
+  // makes this a single attributable claim — *this bird would rather be in trees* —
+  // and sidesteps the artifact T1 measured, where a species that names `ground`
+  // has its preferred habitat quietly shrunk by every new terrain code. ⚠ A
+  // thicket discount would be a second claim in the same edit (A12), so it is not
+  // here.
+  //
+  // 1.6 is comfortably enough rather than finely tuned: `habitatCueReference` is
+  // 0.3, so a single tree among a ray's two samples already yields a weight
+  // difference of 0.3 and therefore the *full* habitat pull. Anything above ~1.3
+  // behaves identically; the number is chosen to read as "strongly prefers" beside
+  // the leopard's `cover: 1.6`.
+  habitat: Object.freeze({ tree: 1.6 }),
+  // ⚠⚠ **`climbs: true` is what phase V1 is *for*, and roosting is not what it
+  // does.** Two consequences, and only the second one is measurable:
+  //
+  //   - **Roosting is inert by construction, not by tuning**, and this is stated
+  //     up front because the plan expected "a small effect". Being in the canopy is
+  //     `elevationFor`'s conjunction of a tree cell and one of four actions —
+  //     `rest`, `shelter`, `hide`, `flee` — and for *this species* two of the four
+  //     are structurally impossible (it declares no `aging.hiddenUntil`, so `hide`
+  //     cannot fire; **nothing hunts it**, so `flee` cannot either — the leopard's
+  //     phase-T3 situation exactly), `shelter` measured at **0.000%** of its
+  //     animal-ticks, and `rest` at **0.03–0.11%**. Against a ~2% tree share the
+  //     product is one animal-tick in ~100 000. ⚠ The fix is *not* available at
+  //     this layer: making `rest` prefer liked ground was declined as born-inert at
+  //     phase 9 (DOCS §9 Habitat) and a `roost` action would compete with foraging,
+  //     which is DOCS §9 Decision's most expensive rule. Recorded as **A75**.
+  //   - ⚠⚠ **The real effect is that this bird can reach a *cached* kill**, because
+  //     `climbs` is the same flag `predation/possession.js` tests in
+  //     `reachesCarcass`. That is ecologically right — a vulture gets into a
+  //     leopard's larder and a hyena does not — and it partly reverses phase T3,
+  //     whose measurable half was that caching moved carrion off *both* the clan
+  //     and the birds. T3's stated claim survives intact, though, because it was
+  //     always about the clan: *"this leopard cannot protect a kill from the hyena
+  //     clan."* It still can. It simply cannot protect one from the air.
+  climbs: true,
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });

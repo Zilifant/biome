@@ -86,6 +86,22 @@ import { CANOPY, canClimb } from '../locomotion/climbing.js';
  * a decision system that walks an animal to a body the feeding system then
  * refuses leaves it choosing `eat` and starving on the spot (D11).
  *
+ * ⚠⚠ **From 2026-08-04 the answer to "who can climb" has two species in it, and
+ * that changed what this predicate means** (phase V1). The vulture declares
+ * `climbs: true` so it can roost — and this is the same flag — so a **bird now
+ * reaches a cached kill and the clan still does not.** That is right rather than a
+ * leak: a vulture does get into a leopard's larder. Measured, it takes the vulture
+ * from 8.9% to 12.1% of the meat off leopard-killed bodies and the hyena from 17.0%
+ * to 13.4%, with the leopard's own share flat — it is standing on its cache and
+ * eats first either way.
+ *
+ * ⚠ The claim above survives *exactly as written*, which is why this is a
+ * refinement and not a regression: it was always about the clan. What is no longer
+ * true is the broader reading — a cache is proof against the ground, not against
+ * the air. ⚠ **`canClimb` is doing double duty**, and if a species ever needs to
+ * perch without raiding larders, that is the moment to split the flag rather than
+ * the moment to discover it has one meaning too many.
+ *
  * @param {import('../world/World.js').World} world
  * @param {object} carcass @param {object} eater
  * @returns {boolean}

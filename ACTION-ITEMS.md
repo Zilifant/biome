@@ -84,6 +84,29 @@ they are not re-opened by accident.
   so it is not a failure either — but **two mechanisms in two days have now moved
   carrion off the hyena, and no single gate sees the pair.** This is the item to
   re-read before phase V2, whose whole purpose is getting vultures to bodies faster.
+  ⚠ **V1 then went the other way and that does not settle it**: the clan recovers to
+  8.4 (from 6.4) while the **lion** loses 16.1 → 12.7 and the vulture gains 41%
+  (**A76**). So the guild's carrion is being reshuffled by three consecutive phases,
+  each measured only against its own control, and which species ends up short depends
+  on which pair you compare. The generalisation is the item, not the hyena: **a
+  species can sit inside every individual gate and outside the sum of them.**
+
+- **⚠⚠ A76 — V1 moved the vulture +41% and the lion −21%, and which of its three
+  lines did it is not established** _(opened 2026-08-04, phase V1)_. The ten-seed
+  gate passes — every species 10/10 except the gazelle at 9/10 in **both** arms,
+  losing the same seed at the same tick — but a phase expected to do almost nothing
+  took the vulture's mean from **295.4 → 416.0** and its share of all carrion from
+  **35.6% → 45.0%**, with the lion falling 16.1 → 12.7 and 36.0% → 29.0%. ⚠ The extra
+  meat is mostly **new rather than stolen**: the carrion pool grows 193 → 221 tonnes
+  and the vulture's +31 t is close to the pool's +28 t, which is a compounding loop —
+  more birds, more bird carcasses (2872 deaths against 2079, nearly all of age), more
+  carrion — running on **B7**'s mass-blind `carcass.decayTicks`. ⚠ A 5-seed
+  decomposition at 6000 ticks cannot attribute it (off 40.8, `climbs` 39.8, `cue`
+  41.6, both 46.8) because the divergence is almost all after t10 000: the bird goes
+  34 → 117 → 416 across the run. **Until it is attributed, V1 makes F2-without-V3
+  worse rather than better** (the plan's §9 names that as the one combination to
+  avoid), so **V3 is no longer an optional counterweight**. Related: **A73** (three
+  phases now move carrion around the same scavenger guild) and **B7**.
 
 - **A74 — The vertical axis is two flags, not a coordinate, and five things are
   therefore inexpressible** _(opened 2026-08-04, phases T2/F1; the plan's §8 named
@@ -105,6 +128,26 @@ they are not re-opened by accident.
 
 ## Engine — implemented, tested, and near-inert
 
+- **⚠⚠ A75 — Roosting is inert by construction: this engine can express a *place*,
+  but `vulture.md` asks for a *rest*** _(opened 2026-08-04, phase V1)_. The vulture
+  declares `climbs: true` and a `tree` habitat weight, and the cue is **live** — the
+  weight resolves, the radius exists, and the gradient points at trees, all
+  unit-asserted. ⚠ What cannot be shown is that it changes *where the bird ends up*:
+  the tree share moves 2.0% → 2.8%, and a null arm moves it further (see A72). What
+  definitely does not happen is the roost: being in the canopy needs a tree cell **and** one of
+  `rest`/`shelter`/`hide`/`flee`, and for this species two of the four are
+  *structurally impossible* — it declares no `aging.hiddenUntil`, so `hide` does not
+  exist for it, and **nothing hunts it**, so `flee` is unreachable (the leopard's
+  T3 situation exactly). Of the remaining two, `shelter` measures **0.000%** of its
+  animal-ticks and `rest` **0.03–0.11%**. The product is ~1 animal-tick in 100 000,
+  measured at **0.000–0.022%**. ⚠ **Both obvious levers are already closed**:
+  scaling `rest` by the ground underfoot was declined as born-inert at phase 9
+  (DOCS §9 Habitat) and would not help anyway — the problem is that `rest` itself is
+  0.1% — and a `roost` **action** would compete with foraging, which is DOCS §9
+  Decision's most expensive rule. What would actually close it is a **reason to be
+  still**: a diurnal cycle (**A49**) is the honest one, since a roost is a *night*
+  behaviour and this world has no night. Recorded rather than repaired.
+
 - **⚠ A72 — The habitat preference's effect on the demo is no longer separable
   from noise** _(from 2026-08-03, phase T1)_. `habitat` resolves correctly and is
   unit-tested from six directions; what cannot be demonstrated any more is that
@@ -122,6 +165,17 @@ they are not re-opened by accident.
   every one of those four assertions was a claim about *where a species ends up*,
   which is only a signal while nothing else competes for the same ground. The
   lever is a world built to show it (A31's shape), not a fifth occupancy share.
+  ⚠⚠ **The fifth was written anyway, at phase V1 (2026-08-04), and it failed the same
+  way — but this time the null control caught it before it was believed.** The
+  vulture's `tree` share reads 2.0% → 2.8% with the preference on, which looks like a
+  clean +38%; run the three lines separately over 5 seeds and the arm with **no
+  steering mechanism in it at all** (`climbs` alone) reads **3.65%** against the
+  actual cue's **2.94%** and the control's 2.83%. The null arm beats the mechanism,
+  and per seed the ordering is arbitrary. The durable form is what this
+  item already recommends: assert the **cue** (the weight resolves, the radius
+  exists, the gradient points the right way on the real species) and stop measuring
+  occupancy. ⚠ The transferable half is a method: **run the arm that should not be
+  able to change the number.**
 
 - **⚠ A34 — Patrolling / site fidelity.** Ramped over six range radii
   (`patrolSpanFactor: 6`) so it never fires during normal foraging, because
@@ -369,6 +423,13 @@ they are not re-opened by accident.
   field (one weight per terrain name) consumed by the long-range cue, and the
   gazelle uses it. What is still open is the *activity pattern* half — there is no
   diurnal cycle for one to exist in. See [`DOCS.md`](DOCS.md) §9 Migration.
+  ⚠⚠ **It now has its first concrete consumer, which it did not have before**
+  (2026-08-04, phase V1): a **roost exists and has no night to want it** (**A75**).
+  The vulture can be in a tree, prefers wooded ground, and is aloft ~0.01% of the
+  time, because the actions that put it there are all rare or impossible for it. A
+  diurnal cycle is the one lever that makes an animal *want to be still somewhere*
+  without adding an action that competes with foraging — which is what makes this
+  the honest fix for A75 rather than a nicety.
 
 - **A58 — Perception reports the *nearest* food cell, not the best-scoring one**
   _(2026-07-29, phase 9)_. Forage preference discounts a cell once an animal is

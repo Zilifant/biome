@@ -39,13 +39,24 @@
  *     it toward liked ground would make it a statement of preference rather than a
  *     measurement, and `patrol`, its only consumer, is near-inert anyway (A34).
  *
- * ⚠ **A species with no `habitat` field is exactly unaffected**, and so is one
- * whose `migration.cueRadius` is 0 — no cue radius means no long-range sense of
- * any kind, so its preference has nowhere to act. Three of the four shipped
- * species are in that position deliberately (they track no forage either); the
- * gazelle is the one with a cue. Stated rather than left to be discovered: a
- * cover-loving predator will need a cue radius before its habitat block does
- * anything, which is batch-4 work (§3.12).
+ * ⚠⚠ **A species with no `habitat` field is exactly unaffected, and so is one whose
+ * `migration.cueRadius` is 0** — no cue radius means no long-range sense of any
+ * kind, so its preference has nowhere to act. This was written for a four-species
+ * world where only the gazelle had a cue, and it was stated here *rather than left
+ * to be discovered* because a cover-loving predator would need a cue radius before
+ * its habitat block did anything.
+ *
+ * ✅ **It has now been needed twice, by exactly the species predicted and one
+ * more.** The leopard raised its `cueRadius` from 0 to 8 at phase 14 for its cover
+ * preference, and the **vulture** from 0 to 18 at phase V1 for a `tree` preference
+ * (2026-08-04). **Six of the eight shipped species declare `habitat`**, and every
+ * one of them carries a non-zero `cueRadius` — so the trap this note exists to
+ * prevent has caught nobody, which is the outcome a written-down trap is for.
+ *
+ * ⚠ The vulture's 18 is chosen against its **flying** perception radius (13.95),
+ * not its ground one (9): the cue's whole modelling assumption is that it reaches
+ * beyond what the animal can see, and for a flier "what it can see" is the wider
+ * number.
  *
  * The world-level off switch is `config.habitat.enabled`. Like `config.forage`,
  * and for the same reason, `habitat` is an always-per-species **field** beside a

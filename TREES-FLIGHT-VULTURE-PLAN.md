@@ -1,16 +1,22 @@
 # Plan — trees, vertical refuge, flight, and the vulture
 
-**Status: T1, T2, T3, F1 and F2 are SHIPPED** (2026-08-03 and 2026-08-04). Trees
-are terrain, the leopard climbs and caches kills, flight is a pace on the intent,
-and the vulture flies. **V1 (roosting), V2 (the discovery network) and V3 (the slow
-life history) are not built.** Each phase carries an "As built" section recording
-what the plan got wrong; those are the parts worth reading.
+**Status: T1, T2, T3, F1, F2 and V1 are SHIPPED** (2026-08-03 and 2026-08-04).
+Trees are terrain, the leopard climbs and caches kills, flight is a pace on the
+intent, the vulture flies, and it prefers wooded ground. **V2 (the discovery
+network) and V3 (the slow life history) are not built.** Each phase carries an
+"As built" section recording what the plan got wrong; those are the parts worth
+reading.
 
 ⚠ **Stopping here is one of the two combinations §9 warns against.** F2 has shipped
 without V3, its counterweight — see §9, and note that the counterweight the vulture
 actually got was the **ground perception radius drop** built into F2 itself, which
 is why the gate held. V3 remains the honest next step if the bird is ever found to
 be too strong.
+
+⚠⚠ **The one thing to read before V2: three of the six shipped phases have moved
+carrion off the hyena clan** — T3's caching, F2's flight, and V1's climbing bird —
+each passing its own gate against its own control, and no gate seeing the other two.
+V2 takes from the same place a fourth time. **A73** carries the running total.
 
 Four features, in the order they unblock each other:
 
@@ -841,7 +847,12 @@ planning a measurement that assumes otherwise.
 
 ---
 
-### Phase V1 — roosting
+### Phase V1 — roosting ✅ **SHIPPED 2026-08-04**
+
+**As built.** The three lines shipped as specified. ⚠ **But "roosting" is not what
+the phase delivers, and that is the finding**: roosting is inert *by construction*,
+while the `climbs` flag it needs turns out to have a second, real, measurable
+consequence the plan never named. Details at the end of the section.
 
 **Ships:** the vulture declares `climbs: true`, `habitat: { tree: 1.6, … }`, and
 a `migration.cueRadius` (it is 0 today, and ⚠ **a habitat preference with no cue
@@ -853,6 +864,173 @@ animal-ticks. Roosting is that action plus an ascent. What to measure is
 therefore the *cue*, not the outcome: **the share of vulture ticks spent on tree
 cells**, on against off. Communal roosting, if it appears, is the herd label and
 the habitat pull agreeing — no mechanism claims it.
+
+#### As built — the cue works, the roost does not, and the flag does something else
+
+**Shipped as** `climbs: true`, `habitat: { tree: 1.6 }`, `migration.cueRadius: 0 → 18`.
+Three lines in one species file; no engine change of any kind.
+
+**1. The cue works, which is the phase's own stated measurement.** Share of vulture
+animal-ticks spent standing on a tree cell, 3 seeds × 6000 ticks:
+
+| arm | tree share | canopy share | canopy by action |
+| --- | ---: | ---: | --- |
+| off (control) | 2.009% | **0.000%** | — |
+| `cueRadius: 8` | 3.063% | 0.008% | `rest` only |
+| `cueRadius: 12` | 2.925% | 0.005% | `rest` only |
+| `cueRadius: 18` (shipped) | 2.770% | 0.022% | `rest` only |
+
+**+38% to +52% relative**, on every arm and every seed. Trees are 2.45% of the map,
+so the reading *looks* specific: the bird goes from mildly avoiding wooded ground
+(2.0%, below the map's own tree fraction, because it is drawn to carcasses in the
+open) to mildly preferring it. §6's fail condition was "the share does not move";
+it moved.
+
+⚠⚠ **And then a null control beat the mechanism, which retires the claim
+outright.** V1 is three lines, so each was run on its own — 5 seeds × 6000 ticks,
+`climbs` alone containing no way to steer an animal anywhere:
+
+| arm | tree share | vulture mean |
+| --- | ---: | ---: |
+| off | 2.83% | 40.8 |
+| **`climbs` only** (the null arm for steering) | **3.65%** | 39.8 |
+| `habitat` + `cueRadius` only (the actual cue) | 2.94% | 41.6 |
+| both (shipped) | 3.96% | 46.8 |
+
+**The arm with no steering mechanism reads higher than the arm with the
+preference** (3.65% against 2.94%), and per seed the ordering is arbitrary — seed 7
+reads off 4.30, climbs 3.59, cue 2.65, both 6.21. So the tree share is
+**trajectory divergence**, not taste, and V1's own stated instrument cannot resolve
+its own claim. This is the identical finding **A72** already records for the
+gazelle's cover share, the buffalo's open-ground share and the grazers' thicket
+share, with the conclusion "the lever is a world built to show it, not a fifth
+occupancy share." This was the fifth.
+
+⚠ **One hypothesis was tested and discarded rather than written up as a finding**,
+which is worth recording because it was plausible: `#intentFor` computes
+`roaming = need >= rangingThreshold && migrationStrength <= 1e-6`, so **any**
+migration drift disables the longer, straighter excursions a hungry animal takes —
+meaning a habitat cue silently switches ranging off. Measured, the vulture already
+carried a drift on **96.9%** of its animal-ticks *before* V1 (its `tracksWater` cue
+fires at any thirst above zero), so ranging was available on 0.2% of ticks either
+way. A real interaction, worth knowing about for a species that does not track
+water, and not what happened here.
+
+⚠ **What is asserted instead is the mechanism, on the shipped species**
+(`test/habitat.test.js`): the vulture's weight resolves to 1.6 for `tree` and
+neutral for everything else, it carries a cue radius for the preference to act
+through, that radius exceeds even its *flying* sight, and the gradient points due
+east when the trees are east. That is a claim a sweep cannot contaminate. ⚠ The
+lesson is D15's, one level up: **before believing an occupancy number, run the arm
+that should not be able to change it.**
+
+⚠ **The measurement could not choose the cue radius, so reasoning did.** The three
+arms are within seed noise and the ordering **reverses between seeds** (seed 42
+reads r8 > r12 > r18; seed 1 reads the exact opposite) — D21's tell that there is
+nothing there to tune. **18** is chosen on the cue's own modelling assumption
+instead: `migration.js` states that `cueRadius` is *deliberately beyond the
+animal's perception radius*, standing in for coarse long-range senses this world
+does not simulate. This bird sees 9 on the ground and **13.95 on the wing** (F2),
+so anything at or under ~14 would be a "long-range cue" pointed at ground the
+animal is already looking at. 18 is also what three grazers already use.
+
+**2. ⚠⚠ Roosting is inert by construction, not by tuning, and no amount of weight
+fixes it.** Being in the canopy is `elevationFor`'s conjunction of *a tree cell*
+**and** one of four actions — and for this species two of the four cannot fire at
+all:
+
+| canopy action | share of vulture animal-ticks | why |
+| --- | ---: | --- |
+| `hide` | **0%, structurally** | it declares no `aging.hiddenUntil`, so the action does not exist for it |
+| `flee` | **0%, structurally** | **nothing hunts a vulture** — no species lists it in `preySpeciesIds`. The leopard's phase-T3 situation exactly |
+| `shelter` | **0.000%** measured | never chosen: it loses to `wander`, `seekMate` and `herd` at this species' weights |
+| `rest` | **0.03–0.11%** measured | a scavenger with a small tank is hungry almost always, and `rest` scales with `1 − max(hunger, thirst)` |
+
+Against a ~2.8% tree share that product is about **one animal-tick in 100 000**,
+which is what the 0.000–0.022% canopy column is. ⚠ **The levers are both already
+closed:** scaling `rest` by the ground underfoot was declined as born-inert at
+phase 9 (DOCS §9 Habitat) — and it would not help, because the problem is that
+`rest` itself is 0.1% — and a `roost` **action** would compete with foraging, which
+is DOCS §9 Decision's most expensive rule. So this is recorded as **A75** rather
+than repaired. ⚠ The plan predicted "a small effect"; the honest reading is
+*structurally none*, and the reason is worth more than the number: **`vulture.md`
+asks for roosting, and what this engine can express is a place, not a rest.**
+
+**3. ⚠⚠ The measurable effect of the phase is that a vulture can reach a *cached*
+kill — which the plan never mentions.** `climbs` is the same flag
+`predation/possession.js` tests in `reachesCarcass`, so giving the bird a roost
+gives it a leopard's larder. Of the meat taken off leopard-killed bodies, 3 seeds ×
+6000 ticks:
+
+| arm | leopard | vulture | hyena |
+| --- | ---: | ---: | ---: |
+| off | 61.3% | 8.9% | 17.0% |
+| on (`cueRadius: 18`) | 60.3% | **12.1%** | **13.4%** |
+
+⚠ **It is right, and it comes out of the hyena rather than the leopard.** Right,
+because a vulture does get into a leopard's larder and a hyena does not — and T3's
+stated claim survives *exactly as written*, since that claim was always about the
+clan: *"this leopard cannot protect a kill from the hyena clan."* It still can. It
+simply cannot protect one from above. The leopard's own share barely moves (61.3 →
+60.3) because it is standing on its cache and eats first either way; what changes is
+who gets the rest.
+
+⚠⚠ **And that is the third mechanism in two days to move carrion off the same
+clan** — T3's caching, F2's flight, now V1's climbing bird. Each passes its own gate;
+none of the three gates sees the other two. **A73** is where this is tracked, and it
+is now the item to read before V2, which takes from the same place again.
+
+**4. ⚠⚠ The ten-seed gate passes, and it is nothing like "a small effect".**
+_10 seeds × 15 000 ticks. The control is a **copied tree** with the species file
+reverted, because every line of V1 is a species field and `--set` cannot reach any
+of it — and the control reproduced F2's own gate **number for number** (vulture
+295.4, leopard 16.2, lion 16.1, hyena 6.4, identical carrion shares, the same single
+extinction at t13606), which is what makes the comparison trustworthy._
+
+| | V1 on | control (= F2) |
+| --- | ---: | ---: |
+| vulture mean | **416.0** (10/10) | 295.4 (10/10) |
+| vulture share of all carrion | **45.0%** (99.5 t) | 35.6% (68.6 t) |
+| **lion** mean | **12.7** (10/10) | 16.1 (10/10) |
+| lion share of all carrion | **29.0%** (64.1 t) | 36.0% (69.5 t) |
+| hyena mean | **8.4** (10/10) | 6.4 (10/10) |
+| leopard mean | 15.4 (10/10) | 16.2 (10/10) |
+| gazelle mean | 51.0 (9/10) | 57.4 (9/10) |
+| extinctions | 1 (gazelle, seed 1, t13606) | 1 (same seed, same tick) |
+
+**The vulture is +41% and the lion −21%.** The gate passes — every species holds
+10/10 except the gazelle at 9/10 in *both* arms, losing the same seed at the same
+tick — but a phase that was expected to do almost nothing has moved the world's most
+numerous animal by two fifths and taken seven points of carrion share off the lion.
+
+⚠ **The extra meat is mostly *new*, not stolen**, which is the shape of the finding:
+the total carrion pool grows 193 → 221 tonnes, and the vulture's +31 t is close to
+the pool's +28 t. That is a compounding loop — more birds, more bird carcasses
+(2872 deaths against 2079, overwhelmingly of age), more carrion, more birds — running
+on **B7**'s mass-blind `carcass.decayTicks`. The lion's loss is real but secondary.
+
+⚠⚠ **Which of the three lines does this is not yet established, and that is the open
+question of the phase.** A 5-seed decomposition at 6000 ticks cannot resolve it (off
+40.8, `climbs` 39.8, `cue` 41.6, both 46.8) because the vulture's growth is a
+**late-run** phenomenon: 34 → 117 → 416 across the run, with almost all of the
+divergence after t10 000. Attribution therefore needs the full horizon per arm.
+⚠ Until it is attributed, the honest reading is that **V1 makes F2-without-V3 worse
+rather than better** — §9's one combination to avoid — and V3 moves from optional
+counterweight to the next thing that should be built.
+
+**5. No protocol or save bump, and the fixtures came out byte-identical — which is
+an artifact, not evidence.** V1 adds no entity field, no config section and no event,
+and a species biology retune has never bumped the save format (batch 3 did not).
+Fixtures were regenerated anyway, under the rule F1 established that *a change to
+demo behaviour is a roster change for fixture purposes* — and the output did not move
+a byte. ⚠ **Do not read that as V1 being inert.** The fixture horizon is 10 warmup
+ticks; `config.migration.updateInterval` is **10**, so the habitat cue is first
+evaluated at tick 10, and a wander commitment lasts **8–24 ticks**, so the founders'
+first heading was already committed before the cue existed. Verified rather than
+assumed: at tick 11 the gradient is non-null for 2 of 10 vultures and every position
+still matches the pre-V1 tree exactly. Three ticks later it would not. The
+regeneration was still the right move; the identity is a coincidence of three
+intervals.
 
 ---
 
@@ -906,11 +1084,12 @@ what actually happened.
 | `PROTOCOL_VERSION` | 30 → **31** (`elevation`, `trees` in the restart fields, a `tree` legend entry) → **32** (`flying`) | T2 / F1 |
 | `SUPPORTED_PROTOCOL_VERSION` | moved with each, ⚠ **in the same commit** (D31) | T2, F1 |
 | `SAVE_FORMAT_VERSION` | 29 → **30** (`elevation`, `config.climbing`, the tree terrain params) → **31** (`flying`, `config.flight`) | T2 / F1 |
-| Renderer fixtures | regenerated at **T1** (terrain), **T2** (protocol), and **F1/F2** (protocol *and* roster behaviour) | — |
+| Renderer fixtures | regenerated at **T1** (terrain), **T2** (protocol), **F1/F2** (protocol *and* roster behaviour), and **V1** (roster behaviour — a no-op in the output, see V1's as-built §4) | — |
 | New protocol tests | `test/protocol-v31.test.js` and `test/protocol-v32.test.js`, both modelled on `protocol-v30` | T2, F1 |
 | Bulk snapshot size | +1 small field per entity per bump. ⚠ **They are not equally cheap**: `elevation` changes when an animal climbs a tree, `flying` every time a bird switches between travelling and contact — measured at ~52 transitions per 1000 vulture animal-ticks, so this one genuinely dirties deltas | T2 / F1 |
 | `/api/metrics` payload | unchanged — no new species, and P14's diagnosis is that the history is 91% of it | — |
-| ⚠ New renderer item | **P17** — a flying animal's status mark blinks, because the state honestly changes every ~22 animal-ticks | F1 |
+| ⚠ New renderer item | **P17** — a flying animal's status mark blinks, because the state honestly changes every ~19 animal-ticks | F1 |
+| Protocol / save at V1 | **neither** — V1 is three lines in one species file: no entity field, no config section, no event. A species biology retune has never bumped the save format (batch 3 did not) | V1 |
 
 ---
 
@@ -926,7 +1105,7 @@ what actually happened.
 | T3 | A leopard keeps kills it used to lose | Carcasses lost to a stronger scavenger per leopard kill, on vs off; `cache` action-ticks per 1000 (⚠ if it is `patrol`'s 0–1, the mechanism is inert and the fallback applies) | `cache` displaces `eat` enough to move leopard energy, or `cache` never fires |
 | F1 | Flight is inert until declared | Byte-identical, seeds 1/2/42 | Any difference at all |
 | F2 | A flying vulture searches wider and travels cheaper | Ticks from carcass creation to first feeder; distance covered per 1000 ticks; ground↔air transitions per 1000 ticks; **benchmark, interleaved** | The gate loses the hyena or the leopard; or the perception scan cost shows up in the whole-tick number |
-| V1 | A vulture prefers to be in a tree | Share of vulture ticks on tree cells, on vs off | The share does not move — then it is the cue radius, not the weight (the leopard's phase-14 lesson) |
+| V1 | A vulture prefers to be in a tree | Share of vulture ticks on tree cells, on vs off | The share does not move — then it is the cue radius, not the weight (the leopard's phase-14 lesson). ⚠⚠ **As built this row is retired**: the share *moved* (+38%) and a **null control moved it just as much**, so it measures trajectory divergence. See V1's as-built §1 and **D40** |
 | V2 | Discovery cascades | Ticks to the 1st / 3rd / 5th feeder at a new carcass | No change in time-to-3rd — then the birds were already finding bodies independently and the mechanism is decoration |
 | V3 | Slower breeding counterweights F2 | Vulture mean and per-capita carrion, as its own arm | Vulture below 6/10 seeds — an over-correction is as much a failure as none |
 
@@ -935,8 +1114,8 @@ exploratory sweep (~3 min) and a one-command config A/B **before** the ten-seed
 gate (~20 min). Batch 3 is the only batch that ever passed first time and that
 is why.
 
-⚠⚠ **As built, two of these rows were the wrong instrument, and the pattern is now
-three for three.** T3's "carcasses lost to a stronger scavenger" needed an event
+⚠⚠ **As built, three of these rows were the wrong instrument, and the pattern is now
+four for four.** T3's "carcasses lost to a stronger scavenger" needed an event
 that a hauling leopard never emits. F2's "ticks from carcass creation to first
 feeder" is **flat** (193.9 against 192.3), because the first feeder at a body is
 usually whatever killed it — the number that moves is time to the first
@@ -944,8 +1123,24 @@ usually whatever killed it — the number that moves is time to the first
 naming what to break it down by, so a 289-per-1000 reading looked like an
 energetics problem when it was a misclassification of five actions.
 
-**The transferable form of all three:** an instrument has to name **the animal and
-the mechanism**, not the event. "Time to first feeder" is a fact about carcasses;
+⚠⚠ **V1's row failed twice over, and it is the most instructive of the four.**
+*First*, it measured the right thing and named the wrong phase: "share of vulture
+ticks on tree cells" moved exactly as asked (2.0% → 2.8%, every arm, every seed) —
+so by its own stated criterion V1 passed — while the thing the phase is *called
+after*, being in the tree, stayed at 0.01%. A cue is not a roost, and an instrument
+aimed at the cue cannot fail when the roost does. *Second*, the number it did move
+was **not an effect at all**: `climbs: true` on its own, which cannot steer an
+animal anywhere, moved the same share 1.16% → 2.41%. So the row was both the wrong
+target and unable to hit it.
+
+What would have caught the first before the build is the **conjunction**: roosting is
+a tree cell *and* one of four actions, and multiplying the two shares (2% × 0.1%)
+predicts the
+result without running anything.
+
+**The transferable form of all four:** an instrument has to name **the animal and
+the mechanism**, not the event — and for anything measured as a *share of where
+animals are*, it needs a **null arm** beside it (D40). "Time to first feeder" is a fact about carcasses;
 "time to the first vulture at a carcass" is a fact about vultures, and only one of
 those is what flight is for.
 
@@ -1003,11 +1198,12 @@ are all data), `test/determinism.test.js`, and
 | **A51 — dynamic shrub layer** | **Partly pre-empted, deliberately.** Trees are a second static woody terrain beside thicket. A51's growth, browse and woody floor are untouched, and the browse A65 needs is still unbuilt |
 | **A18 — no spatial refuge from predators** | **Narrowed.** A canopy is a genuine refuge — the first one in the world with a hard eligibility gate rather than a probability. Prey crypsis is still 0 and that decision is untouched |
 | **A57 — a fawn is concealed only if born on cover** | **Improved for free.** Cover is 3% of the map; trees raise the sheltering fraction with no behavioural change, which A57 names as its strongest lever |
-| **A49 — activity pattern is not a schema field** | **Sharpened, not closed.** Roosting is what a diurnal cycle would give a reason to. Worth a line in A49 that a roost exists and has no night to want it |
+| **A49 — activity pattern is not a schema field** | ✅ **Sharpened exactly as predicted, and the prediction is the most accurate line in this plan.** V1 built the roost; it is inert at 0.000–0.022% of vulture animal-ticks because two of the four canopy actions are structurally impossible for the bird and the other two are ~0.1%. **A roost exists and has no night to want it** — now written into A49 as its first concrete consumer, and tracked as **A75** |
 | **A34 — patrol's target is a place, not a purpose** | **Cited twice.** Nest fidelity is declined on it (§3.4); `cache` is accepted because it has a purpose |
 | **B7 — `carcass.decayTicks` is mass-blind** | **Pressure increases.** F2 makes the animal that lives on that constant faster and cheaper to run — though not wider-seeing on the ground, which is the part the plan did not foresee |
 | **New: an elevation flag is not an elevation coordinate** | ✅ **Opened 2026-08-04 as A74**, widened to cover both flags: no ambush from above, no extra sight from height beyond a flat multiplier, no cliff or slope or per-cell microclimate (also A24's blocker), no thermals or altitude bands, and no vertical distance anywhere. Five honest consequences of the two flags, recorded so the next person reaching for one knows it is a **dimension** rather than a field |
 | **New: A73 — the hyena pays for kill caching** | Opened at T3 and still the species to watch. ⚠ F2 does *not* add to it (the hyena's carrion share moves 17.0% → 15.1% on 3 seeds, well inside its own range), but **V2 would take from the same clan**, and that is the item to re-read before building it |
+| **New: A75 — roosting is inert by construction** | Opened 2026-08-04 (V1). The cue works (tree share 2.0% → 2.8%); the roost does not, and neither available lever can fix it — scaling `rest` by terrain was declined as born-inert at phase 9 and cannot lift a 0.1% action, and a `roost` action would compete with foraging. The fix is A49's diurnal cycle |
 | **New: P17 — the flying status mark blinks** | Opened 2026-08-04 (renderer). A flier alternates ground/air roughly every 22 animal-ticks, so the mark honestly follows. Renderer-side unfixable; the engine lever is `flight.takeoffCost`, deliberately unbuilt |
 
 ---
@@ -1024,6 +1220,14 @@ F1 flight ─┴────→ F2 vulture flies ─┴─→ V2 discovery netwo
 **T1 and F1 are independent** and can be built in either order; everything else
 follows the arrows. **T1 → T2 → T3** is a complete, shippable deliverable on its
 own (features 1 and 2), and **F1 → F2** is a complete one for feature 3.
+
+⚠ **As built, V1's dependency on F2 was real but not for the reason the diagram
+suggests.** The arrow reads as "the bird must fly before it can roost", which is
+false — roosting needs `climbs` and a tree, not wings. What F2 actually decided was
+the **cue radius**: 18 is chosen against the vulture's *flying* perception radius
+(13.95) rather than its ground one (9), because a long-range cue is supposed to
+reach past what the animal can see. Build V1 first and the honest number would have
+been 12; the dependency is on a fact F2 establishes, not on a mechanism it provides.
 
 ⚠ **The reasonable place to stop, if this is not finished, is after T3.** That
 leaves the world with trees, a leopard that keeps its kills, and no flight —
@@ -1067,3 +1271,15 @@ than effort: **take the cheap behavioural measurements before starting the
 twenty-minute gate, not beside it.** §6's "cheap first, gate second" says exactly
 this and was followed for the *populations* (a 3-seed sweep ran first); the flicker
 number was not on that list and should have been.
+
+⚠⚠ **And V1 found the cost nobody budgeted: two of these phases cannot be gated by
+one command, because their off switch does not exist.** F2's radius drop and the
+whole of V1 live in **species blocks** (`perception.radius`, `habitat`, `climbs`,
+`migration.cueRadius`), and a species block beats the config — so
+`--set`/`--controlSet` cannot reach them and there is no `config.roosting.enabled`
+to turn off. The control has to be a **second tree** with the species file reverted,
+which doubles a twenty-minute gate into forty and cannot be run with `git stash`
+while more than one phase is uncommitted (§2.9's own warning, paid). ⚠ The general
+rule this leaves: **a phase whose entire content is a species-file edit has no
+reproducible control, and the switch-in-a-global-section discipline does not help —
+that discipline protects mechanisms, not biology.** Budget the copied tree.
