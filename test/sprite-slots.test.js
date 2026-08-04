@@ -109,6 +109,11 @@ describe('sprite slots: registry coverage', () => {
   // keys rather than migrating them. Growing the list is fine (a new species
   // adds slots); renaming or removing one orphans saved assignments, which is
   // what this snapshot makes deliberate rather than accidental.
+  // Snapshot regenerated 2026-08-04 for the African roster (phase 7/14 renames
+  // plus the batch-2/3 species) and the tree terrain — the grazer/stalker/
+  // corvid slots went with their species ids, which is exactly the orphaning
+  // this test exists to make deliberate: saved configs keyed by the old ids
+  // drop those assignments on load.
   test('the slot vocabulary is stable', () => {
     const expected = [
       'carcass:0', 'carcass:1', 'carcass:2', 'carcass:3',
@@ -118,14 +123,28 @@ describe('sprite slots: registry coverage', () => {
       'kind:animal:young:female', 'kind:animal:young:male',
       'kind:plant',
       'memory:barren', 'memory:danger', 'memory:food', 'memory:water',
-      'species:herbivore.grazer:grown:female', 'species:herbivore.grazer:grown:male',
-      'species:herbivore.grazer:young:female', 'species:herbivore.grazer:young:male',
-      'species:predator.stalker:grown:female', 'species:predator.stalker:grown:male',
-      'species:predator.stalker:young:female', 'species:predator.stalker:young:male',
-      'species:scavenger.corvid:grown:female', 'species:scavenger.corvid:grown:male',
-      'species:scavenger.corvid:young:female', 'species:scavenger.corvid:young:male',
+      'species:herbivore.buffalo:grown:female', 'species:herbivore.buffalo:grown:male',
+      'species:herbivore.buffalo:young:female', 'species:herbivore.buffalo:young:male',
+      'species:herbivore.elephant:grown:female', 'species:herbivore.elephant:grown:male',
+      'species:herbivore.elephant:young:female', 'species:herbivore.elephant:young:male',
+      'species:herbivore.gazelle:grown:female', 'species:herbivore.gazelle:grown:male',
+      'species:herbivore.gazelle:young:female', 'species:herbivore.gazelle:young:male',
+      'species:herbivore.rhino:grown:female', 'species:herbivore.rhino:grown:male',
+      'species:herbivore.rhino:young:female', 'species:herbivore.rhino:young:male',
+      'species:herbivore.wildebeest:grown:female', 'species:herbivore.wildebeest:grown:male',
+      'species:herbivore.wildebeest:young:female', 'species:herbivore.wildebeest:young:male',
+      'species:herbivore.zebra:grown:female', 'species:herbivore.zebra:grown:male',
+      'species:herbivore.zebra:young:female', 'species:herbivore.zebra:young:male',
+      'species:predator.leopard:grown:female', 'species:predator.leopard:grown:male',
+      'species:predator.leopard:young:female', 'species:predator.leopard:young:male',
+      'species:predator.lion:grown:female', 'species:predator.lion:grown:male',
+      'species:predator.lion:young:female', 'species:predator.lion:young:male',
+      'species:scavenger.hyena:grown:female', 'species:scavenger.hyena:grown:male',
+      'species:scavenger.hyena:young:female', 'species:scavenger.hyena:young:male',
+      'species:scavenger.vulture:grown:female', 'species:scavenger.vulture:grown:male',
+      'species:scavenger.vulture:young:female', 'species:scavenger.vulture:young:male',
       'terrain:cover', 'terrain:deep_water', 'terrain:ground', 'terrain:outOfBounds',
-      'terrain:rock', 'terrain:thicket', 'terrain:water',
+      'terrain:rock', 'terrain:thicket', 'terrain:tree', 'terrain:water',
       'unknown',
       'vegetation:1', 'vegetation:2', 'vegetation:3', 'vegetation:4',
     ];

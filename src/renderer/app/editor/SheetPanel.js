@@ -36,7 +36,7 @@ export class SheetPanel {
           ${ZOOMS.map((z) => `<button type="button" data-zoom="${z}">${z}×</button>`).join('')}
         </span>
       </div>
-      <div class="sheet-scroll">
+      <div class="sheet-scroll" tabindex="0" role="region" aria-label="Spritesheet, scrollable">
         <canvas class="sheet-canvas" aria-label="Spritesheet grid. Click a sprite to pick it."></canvas>
         <p class="sheet-empty" hidden>
           No spritesheet loaded. Use “Load PNG…” below, or place one at

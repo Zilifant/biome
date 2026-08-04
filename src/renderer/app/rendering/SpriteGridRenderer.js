@@ -2,11 +2,12 @@
  * Canvas 2D sprite grid renderer — the alternative to AsciiGridRenderer,
  * selected with `?renderer=sprite`.
  *
- * Same contract (resize / cssWidth / cssHeight / draw), same draw order, same
- * store reads, same projection — only what lands in each cell differs: where a
- * slot (see SpriteSlots.js) has a spritesheet assignment, the sprite is drawn;
- * anywhere it does not, the exact ASCII glyph is drawn instead, so a partial
- * mapping (or a missing sheet) still renders everything.
+ * Same contract (resize / cssWidth / cssHeight / draw / hasCyclingStatus),
+ * same draw order, same store reads, same projection — only what lands in
+ * each cell differs: where a slot (see SpriteSlots.js) has a spritesheet
+ * assignment, the sprite is drawn; anywhere it does not, the exact ASCII
+ * glyph is drawn instead, so a partial mapping (or a missing sheet) still
+ * renders everything.
  *
  * The spritesheet loads asynchronously; frames drawn before it arrives use the
  * glyph fallback, and `onAtlasReady` lets the app mark the grid dirty for a
@@ -14,10 +15,13 @@
  * cell size) offscreen tile cache built at device-pixel resolution with image
  * smoothing off, so pixel art stays crisp at every zoom level.
  *
- * A tint (from the editor, or the hurt/sick condition, or the selection
- * highlight) recolours the sprite as a flat silhouette — the sprite's alpha
- * with one fill — matching the single-colour ASCII aesthetic and keeping the
- * condition tints unambiguous. An untinted sprite keeps its own sheet colours.
+ * A tint (from the editor, or the selection highlight) recolours the sprite as
+ * a flat silhouette — the sprite's alpha with one fill — matching the
+ * single-colour ASCII aesthetic. An untinted sprite keeps its own sheet
+ * colours. Condition and life-state (hurt, ill, carrying, in rut, dispersing)
+ * are **status marks in the cell corner**, exactly as in ASCII mode — never a
+ * recolour — so the sprite keeps saying species while any number of statuses
+ * ride along, cycling on `statusPhase`.
  */
 import { createProjection, worldCellOf } from './GridProjection.js';
 import {
@@ -27,7 +31,9 @@ import {
   resolveDisturbanceAppearance,
   resolveFeatureAppearance,
   resolveMemoryAppearance,
-  resolveColorToken,
+  statusesOf,
+  fadesUnderOccupant,
+  OCCUPIED_ALPHA,
 } from './EntityAppearance.js';
 import { groundAppearanceAt } from './AsciiGridRenderer.js';
 import {
@@ -61,6 +67,8 @@ export class SpriteGridRenderer {
   #atlasReady = false;
   /** @type {Map<string, HTMLCanvasElement>} `col,row,tint,cellSize` → tile */
   #tiles = new Map();
+  /** whether the last frame drew an animal with more than one status */
+  #hasCyclingStatus = false;
 
   /**
    * @param {HTMLCanvasElement} canvas
@@ -85,6 +93,17 @@ export class SpriteGridRenderer {
     return this.#cssHeight;
   }
 
+  /**
+   * Whether the frame just drawn holds an animal with more than one status —
+   * i.e. whether anything on screen is mid-cycle and the view has to be
+   * redrawn when the phase turns over. Read by `RendererApp`, which owns the
+   * clock; without it, a multi-status animal would freeze on its first mark
+   * in sprite mode while cycling in ASCII mode.
+   */
+  get hasCyclingStatus() {
+    return this.#hasCyclingStatus;
+  }
+
   #loadAtlas(url) {
     const image = new Image();
     image.onload = () => {
@@ -94,9 +113,9 @@ export class SpriteGridRenderer {
       this.#onAtlasReady();
     };
     image.onerror = () => {
-      // No sheet is a supported state (none is committed): everything draws
-      // as glyphs, exactly as ASCII mode would. Say why, once, rather than
-      // failing silently or loudly.
+      // No sheet is a supported state: everything draws as glyphs, exactly as
+      // ASCII mode would. Say why, once, rather than failing silently or
+      // loudly.
       console.warn(`sprite mode: no spritesheet at ${url}; drawing glyph fallback`);
     };
     image.src = url;
@@ -186,8 +205,8 @@ export class SpriteGridRenderer {
    * Draw the sprite assigned to a slot at a cell, if there is one. Returns
    * false when the slot is unassigned, the sheet has not loaded, or the
    * assignment falls off the sheet — the caller then draws the ASCII glyph.
-   * `forcedTint` overrides the assignment's tint (condition and selection
-   * colours); undefined means "use the assignment's own tint".
+   * `forcedTint` overrides the assignment's tint (the selection colour);
+   * undefined means "use the assignment's own tint".
    */
   #drawSprite(slotId, px, py, cellSize, forcedTint = undefined) {
     if (!this.#atlasReady) return false;
@@ -218,7 +237,7 @@ export class SpriteGridRenderer {
    * and same store reads as AsciiGridRenderer.draw; see that method for the
    * meaning of each option.
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -227,21 +246,54 @@ export class SpriteGridRenderer {
     ctx.fillStyle = this.#config.canvasBackground ?? this.#color('background');
     ctx.fillRect(0, 0, this.#cssWidth, this.#cssHeight);
 
-    // --- Terrain + vegetation pass.
+    // --- Kill flash: a cell where something was killed this tick, filled red
+    // behind everything else — same moment, same layer as ASCII mode.
+    const killFill = this.#color('red');
+    for (const cell of killCells) {
+      const { px, py } = projection.cellToScreen(cell.cellX, cell.cellY);
+      ctx.fillStyle = killFill;
+      ctx.fillRect(px, py, cellSize, cellSize);
+    }
+
+    // --- Occupants, resolved before anything is drawn: the entity pass needs
+    // the top occupant per cell, and the ground and feature passes need to
+    // know which cells are occupied so fading layers can give way beneath
+    // whatever stands there (sprite and glyph alike).
     const cells = projection.visibleCellBounds();
+    const visible = store.getEntitiesInBounds(projection.visibleWorldBounds(1));
+    /** @type {Map<string, object>} cell key → top occupant */
+    const topByCell = new Map();
+    for (const entity of visible) {
+      const cell = worldCellOf(entity, world);
+      const key = `${cell.cellX},${cell.cellY}`;
+      const current = topByCell.get(key);
+      if (!current || compareOccupants(entity, current) < 0) {
+        topByCell.set(key, entity);
+      }
+    }
+    const occupied = (cellX, cellY) => topByCell.has(`${cellX},${cellY}`);
+
+    // --- Terrain + vegetation pass. A fading layer gives way in an occupied
+    // cell exactly as in ASCII mode — which layers fade is fadesUnderOccupant
+    // (an identity test on the registry entry groundAppearanceAt returns), so
+    // the two renderers can never disagree about what is under an animal.
     for (let cellY = cells.minCellY; cellY <= cells.maxCellY; cellY += 1) {
       for (let cellX = cells.minCellX; cellX <= cells.maxCellX; cellX += 1) {
+        const appearance = groundAppearanceAt(store, cellX, cellY, world);
+        const covered = occupied(cellX, cellY) && fadesUnderOccupant(appearance);
+        if (covered && OCCUPIED_ALPHA === 0) continue;
         const { px, py } = projection.cellToScreen(cellX, cellY);
+        if (covered) ctx.globalAlpha = OCCUPIED_ALPHA;
         const slotId = groundSlotAt(store, cellX, cellY, world);
         if (!this.#drawSprite(slotId, px, py, cellSize)) {
-          const appearance = groundAppearanceAt(store, cellX, cellY, world);
           this.#drawGlyph(appearance.glyph, appearance.colorToken, px, py, cellSize);
         }
+        if (covered) ctx.globalAlpha = 1;
       }
     }
 
     // --- Feature pass: trails and burrows, over the ground, under everything
-    // that happens on it.
+    // that happens on it. Both fade under an occupant.
     for (const feature of store.features ?? []) {
       const appearance = resolveFeatureAppearance(feature.kind);
       if (!appearance) continue;
@@ -253,10 +305,14 @@ export class SpriteGridRenderer {
       ) {
         continue;
       }
+      const covered = occupied(feature.cellX, feature.cellY) && fadesUnderOccupant(appearance);
+      if (covered && OCCUPIED_ALPHA === 0) continue;
       const { px, py } = projection.cellToScreen(feature.cellX, feature.cellY);
+      if (covered) ctx.globalAlpha = OCCUPIED_ALPHA;
       if (!this.#drawSprite(slotIdForFeature(feature.kind), px, py, cellSize)) {
         this.#drawGlyph(appearance.glyph, appearance.colorToken, px, py, cellSize);
       }
+      if (covered) ctx.globalAlpha = 1;
     }
 
     // --- Disturbance pass: the same centre-of-cell circle test as
@@ -282,32 +338,16 @@ export class SpriteGridRenderer {
       }
     }
 
-    // --- Entity pass: highest-priority occupant per cell, via the same
-    // compareOccupants ordering as ASCII mode.
-    const visible = store.getEntitiesInBounds(projection.visibleWorldBounds(1));
-    /** @type {Map<string, object>} cell key → top occupant */
-    const topByCell = new Map();
-    for (const entity of visible) {
-      const cell = worldCellOf(entity, world);
-      const key = `${cell.cellX},${cell.cellY}`;
-      const current = topByCell.get(key);
-      if (!current || compareOccupants(entity, current) < 0) {
-        topByCell.set(key, entity);
-      }
-    }
+    // --- Entity pass: the highest-priority occupant per cell, resolved above.
+    // ⚠ No condition tint, matching ASCII mode: condition rides as a corner
+    // mark (the status pass, last), so the sprite keeps saying species. The
+    // assignment's own editor tint still applies.
     for (const [key, entity] of topByCell) {
       const [cellX, cellY] = key.split(',').map(Number);
       const { px, py } = projection.cellToScreen(cellX, cellY);
-      const appearance = resolveAppearance(entity);
-      // Condition beats decoration: when the hurt/sick tint fires (it differs
-      // from the species token), it overrides the assignment's tint so an
-      // outbreak reads the same in sprites as in glyphs. Incubating stays
-      // invisible — that judgement lives in resolveColorToken, inherited here.
-      const conditionToken = resolveColorToken(entity, appearance);
-      const forcedTint =
-        conditionToken !== appearance.colorToken ? this.#color(conditionToken) : undefined;
-      if (!this.#drawSprite(slotIdForEntity(entity), px, py, cellSize, forcedTint)) {
-        this.#drawGlyph(appearance.glyph, conditionToken, px, py, cellSize, appearance.italic);
+      if (!this.#drawSprite(slotIdForEntity(entity), px, py, cellSize)) {
+        const appearance = resolveAppearance(entity);
+        this.#drawGlyph(appearance.glyph, appearance.colorToken, px, py, cellSize, appearance.italic);
       }
     }
 
@@ -401,6 +441,44 @@ export class SpriteGridRenderer {
       const { px, py } = projection.cellToScreen(hoverCell.cellX, hoverCell.cellY);
       this.#drawBrackets(px, py, cellSize, this.#color('bright-yellow'));
     }
+
+    // --- Status pass, drawn after everything including the selection fill,
+    // exactly as in ASCII mode: one mark per cell, belonging to the occupant
+    // whose sprite (or glyph) is drawn; several statuses take turns on
+    // statusPhase.
+    this.#hasCyclingStatus = false;
+    for (const [key, entity] of topByCell) {
+      const statuses = statusesOf(entity);
+      if (statuses.length === 0) continue;
+      if (statuses.length > 1) this.#hasCyclingStatus = true;
+      const status = statuses[statusPhase % statuses.length];
+      const [cellX, cellY] = key.split(',').map(Number);
+      const { px, py } = projection.cellToScreen(cellX, cellY);
+      this.#drawStatusMark(px, py, cellSize, status);
+    }
+  }
+
+  /**
+   * A filled dot or diamond in the cell's upper-left corner — kept identical
+   * to AsciiGridRenderer's, since the marks are the shared status language.
+   */
+  #drawStatusMark(px, py, cellSize, status) {
+    const ctx = this.#context;
+    const radius = Math.max(1.5, cellSize * 0.13);
+    const cx = px + radius + 1;
+    const cy = py + radius + 1;
+    ctx.fillStyle = this.#color(status.colorToken);
+    ctx.beginPath();
+    if (status.shape === 'diamond') {
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx + radius, cy);
+      ctx.lineTo(cx, cy + radius);
+      ctx.lineTo(cx - radius, cy);
+      ctx.closePath();
+    } else {
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    }
+    ctx.fill();
   }
 
   /** Corner brackets so selection is visible without relying on color alone. */

@@ -149,10 +149,9 @@ present** (P5).
   for every unassigned slot. Showing assigned-sprite thumbnails would need the
   legend to become config-aware and re-renderable.
 - **P15 — A sprite tint is a flat silhouette only.** `source-atop` replaces the
-  sprite's colours with one fill, matching the single-colour glyph aesthetic
-  and keeping the hurt/sick tints unambiguous. A shading-preserving mode
-  (`multiply` + `destination-in`) is a deliberate non-feature until someone
-  wants tinted sprites that keep their art.
+  sprite's colours with one fill, matching the single-colour glyph aesthetic. A
+  shading-preserving mode (`multiply` + `destination-in`) is a deliberate
+  non-feature until someone wants tinted sprites that keep their art.
 - **P16 — Sprites ignore `heading` and `action`.** Both already ride in every
   bulk snapshot unused; directional or pose sprite variants would be an
   additive slot-id suffix (the vocabulary is append-only), not a rework. Not
@@ -1108,7 +1107,7 @@ forgotten here.
 **Sprite mode rides on the registries, never beside them.** `?renderer=sprite`
 swaps in `SpriteGridRenderer` (same pass order, same store reads). Every
 drawable thing is a **slot** with a stable string id
-(`species:herbivore.grazer:grown:female`, `terrain:water`, `carcass:1`, …),
+(`species:herbivore.gazelle:grown:female`, `terrain:water`, `carcass:1`, …),
 enumerated from the appearance registries by `SpriteSlots.js` exactly as the
 legend is generated — so a species added to `SPECIES_APPEARANCE` gains its four
 slots (age × sex) with no sprite-side change, and `test/sprite-slots.test.js`
@@ -1119,9 +1118,12 @@ or a missing sheet still renders everything. Assignments, tints, and the canvas
 background persist under `biome.sprites.config.v1` (validated on load; unknown
 slot ids are dropped, not fatal); sheet geometry is code constants in
 `SpriteConfig.js`'s `SHEET` block. A tint is a flat silhouette (the sprite's
-alpha, one fill); the hurt/sick tints override an assignment's tint and
-incubating stays unmarked — that judgement lives in `resolveColorToken` and is
-inherited, not re-derived. Mappings are made in `/sprite-editor.html`
+alpha, one fill). Condition and life-state ride as the same corner **status
+marks** as ASCII mode (`statusesOf`, cycling on `statusPhase`) — never a
+recolour, and incubating stays unmarked; fading ground layers give way beneath
+an occupant's sprite (`fadesUnderOccupant` is an identity test on the registry
+entry `groundAppearanceAt` returns, shared by both renderers); the kill flash
+fills the cell behind everything. Mappings are made in `/sprite-editor.html`
 (`editor/`), whose interaction flow is pure and node-tested in
 `EditorState.js`. ⚠ **Slot ids are the config's compatibility surface** — the
 vocabulary is append-only, and a snapshot test pins it.

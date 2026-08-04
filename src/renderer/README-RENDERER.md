@@ -249,21 +249,21 @@ the remembered open/closed state, so it must be stable.
 `?renderer=sprite` swaps the ASCII canvas renderer for
 `rendering/SpriteGridRenderer.js`: same draw order, same store reads, same
 projection — only what lands in each cell differs. Every drawable thing (a
-grown female grazer, the water terrain, forage level 3, a fresh carcass, …) is
+grown female gazelle, the water terrain, forage level 3, a fresh carcass, …) is
 a **slot** with a stable string id, enumerated from the appearance registries
 by `rendering/SpriteSlots.js` the same way the legend is generated. A slot with
 a spritesheet assignment draws its sprite; **an unassigned slot draws its ASCII
 glyph**, so a partial mapping — or no sheet at all — still renders everything.
 
-**Supplying a spritesheet.** No sheet is committed. The sheet is a PNG grid of
-sprites on a transparent background, addressed by (column, row). Its geometry —
-sprite width/height, the gap between grid cells, and the top/left margin before
-the grid starts — is set as **code constants** in the `SHEET` block at the top
-of `rendering/SpriteConfig.js`; using a sheet with different geometry means
-editing those values. Then either drop the PNG at
-`src/renderer/app/assets/spritesheet.png` (the conventional URL the constants
-point at) or load one in the editor, which stores it as a `data:` URL with the
-mapping.
+**Supplying a spritesheet.** The sheet is a PNG grid of sprites on a
+transparent background, addressed by (column, row). One is committed at
+`src/renderer/app/assets/spritesheet.png`; its geometry — sprite width/height,
+the gap between grid cells, and the top/left margin before the grid starts — is
+set as **code constants** in the `SHEET` block at the top of
+`rendering/SpriteConfig.js` (currently 12×12, gap 1, margin 1). To use a
+different sheet, replace that file (editing the constants if its geometry
+differs) or load one in the editor, which stores it as a `data:` URL with the
+mapping. With no sheet reachable at all, sprite mode falls back to glyphs.
 
 **The editor** at [`/sprite-editor.html`](/sprite-editor.html) is where sprites
 are assigned: the full spritesheet on one side with its grid overlaid, every
@@ -278,12 +278,15 @@ mode to see it — and **Export** downloads the config as JSON (**Import** loads
 one), which is how a finished mapping is shared or committed as a new default
 (`DEFAULT_SPRITE_CONFIG` in `SpriteConfig.js`).
 
-Two condition rules carry over from ASCII mode unchanged: the hurt/sick tints
-override an assignment's tint (an outbreak reads the same in sprites as in
-glyphs, and an incubating animal is still never marked), and the selection
+Everything that is not the glyph carries over from ASCII mode unchanged: the
+**status marks** (hurt, ill, carrying, in rut, dispersing) are the same corner
+dots and diamonds, cycling on the same wall clock — never a recolour, so the
+sprite keeps saying species, and an incubating animal is still never marked;
+fading ground layers give way beneath an occupant's sprite exactly as beneath
+its glyph; the kill flash fills the cell behind everything; and the selection
 redraws its cell's sprite in bright yellow exactly as it recolours a glyph.
-Overlay marks — selection fill, corner brackets, the home-range ring — stay
-vector-drawn in both modes.
+Overlay marks — selection fill, corner brackets, status marks, the home-range
+ring — stay vector-drawn in both modes.
 
 ## Controls
 
