@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "name": "The demo",
+  "savedAt": "2026-08-04T00:00:00.000Z",
+  "world": {
+    "seed": 42,
+    "width": 160,
+    "height": 120,
+    "rocks": 2,
+    "thickets": 5,
+    "roundness": 0,
+    "founding": [
+      { "speciesId": "herbivore.gazelle", "count": 120 },
+      { "speciesId": "herbivore.wildebeest", "count": 30 },
+      { "speciesId": "herbivore.zebra", "count": 15 },
+      { "speciesId": "herbivore.buffalo", "count": 35 },
+      { "speciesId": "predator.leopard", "count": 8 },
+      { "speciesId": "predator.lion", "count": 8 },
+      { "speciesId": "scavenger.hyena", "count": 6 },
+      { "speciesId": "scavenger.vulture", "count": 10 }
+    ]
+  }
+}

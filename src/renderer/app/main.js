@@ -23,10 +23,21 @@ import { EventLog } from './ui/EventLog.js';
 import { Controls } from './ui/Controls.js';
 import { makeSectionsCollapsible } from './ui/collapsible.js';
 import { makeColumnsResizable } from './ui/columnResize.js';
+import { mountViewLinks } from './ui/viewLinks.js';
 
 const params = new URLSearchParams(window.location.search);
 const fixtureMode = params.get('mode') === 'fixture' || params.get('fixture') === '1';
 const spriteMode = params.get('renderer') === 'sprite';
+/**
+ * `?seed=N` opens a specific world — the link one visitor sends another.
+ *
+ * ⚠ It is applied as an ordinary `simulation.restart` command once the app is
+ * running, not as a special path into the engine: a shared link has to mean
+ * exactly what pressing Restart with that seed means, or the two would drift.
+ * A host that refuses the command (its ceiling, a malformed seed) reports so in
+ * the status bar like any other refusal.
+ */
+const sharedSeed = params.get('seed');
 
 async function loadFixtureFiles() {
   const [snapshot, delta, eventsBatch] = await Promise.all([
@@ -128,4 +139,18 @@ const app = new RendererApp({
     : undefined,
 });
 appRef.current = app;
+
+// The renderer toggle and the share link are URL facts rather than commands, so
+// they are mounted directly rather than routed through the app.
+mountViewLinks(document.getElementById('view-links'), { http });
+
 app.start();
+
+// A shared world is opened after start(), so the socket is connected and the
+// resulting full snapshot arrives through the ordinary restart path.
+if (sharedSeed !== null && !fixtureMode) {
+  const seed = Number(sharedSeed);
+  if (Number.isInteger(seed) && seed >= 0) {
+    app.restart({ type: 'simulation.restart', seed });
+  }
+}

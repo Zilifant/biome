@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "name": "Island",
+  "savedAt": "2026-08-04T00:00:00.000Z",
+  "world": {
+    "seed": 7,
+    "width": 192,
+    "height": 192,
+    "rocks": 3,
+    "thickets": 4,
+    "roundness": 4,
+    "founding": [
+      { "speciesId": "herbivore.gazelle", "count": 140 },
+      { "speciesId": "herbivore.wildebeest", "count": 40 },
+      { "speciesId": "herbivore.zebra", "count": 20 },
+      { "speciesId": "predator.leopard", "count": 10 },
+      { "speciesId": "scavenger.vulture", "count": 12 }
+    ]
+  }
+}

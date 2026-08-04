@@ -29,6 +29,21 @@ npm run dev            # then open http://localhost:3000
   a spritesheet in place of glyphs (composable with fixture mode:
   `?mode=fixture&renderer=sprite`). See "Sprite mode" below — with no sheet
   supplied it falls back to the glyphs, so it is always safe to open.
+- **A shared world**: `?seed=N` opens that specific world. ⚠ It is applied as an
+  ordinary `simulation.restart` once the app is running, never as a special path
+  into the engine — a shared link has to mean exactly what pressing Restart with
+  that seed means, or the two would drift. A host that refuses it (its own
+  ceiling, a malformed seed) says so in the status bar like any other refusal.
+
+The help bar carries the two controls that are **URL facts rather than commands**
+(`app/ui/viewLinks.js`): a toggle between the ASCII and sprite renderers, and
+"copy link to this world", which reads the seed from the *host* (`/api/status`)
+and never from anything the renderer remembers — a restart may have been driven
+from another tab, and `Math.random` is banned in `app/` regardless. Switching
+renderer is a reload because the grid renderer is chosen once when the app is
+composed; a link costs nothing next to rebuilding that seam. ⚠ The sprite
+**editor** is deliberately not linked: it is an operator tool, and a public host
+does not serve its page at all (see the root `README.md`).
 
 **[`DOCS-RENDERER.md`](DOCS-RENDERER.md) is the reference documentation** —
 architecture, the selection and panel model, the conventions, and **§1: every

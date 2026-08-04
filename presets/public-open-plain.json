@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "name": "Open plain",
+  "savedAt": "2026-08-04T00:00:00.000Z",
+  "world": {
+    "seed": 1337,
+    "width": 224,
+    "height": 176,
+    "rocks": 0,
+    "thickets": 0,
+    "roundness": 0,
+    "founding": [
+      { "speciesId": "herbivore.gazelle", "count": 220 },
+      { "speciesId": "herbivore.wildebeest", "count": 90 },
+      { "speciesId": "herbivore.zebra", "count": 60 },
+      { "speciesId": "herbivore.buffalo", "count": 45 },
+      { "speciesId": "predator.lion", "count": 14 },
+      { "speciesId": "predator.leopard", "count": 6 },
+      { "speciesId": "scavenger.hyena", "count": 12 },
+      { "speciesId": "scavenger.vulture", "count": 16 }
+    ]
+  }
+}
