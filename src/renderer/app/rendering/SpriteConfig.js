@@ -22,7 +22,7 @@
  * Renderer-owned, like every appearance decision (invariant 20): none of this
  * exists in the engine or the protocol.
  */
-import { allSlotIds } from './SpriteSlots.js';
+import { allSlotIds } from "./SpriteSlots.js";
 
 /**
  * Per-sheet geometry — edit these to match the spritesheet in use.
@@ -31,14 +31,14 @@ import { allSlotIds } from './SpriteSlots.js';
  * - margin: pixels above and left of the grid before the first sprite
  */
 export const SHEET = Object.freeze({
-  url: '/renderer/app/assets/spritesheet.png',
-  spriteWidth: 16,
-  spriteHeight: 16,
-  gap: 0,
-  margin: 0,
+  url: "/renderer/app/assets/spritesheet.png",
+  spriteWidth: 12,
+  spriteHeight: 12,
+  gap: 1,
+  margin: 1,
 });
 
-export const SPRITE_CONFIG_KEY = 'biome.sprites.config.v1';
+export const SPRITE_CONFIG_KEY = "biome.sprites.config.v1";
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
@@ -54,11 +54,15 @@ export const DEFAULT_SPRITE_CONFIG = Object.freeze({
 });
 
 function normalizedAssignment(raw) {
-  if (!raw || typeof raw !== 'object') return null;
+  if (!raw || typeof raw !== "object") return null;
   const col = Number(raw.col);
   const row = Number(raw.row);
-  if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || row < 0) return null;
-  const tint = typeof raw.tint === 'string' && HEX_COLOR.test(raw.tint) ? raw.tint.toUpperCase() : null;
+  if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || row < 0)
+    return null;
+  const tint =
+    typeof raw.tint === "string" && HEX_COLOR.test(raw.tint)
+      ? raw.tint.toUpperCase()
+      : null;
   return Object.freeze({ col, row, tint });
 }
 
@@ -72,7 +76,7 @@ function normalizedAssignment(raw) {
  * @returns {object | null}
  */
 export function validateSpriteConfig(raw) {
-  if (!raw || typeof raw !== 'object' || raw.version !== 1) return null;
+  if (!raw || typeof raw !== "object" || raw.version !== 1) return null;
   const known = new Set(allSlotIds());
   const assignments = {};
   for (const [slotId, value] of Object.entries(raw.assignments ?? {})) {
@@ -81,11 +85,13 @@ export function validateSpriteConfig(raw) {
     if (assignment) assignments[slotId] = assignment;
   }
   const background =
-    typeof raw.canvasBackground === 'string' && HEX_COLOR.test(raw.canvasBackground)
+    typeof raw.canvasBackground === "string" &&
+    HEX_COLOR.test(raw.canvasBackground)
       ? raw.canvasBackground.toUpperCase()
       : null;
   const sheetDataUrl =
-    typeof raw.sheetDataUrl === 'string' && raw.sheetDataUrl.startsWith('data:image/')
+    typeof raw.sheetDataUrl === "string" &&
+    raw.sheetDataUrl.startsWith("data:image/")
       ? raw.sheetDataUrl
       : null;
   return Object.freeze({
