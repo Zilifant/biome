@@ -44,7 +44,7 @@ import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { killAnimal } from './death.js';
 import { applyInjury, InjuryKinds } from '../injury/injuries.js';
-import { isAloft } from '../locomotion/climbing.js';
+import { isOffGround } from '../locomotion/flight.js';
 import { recordMemory, MemoryKinds } from '../memory/memories.js';
 import {
   DISTURBANCE_KIND_ORDER,
@@ -260,11 +260,13 @@ export class DisturbanceSystem extends SimulationSystem {
       // The interval also bounds the event volume: an animal in a fire reports
       // being burned once every `burnInterval` ticks rather than 350 times
       // (§1.4 C3).
-      // ⚠ An animal up a tree does not burn (phase T2). One comparison, and it
-      // is the honest reading of "out of reach": a grass fire runs underneath.
-      // The `danger` memory above is *not* skipped — it saw the fire, and the
-      // place is worth remembering either way.
-      if (effects.burnSeverity > 0 && !isAloft(entity) && context.tick % this.burnInterval === 0) {
+      // ⚠ An animal off the ground does not burn — up a tree (phase T2) or on the
+      // wing (phase F1). One predicate for both, in `locomotion/flight.js`, since
+      // they are two mechanisms with one consequence and spelling it twice here is
+      // D11's shape. It is the honest reading of "out of reach": a grass fire runs
+      // underneath either of them. The `danger` memory above is *not* skipped —
+      // the animal saw the fire, and the place is worth remembering either way.
+      if (effects.burnSeverity > 0 && !isOffGround(entity) && context.tick % this.burnInterval === 0) {
         const injury = applyInjury(entity, InjuryKinds.BURN, effects.burnSeverity, context.tick);
         if (injury) {
           context.emit(EventTypes.ENTITY_INJURED, {

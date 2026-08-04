@@ -149,6 +149,13 @@ export function registerDemoSystems(engine) {
       forageQualityFloor: engine.config.forage.qualityFloor,
       // Kill caching (phase T3) — the switch, from `config.climbing`.
       caching: engine.config.climbing.enabled && engine.config.climbing.caching,
+      // Flight (phase F1) — the switch, from `config.flight`, wired into the one
+      // system that writes `entity.flying`. ⚠ Nothing else is wired: movement,
+      // perception, metabolism and predation all read the *flag*, not the switch,
+      // so there is exactly one place the mechanism can be turned off and no
+      // second copy of the question to drift (D11). Off, `flying` is written
+      // `false` every tick for every animal and every reader is the identity.
+      flight: engine.config.flight.enabled,
       drinkRange: engine.config.hydration.drinkRange,
       carcassRange: engine.config.feeding.carcassRange,
       // Carcass possession lives in `config.carcass` and is read by two systems

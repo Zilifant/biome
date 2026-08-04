@@ -666,6 +666,32 @@ export const defaultSimulationConfig = Object.freeze({
     // half that changes who eats.
     caching: true,
   }),
+  // Flight (see locomotion/flight.js). Phase F1 of TREES-FLIGHT-VULTURE-PLAN.md.
+  //
+  // A **movement mode, not a simulation of flight**: faster travel, wider sight,
+  // cheap distance, and the terrain speed modifier bypassed. There is no
+  // altitude, no thermal, no takeoff cost and no flapping budget — `vulture.md`
+  // asks for all four and the plan declines all four, because each of them is a
+  // stored state or a second field on a mechanism whose whole claim is that it is
+  // four numbers at four chokepoints that already exist.
+  //
+  // ⚠ This is the world-level **switch**, for the same reason `climbing.enabled`
+  // is: a species block beats the config (DOCS §8), so an `enabled` inside the
+  // per-species `flight` field could never switch anything off. The biology is
+  // that field — `{ speedMultiplier, visionMultiplier, moveCostFactor }` — which
+  // the vulture declares in phase F2 and nothing else does.
+  //
+  // ⚠ It has **no tuning of its own, deliberately**. Every number flight applies
+  // is per-species, because "how much faster is it on the wing" is a fact about
+  // the animal and there is no world-level version of it to default from. A
+  // section holding one switch is the standing shape here (`breeding`,
+  // `cooperation`, `mobbing`), and this is another.
+  flight: Object.freeze({
+    // False ⇒ nothing ever leaves the ground whatever it declares: the measured
+    // control. Costs one comparison per animal per tick when true, since
+    // `flyingFor` short-circuits on the species before touching the action.
+    enabled: true,
+  }),
   breeding: Object.freeze({
     // False ⇒ every species breeds year-round whatever it declares: the measured
     // control. Costs nothing when true either — a null window skips the test.

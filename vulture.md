@@ -7,7 +7,8 @@ This model represents a large, soaring, obligate scavenger—roughly a white-bac
 Use a large scavenging bird with:
 
 - Carrion-only diet and no normal hunting
-- Very long perception range
+- Very long perception range _(⚠ from 2026-08-04 this is true only **in the air** —
+  9 on the ground, 13.95 flying; see "Aerial movement" below)_
 - Strong attraction to carcasses and feeding vultures
 - Low movement-energy cost while searching
 - High feeding competition and dominance
@@ -22,7 +23,7 @@ The existing carnivore feeding system can already create a non-hunting scavenger
 
 ### Required additions
 
-#### Aerial movement
+#### Aerial movement — ✅ **partly built, 2026-08-04** (phases F1/F2)
 
 The current ground-based locomotion system cannot represent:
 
@@ -33,6 +34,34 @@ The current ground-based locomotion system cannot represent:
 - Terrain-independent movement
 
 Add a generalized flight mode with altitude state, cheap soaring, costly takeoff and flapping, and reduced movement during poor thermal conditions.
+
+**What shipped, and what was declined.** `entity.flying` is a **pace on the
+intent** rather than a state machine (see `locomotion/flight.js`): while the
+vulture is doing a travelling action it moves at 1.5× its own speed with the
+terrain modifier bypassed, sees 1.55× as far, and pays 0.6 of the normal cost per
+unit travelled. So **rapid travel, terrain independence, and cheap searching are
+built**, and measured: +54% distance covered per 1000 ticks and −17% time from a
+carcass appearing to the first vulture at it.
+
+⚠ **Altitude state, thermal soaring, takeoff and flapping costs, and
+poor-thermal-conditions modulation were all declined**, deliberately, and the
+reasoning is worth keeping because it will come up again for any bird. Each of
+them needs a *stored* state or a second axis, and this engine's standing rule is
+that a new movement behaviour must not compete with foraging for the animal's
+attention (DOCS §9 Decision) — an altitude state gives it something to manage
+rather than something it simply is. What is left is four numbers at four
+chokepoints that already existed, which is why the whole mechanism is inert for
+every species that does not declare it. ⚠ **"High-altitude searching" is
+therefore a flat multiplier rather than a height**: a soaring bird and a low glide
+are the same state, and there is no altitude anywhere in the world's geometry
+(engine item **A74**).
+
+⚠ The cost was paid on the ground rather than in the air: the vulture's ground
+perception radius dropped **14 → 9** so that flying restores the 14 it always had
+— because the perception cell scan is (2r+1)² and widening the world's already
+widest radius is quadratic. A grounded vulture now sees less while it feeds,
+drinks, courts and rests, which turned out to be an ecological brake as well as a
+performance one.
 
 #### Carcass discovery network
 

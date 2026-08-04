@@ -19,6 +19,7 @@
  * terrain, the spatial grid, and the entity's own condition.
  */
 import { diseaseSeverity } from '../disease/disease.js';
+import { flightSpeedMultiplier } from './flight.js';
 
 /**
  * Tuning a step depends on, all of it already living in `config.locomotion`,
@@ -57,6 +58,13 @@ export function normalizeStepRules(options = {}) {
  * target's — stepping out of a thicket is a thicket-speed step. That is the
  * movement system's existing behaviour and moving it here preserves it.
  *
+ * ⚠⚠ **On the wing, the terrain modifier is not applied at all** (phase F1), and
+ * that is where "terrain-independent movement" comes from — it is the *absence*
+ * of a factor rather than a new one. There is no ground under a flying animal to
+ * be thick or steep, so a bird crosses a thicket and open grass at the same
+ * speed. Gated on `entity.flying` first, so a walking animal pays one comparison
+ * and the species lookup happens only for something actually airborne.
+ *
  * @param {import('../world/World.js').World} world
  * @param {object} entity
  * @param {boolean} sprinting
@@ -67,7 +75,11 @@ export function stepLength(world, entity, sprinting, rules) {
   const pace = sprinting ? rules.sprintMultiplier : 1;
   const injured = 1 - entity.impairment * rules.injurySpeedPenalty;
   const ill = 1 - diseaseSeverity(entity, rules.diseaseSpeedPenalty);
-  return entity.speed * pace * injured * ill * world.speedModifierAt(entity.x, entity.y);
+  const ground =
+    entity.flying === true
+      ? flightSpeedMultiplier(world.species.get(entity.speciesId))
+      : world.speedModifierAt(entity.x, entity.y);
+  return entity.speed * pace * injured * ill * ground;
 }
 
 /**
@@ -106,6 +118,15 @@ export function cellFull(world, cellX, cellY, moverId, maxOccupantsPerCell) {
  *   3. **A full cell.** Occupancy only gates *entry*: moving within the current
  *      cell, or out of a full one, is always allowed.
  *
+ * ⚠⚠ **A flying animal is refused by none of the three** (phase F1): there is no
+ * rock in the air, no thicket edge to crawl through, and no crowding cap on a
+ * patch of sky. It may nonetheless only ever *land* on passable ground, and that
+ * is guaranteed upstream rather than here — `flyingFor` keeps an animal airborne
+ * while the cell underneath is impassable, so the invariant "a grounded animal is
+ * on passable ground" needs no guard at this end. ⚠ Put the landing test *here*
+ * and it becomes a refusal, which the decision system reads as an obstacle to
+ * deflect around (A65) — a bird bouncing off the middle of a lake.
+ *
  * @param {import('../world/World.js').World} world
  * @param {object} entity the mover, at its current position
  * @param {number} targetX @param {number} targetY
@@ -114,6 +135,7 @@ export function cellFull(world, cellX, cellY, moverId, maxOccupantsPerCell) {
  * @returns {boolean}
  */
 export function stepRefused(world, entity, targetX, targetY, breakThicket, maxOccupantsPerCell) {
+  if (entity.flying === true) return false;
   if (!world.isPassableAt(targetX, targetY)) return true;
   if (breakThicket !== true && world.isThicketAt(targetX, targetY) && !world.isThicketAt(entity.x, entity.y)) {
     return true;

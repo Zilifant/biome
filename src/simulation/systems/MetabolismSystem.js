@@ -21,6 +21,7 @@ import { thermalStress } from '../world/Environment.js';
 // with the animal. Derived from the compartment on read, exactly as the movement
 // system reads it, so it can never disagree with the disease state.
 import { diseaseSeverity } from '../disease/disease.js';
+import { flightMoveCostFactor } from '../locomotion/flight.js';
 
 export class MetabolismSystem extends SimulationSystem {
   /**
@@ -102,12 +103,28 @@ export class MetabolismSystem extends SimulationSystem {
       // travel, whatever it was. One `Map.get` of a pre-resolved, pre-frozen
       // record — no merging or defaulting in the loop, per the step's
       // performance note.
-      const params = world.species.get(entity.speciesId)?.metabolism ?? this;
+      // ⚠ One `Map.get`, two readers: the `metabolism` block and — since phase F1
+      // — the `flight` field beside it. Resolving the species record once and
+      // taking both off it keeps this at the single lookup the step's performance
+      // note allows, rather than adding a second for a factor that is 1 for every
+      // species that does not fly.
+      const speciesRecord = world.species.get(entity.speciesId);
+      const params = speciesRecord?.metabolism ?? this;
       // A more efficient individual (Step 14) burns proportionally less for the
       // same mass and the same distance travelled.
       const massFactor = (entity.bodyMass / params.referenceMass) ** params.massScalingExponent / entity.traits.metabolicEfficiency;
       const basalCost = params.basalRate * massFactor;
-      const moveCost = params.moveCostFactor * entity.lastMoveDistance * massFactor;
+      // ⚠⚠ **Cheap distance is the whole ecological point of flight** (phase F1),
+      // and it lands here because this is the one place travel turns into energy.
+      // A flying animal covers more ground *and* pays less per unit of it, which
+      // is what makes searching a wide area for a rare, rich, unpredictable food
+      // supply survivable — the carrion strategy stated as arithmetic. Basal cost
+      // is untouched: nothing here charges for takeoff or for holding altitude
+      // (`flight.takeoffCost` is the named lever if flicker ever needs one), and
+      // pretending to model the energetics of flapping would be a simulation of
+      // flight, which §1 of the plan puts explicitly out of scope.
+      const flightCost = entity.flying === true ? flightMoveCostFactor(speciesRecord) : 1;
+      const moveCost = params.moveCostFactor * flightCost * entity.lastMoveDistance * massFactor;
       // Holding body temperature against the weather (Step 19). Cover shelters
       // an animal from part of the swing, which is what makes seeking it worth
       // the walk. Charged as energy, so cold kills by burning an animal out —

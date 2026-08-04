@@ -185,10 +185,22 @@
  *       the *new* defaults underneath animals placed in the old one. That is the
  *       same hazard the terrain-params consolidation fixed on 2026-08-02, and it
  *       is why a terrain generator change is always a save-format change.
+ *  31 — flight (phase F1 of TREES-FLIGHT-VULTURE-PLAN.md): a per-entity `flying`
+ *       boolean and a new `config.flight` section.
+ *
+ *       ⚠ **A v30 save would in fact have restored correctly, and it is
+ *       invalidated anyway.** `flying` rides along in `{ ...entity }` and defaults
+ *       to `false` in `createEntity`, and the missing config section is filled by
+ *       `mergeConfig` from the defaults — so nothing here is silently wrong the
+ *       way v29's missing tree params were. The bump is the discipline rather than
+ *       a repair: §12 says bump when persisted state changes, `restoreSimulationState`
+ *       refuses any other version outright, and the alternative is a save that
+ *       claims to be v30 while carrying a field v30 never had. A loud refusal
+ *       beats a save whose format number no longer identifies its contents.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 30;
+export const SAVE_FORMAT_VERSION = 31;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

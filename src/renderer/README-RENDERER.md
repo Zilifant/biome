@@ -191,9 +191,10 @@ carcass, plant, or unknown kind keeps its base glyph.
 
 ## Status marks
 
-**A hurt, ill, carrying, rutting, or dispersing animal carries a small mark in
-the upper-left corner of its cell** — a **dot** when something is wrong with it,
-a **diamond** when something is happening in its life:
+**A hurt, ill, carrying, rutting, dispersing, treed or flying animal carries a
+small mark in the upper-left corner of its cell** — a **dot** when something is
+wrong with it, a **diamond** when something is happening in its life, a
+**chevron** for where it is:
 
 | Mark | Means | |
 | --- | --- | --- |
@@ -202,6 +203,12 @@ a **diamond** when something is happening in its life:
 | ◆ pink | carrying young | until she gives birth |
 | ◆ bright-cyan | in rut | receptive, looking for a mate |
 | ◆ bright-white | dispersing | a juvenile leaving its natal range |
+| ◆ bright-green | up a tree | a climber resting, or a kill cached out of reach |
+| » cyan, pointing up | flying | on the wing, which is where a vulture travels |
+
+⚠ **The chevron pair is a `»` rotated to point up**, and it is the only mark in
+the legend the panel can only approximate: a legend row is text, and text cannot
+rotate. The character it shows is the one the mark is drawn from.
 
 The animal's glyph keeps its own colour. Hurt and ill used to *tint* it, which
 cost the two things a letter is for: a purple `g` no longer says "gazelle" at a
@@ -615,6 +622,21 @@ async assets calls `app.requestRedraw()` when they arrive.
 What the renderer does with each layer the protocol projects, and why. Open
 gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
+- Flight (protocol v32): `flying` rides in bulk snapshots, and the grid marks it
+  with a **cyan `»` rotated to point up** — the third status shape, which says
+  *where* an animal is rather than what is wrong with it or what is happening to
+  it. It was projected because being airborne is the *only* outward sign the
+  mechanism has: flight makes an animal faster, wider-seeing and cheaper to run,
+  and none of those is visible on a grid. ⚠ It changes far more often than
+  `elevation` does — a wander commitment carries it 8–24 ticks — so unlike v31 it
+  genuinely dirties deltas, which is why the engine measures ground↔air
+  transitions per 1000 ticks.
+- Elevation (protocol v31): `elevation` (0 ground, 1 canopy) rides in bulk
+  snapshots on animals **and carcasses**, drawn as a bright-green diamond — a
+  leopard resting above the hyenas, and a kill it has hauled up out of their
+  reach. ⚠ It is the one status a **carcass** may carry, which is what
+  `statusesOf`'s narrow `remains` flag exists for: a body's `healthFraction` is 0,
+  so every other status would light up on a corpse.
 - Reproductive state (protocol v30): `gestating` and `seekingMate` ride in bulk
   snapshots, and the grid marks both — a pink diamond for a female carrying, a
   bright-cyan one for an animal receptive and looking. They were added for
@@ -696,6 +718,10 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
 - Fixture mode has no inspection or metrics data at all (`http` is null there),
   so those panels are empty offline. [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.4 (P6/E3).
 - Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.
+- The **flying** mark blinks, and that is the world rather than the renderer: an
+  animal alternates between travelling (airborne) and contact (grounded) actions,
+  measured at ~52 ground↔air transitions per 1000 vulture animal-ticks, so the
+  mark honestly follows. [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.3 (P17).
 
 ## Protocol layers, older
 

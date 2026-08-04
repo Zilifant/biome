@@ -42,6 +42,7 @@
  */
 
 import { shareElevation } from '../locomotion/climbing.js';
+import { isAirborne } from '../locomotion/flight.js';
 
 /** The predation block of a species, or null if it declares none. */
 export function predationOf(species) {
@@ -95,7 +96,7 @@ export function minPreyMassFor(hunter, predation) {
  */
 export function isEligiblePrey(hunter, prey, predation) {
   return (
-    shareElevation(hunter, prey) &&
+    isReachablePrey(hunter, prey) &&
     prey.bodyMass <= maxPreyMassFor(hunter, predation) &&
     prey.bodyMass >= minPreyMassFor(hunter, predation)
   );
@@ -119,9 +120,18 @@ export function isEligiblePrey(hunter, prey, predation) {
  * as a population number three subsystems away. A treed leopard is still visible,
  * still courtable, and still somebody's parent. It just cannot be reached.
  *
+ * ⚠ **Flight joined it on 2026-08-04** (phase F1), as a second way of being out
+ * of reach rather than as a second predicate: a bird on the wing is not prey, and
+ * takes none. Both directions again, and the reasoning is the same as the
+ * elevation flag's — flight carries no altitude, so there is no stoop from height
+ * to model and nothing in the roster hunts on the wing. Stated as two explicit
+ * comparisons rather than folded into `shareElevation`, because "up a tree" and
+ * "in the air" are different mechanisms with one consequence, and a reader of
+ * either module should not have to know about the other to know what it claims.
+ *
  * @param {object} hunter @param {object} prey
  * @returns {boolean}
  */
 export function isReachablePrey(hunter, prey) {
-  return shareElevation(hunter, prey);
+  return shareElevation(hunter, prey) && !isAirborne(hunter) && !isAirborne(prey);
 }

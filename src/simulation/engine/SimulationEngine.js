@@ -85,6 +85,16 @@ function publicEntityView(entity, tick) {
     // with no elevation, and no error anywhere. `test/protocol.test.js` now
     // asserts the two agree, because the next field will do the same thing.
     elevation: entity.elevation,
+    // Flight (v32, phase F1). Stored, like `elevation`, and safe for the same
+    // reason: exactly one system writes it (`DecisionSystem`).
+    //
+    // ⚠ Added to **both** this literal and `PUBLIC_ENTITY_FIELDS` in one edit,
+    // which is the lesson the line above cost. They are two spellings of one
+    // rule; a field in only the whitelist arrives as `undefined` with its key
+    // present and no error anywhere. `test/protocol.test.js` asserts every
+    // whitelisted field carries a defined value, so this is now caught rather
+    // than remembered.
+    flying: entity.flying,
   };
 }
 

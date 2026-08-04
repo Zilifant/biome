@@ -37,16 +37,17 @@ stands, not a reading. A dated figure is a record of what was true when it was
 taken — the demo world it was measured in keeps changing underneath these
 numbers, so re-measure rather than inherit.
 
-### Current state (as of 2026-08-01)
+### Current state (as of 2026-08-04)
 
 |                     |                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
-| Tests               | renderer 130, runner 18 (of 991 repo-wide); 44 in `tests-ui`                                                                         |
-| Protocol understood | **30** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
-| Coverage            | every protocol layer through v30 is drawn or inspectable                                                                             |
+| Tests               | renderer 96 in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 13 spec files in `tests-ui`                                      |
+| Protocol understood | **32** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
+| Coverage            | every protocol layer through v32 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are both **status marks** (§9)        |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
-| Fixtures            | current — v30, all **eight** shipped species including the leopard; ⚠ due on every **roster** change, not only a protocol bump (§10) |
+| Fixtures            | current — v32, all **eight** shipped species, and **10 of 231 entities airborne** so fixture mode shows the flying mark offline; ⚠ due on every **roster** change, not only a protocol bump (§10) |
+| Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
 | Git                 | uncommitted (the user handles git)                                                                                                   |
 
@@ -68,6 +69,18 @@ Items keep the `P`/`E` identifiers they have in `PLAN-RENDERER.md` §4, so
 cross-references in code and history keep resolving.
 
 ### 1.1 Unverified
+
+- **⚠ The `»` flying mark has never been seen in a browser** _(2026-08-04)_. Its
+  geometry is asserted through the canvas stub — twelve vertices, apex centred and
+  above the mark's midpoint, cyan — and the legend row is asserted from the
+  registry, but nothing has drawn it on a real canvas at a real zoom. The specific
+  claim that needs a browser is **legibility at the 10px floor**, where the pair of
+  chevrons is expected to fuse into one small wedge (§9); the thickness is floored
+  at a whole pixel for exactly that reason and the floor is untested visually.
+  ⚠ `tests-ui/status-marks.spec.js` now names `flying` and `up a tree` in the
+  legend list, so the browser suite *will* cover the legend half on its next run —
+  it could not be run in the environment this shipped from (no port binding), which
+  is why this item exists rather than a green tick.
 
 - **⚠ P9 — The inspector popover's _placement and hosting_ have never been driven
   in a browser.** Its pure logic is tested and its wiring was reviewed (which
@@ -156,6 +169,17 @@ present** (P5).
   bulk snapshot unused; directional or pose sprite variants would be an
   additive slot-id suffix (the vocabulary is append-only), not a rework. Not
   built — v1 mirrors the glyph channels exactly.
+- **P17 — The status mark for a flying animal blinks, because the state genuinely
+  changes every ~19 animal-ticks.** Flight is derived from the chosen action, and
+  an animal alternating between a travelling action and a contact one is
+  alternately airborne and grounded — measured at **52 ground↔air transitions per
+  1000 vulture animal-ticks** (3 seeds × 6000 ticks) *after* the action
+  classification was corrected; it was 289 before, which was a different problem
+  and is fixed (see the engine's `locomotion/flight.js`). The mark is therefore
+  honest and slightly restless. Nothing here can fix it: the renderer portrays
+  authoritative output, and the engine-side lever is `flight.takeoffCost`,
+  deliberately unbuilt. Worth knowing before reading a blinking `»` as a rendering
+  fault.
 
 ### 1.4 Tooling and docs
 
@@ -985,18 +1009,38 @@ species, and any number of conditions can ride along.
 
 `STATUS_APPEARANCE` is the registry, and the legend is generated from it:
 
-| Mark           | Status         | From                                    |
-| -------------- | -------------- | --------------------------------------- |
-| ● orange       | hurt           | `healthFraction < HURT_HEALTH_FRACTION` |
-| ● purple       | visibly ill    | `diseaseState === 'symptomatic'`        |
-| ◆ pink         | carrying young | `gestating` (protocol v30)              |
-| ◆ bright-cyan  | in rut         | `seekingMate` (protocol v30)            |
-| ◆ bright-white | dispersing     | `dispersing`                            |
+| Mark            | Status         | From                                    |
+| --------------- | -------------- | --------------------------------------- |
+| ● orange        | hurt           | `healthFraction < HURT_HEALTH_FRACTION` |
+| ● purple        | visibly ill    | `diseaseState === 'symptomatic'`        |
+| ◆ pink          | carrying young | `gestating` (protocol v30)              |
+| ◆ bright-cyan   | in rut         | `seekingMate` (protocol v30)            |
+| ◆ bright-white  | dispersing     | `dispersing`                            |
+| ◆ bright-green  | up a tree      | `elevation === 1` (protocol v31)        |
+| » (up) cyan     | flying         | `flying` (protocol v32)                 |
 
 - **Shape is the family and colour is the identity.** A `dot` says something is
   _wrong_ with this animal; a `diamond` says something is _happening_ in its
-  life. Two shapes is all the shape channel can carry at 10px, so colour does
-  the rest — and no two statuses share one, which a test enforces.
+  life; a `chevron` says **where** it is — on the wing rather than on the ground.
+  Colour does the rest, and no two statuses share one, which a test enforces.
+- ⚠ **The shape channel went from two values to three on 2026-08-04, and the
+  reason it was allowed to is that "where" is a third kind of fact.** The channel
+  was capped at two on the argument that two shapes is all 10px can carry, and
+  that argument still holds: at the zoom floor the `»`'s pair of chevrons fuses
+  into one small wedge. It is admitted anyway because an upward wedge still reads
+  as _up_ at the floor, and because **colour is the channel that actually has to
+  carry a mark at 10px** — which is what the no-shared-colour test is protecting.
+  This is not an invitation to a fourth shape.
+- ⚠ **`flying` is drawn cyan, which is the water reservation, and that is
+  deliberate rather than an oversight.** A status is a small mark in the cell's
+  _upper-left corner_, never a fill and never a glyph colour, so it cannot be
+  read as the terrain it shares a hue with; `bright-cyan` is the rut diamond, so
+  the two are a shade apart as well as a shape apart.
+- ⚠ **The mark geometry is `paintStatusMark`, exported from `AsciiGridRenderer`
+  and shared with the sprite renderer** — it used to be two copies kept identical
+  by hand, with a comment saying so, and the third shape is precisely what would
+  have made that silent: a `chevron` added to one copy draws a diamond in the
+  other with nothing failing. Colour resolution stays each renderer's own.
 - ⚠ **An animal in several statuses shows them one at a time**, `STATUS_CYCLE_MS`
   (500 ms) each, in registry order. Drawing all of them at once is the obvious
   alternative and it is worse at every zoom this renderer offers: four marks in
@@ -1119,7 +1163,10 @@ background persist under `biome.sprites.config.v1` (validated on load; unknown
 slot ids are dropped, not fatal); sheet geometry is code constants in
 `SpriteConfig.js`'s `SHEET` block. A tint is a flat silhouette (the sprite's
 alpha, one fill). Condition and life-state ride as the same corner **status
-marks** as ASCII mode (`statusesOf`, cycling on `statusPhase`) — never a
+marks** as ASCII mode (`statusesOf`, cycling on `statusPhase`, and from
+2026-08-04 the *same geometry* — `paintStatusMark`, exported from
+`AsciiGridRenderer`, because the two copies it replaced were kept identical by
+hand and a third shape is exactly what would have separated them) — never a
 recolour, and incubating stays unmarked; fading ground layers give way beneath
 an occupant's sprite (`fadesUnderOccupant` is an identity test on the registry
 entry `groundAppearanceAt` returns, shared by both renderers); the kill flash
@@ -1158,9 +1205,14 @@ the sections above; collected here as a checklist.
   facts — so a newer engine cannot break an older renderer.
 - **Share the geometry, do not restate it.** `CellDetail` uses the same
   disturbance circle test the grid draws with, and the same `occupantsInCell` the
-  selection uses; `groundAppearanceAt` exists in `AsciiGridRenderer` so the
-  terrain pass and the selection overlay resolve ground identically. What a panel
-  claims and what is drawn can never disagree.
+  selection uses; `groundAppearanceAt` and `paintStatusMark` are exported from
+  `AsciiGridRenderer` so the terrain pass, the selection overlay and **both grid
+  renderers** resolve ground and draw marks identically. What a panel claims and
+  what is drawn can never disagree. ⚠ **"Kept identical by hand" is the smell**:
+  the sprite renderer's status mark carried exactly that comment for weeks, and it
+  came due the moment the shape channel grew a third value — a `chevron` added to
+  one copy would have drawn a diamond in the other with nothing failing. A comment
+  promising two things agree is a request for a shared function.
 - **A per-tick cost is a real budget, and the store notifies on every change.**
   The inspector rebuild (R3), B5's polling, and C4's snapshot flood were each one.
   `store.setFollowedEntity(null)` inside a pointermove handler re-renders every
@@ -1235,6 +1287,17 @@ the sections above; collected here as a checklist.
 ## 11. Failure patterns worth remembering
 
 Every one of these cost real time. Recorded as patterns, not anecdotes.
+
+- ⚠ **A duplicate annotated as a duplicate is still a duplicate, and it comes due
+  the first time the thing it copies grows.** `SpriteGridRenderer#drawStatusMark`
+  was a line-for-line copy of the ASCII renderer's, carrying the comment "kept
+  identical to AsciiGridRenderer's, since the marks are the shared status
+  language" — an accurate description of a latent bug. Adding a third shape
+  (`chevron`, 2026-08-04) to one copy would have drawn a diamond in the other with
+  **nothing failing**, in the mode fewest people run. The fix was the one the
+  comment was asking for: one exported `paintStatusMark`, two callers, colour
+  resolution left to each. **When you write "kept identical to X", extract it
+  instead** — the comment is the design telling you what it wants.
 
 - **A `switch`-free but equally silent trap: the wrong update path.** A value in
   the wrong one of the three panel update paths (§5) fails _silently_ — a live
@@ -1379,11 +1442,15 @@ panel surviving a tick.
   the generic fallback. The checkbox, the retention tier, and the filter count
   all follow from the entry.
 - **To add a status mark:** one entry in `STATUS_APPEARANCE` — `shape`
-  (`dot` for a condition, `diamond` for a state), a `colorToken` no other status
-  uses, a label, a note, and `applies(entity)` over bulk-snapshot fields. The
-  legend row and the cycling come for free. If the fact is not in a bulk
-  snapshot yet, that is a protocol change first (v30 is exactly that: two
-  booleans added so a rut and a pregnancy could be marked at all).
+  (`dot` for a condition, `diamond` for a state, `chevron` for where the animal
+  is), a `colorToken` no other status uses, a label, and `applies(entity)` over
+  bulk-snapshot fields. The legend row and the cycling come for free. If the fact
+  is not in a bulk snapshot yet, that is a protocol change first (v30, v31 and v32
+  are each exactly that: `gestating`/`seekingMate`, `elevation`, and `flying`
+  projected so a rut, a treed leopard and a bird on the wing could be marked at
+  all). ⚠ A **new shape** is three edits rather than one — the registry, the
+  `STATUS_SHAPE_GLYPHS` table in `Legend.js`, and `paintStatusMark`'s path — and
+  the bar for adding one is high: see §9, the channel is at its useful limit.
 - **To replace the Canvas renderer:** implement a new `draw({ store, camera })`;
   the store, transports, protocol, and engine are untouched.
 - **To use a different spritesheet:** edit the `SHEET` constants at the top of

@@ -90,6 +90,22 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // with no climbing species, so it dirties no delta it was not already
   // dirtying.
   'elevation',
+  // Flight (v32, phase F1). One boolean: whether this animal is on the wing.
+  //
+  // Projected on the same argument `elevation` made one version earlier — **a
+  // renderer cannot show what it cannot see** — and the case is if anything
+  // stronger here, because being airborne is the *only* outward sign of the
+  // mechanism. A flying vulture is faster, sees further and pays less per unit of
+  // travel, and every one of those is invisible on a grid; whether it is in the
+  // air is not, and it is what makes "the birds are up" readable at a glance.
+  //
+  // ⚠ Cheap, but not free in the way `elevation` was: this changes more often
+  // than an animal climbs a tree — a wander commitment carries it for 8–24 ticks —
+  // so it dirties a delta on each transition. The measurement to watch is
+  // therefore ground↔air transitions per animal per 1000 ticks, which is the same
+  // number flicker is judged on (see `locomotion/flight.js`). False on every
+  // entity in a world with no flying species, so it dirties nothing there.
+  'flying',
 ]);
 
 function cloneEntity(entity) {

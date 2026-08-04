@@ -78,6 +78,30 @@ they are not re-opened by accident.
   but it is the one species the change costs, and it now loses its seed with less
   margin. Worth a second look before anything else is taken off the clan (B7's
   `carcass.decayTicks` and phase V2's discovery network both would).
+  ⚠⚠ **Something else already was, one day later.** The vulture's flight (phase F2,
+  2026-08-04) takes the clan's carrion share 11.1% → 9.6% and its mean population
+  7.8 → 6.4 (**−18%**) on the ten-seed gate. That gate passes at 10/10 in both arms,
+  so it is not a failure either — but **two mechanisms in two days have now moved
+  carrion off the hyena, and no single gate sees the pair.** This is the item to
+  re-read before phase V2, whose whole purpose is getting vultures to bodies faster.
+
+- **A74 — The vertical axis is two flags, not a coordinate, and five things are
+  therefore inexpressible** _(opened 2026-08-04, phases T2/F1; the plan's §8 named
+  the elevation half and it was never opened)_. `entity.elevation` (0/1) and
+  `entity.flying` (boolean) carry no height, so: **no ambush from above** (a treed
+  leopard reaches nothing below it, and nothing hunts on the wing); **no extra
+  sight from being up high** beyond a flat per-species multiplier; **no cliff, no
+  slope, no per-cell microclimate** (which is also A24's blocker); **no thermals or
+  altitude bands**, so a soaring bird and a low glide are the same state; and **no
+  vertical distance anywhere** — the spatial index, every `Math.hypot`, and every
+  range gate are two-dimensional. All five are honest consequences of the choice
+  that made vertical refuge affordable at all (A67 had deferred it, "possibly
+  permanently", on the cost of a real axis). Recorded so the next person reaching
+  for one knows it is a new dimension rather than a new field. ⚠ **The nearest
+  cheap lever is `flight.takeoffCost`**, named but deliberately unbuilt: flight
+  currently costs nothing to enter or leave, so a bird alternating between a
+  travelling action and a contact one transitions ~52 times per 1000 animal-ticks
+  (renderer P17 is what that looks like on screen).
 
 ## Engine — implemented, tested, and near-inert
 
@@ -298,12 +322,13 @@ they are not re-opened by accident.
   carcass, and ⚠ **nothing in perception's visibility gate** (A63: a treed animal
   is still seen, still a mate candidate, still a guardian, and that is asserted
   rather than trusted). Trees are terrain (T1), not the entities A67 assumed, so
-  A3 stayed shut. The protocol change A67 predicted was real: v31. ⚠ **What is
-  *not* closed** is the behaviour that uses it — no species declares `climbs`
-  yet, so the mechanism ships inert and byte-identical; the leopard's rest and
-  kill-caching are phase T3. ⚠ And one limit is inherent to the flag: **a treed
-  predator can reach nothing below it**, so there is no ambush from height, which
-  A67 listed among the things a complete leopard does.
+  A3 stayed shut. The protocol change A67 predicted was real: v31. ✅ **The
+  behaviour that uses it shipped the same day** (phase T3): the leopard declares
+  `climbs`, caches kills, and the ten-seed gate passes — ⚠ with the hyena paying for
+  the whole mechanism (−5.4 tonnes of carrion, starvation deaths 10 → 21). See
+  DOCS §7 Terrain. ⚠ And one limit is inherent to the flag: **a treed predator can
+  reach nothing below it**, so there is no ambush from height, which A67 listed
+  among the things a complete leopard does.
 
 - **A68 — The species roster stops at eight; the rhino and the elephant are
   deferred** _(decided 2026-07-30)_. Scope rather than work. The **black rhino**
@@ -451,6 +476,16 @@ they are not re-opened by accident.
 
 ## Renderer — verification and tooling
 
+- **⚠ The `»` flying mark has never been drawn in a browser** _(opened 2026-08-04
+  with phase F1)_. Its geometry is asserted through the canvas stub (twelve
+  vertices, apex centred and above the midpoint, cyan) and its legend row from the
+  registry, but no real canvas has drawn it at a real zoom. The claim that needs a
+  browser is **legibility at the 10px floor**, where the chevron pair is expected
+  to fuse into one wedge; the fill thickness is floored at a whole pixel for that
+  reason and the floor is visually untested. `tests-ui/status-marks.spec.js` now
+  names the label, so the next Playwright run covers the legend half — it could not
+  be run where this shipped from (no port binding).
+
 - **⚠ P9 — The inspector popover's placement and hosting have never been driven
   in a browser.** Its pure logic is tested and its wiring was reviewed (which
   caught two real bugs), but positioning, edge-flipping, dragging, and the
@@ -524,3 +559,12 @@ they are not re-opened by accident.
 - **P16 — Sprites ignore `heading` and `action`.** Both ride unused in every
   bulk snapshot; directional/pose sprite variants would be an additive slot-id
   suffix, not a rework.
+
+- **P17 — The flying status mark blinks, because the state genuinely changes every
+  ~19 animal-ticks** _(opened 2026-08-04 with phase F1)_. Measured at **52
+  ground↔air transitions per 1000 vulture animal-ticks** — an animal alternating
+  between a travelling action and a contact one is alternately airborne and
+  grounded, and the mark honestly follows. Nothing renderer-side can fix it (the
+  renderer portrays authoritative output); the engine lever is
+  `flight.takeoffCost`, deliberately unbuilt. Listed so a blinking `»` is not read
+  as a rendering fault.

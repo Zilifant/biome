@@ -1,3 +1,18 @@
+> ⚠ **This file stops at 2026-07-30 and is two sessions stale.** The work since —
+> **T1/T2/T3** (trees, the elevation flag, the leopard's kill caching) on
+> 2026-08-03 and **F1/F2** (flight as a movement mode, the vulture flying) on
+> 2026-08-04 — keeps its session record in
+> [`TREES-FLIGHT-VULTURE-PLAN.md`](TREES-FLIGHT-VULTURE-PLAN.md), where every phase
+> carries an **"As built"** section with its measurements, its gate, and what the
+> plan got wrong. That is the handoff for those five phases; this document is not
+> being back-filled, because a session record written by someone who was not there
+> is worse than a dated one.
+>
+> **What has changed underneath everything below:** protocol **32** (was 29), save
+> format **31** (was 29), eleven always-per-species fields (was nine), seven status
+> marks in three shape families, and two new mechanisms with world-level switches
+> (`config.climbing`, `config.flight`). The traps in §5 are all still live.
+
 # Handoff — 2026-07-30 session (species phases 12, 13 and 14)
 
 Supersedes the phases 10–11 handoff and absorbs it; the traps that will bite again

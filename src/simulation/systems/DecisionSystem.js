@@ -50,8 +50,15 @@
  * whose calf is actually hungry. Both are gated on `aging.hiddenUntil`, which is
  * 0 for every species that does not ask for them.
  *
+ * ⚠ Phase F1 added **no action either**, and for the same reason phase 10 did
+ * not: flight is a *pace* on the intent — the shape `intent.sprint` already had —
+ * decided from the action the animal has already chosen. `entity.flying` is
+ * written here and nowhere else (see `locomotion/flight.js`), which is why this
+ * system's ownership list grew a field and the list above did not grow a line.
+ *
  * Runs in the `decision` phase (after perception, before movement). Ownership:
- * writes `action`, `actionTarget`, `utilityBreakdown`, and `moveIntent`; reads
+ * writes `action`, `actionTarget`, `utilityBreakdown`, **`flying`**, and
+ * `moveIntent`; reads
  * `world.perception`, physiology, vegetation (its standing crop, as both food and
  * maturity — phase 9), bounded `memories` (Step 15),
  * and the `boldness` / `caution` / `exploration` / `choosiness` traits (the last
@@ -74,6 +81,7 @@ import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
 import { canClimb, isAloft } from '../locomotion/climbing.js';
+import { flyingFor } from '../locomotion/flight.js';
 import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
@@ -223,6 +231,12 @@ export class DecisionSystem extends SimulationSystem {
     // The world-level switch for caching, from `config.climbing.caching` (see
     // there for why it cannot live beside `cacheWeight` in the species block).
     caching = true,
+    // The world-level switch for flight, from `config.flight.enabled` (phase F1).
+    // ⚠ Defaults to **false** here, unlike `caching` above, because this system's
+    // constructor options are also the fallback for a test that builds it by
+    // hand: a mechanism whose off switch is the default cannot be turned on by
+    // accident, and the composition root wires the real value in one place.
+    flight = false,
     huntWeight = 1.4,
     stalkDiscount = 0.8,
     chaseRange = 4.0,
@@ -347,6 +361,7 @@ export class DecisionSystem extends SimulationSystem {
     this.thicketReachDistance = thicketReachDistance;
     this.cacheHaulDistance = cacheHaulDistance;
     this.caching = caching;
+    this.flight = flight;
     this.huntWeight = huntWeight;
     this.stalkDiscount = stalkDiscount;
     this.chaseRange = chaseRange;
@@ -783,6 +798,23 @@ export class DecisionSystem extends SimulationSystem {
 
       entity.action = action;
       entity.utilityBreakdown = utilities;
+      // ⚠⚠ **Flight is a pace on the intent, and this is the only line in the
+      // engine that writes it** (phase F1). It is decided *from* the action, so
+      // it belongs immediately after the action is settled and before
+      // `#intentFor` — which probes `stepLength` for its detour ladder and would
+      // otherwise measure a walking step for an animal about to fly.
+      //
+      // Written unconditionally for every animal, including `false`: the flag
+      // outlives its tick only if some path skips it, and a stale `flying: true`
+      // would be a bird still enjoying the wing after `config.flight.enabled`
+      // was turned off. `flyingFor` short-circuits on the switch and then on the
+      // species, so a roster that declares no flier pays one comparison here.
+      //
+      // ⚠ Not an entry in the utility table above, and not eligible to become
+      // one. DOCS §9 Decision: a new movement behaviour competes with foraging
+      // and foraging must win. This competes with nothing — the animal has
+      // already chosen what to do.
+      entity.flying = flyingFor(world, entity, species, this.flight);
       // The prey this predator has committed to — the hunting system reads it
       // to resolve capture attempts, and only ever reads it.
       entity.huntTargetId = action === 'chase' || action === 'stalk' ? prey.id : null;

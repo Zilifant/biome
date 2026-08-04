@@ -418,11 +418,20 @@ export const HURT_HEALTH_FRACTION = 0.7;
  * ill. A mark beside the glyph is additive — the letter keeps saying species,
  * the colour keeps saying species, and any number of conditions can ride along.
  *
- * `shape` distinguishes the two families and is deliberately only two values:
+ * `shape` distinguishes the families, and there are three of them:
  *
  * - **`dot` — condition.** Something is wrong with this animal.
  * - **`diamond` — state.** Something is happening in its life. Not wrong, not
  *   permanent, and worth finding on the grid.
+ * - **`chevron` — place.** The animal is not where the grid draws things: it is
+ *   on the wing. A `»` rotated to point up, which reads as ascending and is the
+ *   one shape still legible against the other two at the 10px floor.
+ *
+ * ⚠ The channel stayed at two values for a long time on the argument that two
+ * shapes is all 10px can carry, and the third is admitted because it answers a
+ * genuinely different question — *where* rather than *what*. It is not an
+ * invitation to a fourth: colour is what makes a mark findable, and shape is
+ * only the family it belongs to.
  *
  * Each carries its own colour, because shape alone is two bits and colour is
  * what makes a marker findable in a herd. ⚠ **An animal in several statuses
@@ -436,8 +445,8 @@ export const HURT_HEALTH_FRACTION = 0.7;
  * animal on screen rather than only of the selected one. `gestating` and
  * `seekingMate` are what protocol v30 added for exactly this.
  *
- * @type {ReadonlyArray<{id: string, shape: 'dot' | 'diamond', colorToken: string,
- *        label: string, applies: (entity: object) => boolean}>}
+ * @type {ReadonlyArray<{id: string, shape: 'dot' | 'diamond' | 'chevron', colorToken: string,
+ *        label: string, remains?: boolean, applies: (entity: object) => boolean}>}
  */
 export const STATUS_APPEARANCE = Object.freeze([
   Object.freeze({
@@ -494,6 +503,29 @@ export const STATUS_APPEARANCE = Object.freeze([
     // Everything else in this list is a fact about a living animal.
     remains: true,
     applies: (entity) => entity.elevation === 1,
+  }),
+  Object.freeze({
+    id: 'flying',
+    // ⚠ **The third shape, and the first addition to the shape channel since it
+    // was two.** A dot says something is *wrong* with this animal and a diamond
+    // says something is *happening in its life*; being on the wing is neither —
+    // it is where the animal is, which is a third kind of fact and deserves a
+    // third mark. Drawn as a `»` rotated to point **up**: a pair of chevrons
+    // reads as "ascending" at a glance and cannot be confused with a round dot
+    // or a diamond even at the 10px floor, where the shape channel is otherwise
+    // down to one bit.
+    shape: 'chevron',
+    // ⚠ Cyan is the water reservation (§9 Dracula palette), and it is spent here
+    // deliberately rather than by oversight. Three things make it safe: a status
+    // is a small mark in the *upper-left corner*, never a fill and never a glyph
+    // colour; water is a **fading layer**, so the one cell where the two could
+    // collide — a bird over a lake — draws no water at all under the occupant
+    // (`OCCUPIED_ALPHA` is 0); and no other status uses cyan, which is what the
+    // legend and the distinctness test care about. `bright-cyan` is the rut
+    // diamond, so the two are a shade apart as well as a shape apart.
+    colorToken: 'cyan',
+    label: 'flying',
+    applies: (entity) => entity.flying === true,
   }),
 ]);
 

@@ -148,6 +148,17 @@ function createEntity(id, definition) {
     // gates are there and emphatically not in perception (A63). Carcasses carry
     // it too, which is what "a kill cached out of reach" is.
     elevation: definition.elevation ?? 0,
+    // Flight (phase F1): whether this animal is currently on the wing. A **pace
+    // flag, not a state machine** — the shape `intent.sprint` already had, derived
+    // fresh every tick from the action the animal chose (see
+    // `locomotion/flight.js`). Owned by `DecisionSystem`, read by movement,
+    // perception, metabolism and predation. False for everything that does not
+    // declare a `flight` block, and for a flier that has landed.
+    //
+    // ⚠ Independent of `elevation` above, and the two can never both be set: the
+    // actions that keep a climber aloft are the standing-still ones and the
+    // actions that put a flier on the wing are the travelling ones.
+    flying: definition.flying ?? false,
     // Life stage (Step 11). Owned by the aging system, derived from age.
     lifeStage: definition.lifeStage ?? 'adult',
     // Individual variation (Step 14). Sampled once by whoever creates the

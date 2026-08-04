@@ -1,9 +1,9 @@
 import { test, expect, SNAPSHOT, readRegion, countColor } from './helpers/app.js';
 
 /**
- * Status marks: a small dot or diamond in the upper-left corner of a cell,
- * saying that the animal standing there is hurt, ill, carrying, in season, or
- * dispersing.
+ * Status marks: a small dot, diamond, or up-pointing double chevron in the
+ * upper-left corner of a cell, saying that the animal standing there is hurt,
+ * ill, carrying, in season, dispersing, up a tree, or on the wing.
  *
  * ⚠ **The cycling is the part only a browser can answer.** An animal in several
  * statuses shows them one at a time on a *wall* clock, so it keeps turning over
@@ -119,7 +119,12 @@ test.describe('status marks', () => {
     const legend = page.locator('#legend-panel details');
     await expect(legend).toHaveAttribute('open', /.*/);
     await expect(legend).toContainText('Status');
-    for (const label of ['hurt', 'visibly ill', 'carrying young', 'in rut', 'dispersing']) {
+    // ⚠ Every label in the registry, listed explicitly rather than derived: this
+    // spec cannot import from `app/` any more cheaply than the node suite can, and
+    // the point of naming them here is that a status added to the grid and
+    // forgotten in the legend fails *in a browser* too. `up a tree` arrived with
+    // protocol v31 and `flying` with v32.
+    for (const label of ['hurt', 'visibly ill', 'carrying young', 'in rut', 'dispersing', 'up a tree', 'flying']) {
       await expect(legend).toContainText(label);
     }
     await expect(legend).toContainText('killed here, this tick');

@@ -165,17 +165,21 @@ describe('terrain sandbox scenario (seed fixed)', () => {
     assert.deepEqual(a.world.terrain.toRunLength(), b.world.terrain.toRunLength());
   });
 
-  test('demo animals never step onto impassable terrain', () => {
+  test('demo animals never *stand* on impassable terrain', () => {
+    // ⚠ Narrowed at phase F1 (2026-08-04) from "never step onto": a flying animal
+    // is refused by nothing and crosses rock and open water, which is what
+    // terrain-independent movement means. What still holds — and is what movement
+    // depends on — is that an animal on the ground is on ground it can stand on.
+    // `test/movement.test.js` asserts the same invariant in its strong form.
     const engine = createDemoSimulation({ seed: 42 });
     engine.step(300);
     for (const entity of engine.world.entities.all()) {
-      if (entity.kind === 'animal' && entity.alive) {
-        assert.equal(
-          engine.world.isPassableAt(entity.x, entity.y),
-          true,
-          `animal ${entity.id} on impassable cell at ${entity.x},${entity.y}`,
-        );
-      }
+      if (entity.kind !== 'animal' || !entity.alive || entity.flying === true) continue;
+      assert.equal(
+        engine.world.isPassableAt(entity.x, entity.y),
+        true,
+        `animal ${entity.id} on impassable cell at ${entity.x},${entity.y}`,
+      );
     }
   });
 });

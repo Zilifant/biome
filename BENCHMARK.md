@@ -475,6 +475,52 @@ construction, which is outside the timed window. And ⚠ at large-5k trees are
 ~**0.12%** of a 1024² map anyway — `treeGroves`/`treeSingles` are absolute counts
 like `ridges` and `thickets`, so they do not rescale with the world.
 
+### Flight (2026-08-04, TREES-FLIGHT-VULTURE-PLAN.md phases F1/F2)
+
+**Not resolvable at the demo's roster; +47% in a world made of the affected
+species.** Both numbers are true, they are about different questions, and the pair
+is the most useful thing in this section.
+
+Flight's only per-tick cost is a **wider perception radius while airborne**, which
+the plan named as the performance risk of the whole plan. The mitigation was to move
+the number rather than add one: the vulture's ground radius went 14 → 9 and
+`flight.visionMultiplier` is 1.55, so a *flying* vulture sees 13.95 — the radius it
+always had — and the world's maximum radius does not move. What remains is that a
+grounded vulture scans 9 and a flying one scans 13.95, which is `(2r+1)²` =
+**2.25× the cell scan**, paid on ~76% of a flier's animal-ticks.
+
+In-process A/B (`flight.enabled` on against off, one binary, one process, alternating
+the order each round — the form T1 established as decisive):
+
+| scenario | vulture share of animals | rounds | verdict |
+| --- | ---: | --- | --- |
+| large-5k | 4.2% (founding) | −1.2, +6.2, −19.7, −19.7, +16.8, +5.0, −15.4 % | **mixed — no effect resolvable** |
+| demo-default, 2000 ticks | 4.2% (founding) | −9.0, −17.8, −11.2, +8.2 % | **mixed — no effect resolvable** |
+| **vultures-only**, 4000 birds | 100% | **+23.4, +43.7, +51.8, +76.9 %** | **a real cost, every round** |
+
+⚠⚠ **The whole-world benchmark did not fail to find the cost; it was asked to
+resolve ~2% inside a ±20% spread.** 0.042 of the roster × 2.25× the scan × 0.76 of
+their ticks × perception's ~53% share of a tick ≈ **+2% of a tick** — below this
+machine's noise on the day and above §13's 1% floor, i.e. exactly the band where a
+whole-system timing is worthless. **D24 is the rule that resolves it: benchmark the
+thing you changed, at a volume where it dominates.** A vulture-only world makes the
+same change ~24× more visible and it appears immediately, in the predicted direction,
+in every round.
+
+⚠⚠ **And the benchmark scenarios understate the demo, which nothing in this file
+warned about before.** Every scenario here is a **founding** ratio, and the demo's
+vulture population *grows*: 4.2% of founders, **~60% of the living population by
+t15 000** (295 of ~494 on the ten-seed gate). So the steady-state demo is nearer the
+vultures-only row than the large-5k one. When a mechanism's cost scales with one
+species' share of the population, a founding-ratio benchmark measures the world at
+tick 0, not the world anyone watches.
+
+⚠ **A cross-tree re-baseline was declined rather than forgotten.** T1's section
+above established that a cross-tree run cannot separate "the code costs something"
+from "the world contains something" — and here the two arms' *populations differ*
+(the vulture arm ends with 8.4% more birds), so a cross-tree number would be
+measuring the second question while appearing to answer the first.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

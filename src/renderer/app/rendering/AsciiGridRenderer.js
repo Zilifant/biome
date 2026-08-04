@@ -48,6 +48,76 @@ export function groundAppearanceAt(store, cellX, cellY, world) {
   return name ? resolveTerrainAppearance(name) : TERRAIN_APPEARANCE.ground;
 }
 
+/**
+ * Paint one status mark in a cell's upper-left corner: a filled dot, diamond, or
+ * up-pointing double chevron.
+ *
+ * ⚠ **Exported and shared, because it was two hand-kept copies.** The sprite
+ * renderer's version carried the comment "kept identical to AsciiGridRenderer's,
+ * since the marks are the shared status language" — which is the definition of
+ * D11's shape, and it came due the first time the shape channel grew: a third
+ * shape added to one copy and not the other draws a diamond in sprite mode and a
+ * chevron in ASCII mode, with nothing failing. One geometry, two callers, and the
+ * *colour* stays each renderer's own (they resolve theme tokens their own way).
+ *
+ * Sized from the cell rather than fixed, so a mark stays proportionate across the
+ * 10–32px zoom range, and floored at 1.5px.
+ *
+ * ⚠ At that floor every mark is three or four pixels and the shape channel is
+ * spent — the chevron pair fuses into one small wedge. That is the accepted
+ * trade rather than a defect: the pair is what distinguishes it at readable
+ * zooms, an upward wedge still reads as "up" at the floor, and **colour is the
+ * channel that has to carry a mark at 10px**, which is why no two statuses share
+ * one.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} px @param {number} py the cell's top-left corner, in CSS px
+ * @param {number} cellSize
+ * @param {'dot' | 'diamond' | 'chevron'} shape
+ * @param {string} color a resolved colour, not a theme token
+ */
+export function paintStatusMark(ctx, px, py, cellSize, shape, color) {
+  const radius = Math.max(1.5, cellSize * 0.13);
+  const cx = px + radius + 1;
+  const cy = py + radius + 1;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (shape === 'chevron') {
+    // A `»` rotated to point up: two stacked chevrons, six vertices each, in the
+    // same 2r-wide corner box the other two marks use so the placement rule does
+    // not fork. `w` is the half-width, `rise` how far the apex sits above the
+    // arms, `thick` the stroke weight the fill imitates, and `gap` the spacing
+    // between the pair — all proportional to `radius`, so one constant governs
+    // the mark's size at every zoom.
+    const w = radius;
+    const rise = radius * 0.6;
+    // ⚠ Floored at a whole pixel: at the 10px zoom floor `radius * 0.5` is 0.75px,
+    // and a sub-pixel filled polygon antialiases to a smudge the mark cannot be
+    // read from. The dot and the diamond have no equivalent problem — they are
+    // solid shapes rather than strokes imitated with fill.
+    const thick = Math.max(1, radius * 0.5);
+    const gap = radius * 0.85;
+    for (const apexY of [cy - radius, cy - radius + gap]) {
+      ctx.moveTo(cx - w, apexY + rise);
+      ctx.lineTo(cx, apexY);
+      ctx.lineTo(cx + w, apexY + rise);
+      ctx.lineTo(cx + w, apexY + rise + thick);
+      ctx.lineTo(cx, apexY + thick);
+      ctx.lineTo(cx - w, apexY + rise + thick);
+      ctx.closePath();
+    }
+  } else if (shape === 'diamond') {
+    ctx.moveTo(cx, cy - radius);
+    ctx.lineTo(cx + radius, cy);
+    ctx.lineTo(cx, cy + radius);
+    ctx.lineTo(cx - radius, cy);
+    ctx.closePath();
+  } else {
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  }
+  ctx.fill();
+}
+
 export class AsciiGridRenderer {
   #canvas;
   #context;
@@ -413,31 +483,8 @@ export class AsciiGridRenderer {
     return this.#hasCyclingStatus;
   }
 
-  /**
-   * A filled dot or diamond in the cell's upper-left corner.
-   *
-   * Sized from the cell rather than fixed, so it stays proportionate across the
-   * 10–32px zoom range, and floored at 1.5px because below that a dot and a
-   * diamond are the same three pixels and the shape channel stops meaning
-   * anything.
-   */
   #drawStatusMark(px, py, cellSize, status) {
-    const ctx = this.#context;
-    const radius = Math.max(1.5, cellSize * 0.13);
-    const cx = px + radius + 1;
-    const cy = py + radius + 1;
-    ctx.fillStyle = this.#color(status.colorToken);
-    ctx.beginPath();
-    if (status.shape === 'diamond') {
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx + radius, cy);
-      ctx.lineTo(cx, cy + radius);
-      ctx.lineTo(cx - radius, cy);
-      ctx.closePath();
-    } else {
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    }
-    ctx.fill();
+    paintStatusMark(this.#context, px, py, cellSize, status.shape, this.#color(status.colorToken));
   }
 
   /** Corner brackets so selection is visible without relying on color alone. */

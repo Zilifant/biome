@@ -1,6 +1,16 @@
 # Plan — trees, vertical refuge, flight, and the vulture
 
-**Status: proposed. Nothing here is implemented.**
+**Status: T1, T2, T3, F1 and F2 are SHIPPED** (2026-08-03 and 2026-08-04). Trees
+are terrain, the leopard climbs and caches kills, flight is a pace on the intent,
+and the vulture flies. **V1 (roosting), V2 (the discovery network) and V3 (the slow
+life history) are not built.** Each phase carries an "As built" section recording
+what the plan got wrong; those are the parts worth reading.
+
+⚠ **Stopping here is one of the two combinations §9 warns against.** F2 has shipped
+without V3, its counterweight — see §9, and note that the counterweight the vulture
+actually got was the **ground perception radius drop** built into F2 itself, which
+is why the gate held. V3 remains the honest next step if the bird is ever found to
+be too strong.
 
 Four features, in the order they unblock each other:
 
@@ -577,7 +587,12 @@ what it cannot see" argument v31 was justified by. Added as one `aloft` entry in
 
 ---
 
-### Phase F1 — the flight mode, declared by nobody
+### Phase F1 — the flight mode, declared by nobody ✅ **SHIPPED 2026-08-04**
+
+**As built.** Everything below shipped as planned. The four things worth reading
+next time are at the end of the section: three test invariants that flight
+*narrowed* rather than broke, and one duplicate the renderer had been carrying by
+hand.
 
 **Ships:** `locomotion/flight.js` (the one predicate), `entity.flying`, a
 `flight` per-species field, `config.flight.enabled` as the switch, and the five
@@ -603,9 +618,82 @@ a *longer* list is safe, a shorter one silently drops neighbours — so a flying
 animal's wider list is fine, and a *narrower* ground radius for the vulture
 (§3.3) is the case to check against `SocialSystem#neighboursOf`.
 
+#### As built — four things worth reading
+
+**Inertness held exactly.** Seeds 1/2/42 × 1500 ticks against a clean HEAD
+checkout, hashing each top-level key of the save separately: **every
+behaviour-bearing key identical** — entities (with the new field stripped),
+terrain, vegetation, features, scent, events, disturbances, groups, tombstones,
+environment, metrics history. The only two that differ are `formatVersion`
+(30 → 31) and `config` (the new `flight` section), which is the same signature T2
+left. Protocol **v32**, save **v31**.
+
+⚠ **Hash each key separately rather than the whole save.** The first run compared
+one hash of everything and reported a mismatch that was the *format version* — an
+inertness proof that says "something differs" and cannot say what is a proof of
+nothing. Per-key hashes name the culprit in one line and still never build a diff
+(§2.6).
+
+1. ⚠⚠ **Three suites asserted an invariant flight *narrows*, and narrowing it is
+   the finding.** `test/movement.test.js`, `test/terrain.test.js` and
+   `test/roundness.test.js` each claimed **"no animal is ever on an impassable
+   cell"** — and a flying animal crosses rock and open water, because that is what
+   "nothing refuses its step" means. The invariant that survives is the one
+   movement actually depends on: **a grounded animal is on passable ground.** The
+   movement suite now asserts it in the *strong* direction — an animal on an
+   impassable cell must be flying — which catches both the old failure (a walker
+   escaping into rock) and the new one (a bird landing in a lake) that
+   `flyingFor`'s impassable clause exists to prevent. ⚠ Note this is **not** the
+   "expect two or three suites to break per phase" trajectory churn §2.9 predicts:
+   nothing moved, three claims were simply now too strong.
+
+2. ⚠ **A step-ceiling test had to read the flag *after* the step.** `flying` is
+   written by the decision system in the same tick, ahead of movement, so the
+   pre-step value is last tick's and a bird taking off breached a bound computed
+   from it. The one-tick offset §3.3 records for *perception* has a mirror image
+   here, and it is the reason the bound is resolved per animal from
+   `flightSpeedMultiplier` rather than restated as a number.
+
+3. ⚠⚠ **The renderer was carrying two hand-kept copies of the status mark, and
+   the third shape is what would have made that a silent bug.**
+   `SpriteGridRenderer#drawStatusMark` was a copy of the ASCII one with the
+   comment *"kept identical … since the marks are the shared status language"* —
+   which is D11's shape written down and left in place. A `chevron` added to one
+   copy and not the other draws a diamond in sprite mode and a chevron in ASCII
+   mode with nothing failing. Now one exported `paintStatusMark`, two callers,
+   colour still each renderer's own.
+
+4. ⚠ **A test set the action weights in the wrong place and bent a knob it was not
+   holding.** `DecisionSystem` reads `species.behavior ?? this`, so
+   `new DecisionSystem({ restBias: 10 })` is only the fallback for an *unknown*
+   species — a declared one keeps the config's value. The bird wandered when the
+   test wanted it to perch, which is DOCS §8 in miniature and the same trap phase
+   8 and phase T3 each paid for once. The weights go in `config.behavior`.
+
+**One oddity the landing invariant leaves behind, measured rather than waved
+away.** A stationary action produces a non-moving intent, so an animal held
+airborne over water or rock can be *motionless in the air* until it next chooses to
+travel. Measured on the demo (seeds 1 and 42, 3000 ticks): **0.02–0.05% of airborne
+animal-ticks, runs of at most 4–5 ticks**, and the actions are `drink` and `eat` —
+a bird at a lake edge whose own cell is the water it is drinking from. Left alone
+on those numbers; it is also self-limiting, since hunger and thirst rise and every
+action they favour travels. ⚠ Recorded because the obvious "fix" is a special case
+in the movement system, and a special case that buys 0.03% is how a mechanism stops
+being four predicates.
+
+**No benchmark movement is expected or claimed at F1**, because nothing new is
+read: `entity.flying` is `false` for every animal in a roster that declares no
+flier, and every added predicate short-circuits on it. The measurement that
+matters is F2's, where a radius actually moves.
+
 ---
 
-### Phase F2 — the vulture flies
+### Phase F2 — the vulture flies ✅ **SHIPPED 2026-08-04**
+
+**As built.** The species edit is what the plan asked for. Three findings are at
+the end: the plan's loud prediction did not happen, the plan's proposed instrument
+measured the wrong thing (again), and the classification of five actions had to be
+corrected on evidence.
 
 **Ships:** one species file edit — `flight: { speedMultiplier, visionMultiplier,
 moveCostFactor }`, and the paired drop in ground `perception.radius` that keeps
@@ -627,6 +715,129 @@ the same quantity at once leave no way to attribute the result.
 part): a **3-seed exploratory sweep** and a **one-command A/B**
 (`--set=flight.enabled=true --controlSet=flight.enabled=false`) before the
 twenty-minute ten-seed gate is started.
+
+#### As built — the numbers, and three findings
+
+**Shipped at** `speedMultiplier: 1.5`, `visionMultiplier: 1.55`,
+`moveCostFactor: 0.6`, with `perception.radius` **14 → 9**. So a flying vulture
+travels at 2.25 units/tick (the fastest thing in the world while travelling, back
+to ordinary the moment it lands), sees 13.95 — *the radius it always had* — and
+pays 0.6 of the walking cost per unit crossed. A **grounded** vulture now sees 9
+rather than 14, which is the real cost of the edit and the honest reading of a bird
+with its head down at a carcass.
+
+**Measured 2026-08-04, 3 seeds × 6000 ticks, flight on against off** (both arms at
+radius 9, so this attributes the *mechanism* and not the radius drop):
+
+| | on | off |
+| --- | ---: | ---: |
+| vulture animal-ticks airborne | **76.3%** | 0% |
+| ground↔air transitions per 1000 animal-ticks | **52.4** | 0 |
+| distance per vulture per 1000 ticks | **2052.6** | 1332.0 |
+| ticks from a carcass appearing to its first **vulture** | **332.9** | 399.5 |
+| ticks from a carcass appearing to its first feeder of any species | 193.9 | 192.3 |
+| living vultures at t6000 (mean) | **48** | 33 |
+
+**+54% distance covered and −17% time to the first vulture at a body**, which is
+the claim §6 asked for, stated as a difference against its own control.
+
+**The ten-seed gate passes**, and the interesting column is not the vulture's.
+_2026-08-04, 10 seeds × 15 000 ticks, `flight.enabled` on against off:_
+
+| | on | off |
+| --- | ---: | ---: |
+| vulture mean | **295.4** (10/10 seeds) | 272.4 (10/10) |
+| vulture share of all carrion | **35.6%** (68 605 kg) | 33.2% (58 723 kg) |
+| hyena mean | **6.4** (10/10) | 7.8 (10/10) |
+| hyena share of all carrion | **9.6%** (18 514 kg) | 11.1% (19 617 kg) |
+| leopard mean | 16.2 (10/10) | 12.4 (10/10) |
+| lion mean | 16.1 | 13.9 |
+| gazelle mean | 57.4 (9/10) | 56.5 (9/10) |
+| extinctions | 1 (gazelle, seed 1, t13606) | 1 (gazelle, seed 1, t13644) |
+
+⚠⚠ **The vulture gains 8.4% and the hyena pays for it — again.** The plan
+predicted "a real chance of the gate failing on the hyena rather than on the
+vulture", and the direction is exactly right even though the gate held at 10/10 in
+both arms: the clan's carrion share falls 11.1% → 9.6% and its mean population
+7.8 → 6.4 (**−18%**). That is the **second** mechanism in two days to take carrion
+off the same species (**A73** is the first, from T3), and the two are additive in a
+way neither gate can see on its own. ⚠ The hyena is now the species to check
+before V2 — whose entire purpose is to get vultures to carcasses faster.
+
+⚠ **The leopard's +3.8 is not claimed as an effect.** Its range is 3–31 against the
+control's 5–18 on ten seeds, its carrion *mass* moves +408 kg on 36 tonnes, and
+nothing in the mechanism reaches it. Recorded as observed rather than explained,
+which is what D14 asks for when a number moves inside its own spread.
+
+**And the radius drop, separately** (3 seeds × 6000 ticks, this tree against a
+clean HEAD checkout — ⚠ a cross-tree comparison, which is legitimate for
+populations because they are deterministic, and would not be for timings):
+the vulture's share of all carrion goes **10.8% (HEAD, radius 14) → 9.4% (radius 9,
+no flight) → 12.4% (radius 9, flying)**. So the narrower ground radius costs it
+~1.4 points and flight gives back ~3.0. ⚠ **`--set` cannot control this**, because
+`perception.radius` is a species *block* field and a species block beats the config
+(DOCS §8) — the only honest control is a second tree, which is worth knowing before
+planning a measurement that assumes otherwise.
+
+1. ⚠⚠ **The plan's loud prediction did not happen, and the reason is the
+   counterweight was built into the edit.** §4 predicted "the largest ecological
+   change in the plan… a real chance of the gate failing on the hyena rather than
+   on the vulture", on the grounds that flight makes the world's most numerous
+   animal faster, wider-seeing and cheaper at once. It does not: it makes it
+   **narrower-seeing on the ground** in exchange, and the ground is where it eats,
+   drinks, courts and rests. The perf mitigation §3.3 proposed for the *sight
+   radius* turned out to be an ecological brake as well, which is the opposite of
+   the usual direction — a performance concession that paid for the ecology.
+
+2. ⚠⚠ **The plan's proposed instrument measured someone else, exactly as T3's
+   did.** §6 asks for "ticks from carcass creation to first feeder", and that number
+   is **flat** (193.9 against 192.3) — because the first feeder at a carcass is
+   usually the animal that killed it, so the instrument mostly reports predator
+   behaviour and flight cannot move it. The number that moves is time to the first
+   **vulture**. This is the second time in two days that a phase's stated
+   measurement had to be narrowed to the species the mechanism is about; the
+   transferable form is: **name the animal in the metric, not just the event.**
+
+3. ⚠⚠ **The benchmark could not resolve the cost at the demo's roster and resolved
+   it instantly at the affected species', which is D24's rule paying off.** Flight's
+   only per-tick cost is the widened perception radius, and §3.3 predicted it would
+   be the performance risk of the whole plan. In-process A/B, `flight.enabled` on
+   against off, several interleaved rounds each:
+
+   | scenario | rounds | verdict |
+   | --- | --- | --- |
+   | large-5k (founding ratio, vultures 4.2%) | −1.2%, +6.2%, −19.7%, −19.7%, +16.8%, +5.0%, −15.4% | **mixed — no effect resolvable**, ±20% spread on the day |
+   | demo-default, 2000 ticks | −9.0%, −17.8%, −11.2%, +8.2% | **mixed — no effect resolvable** |
+   | **vultures-only** (4000 birds, nothing else) | **+23.4%, +43.7%, +51.8%, +76.9%** | **a real cost, every round** |
+
+   The isolated number is the honest one about the *mechanism*: the cell scan is
+   (2r+1)², so 9 → 13.95 is 2.25× the scan, paid on ~76% of a flier's ticks. At
+   4.2% of the roster that is ~2% of a tick, which this machine cannot see inside a
+   ±20% spread; at 100% of the roster it is unmistakable. ⚠⚠ **And the demo is
+   nearer the second case than the first, which is the non-obvious part:** the
+   vulture is 4.2% of the *founding* roster and **~60% of the living population by
+   t15 000** (295 of ~494), so the benchmark scenarios — which are founding ratios —
+   systematically understate flight's steady-state cost in the world people actually
+   watch. ⚠ A cross-tree re-baseline of `npm run benchmark` was **declined** rather
+   than skipped: T1's as-built section established that a cross-tree benchmark cannot
+   separate "the code costs something" from "the world contains something", and here
+   the world's composition is precisely what differs.
+
+4. ⚠⚠ **Five actions were classified wrong, and the flicker measurement is what
+   caught it.** §3.3 predicted a wander commitment would carry the flight state and
+   named `flight.takeoffCost` as the lever if transitions were high. They were —
+   **289 per 1000 animal-ticks**, a transition every third tick — and the cause was
+   not missing takeoff economics: the transitions were almost entirely `herd`
+   (grounded) against `wander` (flying), the two lowest-utility discretionary
+   actions, which trade places tick by tick for a bird drifting near its own kind.
+   The *action* is re-chosen every tick even when the heading is committed. `herd`,
+   `retreat`, `leaveThicket`, `followParent` and `tend` are all directed travel by
+   the plan's own stated criterion and were simply missing from its enumeration;
+   classifying them correctly took the flicker to **52 per 1000** (and airborne
+   share from 55% to 76%). ⚠ **The lever the plan named would have masked the
+   defect** — charging energy for a transition would have made a misclassification
+   look like an energetics problem. Measure the flicker's *action pairs*, not just
+   its rate.
 
 ---
 
@@ -685,15 +896,21 @@ measured as its own arm.
 
 ## 5. Version and payload impact
 
+**As built.** The two phases landed a day apart, so `elevation` and `flying` took a
+version each rather than sharing one — which the plan allowed for ("two bumps is
+the honest price of two separately-attributable changes and is cheap") and which is
+what actually happened.
+
 | | Change | Phase |
 | --- | --- | --- |
-| `PROTOCOL_VERSION` | 30 → **31** — `elevation` and `flying` in `PUBLIC_ENTITY_FIELDS`; `trees` in the restart composition fields; a `tree` entry in the terrain legend | T2 / F1 |
-| `SUPPORTED_PROTOCOL_VERSION` | moves with it, ⚠ **in the same commit** (D31) | T2 |
-| `SAVE_FORMAT_VERSION` | 29 → **30** — two new entity fields; `undefined` reads as ground / not flying | T2 |
-| Renderer fixtures | regenerated at **T1** (terrain), **T2** (protocol), and **F2** (roster behaviour) | — |
-| New protocol test | `test/protocol-v31.test.js`, modelled on `protocol-v30` | T2 |
-| Bulk snapshot size | +2 small fields per entity. Measure on the projection loop directly, not in a whole-tick number (D28) | T2 |
+| `PROTOCOL_VERSION` | 30 → **31** (`elevation`, `trees` in the restart fields, a `tree` legend entry) → **32** (`flying`) | T2 / F1 |
+| `SUPPORTED_PROTOCOL_VERSION` | moved with each, ⚠ **in the same commit** (D31) | T2, F1 |
+| `SAVE_FORMAT_VERSION` | 29 → **30** (`elevation`, `config.climbing`, the tree terrain params) → **31** (`flying`, `config.flight`) | T2 / F1 |
+| Renderer fixtures | regenerated at **T1** (terrain), **T2** (protocol), and **F1/F2** (protocol *and* roster behaviour) | — |
+| New protocol tests | `test/protocol-v31.test.js` and `test/protocol-v32.test.js`, both modelled on `protocol-v30` | T2, F1 |
+| Bulk snapshot size | +1 small field per entity per bump. ⚠ **They are not equally cheap**: `elevation` changes when an animal climbs a tree, `flying` every time a bird switches between travelling and contact — measured at ~52 transitions per 1000 vulture animal-ticks, so this one genuinely dirties deltas | T2 / F1 |
 | `/api/metrics` payload | unchanged — no new species, and P14's diagnosis is that the history is 91% of it | — |
+| ⚠ New renderer item | **P17** — a flying animal's status mark blinks, because the state honestly changes every ~22 animal-ticks | F1 |
 
 ---
 
@@ -718,6 +935,20 @@ exploratory sweep (~3 min) and a one-command config A/B **before** the ten-seed
 gate (~20 min). Batch 3 is the only batch that ever passed first time and that
 is why.
 
+⚠⚠ **As built, two of these rows were the wrong instrument, and the pattern is now
+three for three.** T3's "carcasses lost to a stronger scavenger" needed an event
+that a hauling leopard never emits. F2's "ticks from carcass creation to first
+feeder" is **flat** (193.9 against 192.3), because the first feeder at a body is
+usually whatever killed it — the number that moves is time to the first
+**vulture** (332.9 against 399.5). And F1's flicker row named a *rate* without
+naming what to break it down by, so a 289-per-1000 reading looked like an
+energetics problem when it was a misclassification of five actions.
+
+**The transferable form of all three:** an instrument has to name **the animal and
+the mechanism**, not the event. "Time to first feeder" is a fact about carcasses;
+"time to the first vulture at a carcass" is a fact about vultures, and only one of
+those is what flight is for.
+
 ---
 
 ## 7. Tests
@@ -728,7 +959,15 @@ possession gate, ascent/descent, and ⚠ an explicit assertion that **mate
 candidates and guardians are unaffected** — the A63 regression test this plan
 owes) · `test/flight.test.js` (the pace predicate, terrain independence, the
 landing invariant, zero draws) · `test/caching.test.js` (haul, elevate, refuse a
-non-climber) · `test/protocol-v31.test.js`.
+non-climber) · `test/protocol-v31.test.js` · `test/protocol-v32.test.js`.
+
+**As built, `test/flight.test.js` is 16 tests in four groups** — the predicate, the
+four effects, what it gates and must not (including the A63 guard, which flight
+owes for the same reason elevation did), and the decision system's ownership of the
+flag. Two assertions there are about the *shape* of the mechanism rather than its
+behaviour and are the ones worth keeping: that `flight` is **absent from
+`SPECIES_BLOCKS`** (a block would let a species override the off switch), and that a
+world of fliers consumes exactly the decision stream a world of walkers does.
 
 **Existing suites that will move, predicted so a break is not read as a
 regression:** `test/habitat.test.js` (a third time — trees are new contested
@@ -738,10 +977,20 @@ terrain) · `test/weather.test.js` (a new sheltering terrain) ·
 `test/renderer-view.test.js` and `test/presets.test.js` (a new composition
 field) · `test/persistence.test.js` (the save bump).
 
+⚠ **The F1 list was different from any of that, and predicting it would have been
+possible.** Three suites moved — `test/movement.test.js`, `test/terrain.test.js`,
+`test/roundness.test.js` — and all three for **one reason**: each asserted "no
+animal is ever on an impassable cell", which flight narrows to "no *grounded*
+animal is". None of them is trajectory churn; each was a claim that had quietly
+become too strong. The transferable form: **a mechanism that removes a constraint
+invalidates every test that asserted the constraint universally**, and those tests
+are findable by grepping for the constraint rather than by running the suite.
+`test/renderer-view.test.js` also moved, for the third status shape.
+
 **Invariants that must keep passing untouched:** the species-name source scan
 (nothing here may branch on a species id — `climbs`, `flight` and `scavenging`
 are all data), `test/determinism.test.js`, and
-`test/renderer-boundaries.test.js`.
+`test/renderer-boundaries.test.js`. ✅ All three held across F1 and F2.
 
 ---
 
@@ -756,8 +1005,10 @@ are all data), `test/determinism.test.js`, and
 | **A57 — a fawn is concealed only if born on cover** | **Improved for free.** Cover is 3% of the map; trees raise the sheltering fraction with no behavioural change, which A57 names as its strongest lever |
 | **A49 — activity pattern is not a schema field** | **Sharpened, not closed.** Roosting is what a diurnal cycle would give a reason to. Worth a line in A49 that a roost exists and has no night to want it |
 | **A34 — patrol's target is a place, not a purpose** | **Cited twice.** Nest fidelity is declined on it (§3.4); `cache` is accepted because it has a purpose |
-| **B7 — `carcass.decayTicks` is mass-blind** | **Pressure increases.** F2 makes the animal that lives on that constant faster and wider-seeing |
-| **New: an elevation flag is not an elevation coordinate** | Worth opening. A treed animal cannot ambush from height, cannot see further from up a tree, and a cliff is not expressible. All three are honest consequences of the flag |
+| **B7 — `carcass.decayTicks` is mass-blind** | **Pressure increases.** F2 makes the animal that lives on that constant faster and cheaper to run — though not wider-seeing on the ground, which is the part the plan did not foresee |
+| **New: an elevation flag is not an elevation coordinate** | ✅ **Opened 2026-08-04 as A74**, widened to cover both flags: no ambush from above, no extra sight from height beyond a flat multiplier, no cliff or slope or per-cell microclimate (also A24's blocker), no thermals or altitude bands, and no vertical distance anywhere. Five honest consequences of the two flags, recorded so the next person reaching for one knows it is a **dimension** rather than a field |
+| **New: A73 — the hyena pays for kill caching** | Opened at T3 and still the species to watch. ⚠ F2 does *not* add to it (the hyena's carrion share moves 17.0% → 15.1% on 3 seeds, well inside its own range), but **V2 would take from the same clan**, and that is the item to re-read before building it |
+| **New: P17 — the flying status mark blinks** | Opened 2026-08-04 (renderer). A flier alternates ground/air roughly every 22 animal-ticks, so the mark honestly follows. Renderer-side unfixable; the engine lever is `flight.takeoffCost`, deliberately unbuilt |
 
 ---
 
@@ -781,9 +1032,38 @@ V3**: flight without its counterweight leaves the world's most numerous animal
 strictly improved, and the vulture population has doubled once already this year
 without anyone intending it.
 
+✅ **As built: T1 → T2 → T3 → F1 → F2, and the run stopped at exactly the
+combination the paragraph above warns against.** The warning turned out to rest on
+a premise that F2 falsified: flight does **not** leave the vulture strictly
+improved, because the mitigation §3.3 proposed for the *perception cost* — drop the
+ground radius so that flying restores the old one — is also an ecological brake. A
+grounded vulture now sees 9 where it saw 14, and the ground is where it eats,
+drinks, courts and rests. Measured, the mechanism buys it +3.0 points of carrion
+share and the radius drop costs it 1.4, so the net against the pre-F2 world is
+about **+1.6 points**, not a doubling.
+
+⚠ **That is a reprieve, not a refutation.** V3 remains the honest next step, and the
+argument for it is unchanged: the vulture is fed by a mass-blind
+`carcass.decayTicks` (**B7**), it doubled once this year without anyone intending
+it, and a boom-and-bust breeder is the opposite of the animal `vulture.md`
+describes. What F2 establishes is that the counterweight is not *urgent*, which is
+a different claim from not being needed. ⚠ **V1 and V2 are the phases to be careful
+with from here** — V2 in particular takes carrion off the same hyena clan that
+A73 records already paying for T3.
+
 **Effort, in the units this project actually costs:** T1 and F1 are each a
 day-scale mechanical change plus a gate; T2 is the one with the protocol and
 save bumps; T3 is the only phase that adds an action and is the most likely to
 need a second attempt; F2 and V3 are config edits with expensive gates attached.
 Per §20: **budget a failed ten-seed gate per net-new mechanism**, which here
 means three, not one.
+
+✅ **As built, the estimate held except in one place: F2 is a config edit whose
+gate had to be run twice**, and not because it failed. The flicker measurement
+found five misclassified actions *after* the first gate was already running, and a
+behaviour change invalidates a gate in progress — so the run was stopped and
+restarted rather than reported. The transferable lesson is about ordering rather
+than effort: **take the cheap behavioural measurements before starting the
+twenty-minute gate, not beside it.** §6's "cheap first, gate second" says exactly
+this and was followed for the *populations* (a 3-seed sweep ran first); the flicker
+number was not on that list and should have been.

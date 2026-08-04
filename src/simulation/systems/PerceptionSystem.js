@@ -16,12 +16,21 @@
  *
  * Ownership: writes `world.perception`; reads the spatial grid, terrain, and
  * vegetation. No randomness.
+ *
+ * ⚠ **The `radius` in each summary is the radius that was actually walked**, not
+ * the species' declared one — from phase F1 a flying animal's is wider. That
+ * matters because `world.neighbourhood` is published at whatever radius the walk
+ * used and `SocialSystem#neighboursOf` reuses the list only when
+ * `perception.radius >= its own`: a *longer* list is safe (everything past the
+ * social radius fails the distance gates there), a shorter one silently drops
+ * neighbours. Reporting the effective radius is what keeps that check honest.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode, SHELTERING_BY_CODE } from '../world/TerrainGrid.js';
 import { isEligiblePrey, isReachablePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
 import { isConcealed } from '../parenting/hiding.js';
 import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
+import { flightVisionMultiplier } from '../locomotion/flight.js';
 
 export class PerceptionSystem extends SimulationSystem {
   /**
@@ -127,7 +136,25 @@ export class PerceptionSystem extends SimulationSystem {
    */
   #perceive(world, entity, species) {
     const sensing = species?.perception;
-    const radius = sensing?.radius ?? this.defaultRadius;
+    // ⚠⚠ **Flight widens the radius, and it is resolved *here*, inside, from the
+    // `entity` and the `species` already in hand** (phase F1). D28 is the whole
+    // reason: one extra *argument* to this function cost 12% of total engine time
+    // at large-5k, so a flight-widened radius may not arrive as a parameter and
+    // may not be handed down as a second block. It is one property read on
+    // `entity` and, on the rare true case, one on `species`.
+    //
+    // ⚠ **This is the performance risk of the whole plan.** The cell scan below
+    // is (2r+1)², so widening a radius is quadratic in the widening — a radius of
+    // 14 taken to 22 is ~2.5× the hottest loop in the engine. The mitigation is
+    // to **move the number, not add one**: the flying species drops its ground
+    // radius so that ground × multiplier lands on the radius it used to have, and
+    // the world's maximum radius does not move at all (see the vulture, phase F2).
+    //
+    // ⚠ Perception runs *before* decision, so this reads a flag written last
+    // tick. A one-tick lag on the sight radius, harmless and deliberate — see
+    // `locomotion/flight.js`.
+    const ground = sensing?.radius ?? this.defaultRadius;
+    const radius = entity.flying === true ? ground * flightVisionMultiplier(species) : ground;
     const foodMinLevel = sensing?.foodMinLevel ?? this.foodMinLevel;
     const radiusSquared = radius * radius;
     const los = this.lineOfSight;

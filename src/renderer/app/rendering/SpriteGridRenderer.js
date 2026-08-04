@@ -35,7 +35,7 @@ import {
   fadesUnderOccupant,
   OCCUPIED_ALPHA,
 } from './EntityAppearance.js';
-import { groundAppearanceAt } from './AsciiGridRenderer.js';
+import { groundAppearanceAt, paintStatusMark } from './AsciiGridRenderer.js';
 import {
   slotIdForEntity,
   groundSlotAt,
@@ -459,26 +459,13 @@ export class SpriteGridRenderer {
   }
 
   /**
-   * A filled dot or diamond in the cell's upper-left corner — kept identical
-   * to AsciiGridRenderer's, since the marks are the shared status language.
+   * A status mark in the cell's upper-left corner. ⚠ The geometry is
+   * `paintStatusMark`, shared with the ASCII renderer rather than kept identical
+   * by hand — this used to be a copy, and a copy is what a third shape would have
+   * silently broken (see there).
    */
   #drawStatusMark(px, py, cellSize, status) {
-    const ctx = this.#context;
-    const radius = Math.max(1.5, cellSize * 0.13);
-    const cx = px + radius + 1;
-    const cy = py + radius + 1;
-    ctx.fillStyle = this.#color(status.colorToken);
-    ctx.beginPath();
-    if (status.shape === 'diamond') {
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx + radius, cy);
-      ctx.lineTo(cx, cy + radius);
-      ctx.lineTo(cx - radius, cy);
-      ctx.closePath();
-    } else {
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    }
-    ctx.fill();
+    paintStatusMark(this.#context, px, py, cellSize, status.shape, this.#color(status.colorToken));
   }
 
   /** Corner brackets so selection is visible without relying on color alone. */

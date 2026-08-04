@@ -30,6 +30,16 @@ import {
 } from '../rendering/EntityAppearance.js';
 
 /**
+ * The character that stands in for each status-mark shape the canvas draws.
+ *
+ * Keyed by the registry's own `shape` values, so a new shape that forgets a row
+ * here falls back to the dot rather than rendering `undefined` — and the legend
+ * test, which compares every status's glyph against this table, is what says so
+ * out loud.
+ */
+export const STATUS_SHAPE_GLYPHS = Object.freeze({ dot: '●', diamond: '◆', chevron: '»' });
+
+/**
  * @typedef {object} LegendEntry
  * @property {string} glyph
  * @property {string} colorToken
@@ -100,12 +110,18 @@ export function describeLegend() {
     label: appearance.label,
   }));
 
-  // Statuses are marks in the corner of a cell rather than glyphs, so the
-  // legend stands in a `●` or `◆` for the shape the canvas draws. Generated
+  // Statuses are marks in the corner of a cell rather than glyphs, so the legend
+  // stands in the nearest character for the shape the canvas draws. Generated
   // from the registry for the same reason everything else here is: a status
   // added to the grid and forgotten in the legend is a mark nobody can read.
+  //
+  // ⚠ `»` is an approximation and the only one in this panel: the canvas draws
+  // that character's pair of chevrons **rotated to point up**, and a legend row
+  // is text, which cannot rotate. It is the right approximation anyway — it is
+  // the character the mark is derived from, and the colour beside it is what a
+  // viewer actually matches against the grid.
   const statuses = STATUS_APPEARANCE.map((status) => ({
-    glyph: status.shape === 'diamond' ? '◆' : '●',
+    glyph: STATUS_SHAPE_GLYPHS[status.shape] ?? STATUS_SHAPE_GLYPHS.dot,
     colorToken: status.colorToken,
     label: status.label,
   }));

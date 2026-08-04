@@ -237,6 +237,14 @@ describe('roundness: generation respects the outline', () => {
     for (const entity of engine.world.entities.all()) {
       if (entity.kind !== 'animal' || entity.alive === false) continue;
       living += 1;
+      // ⚠ **Grounded animals only, from phase F1.** Roundness carves the corners
+      // to *rock* rather than shrinking the world, and flight ignores impassable
+      // terrain by design — so a vulture crosses a rounded corner exactly as it
+      // crosses a ridge or a lake, and cannot land in one. Exempting fliers here
+      // is the same narrowing `test/movement.test.js` and `test/terrain.test.js`
+      // took, and the alternative — teaching flight about a world *shape* — would
+      // be a second notion of the map's edge beside the terrain.
+      if (entity.flying === true) continue;
       const { cellX, cellY } = engine.world.cellOf(entity.x, entity.y);
       assert.equal(
         isOutsideShape(cellX, cellY, engine.world.width, engine.world.height, MAX_ROUNDNESS),

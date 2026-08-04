@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 31,
+  "protocolVersion": 32,
   "kind": "snapshot.full",
   "simulationId": "demo-42",
   "tick": 10,
@@ -31,7 +31,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 2,
@@ -55,7 +56,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 3,
@@ -79,7 +81,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 4,
@@ -103,7 +106,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 5,
@@ -127,7 +131,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 6,
@@ -151,7 +156,8 @@
       "action": "seekMate",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 7,
@@ -175,7 +181,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 8,
@@ -199,7 +206,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 9,
@@ -223,7 +231,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 10,
@@ -247,7 +256,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 11,
@@ -271,7 +281,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 12,
@@ -295,7 +306,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 13,
@@ -319,7 +331,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 14,
@@ -343,7 +356,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 15,
@@ -367,7 +381,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 16,
@@ -391,7 +406,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 17,
@@ -415,7 +431,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 18,
@@ -439,7 +456,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 19,
@@ -463,7 +481,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 20,
@@ -487,7 +506,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 21,
@@ -511,7 +531,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 22,
@@ -535,7 +556,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 23,
@@ -559,7 +581,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 24,
@@ -583,7 +606,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 25,
@@ -607,7 +631,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 26,
@@ -631,7 +656,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 27,
@@ -655,7 +681,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 28,
@@ -679,7 +706,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 29,
@@ -703,7 +731,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 30,
@@ -727,7 +756,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 31,
@@ -751,7 +781,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 32,
@@ -775,7 +806,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 33,
@@ -799,7 +831,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 34,
@@ -823,7 +856,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 35,
@@ -847,7 +881,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 36,
@@ -871,7 +906,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 37,
@@ -895,7 +931,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 38,
@@ -919,7 +956,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 39,
@@ -943,7 +981,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 40,
@@ -967,7 +1006,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 41,
@@ -991,7 +1031,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 43,
@@ -1015,7 +1056,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 44,
@@ -1039,7 +1081,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 45,
@@ -1063,7 +1106,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 46,
@@ -1087,7 +1131,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 47,
@@ -1111,7 +1156,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 48,
@@ -1135,7 +1181,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 49,
@@ -1159,7 +1206,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 50,
@@ -1183,7 +1231,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 51,
@@ -1207,7 +1256,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 52,
@@ -1231,7 +1281,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 53,
@@ -1255,7 +1306,8 @@
       "action": "seekMate",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 54,
@@ -1279,7 +1331,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 55,
@@ -1303,7 +1356,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 56,
@@ -1327,7 +1381,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 57,
@@ -1351,7 +1406,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 58,
@@ -1375,7 +1431,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 59,
@@ -1399,7 +1456,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 60,
@@ -1423,7 +1481,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 61,
@@ -1447,7 +1506,8 @@
       "action": "leaveThicket",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 62,
@@ -1471,7 +1531,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 63,
@@ -1495,7 +1556,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 64,
@@ -1519,7 +1581,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 65,
@@ -1543,7 +1606,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 66,
@@ -1567,7 +1631,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 67,
@@ -1591,7 +1656,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 68,
@@ -1615,7 +1681,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 69,
@@ -1639,7 +1706,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 70,
@@ -1663,7 +1731,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 71,
@@ -1687,7 +1756,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 72,
@@ -1711,7 +1781,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 73,
@@ -1735,7 +1806,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 74,
@@ -1759,7 +1831,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 75,
@@ -1783,7 +1856,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 76,
@@ -1807,7 +1881,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 77,
@@ -1831,7 +1906,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 78,
@@ -1855,7 +1931,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 79,
@@ -1879,7 +1956,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 80,
@@ -1903,7 +1981,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 81,
@@ -1927,7 +2006,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 82,
@@ -1951,7 +2031,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 83,
@@ -1975,7 +2056,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 84,
@@ -1999,7 +2081,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 85,
@@ -2023,7 +2106,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 86,
@@ -2047,7 +2131,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 87,
@@ -2071,7 +2156,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 88,
@@ -2095,7 +2181,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 89,
@@ -2119,7 +2206,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 90,
@@ -2143,7 +2231,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 91,
@@ -2167,7 +2256,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 92,
@@ -2191,7 +2281,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 93,
@@ -2215,7 +2306,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 94,
@@ -2239,7 +2331,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 95,
@@ -2263,7 +2356,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 96,
@@ -2287,7 +2381,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 97,
@@ -2311,7 +2406,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 98,
@@ -2335,7 +2431,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 99,
@@ -2359,7 +2456,8 @@
       "action": "seekMate",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 100,
@@ -2383,7 +2481,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 101,
@@ -2407,7 +2506,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 102,
@@ -2431,7 +2531,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 103,
@@ -2455,7 +2556,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 104,
@@ -2479,7 +2581,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 105,
@@ -2503,7 +2606,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 106,
@@ -2527,7 +2631,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 107,
@@ -2551,7 +2656,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 108,
@@ -2575,7 +2681,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 109,
@@ -2599,7 +2706,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 110,
@@ -2623,7 +2731,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 111,
@@ -2647,7 +2756,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 112,
@@ -2671,7 +2781,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 113,
@@ -2695,7 +2806,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 114,
@@ -2719,7 +2831,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 115,
@@ -2743,7 +2856,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 116,
@@ -2767,7 +2881,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 117,
@@ -2791,7 +2906,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 118,
@@ -2815,7 +2931,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 119,
@@ -2839,7 +2956,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 120,
@@ -2863,7 +2981,8 @@
       "action": "seekMate",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 121,
@@ -2887,7 +3006,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 122,
@@ -2911,7 +3031,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 123,
@@ -2935,7 +3056,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 124,
@@ -2959,7 +3081,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 125,
@@ -2983,7 +3106,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 126,
@@ -3007,7 +3131,8 @@
       "action": "chase",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 127,
@@ -3031,7 +3156,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 128,
@@ -3055,17 +3181,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 129,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 159.89814163173875,
-      "y": 54.44776016914362,
-      "heading": 0.13031439188736726,
+      "x": 151.17922039113512,
+      "y": 48.630455318322845,
+      "heading": 3.9411214306409583,
       "age": 1331,
-      "energyFraction": 0.6357822327975086,
+      "energyFraction": 0.6358424968710146,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 6.280941382390447,
       "healthFraction": 1,
@@ -3079,17 +3206,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 130,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 129.69863397411424,
-      "y": 108.86162301884178,
-      "heading": 3.3958005255680312,
+      "x": 136.45322424280704,
+      "y": 104.12813706668913,
+      "heading": 6.216686889768791,
       "age": 429,
-      "energyFraction": 0.6706113825169925,
+      "energyFraction": 0.6706940293445341,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 5.104639375491301,
       "healthFraction": 1,
@@ -3103,17 +3231,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 131,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 139.745014054735,
-      "y": 34.03359413941336,
+      "x": 132.22297170111472,
+      "y": 35.804842671187714,
       "heading": 3.255752846329365,
       "age": 1346,
-      "energyFraction": 0.7917876715214073,
+      "energyFraction": 0.7918848919054587,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 6.1239869010401895,
       "healthFraction": 1,
@@ -3127,17 +3256,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 132,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 113.76046949945959,
-      "y": 65.35270387424484,
+      "x": 120.02383013178516,
+      "y": 68.69861426474088,
       "heading": 0.22833581723035934,
       "age": 1404,
-      "energyFraction": 0.5032216378690385,
+      "energyFraction": 0.5033033314952199,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 6.125756839890965,
       "healthFraction": 1,
@@ -3151,17 +3281,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 133,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 12.588745371042508,
-      "y": 68.15551789498,
-      "heading": 0.24235388829986704,
+      "x": 18.28943419931201,
+      "y": 76.4933257397444,
+      "heading": 0.6530837994782175,
       "age": 1106,
-      "energyFraction": 0.8969553173720485,
+      "energyFraction": 0.8970432009986775,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 5.932045770795084,
       "healthFraction": 1,
@@ -3175,17 +3306,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 134,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 42.31743647022743,
-      "y": 79.11052315617266,
-      "heading": 4.212273537967787,
+      "x": 41.24865764357641,
+      "y": 67.72236836833754,
+      "heading": 4.755580870607966,
       "age": 370,
-      "energyFraction": 0.8800038832347765,
+      "energyFraction": 0.8794541746628753,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 4.397821833945811,
       "healthFraction": 1,
@@ -3199,17 +3331,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 135,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 26.043110111633027,
-      "y": 84.29643928305995,
+      "x": 26.65982489552957,
+      "y": 91.13248578621736,
       "heading": 1.1851595518420677,
       "age": 928,
-      "energyFraction": 0.5749027392199835,
+      "energyFraction": 0.5749954857642178,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 6.672227090704255,
       "healthFraction": 1,
@@ -3223,17 +3356,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 136,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 133.91246095675498,
-      "y": 12.742401473942833,
+      "x": 129.32353604701825,
+      "y": 6.842603882465514,
       "heading": 4.29978294183751,
       "age": 135,
-      "energyFraction": 0.840968206527497,
+      "energyFraction": 0.8410084661691297,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 2.3373258667965886,
       "healthFraction": 1,
@@ -3247,17 +3381,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 137,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 3.39255399134625,
-      "y": 28.167956809564497,
-      "heading": 2.985460976094508,
+      "x": 4.441307148633692,
+      "y": 28.70407451604339,
+      "heading": 0.5518930106684259,
       "age": 578,
-      "energyFraction": 0.5353910202048584,
+      "energyFraction": 0.5354776968640678,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 6.061009920411743,
       "healthFraction": 1,
@@ -3271,17 +3406,18 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 138,
       "kind": "animal",
       "speciesId": "scavenger.vulture",
-      "x": 131.4797476205389,
-      "y": 109.91994582087355,
-      "heading": 0.8938397546829613,
+      "x": 131.5870383820953,
+      "y": 103.81879097123335,
+      "heading": 3.3501912778782934,
       "age": 255,
-      "energyFraction": 0.6125691253180786,
+      "energyFraction": 0.6126241789938909,
       "hydrationFraction": 0.9969999999999999,
       "bodyMass": 3.5385555646535938,
       "healthFraction": 1,
@@ -3295,7 +3431,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": true
     },
     {
       "id": 139,
@@ -3319,7 +3456,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 140,
@@ -3343,7 +3481,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 141,
@@ -3367,7 +3506,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 142,
@@ -3391,7 +3531,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 143,
@@ -3415,7 +3556,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 144,
@@ -3439,7 +3581,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 145,
@@ -3463,7 +3606,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 146,
@@ -3487,7 +3631,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 147,
@@ -3511,7 +3656,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 148,
@@ -3535,7 +3681,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 149,
@@ -3559,7 +3706,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 150,
@@ -3583,7 +3731,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 151,
@@ -3607,7 +3756,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 152,
@@ -3631,7 +3781,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 153,
@@ -3655,7 +3806,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 154,
@@ -3679,7 +3831,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 155,
@@ -3703,7 +3856,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 156,
@@ -3727,7 +3881,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 157,
@@ -3751,7 +3906,8 @@
       "action": "rest",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 158,
@@ -3775,7 +3931,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 159,
@@ -3799,7 +3956,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 160,
@@ -3823,7 +3981,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 161,
@@ -3847,7 +4006,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 162,
@@ -3871,7 +4031,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 163,
@@ -3895,7 +4056,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 164,
@@ -3919,7 +4081,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 165,
@@ -3943,7 +4106,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 166,
@@ -3967,7 +4131,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 167,
@@ -3991,7 +4156,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 168,
@@ -4015,7 +4181,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 169,
@@ -4039,7 +4206,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 170,
@@ -4063,7 +4231,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 171,
@@ -4087,7 +4256,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 172,
@@ -4111,7 +4281,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 173,
@@ -4135,7 +4306,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 174,
@@ -4159,7 +4331,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 175,
@@ -4183,7 +4356,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 176,
@@ -4207,7 +4381,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 177,
@@ -4231,7 +4406,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 178,
@@ -4255,7 +4431,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 179,
@@ -4279,7 +4456,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 180,
@@ -4303,7 +4481,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 181,
@@ -4327,7 +4506,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 182,
@@ -4351,7 +4531,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 183,
@@ -4375,7 +4556,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 184,
@@ -4399,7 +4581,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 185,
@@ -4423,7 +4606,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 186,
@@ -4447,7 +4631,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 187,
@@ -4471,7 +4656,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 188,
@@ -4495,7 +4681,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 189,
@@ -4519,7 +4706,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 190,
@@ -4543,7 +4731,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 191,
@@ -4567,7 +4756,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 192,
@@ -4591,7 +4781,8 @@
       "action": "rest",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 193,
@@ -4615,7 +4806,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 194,
@@ -4639,7 +4831,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 195,
@@ -4663,7 +4856,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 196,
@@ -4687,7 +4881,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 197,
@@ -4711,7 +4906,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 198,
@@ -4735,7 +4931,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 199,
@@ -4759,7 +4956,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 200,
@@ -4783,7 +4981,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 201,
@@ -4807,7 +5006,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 202,
@@ -4831,7 +5031,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 203,
@@ -4855,7 +5056,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 204,
@@ -4879,7 +5081,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 205,
@@ -4903,7 +5106,8 @@
       "action": "rest",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 206,
@@ -4927,7 +5131,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 207,
@@ -4951,7 +5156,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 208,
@@ -4975,7 +5181,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 209,
@@ -4999,7 +5206,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 210,
@@ -5023,7 +5231,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 211,
@@ -5047,7 +5256,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 212,
@@ -5071,7 +5281,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 213,
@@ -5095,7 +5306,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 214,
@@ -5119,7 +5331,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 215,
@@ -5143,7 +5356,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 216,
@@ -5167,7 +5381,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 217,
@@ -5191,7 +5406,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 218,
@@ -5215,7 +5431,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 219,
@@ -5239,7 +5456,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 220,
@@ -5263,7 +5481,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 221,
@@ -5287,7 +5506,8 @@
       "action": "herd",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 222,
@@ -5311,7 +5531,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 223,
@@ -5335,7 +5556,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 224,
@@ -5359,7 +5581,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 225,
@@ -5383,7 +5606,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 226,
@@ -5407,7 +5631,8 @@
       "action": "flee",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 227,
@@ -5431,7 +5656,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 228,
@@ -5455,7 +5681,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 229,
@@ -5479,7 +5706,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 230,
@@ -5503,7 +5731,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 231,
@@ -5527,7 +5756,8 @@
       "action": "wander",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     },
     {
       "id": 232,
@@ -5551,7 +5781,8 @@
       "action": "eat",
       "alive": true,
       "decayStage": 0,
-      "elevation": 0
+      "elevation": 0,
+      "flying": false
     }
   ],
   "terrain": {

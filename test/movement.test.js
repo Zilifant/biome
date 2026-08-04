@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { TerrainGrid, TerrainType } from '../src/simulation/world/TerrainGrid.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
+import { flightSpeedMultiplier } from '../src/simulation/locomotion/flight.js';
 
 /** Find the first cell of a given terrain type in the demo world. */
 function findCell(terrain, type) {
@@ -34,18 +35,30 @@ describe('terrain speed modifiers', () => {
 });
 
 describe('terrain-aware movement', () => {
-  test('animals never occupy an impassable cell over a long run', () => {
+  test('a *grounded* animal never occupies an impassable cell over a long run', () => {
+    // ⚠⚠ **This claim was "no animal is ever on an impassable cell" until
+    // 2026-08-04, and flight (phase F1) narrowed it rather than broke it.** A
+    // flying animal's step is refused by nothing — that is what
+    // terrain-independent movement means — so a vulture crosses rock and open
+    // water, and the invariant that has to survive is the one movement actually
+    // depends on: **a grounded animal is on passable ground.**
+    //
+    // Asserted in the strong direction on purpose: an animal on an impassable
+    // cell must be flying. That catches the failure the old test was really
+    // guarding against (a walker escaping into rock) *and* the new one flight
+    // could introduce (a bird landing in a lake), which is exactly what
+    // `flyingFor`'s impassable clause exists to make impossible.
     const engine = createDemoSimulation({ seed: 42 });
     for (let i = 0; i < 400; i += 1) {
       engine.step(1);
       for (const entity of engine.world.entities.all()) {
-        if (entity.kind === 'animal' && entity.alive) {
-          assert.equal(
-            engine.world.isPassableAt(entity.x, entity.y),
-            true,
-            `animal ${entity.id} on impassable cell at tick ${engine.tick}`,
-          );
-        }
+        if (entity.kind !== 'animal' || !entity.alive) continue;
+        if (engine.world.isPassableAt(entity.x, entity.y)) continue;
+        assert.equal(
+          entity.flying,
+          true,
+          `grounded animal ${entity.id} on impassable cell at tick ${engine.tick}`,
+        );
       }
     }
   });
@@ -69,30 +82,47 @@ describe('terrain-aware movement', () => {
     }
   });
 
-  test('a single step never exceeds speed × terrain modifier × the sprint multiplier', () => {
+  test('a single step never exceeds speed × its own ground factor × the sprint multiplier', () => {
     const engine = createDemoSimulation({ seed: 42 });
     // The ceiling has grown since Step 5: a chase or an escape sprints
     // (Step 16), and an injury (Step 17) only ever slows an animal down — so
     // the sprint multiplier is the upper bound on any single step.
+    //
+    // ⚠ **And from phase F1 the "ground factor" is not always the terrain's.** A
+    // flying animal bypasses the terrain modifier and takes its species'
+    // `flight.speedMultiplier` instead, which is *above* 1 where the terrain
+    // modifier is at or below it. So the bound is per-animal, resolved from the
+    // same predicate `stepLength` uses rather than restated as a number here.
     const { sprintMultiplier } = engine.config.locomotion;
     const before = [...engine.world.entities.all()].map((e) => ({
       id: e.id,
       x: e.x,
       y: e.y,
       speed: e.speed,
+      // The terrain modifier is read at the animal's position *before* the step,
+      // exactly as `stepLength` reads it.
       modifier: engine.world.speedModifierAt(e.x, e.y),
     }));
     engine.step(1);
     for (const prior of before) {
       const entity = engine.world.entities.get(prior.id);
       const dist = Math.hypot(entity.x - prior.x, entity.y - prior.y);
-      const ceiling = prior.speed * prior.modifier * sprintMultiplier;
+      // ⚠ **`flying` is read *after* the step, and that is not a shortcut.** The
+      // decision system writes the flag in the same tick, ahead of movement, so
+      // the value that bounded this step is the post-step one — the pre-step flag
+      // is last tick's, and a bird taking off would breach a bound computed from
+      // it. This is the one-tick offset `locomotion/flight.js` describes, seen
+      // from the other side.
+      const factor = entity.flying === true
+        ? flightSpeedMultiplier(engine.world.species.get(entity.speciesId))
+        : prior.modifier;
+      const ceiling = prior.speed * factor * sprintMultiplier;
       assert.ok(dist <= ceiling + 1e-9, `animal ${prior.id} moved ${dist} > ceiling ${ceiling}`);
       // And a walking animal still respects the un-sprinted bound.
       if (entity.moveIntent && entity.moveIntent.sprint !== true) {
         assert.ok(
-          dist <= prior.speed * prior.modifier + 1e-9,
-          `animal ${prior.id} walked ${dist} > speed*modifier ${prior.speed * prior.modifier}`,
+          dist <= prior.speed * factor + 1e-9,
+          `animal ${prior.id} walked ${dist} > speed*factor ${prior.speed * factor}`,
         );
       }
     }
@@ -137,6 +167,9 @@ describe('movement sandbox scenario (seed fixed)', () => {
       engine.step(1);
       for (const entity of engine.world.entities.all()) {
         if (entity.kind !== 'animal' || !entity.alive) continue;
+        // ⚠ Grounded animals only, from phase F1: a wall is not a wall to
+        // something flying over it (see the narrowed invariant above).
+        if (entity.flying === true) continue;
         assert.equal(engine.world.isPassableAt(entity.x, entity.y), true);
         const prev = positions.get(entity.id);
         if (prev && prev.x === entity.x && prev.y === entity.y && entity.moveIntent) {

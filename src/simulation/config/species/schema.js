@@ -48,8 +48,8 @@
  * of the same name. Anything not listed here is either already per-species
  * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, and —
  * from the species plan — `groups`, `forage`, `habitat`, `association`, `crypsis`,
- * and `climbs` from 2026-08-03) or genuinely world-level (terrain, weather,
- * disturbances, the decision weights) and stays in the config.
+ * and `climbs` from 2026-08-03, `flight` from 2026-08-04) or genuinely world-level
+ * (terrain, weather, disturbances, the decision weights) and stays in the config.
  *
  * ⚠ **`climbs` is a bare boolean with no config section of its own**, exactly as
  * `crypsis` is a bare number — there is nothing world-level to say about whether
@@ -57,6 +57,15 @@
  * `climbing` *block* here would have been the mistake the note below describes:
  * a species block beats the config, so `config.climbing.enabled: false` would
  * stop switching anything off for any species that stated its own.
+ *
+ * ⚠⚠ **`flight` is the sharper case of the same rule, because it *is* an object
+ * and therefore looks exactly like a block.** It holds three multipliers
+ * (`speedMultiplier`, `visionMultiplier`, `moveCostFactor`) and it is still an
+ * always-per-species **field**: listing it below would merge it over
+ * `config.flight`, and then any species declaring its own would silently override
+ * `config.flight.enabled: false` — the mechanism would have no reproducible
+ * control, which is phase 8's trap and phase T3's very nearly. The shape of the
+ * test is not "is it an object", it is **"does the section hold a switch"**.
  *
  * ⚠ **The always-per-species *fields* are not a leftover; they are the shape a
  * mechanism takes when it needs a reproducible control.** A species block beats

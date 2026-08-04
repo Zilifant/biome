@@ -26,7 +26,7 @@ import {
 } from '../src/renderer/app/rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from '../src/renderer/app/rendering/AsciiGridRenderer.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
-import { describeLegend } from '../src/renderer/app/ui/Legend.js';
+import { describeLegend, STATUS_SHAPE_GLYPHS } from '../src/renderer/app/ui/Legend.js';
 import { indexHistory, drawTrend, BAR_LEVELS, TREND_LEVELS } from '../src/renderer/app/ui/MetricsPanel.js';
 import { matchWatched, WATCHABLE } from '../src/renderer/app/ui/Watchlist.js';
 import {
@@ -204,8 +204,15 @@ function drawWith(occupants, vegetationLevel, features, statusPhase, selection, 
       ops.push({ glyph, px, py, alpha: this.globalAlpha });
     },
     // Status marks are drawn as paths rather than glyphs, so the stub tracks
-    // one: `arc` makes it a dot, a run of line segments a diamond, and `fill`
+    // one: `arc` makes it a dot, a run of line segments a polygon, and `fill`
     // is what commits it.
+    //
+    // ⚠ The two polygon shapes are told apart by **vertex count**, which is the
+    // only thing a canvas stub can see: a diamond is one 4-point path and a
+    // chevron pair is two 6-point subpaths in one path (see `paintStatusMark`).
+    // A future shape with 4 or 12 vertices would need a better discriminator —
+    // the alternative today would be asserting on pixels, which this repo has no
+    // dependency for.
     beginPath() {
       this.path = { shape: null, points: [] };
     },
@@ -221,12 +228,18 @@ function drawWith(occupants, vegetationLevel, features, statusPhase, selection, 
     closePath() {},
     fill() {
       const path = this.path;
+      const centre = (axis) =>
+        (Math.min(...path.points.map((p) => p[axis])) + Math.max(...path.points.map((p) => p[axis]))) / 2;
       const mark = path.shape === 'dot'
         ? { mark: 'dot', cx: path.cx, cy: path.cy, radius: path.radius }
         : {
-            mark: 'diamond',
-            cx: (Math.min(...path.points.map((p) => p[0])) + Math.max(...path.points.map((p) => p[0]))) / 2,
-            cy: (Math.min(...path.points.map((p) => p[1])) + Math.max(...path.points.map((p) => p[1]))) / 2,
+            mark: path.points.length === 4 ? 'diamond' : 'chevron',
+            vertices: path.points.length,
+            cx: centre(0),
+            cy: centre(1),
+            // The apex of the topmost chevron, which is what "pointing up" means
+            // geometrically: the highest vertex sits on the mark's centre line.
+            apex: path.points.reduce((best, p) => (p[1] < best[1] ? p : best), path.points[0]),
           };
       ops.push({ ...mark, colorToken: tokenOf(this.fillStyle), alpha: this.globalAlpha });
     },
@@ -288,14 +301,17 @@ describe('animal statuses', () => {
     ...overrides,
   });
 
-  test('every status has a distinct id, colour, and one of the two shapes', () => {
+  test('every status has a distinct id, colour, and one of the three shapes', () => {
     const ids = STATUS_APPEARANCE.map((status) => status.id);
     const colours = STATUS_APPEARANCE.map((status) => status.colorToken);
     assert.equal(new Set(ids).size, ids.length, `duplicate status ids in ${ids}`);
-    // Colour is what makes a marker findable in a herd; shape alone is one bit.
+    // ⚠ Colour is what makes a marker findable in a herd, and at the 10px floor it
+    // is the *only* channel left — three shapes is already more than that size can
+    // carry (see `paintStatusMark`), so a shared colour would be two statuses
+    // nobody can tell apart. This is the assertion that keeps that true.
     assert.equal(new Set(colours).size, colours.length, `two statuses share a colour: ${colours}`);
     for (const status of STATUS_APPEARANCE) {
-      assert.ok(['dot', 'diamond'].includes(status.shape), `${status.id} has shape ${status.shape}`);
+      assert.ok(['dot', 'diamond', 'chevron'].includes(status.shape), `${status.id} has shape ${status.shape}`);
       assert.ok(DRACULA_COLORS[status.colorToken], `${status.id} has an unknown colour token`);
       assert.ok(status.label, `${status.id} needs a label for the legend`);
     }
@@ -307,6 +323,9 @@ describe('animal statuses', () => {
     assert.deepEqual(statusesOf(gazelle({ gestating: true })).map((s) => s.id), ['gestating']);
     assert.deepEqual(statusesOf(gazelle({ seekingMate: true })).map((s) => s.id), ['rut']);
     assert.deepEqual(statusesOf(gazelle({ dispersing: true })).map((s) => s.id), ['dispersing']);
+    // Flight (protocol v32). ⚠ Reads the bulk field, like every other predicate
+    // here — `flying` rides in the snapshot precisely so a status can.
+    assert.deepEqual(statusesOf(gazelle({ flying: true })).map((s) => s.id), ['flying']);
     // ⚠ An incubating carrier is deliberately unmarked: the disease model rests
     // on it being invisible.
     assert.deepEqual(statusesOf(gazelle({ diseaseState: 'incubating' })).map((s) => s.id), []);
@@ -415,11 +434,27 @@ describe('the grid renderer', () => {
     assert.ok(marks[0].cy < animal.py, 'above the glyph centre');
   });
 
-  test('a state is a diamond, and the shapes are the two families', () => {
+  test('a state is a diamond, and the shapes are the three families', () => {
     const ops = recordDraw([gazelleAt(1, 1, { gestating: true })]);
     const mark = ops.find((op) => op.mark);
     assert.equal(mark.mark, 'diamond');
     assert.equal(mark.colorToken, 'pink');
+  });
+
+  test('being on the wing is a cyan double chevron pointing up', () => {
+    // The third shape family: *where* the animal is, rather than what is wrong
+    // with it (dot) or what is happening to it (diamond).
+    const ops = recordDraw([gazelleAt(1, 1, { flying: true })]);
+    const mark = ops.find((op) => op.mark);
+    assert.equal(mark.mark, 'chevron');
+    assert.equal(mark.colorToken, 'cyan');
+    // Two chevrons of six vertices each — one would be a wedge, and `»` is a pair.
+    assert.equal(mark.vertices, 12, 'a pair of chevrons, not one');
+    // ⚠ Pointing **up**: the topmost vertex is the apex, and it sits on the
+    // mark's own centre line. A `»` drawn unrotated would put its extreme point
+    // out to one side instead.
+    assert.ok(Math.abs(mark.apex[0] - mark.cx) < 0.01, `apex ${mark.apex} is centred under ${mark.cx}`);
+    assert.ok(mark.apex[1] < mark.cy, 'and above the centre');
   });
 
   test('an animal in several statuses shows one at a time, chosen by the phase', () => {
@@ -992,7 +1027,10 @@ describe('legend', () => {
       const entry = group.entries.find((e) => e.label === status.label);
       assert.ok(entry, `${status.id} is missing from the legend`);
       assert.equal(entry.colorToken, status.colorToken);
-      assert.equal(entry.glyph, status.shape === 'diamond' ? '◆' : '●');
+      // ⚠ Against the shared table rather than a literal, so a new shape with no
+      // row there fails here instead of silently falling back to the dot.
+      assert.ok(STATUS_SHAPE_GLYPHS[status.shape], `shape "${status.shape}" has no legend character`);
+      assert.equal(entry.glyph, STATUS_SHAPE_GLYPHS[status.shape]);
     }
   });
 

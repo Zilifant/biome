@@ -57,7 +57,57 @@ export const scavengerVulture = Object.freeze({
   // Finds food by looking, over a wide area — the furthest-seeing animal in the
   // world, because a scavenger's whole living is spotting a body before someone
   // else does.
-  perception: Object.freeze({ radius: 14 }),
+  //
+  // ⚠⚠ **14 → 9 on 2026-08-04, and the drop is the *point* of the flight edit
+  // rather than a cost of it** (phase F2). The cell scan in `PerceptionSystem` is
+  // (2r+1)², so widening the world's already-widest radius is quadratic in the
+  // widening: 14 taken to 22 would be ~2.5× the hottest loop in the engine, for
+  // the most numerous animal in the world. The mitigation is to **move the number,
+  // not add one** — 9 × `flight.visionMultiplier` 1.55 = 13.95, so a *flying*
+  // vulture sees almost exactly the 14 it always saw and the world's maximum
+  // radius does not move at all.
+  //
+  // What genuinely changes is what a **grounded** vulture sees: 9 rather than 14,
+  // while it is feeding, drinking, resting, courting or standing in a crowd at a
+  // carcass. That is a real loss and it is the honest reading of the mechanism —
+  // a bird on the ground has its head down.
+  //
+  // ⚠ 9 is above the social radius (6, `max(groupRadius, alarmRadius)`), which
+  // matters mechanically: `SocialSystem` reuses perception's neighbour walk only
+  // when that radius reaches at least as far as its own, so a narrower number here
+  // would have silently added a second grid walk per vulture per tick — the exact
+  // cost §1.4 C6 removed. Do not take this below 6.
+  perception: Object.freeze({ radius: 9 }),
+  // ⚠⚠ **Aerial movement** (phase F2, `vulture.md` §Aerial movement, and the
+  // largest ecological change in TREES-FLIGHT-VULTURE-PLAN.md).
+  //
+  // A **movement mode, not a simulation of flight**: no altitude, no thermals, no
+  // takeoff cost, no flapping economics. `vulture.md` asks for all four and the
+  // plan declines all four — what is left is the part that does ecological work,
+  // which is that a scavenger crosses ground fast, looks over a wide area, and
+  // pays little for either. The classic carrion strategy, stated as three numbers.
+  //
+  // Each is a multiplier applied only while airborne, and airborne means "doing a
+  // travelling action" (see `locomotion/flight.js`). So the bird gets none of this
+  // while it eats, drinks, rests or courts — which is what keeps flight from being
+  // a general improvement to the world's most numerous animal.
+  flight: Object.freeze({
+    // 1.5 × baseSpeed 1.5 = 2.25 world units per tick on the wing, against the
+    // zebra's 1.25 at a walk. Comfortably the fastest thing in the world while
+    // travelling and back to ordinary the moment it lands.
+    speedMultiplier: 1.5,
+    // 9 → 13.95, i.e. the radius it had before this edit, and not a unit more.
+    // ⚠ The world's widest perception radius is deliberately unchanged by the
+    // whole phase; see the note on `perception` above.
+    visionMultiplier: 1.55,
+    // Gliding is cheap. 0.6 of the walking cost per unit travelled, on top of a
+    // `moveCostFactor` already the lowest in the roster. With `speedMultiplier`
+    // that is **1.5× the ground covered for 0.9× the energy** — the carrion
+    // strategy as arithmetic: search widely, because the food is rich, rare and
+    // unpredictable. ⚠ Basal cost is untouched: nothing charges for being in the
+    // air, only for crossing it.
+    moveCostFactor: 0.6,
+  }),
   // Small and feathered: tolerates cold poorly, heat well.
   comfortMin: 5,
   comfortMax: 32,
