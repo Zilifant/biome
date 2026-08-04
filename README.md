@@ -681,6 +681,19 @@ stops instead of becoming a chain reaction that never runs out of fuel. An
 animal that has been warned but has seen nothing itself still runs — away from
 where it was _told_ the danger was.
 
+**Where they start is a mechanism too — and it is switched off.** Founding
+animals are placed independently at uniform random over the whole map, so a lion
+pride begins as eight animals scattered across the world and every social
+structure has to reassemble itself from nothing. `config.cohorts` (2026-08-04)
+lays each cohort down as herds, prides, clans and roosts instead, and needs no
+new social machinery at all to do it: the herd label and the group registry are
+both seeded by _proximity_, so placing bodies together produces both on the first
+tick. It ships `clustered: false`. The ten-seed gate passed and the per-seed
+pairs did not back it up — one real effect (the lion, up on 8 of 10 seeds) and a
+75% rise in group founding with fewer groups actually standing, which is the
+known `A56` churn defect amplified. Fix that first, then re-run. See
+[`ACTION-ITEMS.md`](ACTION-ITEMS.md) **A80**.
+
 Herding is deliberately the weakest thing an animal can want. It loses to
 hunger, thirst, weather and predators, which is what makes a herd loose and
 living: animals graze their way out of it and drift back in. A bold animal is a

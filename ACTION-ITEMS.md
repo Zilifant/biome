@@ -452,6 +452,42 @@ they are not re-opened by accident.
   that reason). Related: **A72** (the occupancy claim it would be measured by is the
   one that cannot be resolved) and **A51**.
 
+- **A80 — Founding cohorts are built, gated, and deliberately shipped off**
+  _(2026-08-04)_. `config.cohorts` places each founding cohort in herds, prides,
+  clans and roosts instead of scattering every animal uniformly over the map, and
+  the two social mechanisms pick it up unaided — herd labels and `world.groups`
+  records both exist on tick 1, because both read proximity and placement is the
+  only social input the world gets before its first tick (DOCS §9 Founding
+  cohorts). It writes no social state itself. It ships `clustered: false`.
+
+  **The gate's stated bar is met and the evidence still does not support flipping
+  it**, which is the whole of this item. 10 seeds × 15 000 ticks,
+  `--set=cohorts.clustered=true --controlSet=cohorts.clustered=false`: every
+  species alive on 10/10 seeds bar the leopard on 9/10, comfortably over the ≥6/10
+  bar. But per-seed pairs (**D41**) resolve exactly **one** effect — the **lion**,
+  up on 8 of 10 seeds (12.7 → 15.9), which is the social predator being founded as
+  prides and is the result the mechanism predicts. Every other mean is a coin flip
+  in its ordering: leopard 4up/6down, hyena 2up/5down/3tie, vulture 3up/7down, and
+  the gazelle 5up/4down/1tie *despite* a +11.5 mean carried by two outlier seeds.
+  Reporting the means alone would have made this look like a clear win.
+
+  ⚠ It costs the leopard a seed (10/10 → 9/10; starvation deaths 2 → 8), and
+  **D14** is explicit that a one-seed disagreement at ten seeds calls for more
+  seeds rather than a parameter change.
+
+  ⚠⚠ **It also makes A56 materially worse, and that is the blocking finding.**
+  Group foundings went 8818 → 15388 (+75%) while *peak concurrent groups fell*
+  12 → 10 — more founding producing fewer standing groups is the two-member
+  flapping A56 describes, amplified. A56's own note deferred the hysteresis fix
+  until there was more than one clan-forming species to tune it against; there
+  are now three, and this is the change that makes it pay. **Fix A56 first, then
+  re-run this gate**; the two are entangled and the order matters.
+
+  Not a defect either way: the off arm is byte-identical to the pre-2026-08-04
+  world (asserted in `test/cohorts.test.js`, and the renderer fixtures regenerate
+  unchanged), so nothing is carrying a cost while this waits. Related: **A56**,
+  **A60** (a pride still cannot hold shared ground), **A43**.
+
 - **A68 — The species roster stops at eight; the rhino and the elephant are
   deferred** _(decided 2026-07-30)_. Scope rather than work. The **black rhino**
   is config-only but gated on A51 — without a woody layer it is a heavy

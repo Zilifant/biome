@@ -690,6 +690,7 @@ reminder.
 | A77 | **The vulture's carcass-discovery network** — birds that find food by watching other vultures descend _(from the retired trees/flight/vulture plan, phase V2)_                  | Open, **designed and not built**. It is `#joinedHunt` with a different noun: a scavenger with no carcass of its own in sight adopts the one a nearby conspecific has committed to, filling `seekFood`'s existing target — so it adds no action, no draw and no third neighbour walk, and being gated on "nothing of my own" means it can only ever *add* a searcher to a body. Biology in `scavenging: { followsKin, followRange }`, switch in `config.scavenging.enabled`; measure ticks from a carcass's creation to the *n*th feeder. ⚠⚠ **Read A73 and A76 first** — it takes carrion off the guild three phases have already reshuffled, by speeding up the species that now holds 45% of it |
 | A78 | **The vulture's slow life history** — slow maturation, one chick, long dependency _(from the retired plan, phase V3)_                                                           | Open and **now overdue rather than optional**. It was flight's named counterweight; F2 shipped with its own brake and held its gate, then V1 took the bird to 416.0 against 295.4 and 45.0% of all carrion (**A76**). ⚠ The extra meat is mostly *new* (the pool grows 193 → 221 t), so **B7**'s mass-blind `carcass.decayTicks` may be the better lever; **A62** caps how far the life history itself can honestly go, since the real knob is `ticksPerYear`. Needs ten seeds and per-seed pairs (**D41**) |
 | A79 | **Four of eight species do not name `tree`**, so adding a terrain code still shrinks every grazer's preferred habitat _(from 2026-08-03, phase T1)_                             | Open. A general property rather than a fact about trees: an unnamed terrain resolves to neutral 1 while the ground it replaced was weighted above 1, so **any** new code does this to every species that enumerates terrain by name. The leopard (T3) and vulture (V1) have caught up; the four herbivores have not. One weight apiece — ⚠ but it moves four species' habitat at once and wants its own arm, which is why T1 left it out of the gate measuring one terrain type |
+| A80 | **Founding cohorts are built, gated, and shipped off** — `config.cohorts.clustered` is `false` _(2026-08-04)_                                                                   | Open **by decision, not by defect**. The mechanism works and the gate's stated bar is met (10 seeds × 15 000: every species ≥6/10, worst 9/10). It is off because the *evidence does not support flipping it*. Per-seed pairs (**D41**) resolve exactly one effect — the **lion**, up on 8 of 10 seeds (12.7 → 15.9), which is the social predator being founded as prides. Every other mean is a coin flip in the ordering: leopard 4up/6down, hyena 2up/5down/3tie, vulture 3up/7down, gazelle 5up/4down/1tie despite a +11.5 mean. ⚠ It costs the leopard a seed (10/10 → 9/10, starvation deaths 2 → 8), and **D14** says a one-seed disagreement at ten seeds needs more seeds rather than a parameter. ⚠⚠ And it makes **A56** materially worse: group foundings 8818 → 15388 (+75%) with peak concurrent groups *down* 12 → 10, which is churn rather than society. **Fix A56's hysteresis first**, then re-run this gate — the two are now entangled and the order matters |
 | A3  | **Individual tree/shrub entities.** Vegetation is a cell-level biomass field, not thousands of plant entities                                                                  | Open. The `plant` entity kind is reserved for them. Needed only by a step that wants _point_ vegetation                                                                                                                                                                                                                                          |
 | A5  | **Renderer debug overlay of perceived cells**                                                                                                                                  | Open — a later renderer pass                                                                                                                                                                                                                                                                                                                     |
 | A7  | **Action glyph tint.** The current action is textual in the inspector only                                                                                                     | Open — `action` already rides in the bulk snapshot, so this is renderer-only work                                                                                                                                                                                                                                                                |
@@ -2991,7 +2992,8 @@ quietly rewrote herd labels would be a roster pretending to be a label, which
 is the worst of both. A test asserts each direction directly.
 
 The rest of this section is the label mechanism, unchanged. The registry is
-written up under **Persistent groups** below.
+written up under **Persistent groups** below, and where the animals *start* is
+under **Founding cohorts** after it.
 
 #### Herd labels
 
@@ -3268,6 +3270,84 @@ changes rarely and matters for one animal at a time, which is the standing test
 (§11). The tests still assert the registry directly rather than through the
 projection, because a mechanism that quietly never founded a second clan would
 project an empty world just as convincingly.
+
+#### Founding cohorts
+
+_(2026-08-04. `config.cohorts`, the per-species `cohort` field,
+`test/cohorts.test.js`.)_
+
+**Every mechanism above reads proximity, so where the founders are put is the
+only social input the world gets before its first tick — and for thirty steps it
+was uniform random.** Each founder drew its own position over the whole map, so a
+lion pride began as eight animals scattered across 160×120 units, a hyena clan as
+six, and every social structure in the world had to reassemble itself from
+nothing. Nothing was broken; the world simply started in a state no ecosystem is
+ever in.
+
+The fix is **placement, and only placement**. A cohort is laid down as a run of
+clusters: one anchor drawn exactly as before (`passableSpawnPosition`, the C1
+rejection sampler), then `groupSize` founders placed on a disc of radius `spread`
+around it. That is the entire mechanism.
+
+⚠⚠ **It writes no social state, and that is the design rather than a
+restriction.** `SocialSystem` derives the herd label every tick from neighbours
+within `social.groupRadius`, and `GroupSystem` founds a record from two
+unattached conspecifics within `groups.joinRadius`. Both are already seeded by
+proximity — so putting bodies near each other produces herds on tick 1 and real
+prides, clans and bands on tick 1, through the systems that own them. This is the
+same shape as disturbances and trails: **the behaviour already existed; this only
+gave it a reason.**
+
+Writing `groupId` or `groupRecordId` from the fixture was considered and
+rejected. It would break the rule three paragraphs up that no two writers touch
+one field, it would bypass the registry's `maxGroups` / `maxMembers`
+reconciliation, and it would produce one tick early exactly what the registry
+produces anyway.
+
+**A cluster of one is its anchor, with no offset draw at all.** So a species
+declaring no `cohort` block is placed identically whether clustering is on or
+off — which is what makes the leopard, a solitary ambush predator that defends
+ground against its own kind, a null control living inside the on arm (D40) rather
+than merely an untuned species. ⚠ Same *procedure*, not the same coordinates:
+every cohort draws from one shared `worldgen` stream in roster order, so a
+clustered cohort ahead of it spends a different number of draws. The distribution
+is the invariant, and a distribution is what a control needs to be.
+
+The founding group sizes are **biology in a field, switch in a section** (§8):
+`cohort: { groupSize, spread }` per species, `config.cohorts.clustered`
+world-level so a species block cannot override the off arm. Two things the sizes
+are chosen against rather than eyeballed — a forming species gets a *tighter*
+spread than an aggregating one, because a record is founded from two animals
+within `joinRadius` with no hop chaining while a label crosses a loose group in
+hops; and no founding cluster exceeds `groups.maxMembers`, since placing animals
+together that the registry then refuses to enrol reads as a bug in the registry
+rather than as the arithmetic it is. A test asserts the second against the config.
+
+⚠⚠ **Ships `clustered: false`, and it is worth reading why, because the gate
+passed.** Measured 2026-08-04, 10 seeds × 15 000 ticks against a
+`clustered=false` control: every species alive on 10/10 seeds bar the leopard on
+9/10, well clear of the ≥6/10 bar, with the gazelle at 51 → 62.5, the buffalo
+48.1 → 56 and the lion 12.7 → 15.9. Reported as means, that reads as a clean win.
+
+**Per-seed pairs say otherwise, and they are the honest instrument here (D41).**
+Exactly one effect survives: the **lion**, up on 8 of 10 seeds — the social
+predator founded as prides, which is the result the mechanism actually predicts.
+Everything else is a coin flip in its ordering (leopard 4up/6down, hyena
+2up/5down/3tie, vulture 3up/7down, and the gazelle 5up/4down/1tie *despite* its
++11.5 mean, which two outlier seeds carry). It also costs the leopard a seed,
+and D14 says a one-seed disagreement at ten seeds wants more seeds rather than a
+parameter.
+
+The blocking finding is a different one. Group **foundings** rose 8818 → 15388
+(+75%) while **peak concurrent groups fell** 12 → 10: more founding producing
+fewer standing groups is **A56**'s two-member flapping, amplified by giving it
+three clan-forming species to do it with. A56 deferred its hysteresis fix until
+there was more than one such species to tune against — this is the change that
+makes that fix pay, and it should come first. The whole item is **A80**.
+
+⚠ This is the shape §20 warns about from the other side. The gate is a verdict
+and it said pass; the thing that decided the outcome was a cheap per-seed
+reading taken *after* it, and a churn statistic the gate reports for free.
 
 ### Territory and home range
 
@@ -4417,7 +4497,7 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-1131 tests, 283 suites _(2026-08-04)_, plus **13 browser spec files in `tests-ui`**,
+1149 tests, 287 suites _(2026-08-04)_, plus **13 browser spec files in `tests-ui`**,
 which are a separate run (`npx playwright test`) and are the only thing that
 exercises the renderer's DOM — see D32 for the class of bug the node suite
 structurally cannot see. Layers:
@@ -4483,6 +4563,7 @@ populations for stochastic runs.
 | —   | Worn-path sandbox            | a trail due east bends wander headings                    | mean cos(heading) > trail-free control                                   |
 | —   | Shared-walk equivalence      | the two neighbour paths agree                             | 400 demo ticks byte-identical                                            |
 | —   | Clan sandbox                 | an invented group-forming species founds, joins, separates, and dissolves | membership outlives a separation the herd label does not; a clan-forming world and a control are identical animal for animal |
+| —   | Founding cohorts             | the demo world founded in herds, prides, clans and roosts rather than scattered | herd labels and `world.groups` records exist on tick 1 and outnumber a scattered control's, though placement writes neither; the leopard, which declares no `cohort`, is drawn from the same distribution in both arms; the off arm is byte-identical to the default world |
 | —   | Carcass-possession sandbox   | two carnivores, one body: the holder eats, the weaker waits, the stronger takes it | the weaker gains no energy while the claim stands; a clanmate does; the disabled control is the exact id-ordered queue |
 | —   | Forage-guild sandbox         | a short-grass grazer settles on the flush and walks off the rank sward; a tolerant one stays | the same two cells rank oppositely for the two species; a starving animal eats either; the demo gazelle feeds on visibly shorter grass than a preference-off control |
 | —   | Habitat sandbox              | a cover-liking animal drifts toward cover; a satisfied one still does | the drift exists where no need-cue would produce one; the demo **buffalo** spends more of its life on the open ground it prefers than a preference-off control. ⚠ This asserted the *gazelle's* cover share until phase 11, when a second grazer reversed it — competitive displacement, not a broken cue (§6 of the handoff) |
@@ -4779,6 +4860,15 @@ with that is **not** its own kind, and it is neither a label nor a record: it is
 weight in the species file, read by `SocialSystem` where the herd centre is
 computed. See §9 Sociality, which opens with the design decision the second
 overrode and ends with what the third is allowed to touch.
+
+⚠ **`cohorts` is a fourth thing that sounds like all of them, and it is not a
+social mechanism at all** (2026-08-04). It says how a *founding cohort is
+arranged on the ground* — `demo.founding` is the roster (how many), `cohorts` is
+the arrangement (in what groups) — and it writes no social state whatsoever. It
+exists because the other three all read **proximity**, so the placement of the
+founders is the only social input the world gets before its first tick. The
+biology (`{ groupSize, spread }`) is a per-species `cohort` field; the
+`clustered` switch is world-level, by the §8 rule. See §9 Sociality.
 
 ⚠⚠ **`concealment` and `parenting.concealment` are two different mechanisms with
 one word between them** (2026-07-30), and the systems name them apart so the code

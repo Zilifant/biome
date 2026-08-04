@@ -156,6 +156,13 @@ export const scavengerVulture = Object.freeze({
   // ⚠ This is the contrast the hyena is measured against: same trophic level,
   // same carcasses, opposite answer to "who do I belong to".
   groups: Object.freeze({ forms: false }),
+  // Two roosts of five (`config.cohorts`), and the tightest spread in the roster
+  // because a roost is a place rather than a formation.
+  // ⚠ It is the shortest-lived grouping in the world and that is honest: this
+  // bird flies, ranges wide, and follows carrion through perception, so a roost
+  // is where the day starts and not where it is spent. Placement can say the
+  // first; only A77's discovery network could say the second.
+  cohort: Object.freeze({ groupSize: 5, spread: 3 }),
   // Does not track forage (grass is not food) but disperses like everything
   // else. What it follows is carrion, through perception — the same pipeline
   // the stalker uses to follow prey. It **does** track water, for the same

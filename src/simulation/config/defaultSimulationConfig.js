@@ -787,6 +787,48 @@ export const defaultSimulationConfig = Object.freeze({
     // stays re-runnable, in the pattern every measured mechanism here ships.
     rejoinWhileDispersing: false,
   }),
+  // How a founding cohort is *arranged* on the ground, against `demo.founding`,
+  // which says only how many of each there are. Two sections, two questions:
+  // `demo.founding` is the roster, `cohorts` is the arrangement.
+  //
+  // ⚠⚠ **This adds no social mechanism, and that is the whole design.** Founders
+  // used to be placed independently at uniform random over the map, so a lion
+  // pride began as eight animals scattered across 160×120 units and the world's
+  // social structure had to reassemble itself from nothing. Both mechanisms that
+  // make animals social are already seeded by *proximity*: `SocialSystem`
+  // recomputes the herd label every tick from neighbours within `groupRadius`,
+  // and `GroupSystem` founds a persistent record from two unattached
+  // conspecifics within `groups.joinRadius`. So placing a cohort in clusters
+  // gives herds on tick 1 and real prides, clans and bands on tick 1, with no
+  // new entity field, no protocol change, and no third way to create a group.
+  //
+  // ⚠ Writing `groupId` or `groupRecordId` from the fixture was considered and
+  // rejected: DOCS §9 — a system writing both fields is "a roster pretending to
+  // be a label, which is the worst of both" — and it would bypass the registry's
+  // `maxGroups` / `maxMembers` reconciliation to produce, one tick early, the
+  // records the registry produces anyway.
+  //
+  // Two kinds of field again: `clustered` and `placementAttempts` are
+  // **world-level**; `groupSize` and `spread` are the fallback for a species
+  // that declares no `cohort` block of its own.
+  cohorts: Object.freeze({
+    // The reproducible control, in the pattern every mechanism since migration
+    // ships. ⚠ World-level rather than a species field by the rule in DOCS §8: a
+    // species block *beats* the config, so an "off" arm living in one could not
+    // switch anything off. `false` reproduces the pre-2026-08-04 world exactly —
+    // `groupSize` resolves to 1, the offset draw is skipped, and the `worldgen`
+    // stream sees the identical sequence — which is what makes the off arm a
+    // byte-identical proof rather than an argument, and what makes
+    // `--set=cohorts.clustered=… --controlSet=…` a one-command A/B (§20).
+    clustered: false,
+    groupSize: 1, // one animal per cluster: independent placement, as before
+    spread: 5, // radius in world units around a cluster's anchor
+    // Rejection budget for one animal's offset before it falls back to the
+    // anchor, which `passableSpawnPosition` already proved passable. Bounded so
+    // a cluster anchored beside a lake cannot spin, and so the C1 invariant
+    // (founders never start inside rock) holds without a second global draw.
+    placementAttempts: 12,
+  }),
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
   // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,
   // so a literal year would be 525,600 ticks and no demo run would ever reach

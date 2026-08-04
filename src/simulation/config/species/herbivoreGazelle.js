@@ -104,6 +104,14 @@ export const herbivoreGazelle = Object.freeze({
   // clan on the record, the gazelle herd on the label — and this species is the
   // control that proves the label half still works untouched.
   groups: Object.freeze({ forms: false }),
+  // How the founders are arranged on the ground (`config.cohorts`). Six herds of
+  // twenty out of a roster of 120, rather than 120 animals scattered singly.
+  // ⚠ This is *placement*, not membership: nothing here writes a group. It puts
+  // bodies inside `social.groupRadius` of each other, and the herd label the
+  // block above declines to make persistent then falls out on tick 1.
+  // The spread is the loosest in the roster — this is an aggregation, and a
+  // gazelle herd should start already fraying at its edges.
+  cohort: Object.freeze({ groupSize: 20, spread: 6 }),
   // Migration (Step 26). It follows the grass, so it tracks the forage
   // gradient. `cueRadius` is 18 against a perception radius of 6 — deliberately
   // beyond what the animal can see, standing in for the coarse long-range cues

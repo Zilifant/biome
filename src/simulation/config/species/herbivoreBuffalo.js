@@ -110,6 +110,12 @@ export const herbivoreBuffalo = Object.freeze({
   territory: Object.freeze({ defends: false, rangeRadius: 20, settleTicks: 1200 }),
   // ⚠ Fission–fusion, so the **label**, not the record (§3.8). See the header.
   groups: Object.freeze({ forms: false }),
+  // Three herds of twelve (`config.cohorts`). ⚠ The count was already a
+  // *density* rather than an appetite — 35 was chosen because `mobbing`
+  // needs `minMobbers` adults within six units of the animal under attack, and
+  // twenty buffalo reached zero mobbed captures. Founding them in herds is the
+  // same argument applied to tick 0: a mob cannot form out of a scatter.
+  cohort: Object.freeze({ groupSize: 12, spread: 5 }),
   // Follows the grass and, more than anything else in this world, the water.
   migration: Object.freeze({ tracksForage: true, tracksWater: true, cueRadius: 18, dispersalTicks: 500 }),
   // ⚠ **Tolerance of coarse growth, not a taste for it** (§3.3). The falloff is

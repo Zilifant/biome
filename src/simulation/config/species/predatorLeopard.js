@@ -122,6 +122,23 @@ export const predatorLeopard = Object.freeze({
   // being converted into a social carnivore (§11.1): a species that defends ground
   // from conspecifics cannot also live with them.
   groups: Object.freeze({ forms: false }),
+  // ⚠⚠ **No `cohort` block, and the omission is the declaration.** Every other
+  // species in the roster is founded in herds, prides, clans or roosts
+  // (`config.cohorts`); this one is founded exactly as it always was, one animal
+  // per cluster and therefore one animal per anchor, with no offset draw at all.
+  // A solitary ambush predator that defends ground against its own kind starting
+  // life in a huddle would be the same contradiction `groups.forms: false` above
+  // exists to prevent.
+  //
+  // It is also useful as a measurement: this species is placed by the same
+  // *procedure* in both arms, so it is the null control living inside the on arm
+  // — the one cohort placement cannot have moved directly, and therefore the one
+  // that says whether the rest of the world moved it (§16 D40).
+  // ⚠ Same procedure, not the same coordinates: every cohort draws from one
+  // shared `worldgen` stream in roster order, so a clustered gazelle cohort
+  // ahead of it spends a different number of draws and lands the leopards
+  // elsewhere. The distribution is the invariant, and it is what a control
+  // needs to be; `test/cohorts.test.js` asserts it as one.
   // Migration (Step 26). It does **not** track forage: its food is the gazelle,
   // and it already follows that through perception and the hunt pipeline — a
   // vegetation gradient would point it at grass it cannot eat. It **does** track

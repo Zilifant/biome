@@ -104,6 +104,11 @@ export const herbivoreWildebeest = Object.freeze({
   // ⚠ **The label, not the record**, and the deliberate contrast with the zebra
   // beside it (§3.8). A wildebeest aggregation is who happens to be standing here.
   groups: Object.freeze({ forms: false }),
+  // Two herds of fifteen (`config.cohorts`) — the largest founding group in the
+  // world, and the deliberate contrast with the zebra beside it a second time:
+  // the wildebeest starts in the biggest aggregation and holds none of it, while
+  // the zebra starts in small bands that are identities.
+  cohort: Object.freeze({ groupSize: 15, spread: 6 }),
   // The strongest long-range cue in the roster: this animal's whole strategy is
   // going where the grass is, and `cueRadius` is the only way this engine has of
   // saying so (§3.4 — a preference with no cue radius has nowhere to act).

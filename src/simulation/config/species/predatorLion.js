@@ -134,6 +134,14 @@ export const predatorLion = Object.freeze({
   // makes it female-cored is world-level machinery in `config.groups`; a species
   // only says whether it takes part.
   groups: Object.freeze({ forms: true }),
+  // Two prides of four out of the eight founders (`config.cohorts`), tight
+  // enough that each founds a record on the first tick (see the zebra for why
+  // a forming species gets a smaller spread than an aggregating one).
+  // ⚠ Four rather than eight, and `groups.maxMembers` is why: a founding pride
+  // at the cap has nowhere to put the daughters that never disperse
+  // (`leavingSex: 'male'`), so it would spend its whole life full. Half the cap
+  // leaves the female-cored pride room to actually be one.
+  cohort: Object.freeze({ groupSize: 4, spread: 4 }),
   // Follows prey through perception, not grass through a gradient — and tracks
   // water for the reason the stalker does: a predator that spends its life in a
   // dry corner of the map needs a steer to the lake on the rare occasions it

@@ -348,6 +348,54 @@ function passableSpawnPosition(engine, random) {
 }
 
 /**
+ * A position within `spread` of a cluster anchor, for a founder placed in a
+ * herd, pride, clan or roost rather than on its own (`config.cohorts`).
+ *
+ * The fallback is the anchor itself, which `passableSpawnPosition` already
+ * proved passable — so the C1 invariant holds without a second global draw, and
+ * a cluster anchored on a lake shore packs tight instead of spinning.
+ *
+ * @param {SimulationEngine} engine
+ * @param {import('../simulation/random/SeededRandom.js').SeededRandom} random
+ * @param {{x: number, y: number}} anchor
+ * @param {number} spread
+ * @param {number} attempts
+ */
+function positionNear(engine, random, anchor, spread, attempts) {
+  for (let i = 0; i < attempts; i += 1) {
+    const angle = random.float(0, TWO_PI);
+    // √u, not u: sampling the radius uniformly would pile the cluster onto its
+    // own centre, because a disc has more area further out.
+    const radius = spread * Math.sqrt(random.float(0, 1));
+    const x = engine.world.clampX(anchor.x + Math.cos(angle) * radius);
+    const y = engine.world.clampY(anchor.y + Math.sin(angle) * radius);
+    if (engine.world.isPassableAt(x, y)) return { x, y };
+  }
+  return { x: anchor.x, y: anchor.y };
+}
+
+/**
+ * How this species' founders are arranged on the ground: its own `cohort` block
+ * over `config.cohorts`, in the same direction every other per-species field
+ * resolves (DOCS §8 — the species value wins, the config is the fallback).
+ *
+ * ⚠ `clustered` is read from the config only and is never taken from a species,
+ * because a species block beats the config and an "off" arm living in one could
+ * not switch anything off.
+ *
+ * @param {object} species
+ * @param {object} cohorts `config.cohorts`
+ */
+function cohortShapeFor(species, cohorts) {
+  if (!cohorts?.clustered) return { groupSize: 1, spread: 0, attempts: 0 };
+  return {
+    groupSize: Math.max(1, Math.floor(species.cohort?.groupSize ?? cohorts.groupSize ?? 1)),
+    spread: Math.max(0, species.cohort?.spread ?? cohorts.spread ?? 0),
+    attempts: Math.max(1, Math.floor(cohorts.placementAttempts ?? 1)),
+  };
+}
+
+/**
  * Queue one founding cohort of a species. Every founder is an individual
  * (Step 14): its own adult size, speed, and temperament, resolved from the
  * species mean at creation.
@@ -402,7 +450,20 @@ function spawnCohort(engine, species, count, draw) {
   }
 }
 
-/** @param {SimulationEngine} engine */
+/**
+ * Queue and flush the founding population, so the world exists at tick 0.
+ *
+ * ⚠ Where founders are put is not cosmetic: it is the *only* input the two
+ * social mechanisms get before the first tick, and both read proximity.
+ * `SocialSystem` recomputes each animal's herd label from neighbours within
+ * `social.groupRadius`, and `GroupSystem` founds a persistent record from two
+ * unattached conspecifics within `groups.joinRadius`. So a clustered cohort
+ * (`config.cohorts`) is a herd on tick 1 and, for a species declaring
+ * `groups.forms`, a real pride, clan or band on tick 1 — none of which this
+ * file writes, or could write, itself.
+ *
+ * @param {SimulationEngine} engine
+ */
 function populateDemoWorld(engine) {
   const random = engine.randomStream('worldgen');
   // Initial ages and genomes come from their own streams, so adding either
@@ -410,22 +471,39 @@ function populateDemoWorld(engine) {
   const ageRandom = engine.randomStream('demogen.age');
   const geneRandom = engine.randomStream('genetics');
 
-  const draw = (species) => ({
-    position: () => {
-      const { x, y } = passableSpawnPosition(engine, random);
-      return {
-        x,
-        y,
-        heading: random.float(0, TWO_PI),
-        energyFraction: random.float(species.initialEnergyFraction.min, species.initialEnergyFraction.max),
-      };
-    },
-    age: () => Math.floor(ageRandom.float(0, 1500)),
-    // Per-species trait spread (Step 29, §1.4 A13): how widely individuals of
-    // *this* species vary, rather than one spread applied to every animal in
-    // the world.
-    genome: () => sampleGenome(geneRandom, species.traits.spread),
-  });
+  const draw = (species) => {
+    // Cluster state for *this* cohort, which is why it lives in the closure
+    // `spawnCohort` is handed rather than beside the streams: a herd is a run of
+    // consecutive founders sharing one anchor, and the run resets per species.
+    const shape = cohortShapeFor(species, engine.config.cohorts);
+    let anchor = null;
+    let placed = 0;
+    return {
+      position: () => {
+        if (anchor === null || placed >= shape.groupSize) {
+          anchor = passableSpawnPosition(engine, random);
+          placed = 0;
+        }
+        placed += 1;
+        // ⚠ A cluster of one *is* its anchor, with no offset draw. So a species
+        // that declares no `cohort` block is placed identically whether
+        // clustering is on or off — which makes the leopard a null control
+        // inside the on arm (§16 D40) rather than merely an untuned species.
+        const { x, y } = shape.groupSize <= 1 ? anchor : positionNear(engine, random, anchor, shape.spread, shape.attempts);
+        return {
+          x,
+          y,
+          heading: random.float(0, TWO_PI),
+          energyFraction: random.float(species.initialEnergyFraction.min, species.initialEnergyFraction.max),
+        };
+      },
+      age: () => Math.floor(ageRandom.float(0, 1500)),
+      // Per-species trait spread (Step 29, §1.4 A13): how widely individuals of
+      // *this* species vary, rather than one spread applied to every animal in
+      // the world.
+      genome: () => sampleGenome(geneRandom, species.traits.spread),
+    };
+  };
 
   // The founding roster is scenario data, not code: a list of
   // `{ speciesId, count }` walked in order. Adding a species to the world is

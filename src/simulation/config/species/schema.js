@@ -48,8 +48,17 @@
  * of the same name. Anything not listed here is either already per-species
  * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, and —
  * from the species plan — `groups`, `forage`, `habitat`, `association`, `crypsis`,
- * and `climbs` from 2026-08-03, `flight` from 2026-08-04) or genuinely world-level
- * (terrain, weather, disturbances, the decision weights) and stays in the config.
+ * and `climbs` from 2026-08-03, `flight` and `cohort` from 2026-08-04) or genuinely
+ * world-level (terrain, weather, disturbances, the decision weights) and stays in
+ * the config.
+ *
+ * ⚠ **`cohort` is the same shape as `flight` and for the same reason**: it holds
+ * `{ groupSize, spread }` — how this species' founders are arranged on the ground
+ * — while `config.cohorts` holds the `clustered` switch. Listing it below would
+ * merge it over `config.cohorts`, and a species declaring its own would then
+ * silently override `clustered: false`. It joins `initialEnergyFraction` as a
+ * founding-time species field: both are read once, by the fixture, before a tick
+ * has ever run.
  *
  * ⚠ **`climbs` is a bare boolean with no config section of its own**, exactly as
  * `crypsis` is a bare number — there is nothing world-level to say about whether

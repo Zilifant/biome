@@ -80,6 +80,16 @@ export const herbivoreZebra = Object.freeze({
   // `maxMembers`, `leavingSex: 'male'`) lives in `config.groups`; a species only
   // says whether it takes part.
   groups: Object.freeze({ forms: true }),
+  // Two bands of eight (`config.cohorts`), and the size is `config.groups.maxMembers`
+  // on purpose: a founding cluster larger than the cap would place animals
+  // together that the registry then refuses to enrol, which reads as a bug in
+  // the registry rather than as the arithmetic it is.
+  // ⚠ The spread is tighter than any herbivore that only aggregates, because a
+  // *record* is founded from two animals within `groups.joinRadius` (6) with no
+  // hop chaining — unlike the herd label, which crosses a loose group in hops.
+  // Mean pair separation inside a radius-4 disc is ~3.6, so a band founds on the
+  // first tick instead of waiting for its members to drift into each other.
+  cohort: Object.freeze({ groupSize: 8, spread: 4 }),
   migration: Object.freeze({ tracksForage: true, tracksWater: true, cueRadius: 20, dispersalTicks: 600 }),
   // ⚠ **The top tier** (§3.3): tolerant of nearly everything standing. Above the
   // buffalo's 8, which is the other bulk feeder — the two are not separated on this
