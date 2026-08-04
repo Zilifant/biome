@@ -76,13 +76,17 @@ export class RendererApp {
    * @param {'live' | 'fixture'} options.mode
    * @param {number} [options.metricsIntervalMs] metrics poll cadence (live only)
    * @param {number} [options.inspectionIntervalMs] selected-entity detail cadence
+   * @param {(canvas: HTMLCanvasElement) => object} [options.createGridRenderer]
+   *        factory for the grid renderer — the swap seam for alternative
+   *        renderers (sprite mode). Any replacement implements the same
+   *        contract: resize(w, h, dpr), cssWidth/cssHeight, draw({...}).
    */
-  constructor({ store, transport, http, canvas, ui, mode, metricsIntervalMs = 3000, inspectionIntervalMs = 2000 }) {
+  constructor({ store, transport, http, canvas, ui, mode, metricsIntervalMs = 3000, inspectionIntervalMs = 2000, createGridRenderer = (element) => new AsciiGridRenderer(element) }) {
     this.#store = store;
     this.#transport = transport;
     this.#http = http;
     this.#canvas = canvas;
-    this.#grid = new AsciiGridRenderer(canvas);
+    this.#grid = createGridRenderer(canvas);
     this.#camera = new Camera();
     this.#ui = ui;
     this.#mode = mode;
@@ -92,6 +96,15 @@ export class RendererApp {
 
   get camera() {
     return this.#camera;
+  }
+
+  /**
+   * Mark the grid dirty from outside the app's own handlers — e.g. a renderer
+   * whose spritesheet finished loading after the first frames were drawn.
+   * Nothing is drawn here; the rAF loop picks the flag up on its next frame.
+   */
+  requestRedraw() {
+    this.#dirty = true;
   }
 
   start() {

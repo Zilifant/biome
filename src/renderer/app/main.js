@@ -4,9 +4,14 @@
  *
  *   /            → live (WebSocket stream + HTTP queries)
  *   /?mode=fixture or /?fixture=1 → offline replay of committed fixtures
+ *   /?renderer=sprite → sprites from the configured spritesheet instead of
+ *                       glyphs (composable with fixture mode); mappings are
+ *                       made in /sprite-editor.html
  */
 import { RendererStore } from './state/RendererStore.js';
 import { RendererApp } from './RendererApp.js';
+import { SpriteGridRenderer } from './rendering/SpriteGridRenderer.js';
+import { loadSpriteConfig } from './rendering/SpriteConfig.js';
 import { WebSocketRendererTransport } from './transports/WebSocketRendererTransport.js';
 import { HttpRendererTransport } from './transports/HttpRendererTransport.js';
 import { FixtureRendererTransport } from './transports/FixtureRendererTransport.js';
@@ -21,6 +26,7 @@ import { makeColumnsResizable } from './ui/columnResize.js';
 
 const params = new URLSearchParams(window.location.search);
 const fixtureMode = params.get('mode') === 'fixture' || params.get('fixture') === '1';
+const spriteMode = params.get('renderer') === 'sprite';
 
 async function loadFixtureFiles() {
   const [snapshot, delta, eventsBatch] = await Promise.all([
@@ -41,6 +47,14 @@ const transport = fixtureMode
 
 const canvas = document.getElementById('biome-canvas');
 const appRef = { current: null };
+if (spriteMode) {
+  // The base label describes monospace characters; in sprite mode say what is
+  // actually drawn.
+  canvas.setAttribute(
+    'aria-label',
+    'Sprite grid view of the biome simulation. Animals and terrain are drawn as sprites from a spritesheet; use the inspector panel for a text description of the selected entity.'
+  );
+}
 const ui = {
   statusPanel: new StatusPanel(document.getElementById('status-bar')),
   // The inspector floats over the grid, anchored to the cell you clicked, and
@@ -102,6 +116,16 @@ const app = new RendererApp({
   canvas,
   ui,
   mode: fixtureMode ? 'fixture' : 'live',
+  // The grid-renderer seam: sprite mode swaps in the spritesheet renderer,
+  // which repaints via requestRedraw once its sheet finishes loading. appRef
+  // is assigned before the image can resolve, so the optional chain is safe.
+  createGridRenderer: spriteMode
+    ? (element) =>
+        new SpriteGridRenderer(element, {
+          config: loadSpriteConfig(),
+          onAtlasReady: () => appRef.current?.requestRedraw(),
+        })
+    : undefined,
 });
 appRef.current = app;
 app.start();

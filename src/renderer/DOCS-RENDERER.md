@@ -39,16 +39,16 @@ numbers, so re-measure rather than inherit.
 
 ### Current state (as of 2026-08-01)
 
-|                     |                                                            |
-| ------------------- | ---------------------------------------------------------- |
-| Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided         |
-| Tests               | renderer 130, runner 18 (of 991 repo-wide); 44 in `tests-ui` |
-| Protocol understood | **30** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine |
-| Coverage            | every protocol layer through v30 is drawn or inspectable   |
-| Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four |
+|                     |                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
+| Tests               | renderer 130, runner 18 (of 991 repo-wide); 44 in `tests-ui`                                                                         |
+| Protocol understood | **30** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
+| Coverage            | every protocol layer through v30 is drawn or inspectable                                                                             |
+| Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
 | Fixtures            | current — v30, all **eight** shipped species including the leopard; ⚠ due on every **roster** change, not only a protocol bump (§10) |
-| Zoom levels         | 10–32px; 10px is a floor, not a default                    |
-| Git                 | uncommitted (the user handles git)                         |
+| Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
+| Git                 | uncommitted (the user handles git)                                                                                                   |
 
 Verify with `npm test`, then `npm run dev` and open `http://localhost:3000`.
 `?mode=fixture` replays the committed fixtures offline — but see P6 (§1.4) before
@@ -69,13 +69,13 @@ cross-references in code and history keep resolving.
 
 ### 1.1 Unverified
 
-- **⚠ P9 — The inspector popover's *placement and hosting* have never been driven
+- **⚠ P9 — The inspector popover's _placement and hosting_ have never been driven
   in a browser.** Its pure logic is tested and its wiring was reviewed (which
   caught two real bugs — see §11), but popover positioning, edge-flipping,
   dragging, and the dock/float path have not been exercised by a real DOM.
   ⚠ **Narrowed 2026-07-28**: `tests-ui` now opens the popover, checks it against
   axe, and confirms a drag never opens it — and the `<details>` toggle path is
-  covered *for the metrics panel* (`metrics.spec.js`), including surviving a
+  covered _for the metrics panel_ (`metrics.spec.js`), including surviving a
   full rebuild. So this is no longer "no browser automation exists"; it is four
   specific interactions nobody has written a spec for. The clicks that would
   settle it: select a cell near the right edge (flip), drag the header (pin),
@@ -143,6 +143,20 @@ present** (P5).
 - **P2 — The 6px and 8px zoom levels are gone**, so a 128-cell world no longer
   fits the viewport at minimum zoom. Drag-to-pan is the compensation, and a
   minimap was judged not worth it for one world size.
+- **P14 — The legend stays glyph-based in sprite mode.** `LegendPanel` is built
+  once from the registries and knows nothing about sprite assignments; in
+  sprite mode it still describes the glyphs, which remain the fallback truth
+  for every unassigned slot. Showing assigned-sprite thumbnails would need the
+  legend to become config-aware and re-renderable.
+- **P15 — A sprite tint is a flat silhouette only.** `source-atop` replaces the
+  sprite's colours with one fill, matching the single-colour glyph aesthetic
+  and keeping the hurt/sick tints unambiguous. A shading-preserving mode
+  (`multiply` + `destination-in`) is a deliberate non-feature until someone
+  wants tinted sprites that keep their art.
+- **P16 — Sprites ignore `heading` and `action`.** Both already ride in every
+  bulk snapshot unused; directional or pose sprite variants would be an
+  additive slot-id suffix (the vocabulary is append-only), not a rework. Not
+  built — v1 mirrors the glyph channels exactly.
 
 ### 1.4 Tooling and docs
 
@@ -160,12 +174,12 @@ present** (P5).
   proposed is the wrong lever**: it attacks the 9%, and the client wants every
   species' counts for its legend anyway. The payload is
   `historyLength × species × ~355 bytes` plus `species × ~4.4 KB`, polled every
-  3 s — the history is 120 points of eight trait *means* per species, and its
+  3 s — the history is 120 points of eight trait _means_ per species, and its
   levers are fewer points, fewer traits in `summarizeForHistory`, or a delta
   encoding. Left open with the diagnosis corrected rather than fixed: on a
   localhost poll it is not yet a defect, and the roster grows by two more species
-  at most (engine A68). Collapsing the panel changed what is *drawn*, not what is
-  *fetched*, so the collapsible work never touched this.
+  at most (engine A68). Collapsing the panel changed what is _drawn_, not what is
+  _fetched_, so the collapsible work never touched this.
 
 - **E4 — Keep the three docs current _with_ each change**, not after it —
   `README-RENDERER.md` (what it is), `PLAN-RENDERER.md` (what was planned and
@@ -227,6 +241,14 @@ app/
     GridProjection.js         world → cell → screen-pixel projection (pure)
     EntityAppearance.js       ASCII glyph/color/priority registry (pure)
     AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → overlays
+    SpriteGridRenderer.js     the same drawing from a spritesheet (?renderer=sprite)
+    SpriteSlots.js            slot vocabulary bridging the registries to sprites (pure)
+    SpriteConfig.js           SHEET geometry constants + assignment persistence
+  editor/
+    EditorState.js            the sprite editor's state machine (pure)
+    SheetPanel.js             the spritesheet with its grid overlaid, click → (col,row)
+    SlotsPanel.js             every slot with its glyph, thumbnails, tints
+    editorMain.js             /sprite-editor.html entry: composition + config lifecycle
   transports/
     RendererTransport.js      transport contract + normalized event types
     WebSocketRendererTransport.js  live stream, backoff reconnect, epoch guard
@@ -250,10 +272,15 @@ app/
 fixtures/                     committed protocol messages for offline development
 ```
 
-Drawing is isolated in `AsciiGridRenderer` behind `draw({ store, camera })` plus
-the pure projection/appearance modules. A future WebGL/DOM/terminal renderer
-replaces that one class; the store, transports, protocol, and engine are
-untouched — the engine never knows a renderer exists.
+Drawing is isolated behind the grid-renderer contract — `resize(w, h, dpr)`,
+`cssWidth`/`cssHeight`, `draw({ store, camera, ... })` — plus the pure
+projection/appearance modules. `RendererApp` takes a `createGridRenderer`
+factory (default `AsciiGridRenderer`); `?renderer=sprite` is that seam in use,
+swapping in `SpriteGridRenderer`, and a future WebGL/DOM/terminal renderer is
+one more factory. The store, transports, protocol, and engine are untouched —
+the engine never knows a renderer exists. A renderer with async assets (the
+spritesheet) calls `app.requestRedraw()` when they arrive rather than blocking
+`start()`.
 
 ---
 
@@ -324,7 +351,7 @@ what made a kill scroll out of the log ~1 tick after it happened.
 Driven at demo rates (126 passing + 1 lasting per tick) the steady state at the
 ceiling measured **20 527 events buffered after 7.62 M ingested, 2.8 MB of heap,
 0.075 ms/tick** to buffer and trim, holding the last 20 000 ticks of milestones;
-a filter scan over that full buffer is 0.014 ms. Keeping *everything* is what is
+a filter scan over that full buffer is 0.014 ms. Keeping _everything_ is what is
 not on offer — at ~127 events/tick and ~163 bytes each, an hour at 8× is
 gigabytes. Trimming is
 amortized the same way `DomainEventBus` does it on the engine side — a tier
@@ -350,13 +377,13 @@ Beside the entity map the store keeps a **bounded map of last living forms** —
 the animal is gone. It exists because **an event is about a moment and an entity
 is about now**, and the event log resolves its references through it (§5).
 
-- **Protocol fields only.** What they *look like* stays `EntityAppearance`'s
+- **Protocol fields only.** What they _look like_ stays `EntityAppearance`'s
   alone (§3, invariant 4); the store gained a memory, not a glyph.
 - ⚠ **Written only when the identity changes**, which for an animal is at birth
   and at each life stage. This runs against every entity of every delta —
   thousands per tick — so a record per update would be a per-tick allocation for
   a fact that changes three times in a life.
-- **A carcass is never recorded.** It is not a form anything was seen *in*; it
+- **A carcass is never recorded.** It is not a form anything was seen _in_; it
   is what is left, and the animal is the point.
 - **Bounded at the `lasting` event cap**, and trimmed the same amortized way: an
   id is worth remembering exactly as long as some retained event can still name
@@ -516,18 +543,18 @@ and `all` / `none` / `births & deaths` to set the whole list at once.
   tier — rather than inside `formatEvent`, which is what let it drift in the
   first place: `!!` (sickened), `++` (cured), `::` / `..` (a feature forming and
   lost), `*!` / `*.`, `vs`, `[]`, and `=>` were all two columns wide, while `+`
-  meant *both* a birth and an injury healing, `!` both a wound and an alarm
+  meant _both_ a birth and an injury healing, `!` both a wound and an alarm
   call, `~` three different things, and `?` both a courtship and the unknown
   fallback. `formatEvent` now returns only the body and `describeEvent`
   assembles the line, so a formatter cannot invent a mark; two tests enforce one
-  character and no duplicates. ⚠ The two events whose *wording* also collided
+  character and no duplicates. ⚠ The two events whose _wording_ also collided
   are now distinguished as well — an injury healing is `_ healed`, a disease
   recovery `^ recovered` — because a prefix nobody can decode is no better than
   a shared one.
 
 Verified live rather than only against fixtures: after 3043 ticks the default
 feed held births and deaths back to **t483**, where the previous 150-event bound
-kept roughly one tick's worth. ⚠ It keeps everything it *receives* — a long
+kept roughly one tick's worth. ⚠ It keeps everything it _receives_ — a long
 coalesced step still drops events in the host's outbox before they ever arrive
 (P12).
 
@@ -541,14 +568,14 @@ things fix it, and both are needed:
 
 - **The chart is resampled to the space available**, by bucket mean, rather than
   drawn one sample per column. Downsampled rather than truncated to the most
-  recent N, because the shape of the *whole* history is what the row is for — a
+  recent N, because the shape of the _whole_ history is what the row is for — a
   population that doubled and crashed reads as that at any width. Fewer samples
   than columns (early in a run) are drawn one-to-one and simply end, leaving the
   line short rather than stretching four points across the panel. ⚠ Buckets are
   laid out by proportion so the last one is never a short remainder, which would
   be a spike at the right-hand end of every chart.
 - ⚠ **A sparkline uses its own ramp, with no blank rung.** The block ramp is
-  shared with the trait *histograms*, where a blank bottom rung is right — a bin
+  shared with the trait _histograms_, where a blank bottom rung is right — a bin
   with no animals in it is genuinely empty. A sparkline has no zero: every
   column has a sample, so scaling `min → max` onto that ramp drew the window's
   **minimum** as blank. A steady population came out as a line of nothing
@@ -562,7 +589,7 @@ things fix it, and both are needed:
   block character with a hidden probe (the block glyphs, not a digit — a font
   that renders them at a different advance would mis-measure every chart) and
   divides the column by it. A `ResizeObserver` re-renders on a column drag,
-  guarded on the *character count* so it fires once per column of change rather
+  guarded on the _character count_ so it fires once per column of change rather
   than once per pointer move.
 
 The chart sits on its own line under the species name, **inside the
@@ -572,7 +599,6 @@ get a third of the same budget, since they share their line with numbers and are
 the identical defect one click deeper. `overflow: hidden` on the chart is the
 backstop: a mis-measurement then costs a clipped chart rather than a column of
 text pushed off the edge.
-
 
 `MetricsPanel` renders a full section per species — trait histograms with
 sparklines, herds, disease, home range, generations, births and deaths. That
@@ -592,12 +618,12 @@ Three things about it are easy to get wrong:
   (`tests-ui/metrics.spec.js`): expand, wait for a real rebuild, assert it is
   still open _and_ that the toggle still works.
 - ⚠ **The trend sparklines were quadratic in species count.** `history.map((s) =>
-  s.species.find(…))` sat _inside_ a per-species, per-trait loop, so the cost was
+s.species.find(…))` sat _inside_ a per-species, per-trait loop, so the cost was
   `historyLength × species² × traits` — ~7.5k comparisons at three species and
   ~84k at ten, on every render. `indexHistory` now buckets the history by
   `speciesId` once; it is exported and tested for the usual reason (there is no
   DOM test dependency, so the mechanism has to be a pure function to be testable
-  at all), including an assertion that it draws the *same* sparkline the `find`
+  at all), including an assertion that it draws the _same_ sparkline the `find`
   version did.
 - **A persistent group count (v29) appears only for a species that has one.**
   It is a separate row from `herds`, because the two are separate mechanisms — a
@@ -615,7 +641,7 @@ before it is read, and the mark you then hunt for on the grid is the same mark.
 store's **remembered living forms** (§4), and an id this client never saw alive
 falls back to `#412`. Four details worth knowing:
 
-- ⚠ **A reference resolves against what the animal *was*, not what its id is
+- ⚠ **A reference resolves against what the animal _was_, not what its id is
   now**, and the difference is the whole reason the store remembers. Resolving
   against `getEntity` alone produced `> hunt p122 → %65 caught`: the prey was
   already a carcass in the very delta that carried the hunt, so the line about
@@ -672,14 +698,14 @@ Four things here are load-bearing:
   first drag.
 - ⚠ **Every child of `#main` is placed explicitly.** The handles overlay the
   columns rather than taking tracks of their own, so they are placed by hand —
-  and a grid with *some* items placed by hand auto-places the rest into whatever
+  and a grid with _some_ items placed by hand auto-places the rest into whatever
   cells are left. That put each aside one track right of where it belonged and
   pushed the sidebar onto a second row, which halved every column's height: the
   page still looked roughly right while half of it could not be clicked (§11).
 - **The grid canvas is watched, not the window.** Dragging a column changes the
   viewport without any window `resize`, so `RendererApp` observes
   `#viewport-wrap` with a `ResizeObserver` and the window listener is only the
-  fallback. ⚠ Observing the *wrapper* rather than the canvas is what keeps it
+  fallback. ⚠ Observing the _wrapper_ rather than the canvas is what keeps it
   from looping — the wrapper is sized by the grid, and resizing the canvas inside
   it cannot change it back.
 - **The handle is a real widget.** `role="separator"`, focusable, with
@@ -780,7 +806,7 @@ _replaces_ its state.
 ⚠ **The renderer stopped speaking in roles at v29, and that is the whole point of
 the bump.** This panel used to carry three hardcoded number fields — Herbivores,
 Predators, Scavengers — which is the renderer knowing engine concepts it was only
-ever handed by coincidence, and which stop being *true* the moment one species is
+ever handed by coincidence, and which stop being _true_ the moment one species is
 both predator and scavenger. It now builds **one field per species** from the
 roster the host publishes on `/api/status` (`species: [{ id, defaultCount }]`),
 and sends `founding: [{ speciesId, count }]`. Three consequences for anyone
@@ -792,7 +818,7 @@ working here:
 - **A species with no `SPECIES_APPEARANCE` entry still gets a field**, labelled
   from its id by `speciesLabel`. A roster this build has never seen is exactly
   the case publishing the roster was for; hiding it would put the world beyond
-  reach of the control that exists to compose it. What to *call* a species stays
+  reach of the control that exists to compose it. What to _call_ a species stays
   renderer-side — the host sends ids and counts, never labels.
 - ⚠ **An empty roster is not "use your defaults"**, it is "found nothing". So the
   field is omitted entirely until the host has said what its species are.
@@ -892,23 +918,23 @@ behind everything else in it. A successful hunt otherwise has no sign on the gri
 at all beyond a `%` appearing among the glyphs, which on a moving map is no sign
 at all — and the kill is the single most watchable thing this simulation does.
 
-- ⚠ **The cell comes from the *body*, not from the event.** `entity.killed`
+- ⚠ **The cell comes from the _body_, not from the event.** `entity.killed`
   carries `{ entityId, predatorId }` and no position, but the prey becomes a
   carcass at the death site in the same delta — so the cell is a store lookup
   rather than a protocol change. An id that is somehow already gone contributes
   nothing rather than a guessed cell.
 - **It lasts exactly as long as the tick does.** `RendererApp` reads the event
-  buffer *backwards* and stops at the first event from an earlier tick, so the
+  buffer _backwards_ and stops at the first event from an earlier tick, so the
   flash is present while that tick is on screen and gone with the next delta —
   and a pause holds it. ⚠ That also gives the right answer for a coalesced
-  step: kills from earlier ticks inside the window are not from *this* tick and
+  step: kills from earlier ticks inside the window are not from _this_ tick and
   are not flashed, where the naive read would paint the screen red after
   `Advance 500`.
 - **Behind everything.** The ground glyph, the carcass, and any bracket all draw
   over it — a flash that covered them would hide the thing it is pointing at.
 
 ⚠ **The occupant scan happens before the first pass, not between two of them.**
-A cell with something standing in it draws its *fading layers* at
+A cell with something standing in it draws its _fading layers_ at
 `OCCUPIED_ALPHA` (20%), which means the ground and feature passes both have to
 know where the entities are — so `draw` resolves the visible occupants once, up
 front, and all three passes read that one map.
@@ -916,26 +942,26 @@ front, and all three passes read that one map.
 Which layers give way is `fadesUnderOccupant`, and the split is a judgement
 about what a layer is **for**:
 
-| Gives way to an occupant | Stays solid |
-| --- | --- |
+| Gives way to an occupant                                                 | Stays solid                       |
+| ------------------------------------------------------------------------ | --------------------------------- |
 | forage (every level), water and deep water, **thicket**, trails, burrows | ground, rock, cover, disturbances |
 
 - ⚠ **`OCCUPIED_ALPHA` is 0: a covered layer is not drawn at all.** It was 20%
   first, on the argument that a herd would otherwise punch holes in the grass it
   is grazing — and watching it, the holes are not the problem. Two glyphs in one
-  10px cell is a smudge at *any* opacity that leaves the lower one visible, the
+  10px cell is a smudge at _any_ opacity that leaves the lower one visible, the
   occupant is always the thing worth reading, and the ground is one click away in
-  the inspector, which reports the *cell* rather than the animal. The constant
+  the inspector, which reports the _cell_ rather than the animal. The constant
   stays as the knob this decision turns; at 0 the renderer skips the draw
   outright rather than drawing something invisible.
 - **A reading of the cell gives way; the hard shape of the map does not.**
-  Forage, water, thicket, and worn ground are facts *about* a cell — how much
+  Forage, water, thicket, and worn ground are facts _about_ a cell — how much
   there is to eat, whether it is wet, whether it is thick enough to hide in,
   what has walked here — and an animal standing there is the more urgent fact.
   Rock and cover are the map itself; a disturbance stays solid because an animal
   caught in a fire is the whole point of watching it get caught. ⚠ Thicket is on
   the giving-way side precisely because it is the layer animals are most often
-  *inside*: a `♣` and a `g` in one cell was the hardest collision on the map to
+  _inside_: a `♣` and a `g` in one cell was the hardest collision on the map to
   read.
 - ⚠ **The test is identity, never a glyph comparison.** Three different layers
   draw `.` — bare ground, the sparsest forage, and a trail — and two of the
@@ -951,25 +977,25 @@ about what a layer is **for**:
 ### Status is a mark, not a tint
 
 **A status is a small dot or diamond in the upper-left corner of the cell**, and
-the animal's glyph keeps its own colour. Hurt and ill used to *tint* the species
+the animal's glyph keeps its own colour. Hurt and ill used to _tint_ the species
 letter, which cost the two things a letter is for: a purple `g` no longer says
 "gazelle" at a glance, and the two tints could not both be shown, so an animal
-that was ill *and* hurt looked exactly like one that was only ill. A mark beside
+that was ill _and_ hurt looked exactly like one that was only ill. A mark beside
 the glyph is additive — the letter still says species, the colour still says
 species, and any number of conditions can ride along.
 
 `STATUS_APPEARANCE` is the registry, and the legend is generated from it:
 
-| Mark | Status | From |
-| --- | --- | --- |
-| ● orange | hurt | `healthFraction < HURT_HEALTH_FRACTION` |
-| ● purple | visibly ill | `diseaseState === 'symptomatic'` |
-| ◆ pink | carrying young | `gestating` (protocol v30) |
-| ◆ bright-cyan | in rut | `seekingMate` (protocol v30) |
-| ◆ bright-white | dispersing | `dispersing` |
+| Mark           | Status         | From                                    |
+| -------------- | -------------- | --------------------------------------- |
+| ● orange       | hurt           | `healthFraction < HURT_HEALTH_FRACTION` |
+| ● purple       | visibly ill    | `diseaseState === 'symptomatic'`        |
+| ◆ pink         | carrying young | `gestating` (protocol v30)              |
+| ◆ bright-cyan  | in rut         | `seekingMate` (protocol v30)            |
+| ◆ bright-white | dispersing     | `dispersing`                            |
 
 - **Shape is the family and colour is the identity.** A `dot` says something is
-  *wrong* with this animal; a `diamond` says something is *happening* in its
+  _wrong_ with this animal; a `diamond` says something is _happening_ in its
   life. Two shapes is all the shape channel can carry at 10px, so colour does
   the rest — and no two statuses share one, which a test enforces.
 - ⚠ **An animal in several statuses shows them one at a time**, `STATUS_CYCLE_MS`
@@ -977,7 +1003,7 @@ species, and any number of conditions can ride along.
   alternative and it is worse at every zoom this renderer offers: four marks in
   a 10px cell is a smudge, and the corner is the only place a mark can go
   without covering the glyph it belongs to.
-- ⚠ **The cycle runs on the wall clock, not the tick stream**, so a *paused*
+- ⚠ **The cycle runs on the wall clock, not the tick stream**, so a _paused_
   world still cycles — which is exactly when someone is reading the marks. The
   phase is `floor(now / STATUS_CYCLE_MS)` computed in the rAF loop;
   `AsciiGridRenderer.hasCyclingStatus` reports whether the last frame drew
@@ -1051,7 +1077,7 @@ actually tested.** The lion and buffalo (phase 11), the wildebeest and zebra
 (phase 13), and the leopard (phase 14) each arrived with everything above already
 in place; the renderer's total share across those three batches was **deleting the
 stalker's `supersededBy` entry** and regenerating the fixtures. ⚠ The one thing
-that did *not* come for free is the fixtures — see §10, and note that unlike a
+that did _not_ come for free is the fixtures — see §10, and note that unlike a
 missing glyph, a stale fixture fails nothing.
 
 **The legend is generated, never written.** `describeLegend()` reads the
@@ -1075,9 +1101,30 @@ Dracula value — and that every **status** reaches it carrying the shape the gr
 draws it with. The bracket overlays and the **age/sex key** (`young / grown` and
 the italic `female` row) are the hand-written part, because they describe how a
 glyph is _cased, styled, or bracketed_ rather than which glyph is drawn. ⚠ The
-statuses are *not* hand-written any more: they were, as two "condition tint"
+statuses are _not_ hand-written any more: they were, as two "condition tint"
 rows, and a registry that the legend reads is what stops the next one being
 forgotten here.
+
+**Sprite mode rides on the registries, never beside them.** `?renderer=sprite`
+swaps in `SpriteGridRenderer` (same pass order, same store reads). Every
+drawable thing is a **slot** with a stable string id
+(`species:herbivore.grazer:grown:female`, `terrain:water`, `carcass:1`, …),
+enumerated from the appearance registries by `SpriteSlots.js` exactly as the
+legend is generated — so a species added to `SPECIES_APPEARANCE` gains its four
+slots (age × sex) with no sprite-side change, and `test/sprite-slots.test.js`
+holds the same coverage guarantee the legend tests do. Resolution mirrors
+`resolveAppearance` / `groundAppearanceAt` (the latter now exported and
+shared), and an **unassigned slot draws its ASCII glyph**, so a partial mapping
+or a missing sheet still renders everything. Assignments, tints, and the canvas
+background persist under `biome.sprites.config.v1` (validated on load; unknown
+slot ids are dropped, not fatal); sheet geometry is code constants in
+`SpriteConfig.js`'s `SHEET` block. A tint is a flat silhouette (the sprite's
+alpha, one fill); the hurt/sick tints override an assignment's tint and
+incubating stays unmarked — that judgement lives in `resolveColorToken` and is
+inherited, not re-derived. Mappings are made in `/sprite-editor.html`
+(`editor/`), whose interaction flow is pure and node-tested in
+`EditorState.js`. ⚠ **Slot ids are the config's compatibility surface** — the
+vocabulary is append-only, and a snapshot test pins it.
 
 **Dracula palette.** `styles/dracula.css` defines the exact Dracula Classic values
 as CSS custom properties; `EntityAppearance.DRACULA_COLORS` mirrors them for
@@ -1122,7 +1169,7 @@ the sections above; collected here as a checklist.
 - **A new status is one entry in `STATUS_APPEARANCE`** — a shape, a colour, a
   label, a note, and a predicate over **bulk-snapshot** fields. The grid mark,
   the legend row, and the cycling all follow from it. ⚠ The predicate must read
-  a bulk field: an inspection-only fact is known for the *selected* animal
+  a bulk field: an inspection-only fact is known for the _selected_ animal
   alone, so a status built on one would appear and vanish as the selection
   moved.
 - **A new event type is one entry in `EventCatalog.js`** — label, group, and a
@@ -1167,7 +1214,7 @@ the sections above; collected here as a checklist.
   message shape — so a species added or renamed without a regeneration leaves
   fixture mode describing a world the engine no longer runs, and **nothing fails**,
   because the fixtures still carry the right protocol version. It went unnoticed
-  for three batches: the committed fixtures still held the *batch-1* world (no
+  for three batches: the committed fixtures still held the _batch-1_ world (no
   lion, no buffalo) while the demo shipped eight species, so offline development
   could not see half of them — including two whose glyphs §9 had assigned in
   advance precisely so a species batch would need nothing here. ⚠ Expect a UI spec
@@ -1227,17 +1274,17 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
 
 - **⚠ A half-placed CSS grid looks right and cannot be clicked.** Adding the
   column drag handles to `#main` without giving them a `grid-row` auto-placed
-  them into a *second* row, which halved every column's height and left the
+  them into a _second_ row, which halved every column's height and left the
   panels' content laid out below the box that was supposed to clip it. Nothing
   looked obviously broken in a screenshot; what failed was three specs that
   click things — including one whose message named `#main` as the element
   intercepting the click, which is the tell. ⚠ **The fix is not the handle's
   `grid-row`, it is placing every child explicitly**: the first attempt set the
-  row on the handles alone and made it *worse*, because the asides were still
+  row on the handles alone and made it _worse_, because the asides were still
   auto-placed and now had to route around three occupied cells.
 
 - **⚠ A view of the past resolved against the present.** Every `#123` in the
-  event log was resolved through `getEntity`, which answers *now* — so a line
+  event log was resolved through `getEntity`, which answers _now_ — so a line
   recording a hunt drew its prey as the carcass it had become in that same
   delta, and as a bare `#` once the body decayed away. Nothing was stale and
   nothing threw; the line said something true about an id and false about the
@@ -1245,7 +1292,7 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
   are live**, and the fix is a renderer-side memory rather than a protocol
   change — the log's own retention already says how long that memory has to
   last. The regression test drives it end to end (kill, then remove) and was
-  checked against the old code, because a test for a lookup that *usually*
+  checked against the old code, because a test for a lookup that _usually_
   succeeds passes vacuously.
 
 - **A prefix vocabulary drifts unless something owns it.** The event log's line
@@ -1253,7 +1300,7 @@ Every one of these cost real time. Recorded as patterns, not anecdotes.
   with seven two-character marks and four characters each meaning two different
   things — while every individual line still looked fine. Moving the mark into
   `EventCatalog` beside the label and the retention tier made the collision
-  *checkable*, and the check is two assertions. The general shape: **a value
+  _checkable_, and the check is two assertions. The general shape: **a value
   chosen per-case in a long `switch` has no invariant; the same value in a table
   has one.**
 
@@ -1337,4 +1384,14 @@ panel surviving a tick.
   booleans added so a rut and a pregnancy could be marked at all).
 - **To replace the Canvas renderer:** implement a new `draw({ store, camera })`;
   the store, transports, protocol, and engine are untouched.
+- **To use a different spritesheet:** edit the `SHEET` constants at the top of
+  `rendering/SpriteConfig.js` (sprite width/height, gap, margin, url), drop the
+  PNG at `src/renderer/app/assets/spritesheet.png` (or load it in the editor),
+  and assign sprites in `/sprite-editor.html`. To commit a finished mapping as
+  the default, Export it there and fold the JSON into `DEFAULT_SPRITE_CONFIG`.
+- **To replace the Canvas renderer:** implement the grid-renderer contract
+  (`resize(w, h, dpr)`, `cssWidth`/`cssHeight`, `draw({ store, camera, ... })`)
+  and pass a `createGridRenderer` factory to `RendererApp` from `main.js` —
+  exactly how `SpriteGridRenderer` is wired; the store, transports, protocol,
+  and engine are untouched. Async assets repaint via `app.requestRedraw()`.
 - **Never invent a field**, and keep all appearance in `EntityAppearance.js` (§10).

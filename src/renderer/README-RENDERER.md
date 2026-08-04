@@ -25,6 +25,10 @@ npm run dev            # then open http://localhost:3000
   involved. The status bar shows an orange FIXTURE badge, simulation
   commands are disabled, and the Reconnect button becomes "Replay". Fixture
   mode never pretends to be live.
+- **Sprite mode**: `http://localhost:3000/?renderer=sprite` draws sprites from
+  a spritesheet in place of glyphs (composable with fixture mode:
+  `?mode=fixture&renderer=sprite`). See "Sprite mode" below — with no sheet
+  supplied it falls back to the glyphs, so it is always safe to open.
 
 **[`DOCS-RENDERER.md`](DOCS-RENDERER.md) is the reference documentation** —
 architecture, the selection and panel model, the conventions, and **§1: every
@@ -239,6 +243,47 @@ doesn't send. Two follow-ups are easy to miss and both fail silently:
 formatter — `null` when the protocol sent nothing, so the section does not exist
 rather than appearing empty — and add it to `describeSections`. The `id` keys
 the remembered open/closed state, so it must be stable.
+
+## Sprite mode and the sprite editor
+
+`?renderer=sprite` swaps the ASCII canvas renderer for
+`rendering/SpriteGridRenderer.js`: same draw order, same store reads, same
+projection — only what lands in each cell differs. Every drawable thing (a
+grown female grazer, the water terrain, forage level 3, a fresh carcass, …) is
+a **slot** with a stable string id, enumerated from the appearance registries
+by `rendering/SpriteSlots.js` the same way the legend is generated. A slot with
+a spritesheet assignment draws its sprite; **an unassigned slot draws its ASCII
+glyph**, so a partial mapping — or no sheet at all — still renders everything.
+
+**Supplying a spritesheet.** No sheet is committed. The sheet is a PNG grid of
+sprites on a transparent background, addressed by (column, row). Its geometry —
+sprite width/height, the gap between grid cells, and the top/left margin before
+the grid starts — is set as **code constants** in the `SHEET` block at the top
+of `rendering/SpriteConfig.js`; using a sheet with different geometry means
+editing those values. Then either drop the PNG at
+`src/renderer/app/assets/spritesheet.png` (the conventional URL the constants
+point at) or load one in the editor, which stores it as a `data:` URL with the
+mapping.
+
+**The editor** at [`/sprite-editor.html`](/sprite-editor.html) is where sprites
+are assigned: the full spritesheet on one side with its grid overlaid, every
+slot with its glyph on the other. Click a slot, then click a sprite to assign
+it. A slot can also carry a **tint** — picked from the native color input or
+the Dracula palette swatches — which recolours the sprite as a flat silhouette
+(its alpha, one fill), matching the single-colour glyph aesthetic; with no tint
+the sprite keeps its own sheet colours. The editor also sets the **canvas
+background colour** for the whole grid. Everything saves live to
+`localStorage` (`biome.sprites.config.v1`) — reload the main view in sprite
+mode to see it — and **Export** downloads the config as JSON (**Import** loads
+one), which is how a finished mapping is shared or committed as a new default
+(`DEFAULT_SPRITE_CONFIG` in `SpriteConfig.js`).
+
+Two condition rules carry over from ASCII mode unchanged: the hurt/sick tints
+override an assignment's tint (an outbreak reads the same in sprites as in
+glyphs, and an incubating animal is still never marked), and the selection
+redraws its cell's sprite in bright yellow exactly as it recolours a glyph.
+Overlay marks — selection fill, corner brackets, the home-range ring — stay
+vector-drawn in both modes.
 
 ## Controls
 
@@ -549,13 +594,16 @@ carcass/warnings/fixture, yellow = animals, bright-yellow = selection,
 purple = unknown/headings, cyan = water (reserved)/follow marker, comment
 blue = secondary text.
 
-## Replacing the Canvas renderer later
+## Replacing the Canvas renderer
 
-Drawing is isolated in `AsciiGridRenderer` behind
-`draw({ store, camera })` plus the pure projection/appearance modules. A
-future WebGL/DOM/terminal renderer replaces that one class; the store,
-transports, protocol, and simulation are untouched — the engine never knows
-a renderer exists.
+Drawing is isolated behind the grid-renderer contract — `resize(w, h, dpr)`,
+`cssWidth`/`cssHeight`, and `draw({ store, camera, ... })` — plus the pure
+projection/appearance modules. `RendererApp` takes a `createGridRenderer`
+factory option (defaulting to `AsciiGridRenderer`), which is how sprite mode
+swaps in `SpriteGridRenderer` from `main.js`; a future WebGL/DOM/terminal
+renderer is one more factory. The store, transports, protocol, and simulation
+are untouched — the engine never knows a renderer exists. A renderer with
+async assets calls `app.requestRedraw()` when they arrive.
 
 ## Protocol layers, newest first
 

@@ -501,3 +501,15 @@ they are not re-opened by accident.
 - **P8 — The whole world is streamed.** Bounded region subscription awaits
   region-scoped deltas; `requestSnapshot(bounds)` is isolated for when they
   exist.
+
+- **P14 — The legend stays glyph-based in sprite mode.** `LegendPanel` is built
+  once and knows nothing about sprite assignments; sprite thumbnails would need
+  it to become config-aware and re-renderable.
+
+- **P15 — A sprite tint is a flat silhouette only.** One fill clipped to the
+  sprite's alpha, matching the single-colour glyph aesthetic; a
+  shading-preserving tint mode is unbuilt.
+
+- **P16 — Sprites ignore `heading` and `action`.** Both ride unused in every
+  bulk snapshot; directional/pose sprite variants would be an additive slot-id
+  suffix, not a rework.

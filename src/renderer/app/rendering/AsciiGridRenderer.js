@@ -32,12 +32,14 @@ const MONO_STACK =
  * What a cell's ground looks like, in the protocol's own precedence: cells
  * beyond the world edge, then vegetation where a cell carries any, then the
  * terrain beneath it. Shared by the terrain pass and the selection overlay so
- * the two can never disagree about what is under a selected cell.
+ * the two can never disagree about what is under a selected cell. Exported so
+ * an alternative grid renderer (SpriteGridRenderer) shares the same precedence
+ * rather than re-deriving it.
  * @param {import('../state/RendererStore.js').RendererStore} store
  * @param {number} cellX @param {number} cellY
  * @param {{width: number, height: number} | null} world
  */
-function groundAppearanceAt(store, cellX, cellY, world) {
+export function groundAppearanceAt(store, cellX, cellY, world) {
   const inWorld = world && cellX >= 0 && cellY >= 0 && cellX < world.width && cellY < world.height;
   if (!inWorld) return TERRAIN_APPEARANCE.outOfBounds;
   const vegetation = resolveVegetationAppearance(store.vegetationLevelAt(cellX, cellY));
