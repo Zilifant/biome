@@ -79,6 +79,18 @@ export const test = base.extend({
     }
   },
 
+  // Fixture mode with the sprite renderer (`?renderer=sprite`). No sprite
+  // config is seeded, so this boots on the glyph-fallback path; tests that
+  // need a sheet or assignments seed localStorage and reload.
+  spritePage: async ({}, use) => {
+    const { browser, page } = await launchAndNavigate((p) => gotoFixtureWith(p, '&renderer=sprite'));
+    try {
+      await use(page);
+    } finally {
+      await browser.close().catch(() => {});
+    }
+  },
+
   // Live mode against a mocked host: the WebSocket delivers the fixture snapshot
   // (so a world renders and controls are live) and captures the commands the UI
   // sends. Provides `{ page, commands }`, where `commands` is the array of
@@ -97,7 +109,15 @@ export const test = base.extend({
 
 /** Navigate to the app in offline fixture mode and wait until it has painted. */
 export async function gotoFixture(page) {
-  await page.goto('/?mode=fixture', { waitUntil: 'load' });
+  await gotoFixtureWith(page, '');
+}
+
+/**
+ * Fixture mode with extra query parameters appended (e.g. `&renderer=sprite`),
+ * painted before returning.
+ */
+export async function gotoFixtureWith(page, extraQuery = '') {
+  await page.goto(`/?mode=fixture${extraQuery}`, { waitUntil: 'load' });
   await waitForRender(page);
 }
 

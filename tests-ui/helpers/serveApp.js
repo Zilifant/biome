@@ -31,6 +31,13 @@ export const APP_ORIGIN = `http://${APP_HOST}`;
 export const LAUNCH_OPTIONS = Object.freeze({
   chromiumSandbox: false,
   args: ['--single-process', '--no-sandbox', '--disable-gpu'],
+  // Some sandboxes provide a system Chromium instead of Playwright's own
+  // download (e.g. PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD environments). Point
+  // PW_CHROMIUM_EXECUTABLE at it to use it; unset, Playwright resolves its
+  // managed browser as usual.
+  ...(process.env.PW_CHROMIUM_EXECUTABLE
+    ? { executablePath: process.env.PW_CHROMIUM_EXECUTABLE }
+    : {}),
 });
 
 // ES modules must be served with a JS MIME type or the browser refuses to run
