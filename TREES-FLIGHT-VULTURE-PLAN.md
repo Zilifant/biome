@@ -7,11 +7,14 @@ network) and V3 (the slow life history) are not built.** Each phase carries an
 "As built" section recording what the plan got wrong; those are the parts worth
 reading.
 
-⚠ **Stopping here is one of the two combinations §9 warns against.** F2 has shipped
-without V3, its counterweight — see §9, and note that the counterweight the vulture
-actually got was the **ground perception radius drop** built into F2 itself, which
-is why the gate held. V3 remains the honest next step if the bird is ever found to
-be too strong.
+⚠⚠ **Stopping here is the combination §9 warns against, and V1 is what made the
+warning bite.** F2's own brake — the ground perception radius drop — held its gate,
+so the warning looked defused. Then V1's gate read the vulture at **416.0 against
+295.4** and 45.0% of all carrion against 35.6%, with the lion down 16.1 → 12.7. What
+is established is the *direction*, not the cause (**A76**). **V3 is therefore the next
+thing to build, not an optional counterweight** — and ⚠ **B7**'s mass-blind
+`carcass.decayTicks` may be the better lever, since the extra meat is mostly new
+rather than stolen (the carrion pool grows 193 → 221 tonnes).
 
 ⚠⚠ **The one thing to read before V2: three of the six shipped phases have moved
 carrion off the hyena clan** — T3's caching, F2's flight, and V1's climbing bird —
@@ -1009,14 +1012,41 @@ the pool's +28 t. That is a compounding loop — more birds, more bird carcasses
 (2872 deaths against 2079, overwhelmingly of age), more carrion, more birds — running
 on **B7**'s mass-blind `carcass.decayTicks`. The lion's loss is real but secondary.
 
-⚠⚠ **Which of the three lines does this is not yet established, and that is the open
-question of the phase.** A 5-seed decomposition at 6000 ticks cannot resolve it (off
-40.8, `climbs` 39.8, `cue` 41.6, both 46.8) because the vulture's growth is a
-**late-run** phenomenon: 34 → 117 → 416 across the run, with almost all of the
-divergence after t10 000. Attribution therefore needs the full horizon per arm.
-⚠ Until it is attributed, the honest reading is that **V1 makes F2-without-V3 worse
-rather than better** — §9's one combination to avoid — and V3 moves from optional
-counterweight to the next thing that should be built.
+⚠⚠ **No single line is attributable, and the attempt is worth more than the answer
+would have been.** A 5-seed decomposition at 6000 ticks cannot resolve it (off 40.8,
+`climbs` 39.8, `cue` 41.6, both 46.8), because the vulture's growth is a **late-run**
+phenomenon — 34 → 117 → 416 across the run, almost all of the divergence after
+t10 000. So all four arms were re-run at the **full 15 000-tick horizon**, 3 seeds:
+
+| arm (t15 000) | seed 1 | seed 2 | seed 42 | mean |
+| --- | ---: | ---: | ---: | ---: |
+| off | 246 | 505 | 216 | 322.3 |
+| `climbs` only | 223 | 360 | 285 | 289.3 |
+| `cue` only | 144 | 426 | 361 | 310.3 |
+| both (shipped) | 227 | 551 | 379 | **385.7** |
+
+⚠ **The per-seed ordering is arbitrary and one seed reverses the sign entirely**:
+on seed 1 the shipped arm (227) sits *below* its own control (246), while on seed 42
+it is +75%. The within-arm spread (216–505 for the control alone) dwarfs every
+between-arm difference. So the population effect is **seed-dominated**, and neither
+line owns it.
+
+**What survives is the direction, from two independent samples**: +20% on 3 seeds and
++41% on 10, both positive, both consistent with the pool-growth story above. What
+does *not* survive is treating +41% as a number to tune against — ⚠ the next step for
+anyone who wants to is **per-seed pairs** (`sweep --json` carries `seedRecords`), so
+"how many of the ten seeds moved up" can be counted instead of inferred from a mean.
+This is D14 at a larger scale: a mean over ten seeds is a real signal, and a
+three-seed bisection of it is noise.
+
+⚠ **The decision this leaves, recorded because it was a real choice**: no line was
+dropped. Dropping the habitat cue was the live option — its only claim is the one
+D40 retired — but removing it on the strength of an unattributable difference would
+be exactly the tuning-on-noise the table above argues against, and the cue is the
+only expression of `vulture.md`'s roosting request this engine can carry. ⚠ Until
+someone counts those pairs, the honest reading is that **V1 makes F2-without-V3
+worse rather than better** — §9's one combination to avoid — so V3 moves from
+optional counterweight to the next thing that should be built.
 
 **5. No protocol or save bump, and the fixtures came out byte-identical — which is
 an artifact, not evidence.** V1 adds no entity field, no config section and no event,
@@ -1069,6 +1099,22 @@ the lever is `ticksPerYear`, which re-bases every seasonal measurement in the
 project. So: a **modest** shift — longer gestation, longer cooldown, later
 maturity — sized to counterweight Phase F2 rather than to satisfy the brief, and
 measured as its own arm.
+
+⚠⚠ **V1 promoted this from optional to next** (2026-08-04). The plan's §9 named
+F2-without-V3 as the one combination to avoid, on the grounds that flight leaves the
+world's most numerous animal strictly improved — and F2's as-built section argued the
+warning had been defused, because F2 came with its own brake (the ground perception
+radius drop). V1 removes that reprieve: the ten-seed gate reads the vulture at
+**416.0 against 295.4**, its share of all carrion at **45.0% against 35.6%**, and the
+lion down 16.1 → 12.7. See **A76** for what is and is not established about it.
+
+⚠ **Two things to read before building V3, both from V1's numbers.** First, the extra
+meat is mostly **new rather than stolen** — the pool grows 193 → 221 tonnes — so the
+loop V3 is meant to damp runs through *carcass supply*, which means **B7**'s mass-blind
+`carcass.decayTicks` is at least as good a lever as the bird's breeding rate and is
+arguably the honest one. Second, the vulture's population has a **2.3× within-arm
+spread across seeds** (216–505 on the control alone), so V3's own arm needs ten seeds
+and per-seed pairs, not three seeds and a mean (**D41**).
 
 ---
 

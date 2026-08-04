@@ -117,9 +117,29 @@ axis is a flag, not a coordinate (**A74**).
 getting into a leopard's larder while a hyena cannot is a better model of the real
 thing than the roost would have been.
 
-#### Slow life history
+⚠⚠ **And the phase moved the bird far more than a fidelity edit should.** Its
+ten-seed gate reads the vulture at **416.0 against 295.4** and **45.0% of all carrion
+against 35.6%**, with the lion down 16.1 → 12.7 — every species still passing, but
+this is no longer a small change. Which of the three lines causes it is **not
+established** (engine item **A76**): the per-line arms disagree seed to seed and the
+control's own spread is 216–505. The extra meat is mostly *new* rather than stolen —
+the carrion pool grows 193 → 221 tonnes — so the loop runs through carcass supply,
+which makes the "slow life history" section below overdue and engine item **B7**
+(mass-blind `carcass.decayTicks`) at least as good a lever as this animal's breeding
+rate.
+
+#### Slow life history — ⚠⚠ **now overdue rather than optional**
 
 Vultures should mature slowly, reproduce infrequently and invest heavily in one chick. Several species form long-term pairs and raise only one or two chicks per breeding season.
+
+The current bird is deliberately the opposite — a boom-and-bust breeder
+(`gestationTicks: 400`, `cooldownTicks: 900`, `maxAge: 6000`) — and those numbers are
+load-bearing for a demo the docs call a knife edge. ⚠ Flight (F2) and the woodland
+preference (V1) have since taken its mean population from ~157 earlier this year to
+**416** on the ten-seed gate, at 45% of all the carrion in the world. That is the
+counterweight coming due. ⚠ The ceiling on how far this can honestly go is engine item
+**A62**: the year is 8000 ticks and lifespans are compressed beside it, so a genuinely
+slow life history meets that compression head-on.
 
 ### Current best approximation
 
@@ -128,3 +148,21 @@ With configuration alone, the engine can create a terrestrial scavenger that loc
 **Config-only realism: 4/10.**
 
 The major missing element is flight. Without aerial searching, soaring, communal roosts and long-range carcass discovery, it would behave more like a large ground scavenger than a convincing vulture.
+
+⚠ **Reassessed 2026-08-04, after phases F2 and V1.** Two of the four named gaps are
+now closed and two are not, and the split is not the one this section predicted:
+
+| gap | state |
+| --- | --- |
+| **Aerial searching** | ✅ built — 1.5× speed, 1.55× sight, 0.6× cost per unit travelled, terrain ignored |
+| **Soaring** | ❌ declined — no altitude, no thermals, no takeoff cost; a soaring bird and a low glide are one state (**A74**) |
+| **Communal roosts** | ⚠ attempted and **inert by construction** (**A75**) — the bird prefers trees and is in one ~0.01% of the time, because this world gives it no reason to be still |
+| **Long-range carcass discovery** | ❌ not built — that is the plan's phase V2, and ⚠ it takes carrion off the same guild three phases have already reshuffled (**A73**) |
+
+**Honest revised score: 6/10** — and the remaining four points are not all buyable by
+config. Aerial movement was; soaring and cliff nesting need a vertical coordinate the
+engine does not have; a roost needs a diurnal cycle (**A49**). ⚠ The thing this
+section got most wrong is the *direction of the risk*: it warned the bird would be
+unconvincingly terrestrial, and what actually happened is that flight plus a woodland
+preference took it to **45% of all the carrion in the world** with its counterweight
+(slow life history) still unbuilt.

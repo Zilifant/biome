@@ -100,13 +100,23 @@ they are not re-opened by accident.
   meat is mostly **new rather than stolen**: the carrion pool grows 193 → 221 tonnes
   and the vulture's +31 t is close to the pool's +28 t, which is a compounding loop —
   more birds, more bird carcasses (2872 deaths against 2079, nearly all of age), more
-  carrion — running on **B7**'s mass-blind `carcass.decayTicks`. ⚠ A 5-seed
-  decomposition at 6000 ticks cannot attribute it (off 40.8, `climbs` 39.8, `cue`
-  41.6, both 46.8) because the divergence is almost all after t10 000: the bird goes
-  34 → 117 → 416 across the run. **Until it is attributed, V1 makes F2-without-V3
-  worse rather than better** (the plan's §9 names that as the one combination to
-  avoid), so **V3 is no longer an optional counterweight**. Related: **A73** (three
-  phases now move carrion around the same scavenger guild) and **B7**.
+  carrion — running on **B7**'s mass-blind `carcass.decayTicks`.
+  ⚠⚠ **No line is attributable, and both attempts say why.** A 5-seed decomposition at
+  6000 ticks reads off 40.8 / `climbs` 39.8 / `cue` 41.6 / both 46.8; re-run at the
+  **full 15 000-tick horizon** (3 seeds) it reads off 322.3 / `climbs` 289.3 / `cue`
+  310.3 / both 385.7 — with the per-seed ordering arbitrary and **seed 1 reversing the
+  sign** (shipped 227 against its own control's 246). The within-arm spread (216–505
+  for the control alone) dwarfs every between-arm difference, so the effect is
+  **seed-dominated**. What survives is the direction, from two independent samples
+  (+20% on 3 seeds, +41% on 10). ⚠ **The next step is per-seed pairs**
+  (`sweep --json` carries `seedRecords`), so "how many of the ten seeds moved up" can
+  be counted rather than inferred from a mean — D14 at a larger scale. ⚠ No line was
+  dropped: removing the habitat cue was the live option, but doing it on the strength
+  of an unattributable difference is the tuning-on-noise this item exists to warn
+  about. **Until those pairs are counted, V1 makes F2-without-V3 worse rather than
+  better** (the plan's §9 names that as the one combination to avoid), so **V3 is no
+  longer an optional counterweight**. Related: **A73** (three phases now move carrion
+  around the same scavenger guild) and **B7**.
 
 - **A74 — The vertical axis is two flags, not a coordinate, and five things are
   therefore inexpressible** _(opened 2026-08-04, phases T2/F1; the plan's §8 named
