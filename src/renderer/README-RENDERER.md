@@ -266,8 +266,10 @@ differs) or load one in the editor, which stores it as a `data:` URL with the
 mapping. With no sheet reachable at all, sprite mode falls back to glyphs.
 
 **The editor** at [`/sprite-editor.html`](/sprite-editor.html) is where sprites
-are assigned: the full spritesheet on one side with its grid overlaid, every
-slot with its glyph on the other. Click a slot, then click a sprite to assign
+are assigned: every slot with its glyph in a fixed reference column on the
+left, the full spritesheet on the right with its grid overlaid — a sheet wider
+than the viewport scrolls inside its own panel, so the glyph reference stays in
+view. Click a slot, then click a sprite to assign
 it. A slot can also carry a **tint** — picked from the native color input or
 the Dracula palette swatches — which recolours the sprite as a flat silhouette
 (its alpha, one fill), matching the single-colour glyph aesthetic; with no tint

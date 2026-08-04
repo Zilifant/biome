@@ -37,12 +37,17 @@
       min-height: 0;
       padding: 10px;
     }
-    #sheet-column { flex: 1 1 55%; border-right: 1px solid var(--dracula-selection); }
-    #slots-column { flex: 1 1 45%; }
+    /* The glyph reference keeps a fixed-ish width on the left and is always in
+       view; the sheet takes the rest. min-width: 0 on the sheet side is what
+       lets a sheet wider than the viewport scroll INSIDE .sheet-scroll instead
+       of forcing the whole page wide (flex items refuse to shrink below their
+       content without it). */
+    #slots-column { flex: 0 1 420px; min-width: 300px; border-right: 1px solid var(--dracula-selection); }
+    #sheet-column { flex: 1 1 auto; min-width: 0; }
     h2 { font-size: 12px; margin: 0 0 8px; color: var(--dracula-purple); text-transform: lowercase; }
     h3 { font-size: 11px; margin: 10px 0 4px; color: var(--dracula-comment); text-transform: lowercase; }
 
-    #sheet-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+    #sheet-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; }
     .sheet-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
     .sheet-zoom-label { color: var(--dracula-comment); }
     .sheet-scroll { overflow: auto; flex: 1; min-height: 0; border: 1px solid var(--dracula-selection); background: var(--dracula-background-dark); }
@@ -123,13 +128,13 @@
     <span id="editor-status" role="status" aria-live="polite"></span>
   </header>
   <div id="editor-main">
-    <div id="sheet-column">
-      <h2>spritesheet</h2>
-      <div id="sheet-panel"></div>
-    </div>
     <div id="slots-column">
       <h2>glyphs</h2>
       <div id="slots-panel"></div>
+    </div>
+    <div id="sheet-column">
+      <h2>spritesheet</h2>
+      <div id="sheet-panel"></div>
     </div>
   </div>
   <div id="editor-controls">

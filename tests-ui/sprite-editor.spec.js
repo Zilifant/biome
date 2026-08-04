@@ -65,6 +65,26 @@ test.describe('sprite editor', () => {
     await expect(page.locator('.sheet-empty')).toBeHidden();
   });
 
+  test('the glyph reference sits left; a wide sheet scrolls inside its wrapper, not the page', async ({ editorPage: page }) => {
+    // The committed default sheet (much wider than the viewport at 4× zoom)
+    // must scroll inside .sheet-scroll — the page itself never scrolls
+    // horizontally, so the glyph reference stays in view.
+    await page.waitForSelector('.sheet-canvas:not([hidden])');
+    const slots = await page.locator('#slots-column').boundingBox();
+    const sheet = await page.locator('#sheet-column').boundingBox();
+    expect(slots.x).toBeLessThan(sheet.x);
+    const metrics = await page.evaluate(() => {
+      const scroller = document.querySelector('.sheet-scroll');
+      return {
+        pageScrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        sheetOverflows: scroller.scrollWidth > scroller.clientWidth,
+      };
+    });
+    expect(metrics.pageScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth);
+    expect(metrics.sheetOverflows).toBe(true);
+  });
+
   test('select a glyph, then a sprite → the assignment persists; tint via swatch; clear via button', async ({ editorPage: page }) => {
     await seedSheet(page);
     const slotId = 'species:herbivore.gazelle:grown:female';
