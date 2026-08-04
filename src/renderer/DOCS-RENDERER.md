@@ -138,6 +138,20 @@ present** (P5).
 - **P2 — The 6px and 8px zoom levels are gone**, so a 128-cell world no longer
   fits the viewport at minimum zoom. Drag-to-pan is the compensation, and a
   minimap was judged not worth it for one world size.
+- **P14 — The legend stays glyph-based in sprite mode.** `LegendPanel` is built
+  once from the registries and knows nothing about sprite assignments; in
+  sprite mode it still describes the glyphs, which remain the fallback truth
+  for every unassigned slot. Showing assigned-sprite thumbnails would need the
+  legend to become config-aware and re-renderable.
+- **P15 — A sprite tint is a flat silhouette only.** `source-atop` replaces the
+  sprite's colours with one fill, matching the single-colour glyph aesthetic
+  and keeping the hurt/sick tints unambiguous. A shading-preserving mode
+  (`multiply` + `destination-in`) is a deliberate non-feature until someone
+  wants tinted sprites that keep their art.
+- **P16 — Sprites ignore `heading` and `action`.** Both already ride in every
+  bulk snapshot unused; directional or pose sprite variants would be an
+  additive slot-id suffix (the vocabulary is append-only), not a rework. Not
+  built — v1 mirrors the glyph channels exactly.
 
 ### 1.4 Tooling and docs
 
@@ -206,6 +220,14 @@ app/
     GridProjection.js         world → cell → screen-pixel projection (pure)
     EntityAppearance.js       ASCII glyph/color/priority registry (pure)
     AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → overlays
+    SpriteGridRenderer.js     the same drawing from a spritesheet (?renderer=sprite)
+    SpriteSlots.js            slot vocabulary bridging the registries to sprites (pure)
+    SpriteConfig.js           SHEET geometry constants + assignment persistence
+  editor/
+    EditorState.js            the sprite editor's state machine (pure)
+    SheetPanel.js             the spritesheet with its grid overlaid, click → (col,row)
+    SlotsPanel.js             every slot with its glyph, thumbnails, tints
+    editorMain.js             /sprite-editor.html entry: composition + config lifecycle
   transports/
     RendererTransport.js      transport contract + normalized event types
     WebSocketRendererTransport.js  live stream, backoff reconnect, epoch guard
@@ -227,10 +249,15 @@ app/
 fixtures/                     committed protocol messages for offline development
 ```
 
-Drawing is isolated in `AsciiGridRenderer` behind `draw({ store, camera })` plus
-the pure projection/appearance modules. A future WebGL/DOM/terminal renderer
-replaces that one class; the store, transports, protocol, and engine are
-untouched — the engine never knows a renderer exists.
+Drawing is isolated behind the grid-renderer contract — `resize(w, h, dpr)`,
+`cssWidth`/`cssHeight`, `draw({ store, camera, ... })` — plus the pure
+projection/appearance modules. `RendererApp` takes a `createGridRenderer`
+factory (default `AsciiGridRenderer`); `?renderer=sprite` is that seam in use,
+swapping in `SpriteGridRenderer`, and a future WebGL/DOM/terminal renderer is
+one more factory. The store, transports, protocol, and engine are untouched —
+the engine never knows a renderer exists. A renderer with async assets (the
+spritesheet) calls `app.requestRedraw()` when they arrive rather than blocking
+`start()`.
 
 ---
 
@@ -659,6 +686,27 @@ key** (`young / grown` and the italic `female` row) are the hand-written part,
 because they describe how a glyph is _cased, styled, or coloured_ rather than
 which glyph is drawn.
 
+**Sprite mode rides on the registries, never beside them.** `?renderer=sprite`
+swaps in `SpriteGridRenderer` (same pass order, same store reads). Every
+drawable thing is a **slot** with a stable string id
+(`species:herbivore.grazer:grown:female`, `terrain:water`, `carcass:1`, …),
+enumerated from the appearance registries by `SpriteSlots.js` exactly as the
+legend is generated — so a species added to `SPECIES_APPEARANCE` gains its four
+slots (age × sex) with no sprite-side change, and `test/sprite-slots.test.js`
+holds the same coverage guarantee the legend tests do. Resolution mirrors
+`resolveAppearance` / `groundAppearanceAt` (the latter now exported and
+shared), and an **unassigned slot draws its ASCII glyph**, so a partial mapping
+or a missing sheet still renders everything. Assignments, tints, and the canvas
+background persist under `biome.sprites.config.v1` (validated on load; unknown
+slot ids are dropped, not fatal); sheet geometry is code constants in
+`SpriteConfig.js`'s `SHEET` block. A tint is a flat silhouette (the sprite's
+alpha, one fill); the hurt/sick tints override an assignment's tint and
+incubating stays unmarked — that judgement lives in `resolveColorToken` and is
+inherited, not re-derived. Mappings are made in `/sprite-editor.html`
+(`editor/`), whose interaction flow is pure and node-tested in
+`EditorState.js`. ⚠ **Slot ids are the config's compatibility surface** — the
+vocabulary is append-only, and a snapshot test pins it.
+
 **Dracula palette.** `styles/dracula.css` defines the exact Dracula Classic values
 as CSS custom properties; `EntityAppearance.DRACULA_COLORS` mirrors them for
 canvas/test use. Derived shades may only mix these values or apply opacity.
@@ -832,6 +880,14 @@ panel surviving a tick.
   times a tick), plus a `case` in `EventLog.formatEvent` for a line better than
   the generic fallback. The checkbox, the retention tier, and the filter count
   all follow from the entry.
-- **To replace the Canvas renderer:** implement a new `draw({ store, camera })`;
-  the store, transports, protocol, and engine are untouched.
+- **To use a different spritesheet:** edit the `SHEET` constants at the top of
+  `rendering/SpriteConfig.js` (sprite width/height, gap, margin, url), drop the
+  PNG at `src/renderer/app/assets/spritesheet.png` (or load it in the editor),
+  and assign sprites in `/sprite-editor.html`. To commit a finished mapping as
+  the default, Export it there and fold the JSON into `DEFAULT_SPRITE_CONFIG`.
+- **To replace the Canvas renderer:** implement the grid-renderer contract
+  (`resize(w, h, dpr)`, `cssWidth`/`cssHeight`, `draw({ store, camera, ... })`)
+  and pass a `createGridRenderer` factory to `RendererApp` from `main.js` —
+  exactly how `SpriteGridRenderer` is wired; the store, transports, protocol,
+  and engine are untouched. Async assets repaint via `app.requestRedraw()`.
 - **Never invent a field**, and keep all appearance in `EntityAppearance.js` (§10).
