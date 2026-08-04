@@ -2,7 +2,9 @@
 > **T1/T2/T3** (trees, the elevation flag, the leopard's kill caching) on
 > 2026-08-03 and **F1/F2/V1** (flight as a movement mode, the vulture flying, and its
 > woodland preference) on 2026-08-04 — keeps its session record in
-> [`TREES-FLIGHT-VULTURE-PLAN.md`](TREES-FLIGHT-VULTURE-PLAN.md), where every phase
+> [`legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md`](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md)
+> — ⚠ **retired 2026-08-04**, with its shipped work folded into `DOCS.md` and its
+> open work into `ACTION-ITEMS.md` as A73–A79 — where every phase
 > carries an **"As built"** section with its measurements, its gate, and what the
 > plan got wrong. That is the handoff for those six phases; this document is not
 > being back-filled, because a session record written by someone who was not there

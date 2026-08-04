@@ -18,9 +18,15 @@ completion notes. **All 30 are done**, so it is now a historical record — read
 for provenance (why and when a decision was made), not for current state.
 [`legacy-docs/PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) is its successor and
 is retired the same way (2026-07-31): eighteen phases that took the world from
-three species to **eight**, of which fourteen shipped and three were deferred. Its
-"As built" blocks — where each phase's own prediction turned out wrong — are the
-part worth reading; everything it built is described in `DOCS.md`.
+three species to **eight**, of which fourteen shipped and three were deferred.
+[`legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md`](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md)
+is the third and is retired on the same terms (2026-08-04): eight phases that added
+**trees**, a two-valued **elevation** flag, the leopard's **kill caching**, **flight**
+as a movement mode, and the vulture's flying and woodland preference — six shipped,
+two (the carcass-discovery network and the slow life history) unbuilt and now
+`ACTION-ITEMS.md` **A77** and **A78**. All three plans' "As built" blocks — where each
+phase's own prediction turned out wrong — are the part worth reading; everything they
+built is described in `DOCS.md`.
 [`HANDOFF.md`](HANDOFF.md) is the current session handoff (open ideas and findings
 not yet built); [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md) is the
 superseded original.

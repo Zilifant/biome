@@ -24,6 +24,12 @@ The existing carnivore feeding system can already create a non-hunting scavenger
 
 ### Required additions
 
+> ⚠ **Phase labels below (T1, T3, F1, F2, V1) belong to the
+> [retired trees/flight/vulture plan](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md).**
+> What each one shipped is documented in [`DOCS.md`](DOCS.md) — §7 Terrain for trees,
+> the elevation flag and kill caching, §9 Movement for flight — and what is still
+> open is in [`ACTION-ITEMS.md`](ACTION-ITEMS.md) as A73–A79.
+
 #### Aerial movement — ✅ **partly built, 2026-08-04** (phases F1/F2)
 
 The current ground-based locomotion system cannot represent:
@@ -64,7 +70,7 @@ widest radius is quadratic. A grounded vulture now sees less while it feeds,
 drinks, courts and rests, which turned out to be an ecological brake as well as a
 performance one.
 
-#### Carcass discovery network
+#### Carcass discovery network — ⚠ **designed, not built** (engine item **A77**)
 
 Vultures should find food through:
 
@@ -74,7 +80,17 @@ Vultures should find food through:
 
 This should create rapid, cascading congregation at newly discovered carcasses rather than requiring every bird to detect the carcass independently.
 
-#### Feeding hierarchy
+**Direct visual detection is built** (and F2 widened it on the wing). The other two
+are one mechanism, and the design is settled: it is the engine's existing
+`#joinedHunt` **with a different noun** — a scavenger with no carcass of its own in
+sight adopts the carcass a nearby conspecific has already committed to, filling
+`seekFood`'s existing target. No new action, no draw, no extra neighbour walk, and
+because it is gated on having nothing of its own it can only ever *add* a bird to a
+body. ⚠ It is not built because it takes carrion off a scavenger guild that three
+consecutive phases have already reshuffled while this bird grew to 45% of the world's
+carrion — see engine items **A73** and **A76**.
+
+#### Feeding hierarchy — ✅ **already expressed; the beak-strength term is declined**
 
 Different vultures specialize in opening carcasses or consuming different tissues. A generic version could use:
 
@@ -86,15 +102,29 @@ Different vultures specialize in opening carcasses or consuming different tissue
 
 Smaller vultures may have to wait until larger scavengers open or abandon a carcass.
 
+**Three of the five already exist and produce exactly that sentence.** Carcass
+possession, derived dominance, `possessionShare` and the possession contest are
+"smaller birds wait until larger scavengers open or abandon a carcass" — the 6 kg
+vulture against the 60 kg hyena is the pair the possession numbers were reasoned
+about in the first place. ⚠ **A beak-strength or tissue-specialization term is
+declined**: it would be a second expression of a hierarchy the engine already
+resolves on mass and dominance, and this roster has **one** vulture species, so there
+are no two beaks to differentiate. Carcass accessibility now has a real meaning it
+did not have before — a kill cached in a tree (engine phase T3) is reachable by this
+bird and not by the clan.
+
 #### Roosts and nests — ⚠ **attempted 2026-08-04 (phase V1) and inert by construction**
 
 The simulation currently lacks cliffs, tall trees and aerial nesting. Add persistent roost or nest sites that vultures return to after foraging. Rüppell’s vultures commonly nest on cliffs, while other African vultures use trees.
 
 **Tall trees now exist** (phase T1) and the bird can be in one: it declares
 `climbs: true` and `habitat: { tree: 1.6 }` with a `migration.cueRadius` of 18, and
-the **cue works** — its share of ticks standing on wooded ground rises 2.0% → 2.8%,
-so it does prefer trees. ⚠⚠ **What does not work is the roost itself, and the reason
-is structural rather than tunable.** Being *in* the canopy requires a tree cell and
+the **cue is live** — the weight resolves, there is a radius for it to act through,
+and the drift points at trees. ⚠ Whether it changes *where the bird ends up* cannot
+be shown: the tree share reads 2.0% → 2.8%, and an arm containing no steering
+mechanism at all reads higher (engine items **A72** and **D40**). ⚠⚠ **What
+definitely does not work is the roost itself, and the reason is structural rather
+than tunable.** Being *in* the canopy requires a tree cell and
 one of `rest`/`shelter`/`hide`/`flee`; this bird declares no hidden stage (so `hide`
 cannot fire), **nothing hunts it** (so `flee` cannot), `shelter` measures 0.000% of
 its animal-ticks and `rest` 0.03–0.11%. Measured time aloft: **0.000–0.022%**.
@@ -157,7 +187,7 @@ now closed and two are not, and the split is not the one this section predicted:
 | **Aerial searching** | ✅ built — 1.5× speed, 1.55× sight, 0.6× cost per unit travelled, terrain ignored |
 | **Soaring** | ❌ declined — no altitude, no thermals, no takeoff cost; a soaring bird and a low glide are one state (**A74**) |
 | **Communal roosts** | ⚠ attempted and **inert by construction** (**A75**) — the bird prefers trees and is in one ~0.01% of the time, because this world gives it no reason to be still |
-| **Long-range carcass discovery** | ❌ not built — that is the plan's phase V2, and ⚠ it takes carrion off the same guild three phases have already reshuffled (**A73**) |
+| **Long-range carcass discovery** | ❌ not built — engine item **A77**, designed but unbuilt, and ⚠ it takes carrion off the same guild three phases have already reshuffled (**A73**) |
 
 **Honest revised score: 6/10** — and the remaining four points are not all buyable by
 config. Aerial movement was; soaring and cliff nesting need a vertical coordinate the

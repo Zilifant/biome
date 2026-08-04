@@ -77,13 +77,13 @@ they are not re-opened by accident.
   tonnes. ⚠ Not a gate failure — the hyena holds 9/10 seeds in **both** arms —
   but it is the one species the change costs, and it now loses its seed with less
   margin. Worth a second look before anything else is taken off the clan (B7's
-  `carcass.decayTicks` and phase V2's discovery network both would).
+  `carcass.decayTicks` and the discovery network, now **A77**, both would).
   ⚠⚠ **Something else already was, one day later.** The vulture's flight (phase F2,
   2026-08-04) takes the clan's carrion share 11.1% → 9.6% and its mean population
   7.8 → 6.4 (**−18%**) on the ten-seed gate. That gate passes at 10/10 in both arms,
   so it is not a failure either — but **two mechanisms in two days have now moved
   carrion off the hyena, and no single gate sees the pair.** This is the item to
-  re-read before phase V2, whose whole purpose is getting vultures to bodies faster.
+  re-read before **A77**, whose whole purpose is getting vultures to bodies faster.
   ⚠ **V1 then went the other way and that does not settle it**: the clan recovers to
   8.4 (from 6.4) while the **lion** loses 16.1 → 12.7 and the vulture gains 41%
   (**A76**). So the guild's carrion is being reshuffled by three consecutive phases,
@@ -113,14 +113,15 @@ they are not re-opened by accident.
   be counted rather than inferred from a mean — D14 at a larger scale. ⚠ No line was
   dropped: removing the habitat cue was the live option, but doing it on the strength
   of an unattributable difference is the tuning-on-noise this item exists to warn
-  about. **Until those pairs are counted, V1 makes F2-without-V3 worse rather than
-  better** (the plan's §9 names that as the one combination to avoid), so **V3 is no
-  longer an optional counterweight**. Related: **A73** (three phases now move carrion
+  about. **Until those pairs are counted, V1 makes flight-without-its-counterweight
+  worse rather than better** — the combination the retired plan named as the one to
+  avoid — so the slow life history (**A78**) is no longer optional. Related: **A73** (three phases now move carrion
   around the same scavenger guild) and **B7**.
 
 - **A74 — The vertical axis is two flags, not a coordinate, and five things are
-  therefore inexpressible** _(opened 2026-08-04, phases T2/F1; the plan's §8 named
-  the elevation half and it was never opened)_. `entity.elevation` (0/1) and
+  therefore inexpressible** _(opened 2026-08-04, phases T2/F1 of the
+  [retired trees/flight/vulture plan](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md), whose
+  §8 named the elevation half and never opened it)_. `entity.elevation` (0/1) and
   `entity.flying` (boolean) carry no height, so: **no ambush from above** (a treed
   leopard reaches nothing below it, and nothing hunts on the wing); **no extra
   sight from being up high** beyond a flat per-species multiplier; **no cliff, no
@@ -393,6 +394,63 @@ they are not re-opened by accident.
   DOCS §7 Terrain. ⚠ And one limit is inherent to the flag: **a treed predator can
   reach nothing below it**, so there is no ambush from height, which A67 listed
   among the things a complete leopard does.
+
+- **A77 — The vulture's carcass-discovery network is unbuilt** _(phase V2 of the
+  [retired trees/flight/vulture plan](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md))_. `vulture.md` asks for birds that find food
+  by **watching other vultures descend**, so a body draws a cascade rather than
+  needing every bird to spot it independently. **The design is settled and is
+  deliberately not new machinery**: it is `#joinedHunt` with a different noun — a
+  scavenger with **no carcass of its own in sight** adopts the carcass a nearby
+  conspecific has committed to, filling `seekFood`'s existing target. Copying that
+  shape exactly is the point, because its guarantees carry over for free: gated on
+  having nothing of its own, so it can only ever *add* a searcher to a body and never
+  take one off a body it had already found; it reads the **neighbour buffer** rather
+  than adding a third walk; it adds no action and no draw. Biology in a field, switch
+  in a section (§8): `scavenging: { followsKin: true, followRange }` per species,
+  `config.scavenging.enabled` global. **Measure the shift**: ticks from a carcass's
+  creation to the *n*th feeder, on against off — the cascade is measurable in a way
+  "more vultures" is not.
+  ⚠⚠ **Read A73 and A76 first.** This takes carrion off the same scavenger guild that
+  three consecutive phases have already reshuffled, and it does it by making the
+  species that now holds **45% of all the carrion in the world** faster to arrive.
+  ⚠ Per D42, the metric must name the vulture: "time to the *n*th feeder" is a fact
+  about carcasses and the first feeder is usually whatever made the kill.
+
+- **A78 — The vulture's slow life history is unbuilt, and it is now overdue rather
+  than optional** _(phase V3 of the
+  [retired trees/flight/vulture plan](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md))_.
+  `vulture.md` wants slow maturation, one chick and long dependency; the shipped bird
+  is deliberately the opposite — a boom-and-bust breeder (`gestationTicks: 400`,
+  `cooldownTicks: 900`, `maxAge: 6000`) — and those numbers are load-bearing for a
+  demo the docs call a knife edge. **Config only, behind the §20 gate.**
+  ⚠⚠ **It was the named counterweight to flight, and V1 spent the reprieve.** F2
+  shipped with its own brake (the ground perception radius drop) and its gate held;
+  V1's gate then read the vulture at **416.0 against 295.4** and **45.0% of all
+  carrion against 35.6%** (**A76**). ⚠ Two things to read before building it, both
+  from those numbers: the extra meat is mostly **new rather than stolen** (the pool
+  grows 193 → 221 tonnes), so the loop runs through **carcass supply** and **B7**'s
+  mass-blind `carcass.decayTicks` is at least as good a lever — arguably the honest
+  one; and the vulture's population has a **2.3× within-arm spread across seeds**
+  (216–505 on a control alone), so this needs ten seeds and **per-seed pairs**, not
+  three seeds and a mean (**D41**). ⚠ **A62 caps how far it can honestly go**: the
+  year is 8000 ticks and lifespans are compressed beside it, so a genuinely slow life
+  history meets that compression head-on and the real lever is `ticksPerYear`, which
+  re-bases every seasonal measurement in the project. So: a **modest** shift, sized as
+  a counterweight rather than to satisfy the brief, measured as its own arm.
+
+- **A79 — Four of the eight species do not name `tree`, so the terrain artifact T1
+  measured is still live for them** _(from 2026-08-03, phase T1)_. Every herbivore
+  weights `ground` at 1.1–1.2 and names no `tree`, so converting open ground to trees
+  **shrinks the preferred habitat of every grazer** — an unnamed terrain resolves to
+  neutral 1 while the ground it replaced was above 1. ⚠ It is a general property of
+  adding a terrain code to a world whose species enumerate terrain by name, not a fact
+  about trees: **any** future code does the same. The leopard named `tree` at T3 and
+  the vulture at V1, so two of eight have caught up. The fix is one weight per species
+  (gazelle, wildebeest, zebra, buffalo), which is a config edit — ⚠ but it moves four
+  species' habitat at once and therefore wants its own arm rather than riding along
+  with an unrelated change (it was deliberately left out of T1's gate for exactly
+  that reason). Related: **A72** (the occupancy claim it would be measured by is the
+  one that cannot be resolved) and **A51**.
 
 - **A68 — The species roster stops at eight; the rhino and the elephant are
   deferred** _(decided 2026-07-30)_. Scope rather than work. The **black rhino**

@@ -1,3 +1,44 @@
+> **⚠ Retired to `legacy-docs/` on 2026-08-04. This is now a historical record.**
+>
+> Six of the eight phases shipped (T1, T2, T3, F1, F2, V1) and the last two are no
+> longer scheduled work, so nothing here is a plan any more. **The implemented work
+> has been folded into [`DOCS.md`](../DOCS.md)** — §7 Terrain for trees, the
+> elevation flag and kill caching, §9 Movement for flight, §8 for the two new
+> per-species fields and the switch discipline, §12 for the two protocol and two
+> save bumps, §14 and §20 for the testing and gate lessons, §16 for the transferable
+> failures (**D37–D42**) — **into
+> [`src/renderer/DOCS-RENDERER.md`](../src/renderer/DOCS-RENDERER.md)** §9 for the
+> third status-mark shape, **into [`BENCHMARK.md`](../BENCHMARK.md)** for the trees
+> and flight measurements, and **into [`vulture.md`](../vulture.md)** for what the
+> species brief did and did not get.
+>
+> **The unimplemented work and every open question went to
+> [`ACTION-ITEMS.md`](../ACTION-ITEMS.md)** (and its `DOCS.md` §1 counterparts) as:
+> **A73** (three phases have now moved carrion around one guild), **A74** (the
+> vertical axis is two flags, not a coordinate), **A75** (roosting is inert by
+> construction), **A76** (V1 moved the vulture +41% and no line is attributable),
+> **A77** (phase V2, the carcass-discovery network — designed here, not built),
+> **A78** (phase V3, the slow life history — now overdue rather than optional),
+> **A79** (four species still do not name `tree`), and renderer **P17** (the flying
+> mark blinks) plus the unverified `»` at the 10px floor. **Do not add new phases
+> here.**
+>
+> **What this file still uniquely holds is provenance**, and it is the reason to open
+> it: each shipped phase carries an **"As built"** block recording where that
+> phase's own prediction turned out wrong, sitting *below* the original text, which
+> is kept unedited. Read the two together — as with the species plan before it, this
+> one was right about *shape* far more often than about *consequence*, and `DOCS.md`
+> records the outcomes without the arguments that produced them. ⚠ The clearest
+> examples: §3.3 predicted a wander commitment would carry the flight state (it does
+> not — the action is re-chosen every tick), §4's F2 predicted the largest ecological
+> change in the plan (its own perception mitigation turned out to be an ecological
+> brake), and §4's V1 expected "a small effect" (it moved the world's most numerous
+> animal by two fifths, for reasons still unattributed).
+>
+> ⚠ Source comments and tests across the repo cite this file by bare name
+> (`TREES-FLIGHT-VULTURE-PLAN.md phase T1`). Those references were left alone rather
+> than rewritten, exactly as the species plan's were; the file is here.
+
 # Plan — trees, vertical refuge, flight, and the vulture
 
 **Status: T1, T2, T3, F1, F2 and V1 are SHIPPED** (2026-08-03 and 2026-08-04).
@@ -33,9 +74,9 @@ Four features, in the order they unblock each other:
    simplified to the level of behavioural complexity the other eight species
    already run at.
 
-This document is written against [`DOCS.md`](DOCS.md) (the reference),
-[`HANDOFF.md`](HANDOFF.md) (session state), [`ACTION-ITEMS.md`](ACTION-ITEMS.md)
-(open work), and [`vulture.md`](vulture.md) (the species brief). It closes
+This document was written against [`DOCS.md`](../DOCS.md) (the reference),
+[`HANDOFF.md`](../HANDOFF.md) (session state), [`ACTION-ITEMS.md`](../ACTION-ITEMS.md)
+(open work), and [`vulture.md`](../vulture.md) (the species brief). It closes
 **A67** (vertical refuge) in the narrow form A67 itself asks for, touches **A3**,
 **A18**, **A49** and **A51**, and adds one new always-per-species field per
 mechanism.
