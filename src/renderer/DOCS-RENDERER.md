@@ -46,7 +46,7 @@ numbers, so re-measure rather than inherit.
 | Protocol understood | **33** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
 | Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a) |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
-| Fixtures            | current — v32, all **eight** shipped species, regenerated 2026-08-04 for the **ngorongoro demo**: 500 entities on a 332×280 map (was 231 on 160×120), **3 airborne** so fixture mode still shows the flying mark offline, 3.5 MB committed (was 1.4 MB); ⚠ due on every **roster** change, not only a protocol bump (§10) |
+| Fixtures            | current — v33, all **eight** shipped species, regenerated 2026-08-04 for the **ngorongoro demo**: 500 entities on a 332×280 map (was 231 on 160×120), **3 airborne** so fixture mode still shows the flying mark offline, 3.5 MB committed (was 1.4 MB); ⚠ due on every **roster** change, not only a protocol bump (§10) |
 | Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
 | Map layers          | **one** — Social (§9a), off by default. The registry is `rendering/MapLayers.js`                                                     |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
@@ -869,8 +869,8 @@ working here:
 - ⚠ **An empty roster is not "use your defaults"**, it is "found nothing". So the
   field is omitted entirely until the host has said what its species are.
 
-The v28 role fields are still accepted by the host for one version and are
-translated by `buildDemoConfig`; the renderer no longer sends them. **Terrain
+The legacy role fields remain accepted and are translated by `buildDemoConfig`;
+the renderer no longer sends them. **Terrain
 prevalence is an abstract
 `0..MAX_TERRAIN_PREVALENCE` level, not a count** — 0 is none of that terrain,
 `DEFAULT_TERRAIN_PREVALENCE` (4 since 2026-08-04, 2 before it) reproduces the

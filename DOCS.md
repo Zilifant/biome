@@ -73,7 +73,7 @@ npm run sweep -- --founding=a:1,b:2 --control=a:1   # ...and the same seeds with
 npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # a config A/B
 ```
 
-### Current state (measured 2026-07-24)
+### Current state (as of 2026-08-04)
 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
@@ -84,7 +84,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eleven** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30, `climbs` on 2026-08-03, **`flight` on 2026-08-04** (§8). ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all eleven fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **fourteen** always-per-species **fields**: `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`, `forage`, `habitat`, `association`, `crypsis`, `climbs`, `flight`, `cohort`, and `initialEnergyFraction`. ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all fourteen fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
 | Flight                | **A pace on the intent, not a simulation of flight** — `entity.flying`, added 2026-08-04 (phase F1). Faster travel with the terrain modifier bypassed, a wider sight radius, cheaper distance, nothing refusing the step, and out of reach of predation and fire. No altitude, no thermals, no takeoff cost. The **vulture** is the only flier (phase F2), and its ground radius dropped 14 → 9 so that flying restores exactly the 14 it had — the world's widest radius does not move. See §9 Movement |
 | Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, shade + light concealment + near-open going. ⚠ **0.98% of the demo map since 2026-08-04**, against 2.45% before it (5 seeds each): the formation counts doubled but the map grew 4.84×, and tree, thicket and rock formations are absolute **counts** rather than densities. Full mix now, old in brackets: ground 71.1 [87.8], rock 22.1 [1.9] — almost all of it the rim — cover 2.60 [3.35], water 1.83 [1.87], tree 0.98 [2.48], deep water 0.78 [0.85], thicket 0.56 [1.69]. `coverPatchDensity` is the one that is per-area, and it is the one that held. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
@@ -4028,7 +4028,7 @@ this. **Assert the effect landed, not that the call happened.**
 
 ## 11. Protocol reference
 
-Everything a client sees carries `protocolVersion` (currently **29**) and is
+Everything a client sees carries `protocolVersion` (currently **33**) and is
 built by `src/protocol/`.
 
 ### Commands
@@ -4086,9 +4086,9 @@ compiled with. Three details are load-bearing:
 Bounds moved with the shape: `MAX_FOUNDING_PER_SPECIES` (20 000) and
 `MAX_FOUNDING_TOTAL` (30 000), the latter being the sum of the three old per-role
 maxima, so the ceiling is exactly what it was. `FOUNDING_ROLE_ALIASES` is the
-**one** place a species id appears in `src/protocol`, and it exists only to
-retire — delete it, and the alias handling in `validation.js` and
-`buildDemoConfig`, at v30.
+**one** place a species id appears in `src/protocol`; it remains a legacy
+compatibility path. Remove it — and the alias handling in `validation.js` and
+`buildDemoConfig` — only as an explicit protocol change.
 
 ### Snapshots
 
@@ -4172,10 +4172,11 @@ block (resolved `lineage`, parenting state, bounded `lifeEvents`).
 standing with now, the record is who it belongs to. The record comes whole —
 `{ id, speciesId, size, memberIds, founderId, foundedTick }` — because "which
 pride is this lion in" is only answerable if you can see who else is in it, and
-`memberIds` is bounded by `groups.maxMembers` so it cannot be large. Neither
-`groupRecordId` nor `possessorId` is in the bulk snapshot: both change rarely and
-matter for one animal at a time, which is the standing test for what stays
-inspection-only.
+`memberIds` is bounded by `groups.maxMembers` so it cannot be large.
+`possessorId` is not in the bulk snapshot: it changes rarely and matters for one
+animal at a time, which is the standing test for what stays inspection-only.
+`groupRecordId` is the explicit exception described above: the social layer needs
+every record's members at once, so it has been bulk-projected since v33.
 
 Full snapshots also embed:
 
@@ -4289,7 +4290,7 @@ evict, because there the oldest entry is genuinely the least useful and
 ## 12. Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently **29**) with the tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently **31**) with the tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, the tombstone registry, the persistent-group

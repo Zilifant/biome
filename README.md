@@ -31,11 +31,10 @@ built is described in `DOCS.md`.
 not yet built); [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md) is the
 superseded original.
 
-Measurements in this file describe the **current** build and were taken on
-**2026-07-20**, except the performance figures, which were re-measured on
-**2026-07-21**. They are re-measured when they change rather than inherited —
-`PLAN.md`'s completion notes keep the historical readings, each dated to the step
-that took it.
+Measurements carry the date and world on which they were taken. They are
+historical readings, not standing claims: re-measure rather than inherit them.
+`DOCS.md` records the current state and preserves prior readings with their
+original dates.
 
 ## Install and run
 
@@ -215,7 +214,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `28`) and is
+Everything a client sees carries `protocolVersion` (currently `33`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -223,7 +222,7 @@ built by `src/protocol/`:
   `simulation.restart` (host-level, applied by the runner) and `entity.spawn`,
   `entity.remove` (engine-level, queued and applied at the next tick boundary).
   Results are structured `{ ok, ... }` or `{ ok: false, error: { code, message } }`.
-  **`simulation.restart`** (protocol v28) rebuilds the world from a seed and is
+  **`simulation.restart`** (introduced in protocol v28) rebuilds the world from a seed and is
   the one command whose result cannot be a delta — the new world shares no ids,
   no tick, and not even a `simulationId`, so every client is sent a full
   snapshot. Its `seed` is optional: name one for a specific world, or omit it
@@ -234,7 +233,8 @@ built by `src/protocol/`:
 - **Snapshots** (`snapshots.js`): full snapshots expose only
   `PUBLIC_ENTITY_FIELDS` (id, kind, speciesId, x, y, heading, age,
   energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
-  groupId, diseaseState, dispersing, action, alive, decayStage) — internal records never leak, and every snapshot
+  groupId, groupRecordId, diseaseState, dispersing, gestating, seekingMate,
+  action, alive, decayStage, elevation, flying) — internal records never leak, and every snapshot
   is freshly cloned. Absolute energy/hydration/health and speed, the action target, the
   utility breakdown, the perception summary, the individual's `traits` and
   `adultMass`, its `genome` / `genotype` / parent traits, its bounded
@@ -324,11 +324,12 @@ opponentDominance, escalated }` — both scores, because dominance decides it an
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `27`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `31`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
-worn-ground feature layer, the tombstone registry, the bounded metrics history,
-the event outbox, pending commands, and system descriptors. The migration drift is
+worn-ground feature layer, scent, the tombstone registry, the persistent-group
+registry, the bounded metrics history, the event outbox, pending commands, and
+system descriptors. The migration drift is
 saved rather than rebuilt, unusually for derived state: habitat evaluation is
 staggered, so a restore would otherwise run on a stale value until the next
 evaluation and diverge from an uninterrupted run.
@@ -359,8 +360,9 @@ documented in `SimulationSerializer.js`.
 
 ## Adding a species
 
-A species is **data**, and adding one is a config edit. There is no engine change
-to make, and a test will fail if you make one.
+A species is **data**: adding one normally means a species definition, roster
+entry, founding data, and renderer appearance. Do not add a species-id conditional
+to engine code; `test/species-schema.test.js` rejects those.
 
 1. Add a definition to `src/simulation/config/species/` — biology only, never
    glyphs or colors. State only what differs from the defaults: every block
@@ -370,7 +372,8 @@ to make, and a test will fail if you make one.
    as a list of what makes that animal unusual. Alongside them sit the
    always-per-species **fields**, which have no config default to fall back on:
    `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`,
-   `forage`, `habitat`, `association`, `crypsis`.
+   `forage`, `habitat`, `association`, `crypsis`, `climbs`, `flight`, `cohort`,
+   and `initialEnergyFraction`.
 2. Add it to the roster in `config/species/index.js` and to `config.demo.founding`
    if it should exist in the demo world.
 3. Give it an appearance entry in the renderer's `SPECIES_APPEARANCE` — the only
@@ -408,7 +411,8 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 1147 tests _(2026-08-04)_.
+ASCII renderer, committed fixtures, and the `node:test` suite (see the current
+count in `DOCS.md`).
 
 **World:** seeded terrain (ground, shallow water and impassable **deep water**,
 impassable rock, low **cover**, sight-blocking **thicket**, and **tree** — each with

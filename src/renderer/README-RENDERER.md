@@ -55,7 +55,7 @@ that send commands, exposing the `commands` the UI emitted and a `push` that
 sends a frame *down* the socket, which is how a spec drives the world forward:
 a delta that kills an animal, a batch of events, a recovery snapshot). The canvas is
 tested by sampling pixels, since it is opaque to DOM queries. See
-[`tests-ui/README.md`](../../tests-ui/README.md) for how it runs offline and how
+[`tests-ui/README-TESTS.md`](../../tests-ui/README-TESTS.md) for how it runs offline and how
 to write a test.
 
 ## Architectural boundary
@@ -354,8 +354,8 @@ one), which is how a finished mapping is shared or committed as a new default
 (`DEFAULT_SPRITE_CONFIG` in `SpriteConfig.js`).
 
 Everything that is not the glyph carries over from ASCII mode unchanged: the
-**status marks** (hurt, ill, carrying, in rut, dispersing) are the same corner
-dots and diamonds, cycling on the same wall clock — never a recolour, so the
+**status marks** (hurt, ill, carrying, in rut, dispersing, up a tree, flying) are
+the same corner dots, diamonds, and chevrons, cycling on the same wall clock — never a recolour, so the
 sprite keeps saying species, and an incubating animal is still never marked;
 fading ground layers give way beneath an occupant's sprite exactly as beneath
 its glyph; the kill flash fills the cell behind everything; and the selection
