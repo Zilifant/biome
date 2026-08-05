@@ -1,0 +1,49 @@
+# Render blueprint for the public biome host.
+#
+# The service is a long-lived Node process, not a static site and not a
+# function: the engine holds no timers of its own and only advances when the
+# runner steps it, so something has to stay up and tick. That also means the
+# WebSocket at /ws is the primary transport — Render proxies upgrades to the
+# service without extra configuration.
+#
+# ⚠ Sessions live in this process's memory (see src/server/SessionRegistry.js),
+# so this service must not be scaled past one instance without sticky routing —
+# a second instance would hand a returning visitor a different world.
+services:
+  - type: web
+    name: biome
+    runtime: node
+    plan: starter
+    # ⚠ --omit=dev matters here. The runtime needs only express and ws, while the
+    # devDependencies carry Playwright, whose install downloads a browser —
+    # minutes of build time and a few hundred MB for something the server never
+    # runs.
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    # ⚠ /healthz, never /api/status. A health check keeps no cookies, so every
+    # ping at a session-resolving route would build and reap a whole engine;
+    # /healthz reports the process instead (see createServer.js).
+    healthCheckPath: /healthz
+    numInstances: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Public host: the sprite editor is not served and preset writes are
+      # refused. Set this to 1 only on a private/admin deployment.
+      - key: BIOME_ADMIN
+        value: "0"
+      # The ceiling a visitor's commands are held to. These are deliberately far
+      # below the protocol's own maxima, which exist for local single-user
+      # experimentation — see src/server/publicLimits.js.
+      - key: BIOME_MAX_WORLD_DIMENSION
+        value: "256"
+      - key: BIOME_MAX_FOUNDING_TOTAL
+        value: "600"
+      - key: BIOME_MAX_SPEED
+        value: "8"
+      - key: BIOME_MAX_STEP_TICKS
+        value: "500"
+      - key: SIM_SEED
+        value: "42"
+      - key: SIM_TICK_MS
+        value: "1000"

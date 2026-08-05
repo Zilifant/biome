@@ -229,7 +229,10 @@ describe('the preset HTTP API', () => {
 
   before(async () => {
     apiDir = await mkdtemp(path.join(tmpdir(), 'biome-preset-api-'));
-    server = createServer({ seed: 1, presetDirectory: apiDir });
+    // ⚠ Preset *writes* are admin-only: the store is shared by every visitor
+    // rather than per-session, so a public host serves it read-only. This suite
+    // exercises the write API, so it asks for the operator's server.
+    server = createServer({ seed: 1, presetDirectory: apiDir, admin: true });
     const address = await server.listen(0);
     base = `http://127.0.0.1:${address.port}`;
   });
@@ -305,7 +308,7 @@ describe('loading a preset restarts the world through the ordinary command', () 
 
   before(async () => {
     apiDir = await mkdtemp(path.join(tmpdir(), 'biome-preset-apply-'));
-    server = createServer({ seed: 1, presetDirectory: apiDir });
+    server = createServer({ seed: 1, presetDirectory: apiDir, admin: true });
     const address = await server.listen(0);
     base = `http://127.0.0.1:${address.port}`;
   });
@@ -326,9 +329,12 @@ describe('loading a preset restarts the world through the ordinary command', () 
     });
 
     const { preset } = await (await fetch(`${base}/api/presets/applied`)).json();
+    // ⚠ The host serves one world per visitor, so a cookie-less request is a
+    // *new* visitor with a new world. This assertion is about the world
+    // `server.runner` holds, so the request has to say so.
     const restart = await fetch(`${base}/api/commands`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', cookie: server.sessionCookie },
       body: JSON.stringify({ type: 'simulation.restart', ...preset.world }),
     });
     assert.equal(restart.status, 200);

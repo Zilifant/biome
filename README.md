@@ -53,7 +53,9 @@ npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 | `npm run fixtures:renderer`                  | Regenerate the committed renderer protocol fixtures                          |
 
 Environment variables for the server: `PORT` (default 3000), `SIM_SEED`
-(default 42), `SIM_TICK_MS` (default 1000).
+(default 42), `SIM_TICK_MS` (default 1000), `SIM_PRESET_DIR`, and the
+deployment set described under "Hosting it publicly" below (`BIOME_ADMIN`,
+`BIOME_MAX_*`).
 
 HTTP API: `GET /api/status`, `GET /api/snapshot`
 (`?minX=&minY=&maxX=&maxY=` for a region), `GET /api/terrain`,
@@ -73,6 +75,58 @@ host serves it statically at `/renderer`. Its now-complete phase roadmap and
 handoff (`PLAN-RENDERER.md`, `HANDOFF-RENDERER.md`) sit alongside for provenance,
 since its phases advance what can be seen and steered rather than what the engine
 simulates.
+
+## Hosting it publicly
+
+The host serves **one world per visitor**. A `SimulationRunner` always owned its
+own engine, timer, and run state; what changed (2026-08-04) is that
+`createServer` builds one per browser session (`src/server/SessionRegistry.js`)
+instead of exactly one for everybody, keyed by an opaque `biome.sid` cookie. The
+renderer needed **no changes at all** — a same-origin cookie rides both its
+`/api/*` calls and its `/ws` upgrade, so neither transport learned that sessions
+exist. One visitor's restart, pause, or speed change is invisible to every other.
+
+Three rules keep that affordable and safe on a shared box:
+
+- **A world ticks only while somebody is watching it.** The runner starts when a
+  session's first socket connects and stops when its last one leaves. The world
+  is *kept* — a reload resumes the same world at the same tick — and discarded
+  only once the session has been socketless for a while. This is safe precisely
+  because the engine holds no timers and wall-clock time never influences a tick:
+  a world that sat still for ten minutes is byte-identical to one that did not.
+- **A public host caps what a command may ask for**
+  (`src/server/publicLimits.js`). ⚠ The protocol's own maxima — 5120×5120
+  worlds, 30 000 founders, 64× speed, a 10 000-tick advance — exist so one
+  operator can push the engine to its ceiling locally. On a public host they are
+  a denial of service, and a long `simulation.step` is synchronous, so it stalls
+  *every* session rather than only the one that asked. The ceiling is a second,
+  lower one applied per session before the runner sees the command; refusals come
+  back in the protocol's ordinary error shape, so the renderer reports them
+  unchanged. Tune with `BIOME_MAX_WORLD_DIMENSION`, `BIOME_MAX_FOUNDING_TOTAL`,
+  `BIOME_MAX_SPEED`, `BIOME_MAX_STEP_TICKS`.
+- **Two doors stay shut.** The sprite **editor** page is not served, and preset
+  **writes** are refused — presets are a single store shared by every visitor, so
+  an open write route lets anyone overwrite the worlds everybody else sees.
+  Reads stay public, and `GET /api/presets` lists only the worlds this host will
+  actually build, since offering a button that always fails is worse than no
+  button.
+
+`BIOME_ADMIN=1` reverses all three: the editor is served, preset writes are
+accepted, and there is no ceiling beyond the protocol's own. That is the mode an
+operator runs locally.
+
+`render.yaml` is a ready blueprint (Node web service, `npm start`, health check
+on `/api/status`). ⚠ Sessions live in this process's memory, so the service must
+not be scaled past one instance without sticky routing — a second instance would
+hand a returning visitor a different world.
+
+**Sprites are set by the operator, not the visitor.** Sprite mode
+(`?renderer=sprite`) reads `localStorage` if present and otherwise the compiled-in
+`DEFAULT_SPRITE_CONFIG` (`src/renderer/app/rendering/SpriteConfig.js`). A public
+visitor has no editor and no stored config, so they see the committed mapping and
+cannot change it. To set it: run with `BIOME_ADMIN=1`, assign sprites in
+`/sprite-editor.html`, **Export**, and paste the result into
+`DEFAULT_SPRITE_CONFIG`.
 
 ## Architecture
 

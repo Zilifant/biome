@@ -698,3 +698,25 @@ input:focus-visible {
   background: var(--dracula-background-dark);
   border: 1px solid var(--dracula-selection);
 }
+
+#help-bar a,
+/* A button that reads as a link: sharing a world is an action (it copies to the
+   clipboard) but sits in a row of links, and styling it as one keeps the help
+   bar a single line of text rather than a line with a control in it. */
+.link-button {
+  color: var(--dracula-cyan);
+}
+
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-button:hover,
+.link-button:focus-visible {
+  color: var(--dracula-bright-cyan, var(--dracula-cyan));
+}

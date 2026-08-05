@@ -73,8 +73,13 @@
         &middot; click any cell to inspect it &middot; Tab cycle occupants
         &middot; F follow &middot; C recenter &middot; Esc clear &middot; Space
         pause/resume &middot; drag a column edge to resize it &middot;
-        ?mode=fixture for offline replay &middot; ?renderer=sprite for sprites
-        &middot; <a href="/sprite-editor.html">sprite editor</a>
+        ?mode=fixture for offline replay &middot;
+        <!-- The renderer toggle and the share link are filled in by
+             app/ui/viewLinks.js: which renderer is showing, and the URL of the
+             world you are looking at. The sprite *editor* is deliberately not
+             linked — it is an operator tool and a public host does not serve
+             its page at all. -->
+        <span id="view-links"></span>
       </footer>
     </div>
     <script type="module" src="/renderer/app/main.js"></script>
