@@ -213,7 +213,18 @@ describe('protocol v29: the projections A54 owed', () => {
     // ⚠ The reason this bump happened rather than reusing `entity.contested`:
     // the renderer labels that one "contests over a mate", so a carcass fight
     // filed under it would be the UI lying.
-    const engine = createDemoSimulation({ seed: 42 });
+    //
+    // ⚠⚠ **This test fishes an emergent event out of the demo, so it is a hostage
+    // to the demo's trajectory** — §1.4 D1's warning, in a test that predates it.
+    // It ran on seed 42 until BEHAVIOR-PLAN P1 changed how the wildebeest and the
+    // buffalo herd; that moved where grazers die, and therefore where scavengers
+    // meet over a body, and seed 42's first theft went from inside this window to
+    // **tick 1682**. Nothing about kill theft changed — seed 42 still produces
+    // nine of them inside 3000 ticks. Measured 2026-08-05 over 3000 ticks, first
+    // theft by seed: 42→1682, 1→1329, **2→898**, 3→1561, 7→1505, 13→1116. Seed 2
+    // is chosen for the margin (and is the hosted world's seed); if this breaks
+    // again, re-measure that row before assuming the mechanism is gone.
+    const engine = createDemoSimulation({ seed: 2 });
     const robbed = [];
     for (let i = 0; i < 1500; i += 1) {
       const before = engine.events.lastSeq;

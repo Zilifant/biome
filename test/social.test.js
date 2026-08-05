@@ -851,8 +851,14 @@ describe('social: the shared neighbour walk (Step 30)', () => {
     const shared = engine.world.neighbourhood.get(animal.id);
     assert.ok(Array.isArray(shared), 'every living animal gets a neighbour list');
     assert.equal(shared.length % 2, 0, 'the list is flat [id, distance, ...] pairs');
-    // And it agrees with a fresh query at the same radius.
-    const radius = engine.world.perception.get(animal.id).radius;
+    // And it agrees with a fresh query at the radius it was actually walked at.
+    // ⚠ **Which is `neighbourhoodRadius`, not `perception.radius`** — those were
+    // one number until BEHAVIOR-PLAN P0 let the shared walk reach past the senses
+    // that fill it, so a species declaring `behavior.herdRadius` (the wildebeest
+    // and the buffalo do) publishes a longer list than it can see. Reading the
+    // perception radius here would assert the walk is narrower than it is.
+    const radius = engine.world.neighbourhoodRadius.get(animal.id);
+    assert.ok(radius >= engine.world.perception.get(animal.id).radius, 'the walk is never shorter than the senses');
     const expected = engine.world.grid
       .queryRadius(animal.x, animal.y, radius)
       .filter((id) => {

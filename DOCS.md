@@ -3133,6 +3133,53 @@ hunger, thirst, weather and predators, which is what makes a herd loose and
 living. It is scaled by `(2 − boldness)`, reusing an existing trait rather than
 adding an eighth: a bold animal is a looser member.
 
+#### Two radii, since 2026-08-05 (BEHAVIOR-PLAN.md P0/P1)
+
+⚠⚠ **Sociality had one radius doing three jobs, and it now has two doing
+three.** `config.social.groupRadius` (6) decided who contributes to the **centre
+of mass**, who counts as a **groupmate** — and therefore as an adult, a defender,
+a mobber — and how far a **label** carries in one hop. Six is right for a gazelle
+and too small to hold a wildebeest aggregation together, so a species may declare
+`behavior.herdRadius`, and it moves the **first job only**. The wildebeest and the
+buffalo declare 11; nothing else declares one.
+
+The refusal is the design, and `social/herding.js` carries the argument:
+
+- **Not the label.** A wider label means bigger herds, more hop churn and
+  `maxGroupSize` saturating — a change to the herd-size distribution in the
+  metrics, arriving as a side effect of a cohesion change.
+- **Not `groupmates` / `adults`.** `adults` is what collective vigilance and
+  `mobbing.minMobbers` count, so widening it would make the two largest grazers
+  **harder to kill**. That is a predation change wearing a cohesion change's
+  clothes, and it is the same line heterospecific association is held to.
+
+⚠ **The neighbour walk is now a third number, and it is not the perception
+radius.** `world.neighbourhood` was the perception radius by construction — the
+grid query *was* the gate on everything downstream — and a herd wider than its
+members' eyes needs it not to be. Perception therefore queries animals at
+`max(perception, herd, joinRadius, alarmRadius)`, publishes that width in
+`world.neighbourhoodRadius`, and gates **everything it reports** back down to the
+perception radius; the `(2r+1)²` cell scan and the line-of-sight raycast never
+widen at all. The three consumers of the raw list (`SocialSystem`, `GroupSystem`,
+`adoptedPrey`) each gate by their own radius, which two of them already did and
+the third did not.
+
+⚠⚠ **Two radii mean the centroid's numerator and denominator can come from
+different sets**, and that is the trap in this change rather than the radius
+itself. The total weight behind the mean used to be `groupmates`, a headcount,
+which was correct only while every conspecific contributed exactly `1` *and* lived
+inside the same gate. Both stopped being true at once. A weighted numerator over a
+counted denominator is not a mean — it is a point scaled away from the origin by
+however far the two disagree, silently, and on this map that is tens of units in
+the number every herding animal steers at. The weight is accumulated now, and
+`test/herding.test.js` pins it two ways (the centre of a mixed-radius herd is the
+mean of the herd; a centroid never lands outside the animals that made it).
+
+Cost: **+9.7% of a demo tick** for the widening, none of it for the restructure —
+see `BENCHMARK.md`, including why the first reading said +21%. Off switch:
+`config.social.perSpeciesRadius`, wired into *both* perception and sociality so
+that off restores the cost as well as the behaviour.
+
 Alarm is staged into a map and committed after the pass, so panic spreads exactly
 one hop per tick regardless of entity iteration order. Writing straight to the
 entity would let an alarm race down the id ordering and cross the whole herd in a

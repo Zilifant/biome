@@ -166,14 +166,27 @@ export function cooperationBonus(attackers, params) {
  *
  * @param {import('../world/World.js').World} world
  * @param {object} entity the predator looking for something to join
+ * ⚠⚠ **The `radius` argument is a correctness gate, not a tuning knob**
+ * (BEHAVIOR-PLAN P0). This function reads the shared neighbour walk and has never
+ * tested how far away the *neighbour* is — only how far away its quarry is — for
+ * the entirely good reason that the walk was the perception radius and a
+ * neighbour on it was therefore one this animal could sense. Since the walk may
+ * now reach past the senses, an ungated version would let a predator join a hunt
+ * run by a pride-mate it cannot see. It is a no-op for the shipped roster (no
+ * predator declares a herd radius) and it is added anyway, because the day one
+ * does is not the day to discover this.
+ *
  * @param {number[]} neighbours the flat `[id, distance, …]` walk perception published
  * @param {object} cooperation resolved world-level parameters
+ * @param {number} [radius] how far this animal can actually sense; neighbours
+ *        beyond it are on the shared list but not in this animal's world
  * @returns {{id: number, distance: number, speciesId: string, x: number, y: number, fleeing: boolean} | null}
  */
-export function adoptedPrey(world, entity, neighbours, cooperation) {
+export function adoptedPrey(world, entity, neighbours, cooperation, radius = Infinity) {
   if (!cooperation.enabled || !neighbours) return null;
   let best = null;
   for (let i = 0; i < neighbours.length; i += 2) {
+    if (neighbours[i + 1] > radius) continue;
     const other = world.entities.get(neighbours[i]);
     if (!other || other.kind !== 'animal' || !other.alive) continue;
     if (other.action !== 'chase' || other.huntTargetId === null) continue;

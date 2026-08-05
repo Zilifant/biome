@@ -339,6 +339,36 @@ describe('cooperative hunting: joining a hunt', () => {
     quarry.x = 20 + DEFAULT_COOPERATION.joinRange + 1;
     assert.equal(adoptedPrey(engine.world, joiner, neighbours, DEFAULT_COOPERATION), null);
   });
+
+  test('⚠ and the pride-mate has to be one this animal can actually see', () => {
+    // BEHAVIOR-PLAN P0. This function reads the *shared* neighbour walk, which may
+    // now reach past the senses that filled it, and it has never tested how far
+    // away the neighbour is — only its quarry. Until P0 the query radius was that
+    // gate; the radius argument is what replaces it. It is a no-op for the shipped
+    // roster (no predator declares a herd radius) and is asserted anyway, because
+    // the day one does is not the day to find this out.
+    const engine = sandbox();
+    const joiner = spawn(engine, PACK_HUNTER.id, { x: 20, y: 20 });
+    const chaser = spawn(engine, PACK_HUNTER.id, { x: 25, y: 20, action: 'chase' });
+    const quarry = spawn(engine, HERD_ANIMAL.id, { x: 28, y: 20 });
+    chaser.huntTargetId = quarry.id;
+    const neighbours = [chaser.id, 5]; // the chaser is five units off
+
+    assert.equal(
+      adoptedPrey(engine.world, joiner, neighbours, DEFAULT_COOPERATION, 6)?.id,
+      quarry.id,
+      'inside the senses, the hunt is joinable',
+    );
+    assert.equal(
+      adoptedPrey(engine.world, joiner, neighbours, DEFAULT_COOPERATION, 4),
+      null,
+      'on the shared list but out of sight: no hunt to join',
+    );
+    // ⚠ And the default is the old behaviour exactly, which is what keeps every
+    // other call in this file (and every world without a wide-herd predator)
+    // reading as it did.
+    assert.equal(adoptedPrey(engine.world, joiner, neighbours, DEFAULT_COOPERATION)?.id, quarry.id);
+  });
 });
 
 describe('mobbing: who stands, and when', () => {

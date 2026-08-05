@@ -557,6 +557,94 @@ from "the world contains something" — and here the two arms' *populations diff
 (the vulture arm ends with 8.4% more birds), so a cross-tree number would be
 measuring the second question while appearing to answer the first.
 
+### The herd radius (2026-08-05, BEHAVIOR-PLAN.md P0/P1)
+
+**P0 is free; P1 costs +9.7% of a demo tick — and the first number this
+measurement produced was +21%, which was mostly the *world* rather than the
+code.** That mistake, and how it was caught, is the useful part.
+
+P0 split the neighbour walk from the perception radius so a species may herd
+wider than it sees; P1 gave the wildebeest and the buffalo `behavior.herdRadius:
+11` against a perception radius of 7. Those two are **53% of the demo's founding
+animals**, so `grid.queryRadius` runs over `(11/7)²` ≈ 2.5× the cells for half the
+roster. This is D24's shape — benchmark the thing you changed, where it dominates
+— and the demo happens to be exactly that world.
+
+Interleaved, in one session, three arms, 2000 ticks after a 200-tick warmup:
+
+| arm | demo world | vs control |
+| --- | ---: | ---: |
+| control (pre-P0) | 6.389 ms/tick | — |
+| **P0 only** (`social.perSpeciesRadius: false`) | 6.397 ms/tick | **+0.1%** |
+| P0 + P1 (`herdRadius: 11`) | 7.731 ms/tick | +21.0% |
+
+⚠⚠ **The +21% is not the mechanism's cost, and the tell was a non-monotonic
+row.** Priced at radius 9 and 10 the same way, radius **10 came out slower than
+11** (8.66 against 7.73), which no cost model produces. The arms had diverged: a
+2000-tick run of a changed demo is a *different world*, with a different
+population doing a different amount of work, and the timing was reporting that
+rather than the query. Re-measured over 400 ticks — short enough that the arms
+still hold the same animals — with entity counts printed beside each figure so the
+confound cannot hide again:
+
+| arm | demo world | entities | vs control |
+| --- | ---: | ---: | ---: |
+| control (pre-P0) | 4.910 ms/tick | 499 | — |
+| P1 @ `herdRadius: 9` | 5.175 ms/tick | 501 | +5.4% |
+| P1 @ `herdRadius: 11` | 5.386 ms/tick | 501 | **+9.7%** |
+
+Monotonic in the radius, as a cell-count argument says it must be, and ~10% for
+half the roster scanning 2.5× the area is the right order. **11 is kept**: the
+wildebeest founds in cohorts of fifteen at `spread: 6`, so a herd is twelve units
+across and a radius of 9 would leave an animal on one edge steering at a centre
+built from a fraction of its own herd — which is the defect P1 exists to fix.
+
+⚠⚠ **And +9.7% is the tick-400 figure. The settled world costs +48%, and the
+reason is the mechanism working.** Measured back-to-back on seed 7, 5000 ticks,
+via `test/determinism.test.js`'s wall-clock smoke test:
+
+| arm | 5000 ticks | living animals at t5000 | carcasses |
+| --- | ---: | ---: | ---: |
+| control (pre-P0) | 42.2 s | 679 | 99 |
+| P0 + P1 | 62.6 s | **598** | 145 |
+
+**The tree is 12% *emptier* and 48% slower**, so this cannot be read as "more
+animals to simulate" — it is the opposite of that. `grid.queryRadius` costs what
+is *inside* the radius, and P1's whole purpose is to make the wildebeest and the
+buffalo stand closer together. A tighter herd is more neighbours per query, and
+the list is then walked again by `SocialSystem`. So the cost is superlinear in the
+clumping the feature exists to produce, and it is invisible at tick 400 because
+the herds have not tightened yet.
+
+⚠ **This is the Flight section's lesson arriving from the other direction.** There,
+a founding-ratio benchmark understated a mechanism because the species' *share of
+the population* grew. Here, a short-window benchmark understates one because the
+species' *density* grows. Same defect: the arms were compared in a world neither
+of them had shaped yet. When a mechanism changes where animals stand, measure it
+after they have stood there.
+
+⚠ P1 also moves the demo's populations on this seed — buffalo 116→74, wildebeest
+303→245, gazelle 106→126, carcasses 99→145. **One seed is not a result** (§20: five
+cannot resolve a one-seed difference, let alone one), and BEHAVIOR-PLAN defers
+balance explicitly, but the direction is worth recording: the two species that
+declare a herd radius are the two that fall. The 3-seed exploratory sweep the plan
+schedules after P5 is where this gets characterized.
+
+⚠ **P0 being free is a result, not an absence of one.** It widens
+`grid.queryRadius` (a bounding-box cell walk) and deliberately **not** the
+`(2r+1)²` cell scan or the line-of-sight raycast — those stay on the perception
+radius, behind the new `distance > radius` gate. The quadratic loop that owns ~53%
+of a tick never moves, which is why half the roster can walk 2.5× the area for
+~10% rather than for the ~50% a widened `perception.radius` would have cost.
+
+⚠ **`config.social.perSpeciesRadius` is wired into two systems on purpose.** The
+first cut gated only `SocialSystem`, on the sound argument that a wider list is
+transient and distance-gated and so cannot change an outcome. It cannot — but the
+off arm then still *paid* for the walk, and the middle row above is the whole
+reason this section can attribute anything. A control arm that does not restore
+the cost cannot answer "what did this cost", which is the same lesson phase 4's
+possession-off row taught.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

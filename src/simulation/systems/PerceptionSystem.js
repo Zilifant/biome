@@ -17,13 +17,24 @@
  * Ownership: writes `world.perception`; reads the spatial grid, terrain, and
  * vegetation. No randomness.
  *
- * ⚠ **The `radius` in each summary is the radius that was actually walked**, not
- * the species' declared one — from phase F1 a flying animal's is wider. That
- * matters because `world.neighbourhood` is published at whatever radius the walk
- * used and `SocialSystem#neighboursOf` reuses the list only when
- * `perception.radius >= its own`: a *longer* list is safe (everything past the
- * social radius fails the distance gates there), a shorter one silently drops
- * neighbours. Reporting the effective radius is what keeps that check honest.
+ * ⚠ **The `radius` in each summary is the radius this animal actually senses at**,
+ * not the species' declared one — from phase F1 a flying animal's is wider.
+ *
+ * ⚠⚠ **The neighbour walk is a separate, never-smaller radius** (BEHAVIOR-PLAN
+ * P0), and the two must not be confused. `world.neighbourhood` is the shared walk
+ * the social and group systems reuse instead of touching the grid again (§1.4 C6),
+ * and those systems have their own radii — a herd wider than its members' eyes, an
+ * alarm, a join range. So the query runs at `max(perception, herd, joinRadius,
+ * alarmRadius)` and **everything perception itself reports is gated back down to
+ * `radius`**: what it can see is unchanged, only who it hands on is wider. The
+ * width is published in `world.neighbourhoodRadius`, which is what the reuse
+ * checks compare against — a *longer* list is safe (everything past a consumer's
+ * own radius fails its distance gate), a shorter one silently drops neighbours.
+ *
+ * ⚠ **Which is why every consumer of the raw list must gate by distance.** Three
+ * do: `SocialSystem`, `GroupSystem`, and `adoptedPrey`. Before P0 the query radius
+ * *was* that gate for all of them, which is a thing that stops being true the
+ * moment the list is wider than the senses that filled it.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode, SHELTERING_BY_CODE } from '../world/TerrainGrid.js';
@@ -31,6 +42,7 @@ import { isEligiblePrey, isReachablePrey, maxPreyMassFor, minPreyMassFor } from 
 import { isConcealed } from '../parenting/hiding.js';
 import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
 import { flightVisionMultiplier } from '../locomotion/flight.js';
+import { herdRadiiIn } from '../social/herding.js';
 
 export class PerceptionSystem extends SimulationSystem {
   /**
@@ -43,11 +55,21 @@ export class PerceptionSystem extends SimulationSystem {
   #crypticFrom = null;
   /** @type {Map<string, number>} */
   #cryptic = new Map();
+  /**
+   * Per-species herd radii (BEHAVIOR-PLAN P1), cached against the same registry
+   * and for the same reason. Empty for a roster where nobody declares one, and
+   * then the neighbour walk is exactly the walk it always was.
+   * @type {Map<string, number>}
+   */
+  #herdRadii = new Map();
 
   /**
    * @param {object} [options]
    * @param {number} [options.defaultRadius] radius for species without one
    * @param {number} [options.foodMinLevel] vegetation level that counts as food
+   * @param {number} [options.minNeighbourRadius] floor on the *neighbour* walk, so
+   *        consumers whose own radius is world-level (the alarm, the join range)
+   *        are served out of the shared walk rather than starting a second one
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -56,6 +78,20 @@ export class PerceptionSystem extends SimulationSystem {
     maxMateCandidates = 6,
     lineOfSight = true,
     neonatalConcealment = true,
+    // ⚠ Zero by default, which makes a bare `new PerceptionSystem(config.perception)`
+    // walk exactly the radius it always did. The composition root raises it to the
+    // largest world-level radius any consumer of the shared walk uses; see
+    // `createDemoSimulation`. It is a *floor*, never a cap: a species that senses
+    // further still walks its own radius.
+    minNeighbourRadius = 0,
+    // ⚠⚠ **The same switch `SocialSystem` reads, and it is wired to both on
+    // purpose.** The first cut gated only the consumer, on the argument that a
+    // wider list is transient and distance-gated and therefore cannot change an
+    // outcome. True, and not enough: the off arm was then a *behavioural* control
+    // that still paid for the mechanism, so it could not answer "what did this
+    // cost". It costs 21% of a demo tick (measured 2026-08-05), which is exactly
+    // the size of question a control arm has to be able to settle.
+    perSpeciesRadius = true,
     // Cover concealment (phase 14, PLAN-SPECIES.md §3.12). ⚠ Wired from the global
     // `config.concealment` — a different mechanism from the neonatal one above,
     // and the two are kept apart by name because they answer different questions:
@@ -82,6 +118,8 @@ export class PerceptionSystem extends SimulationSystem {
     this.neonatalConcealment = neonatalConcealment;
     this.coverConcealment = coverConcealment;
     this.coverConcealmentStrength = coverConcealmentStrength;
+    this.minNeighbourRadius = minNeighbourRadius;
+    this.perSpeciesRadius = perSpeciesRadius;
   }
 
   update(world, context) {
@@ -89,12 +127,19 @@ export class PerceptionSystem extends SimulationSystem {
     // Cover concealment (§3.12): which species are cryptic at all, resolved once
     // per world. Empty for a roster that declares none, and then the neighbour
     // loop below is exactly the loop it was.
+    //
+    // ⚠ The herd radii ride the same guard and the same registry check, so a
+    // system instance reused across worlds rebuilds both together — and the same
+    // switch `SocialSystem` reads gates them here too, so that turning the
+    // mechanism off stops paying for the wider walk as well as ignoring it.
     if (this.#crypticFrom !== world.species) {
       this.#crypticFrom = world.species;
       this.#cryptic = this.coverConcealment ? crypticSpeciesIn(world.species) : new Map();
+      this.#herdRadii = this.perSpeciesRadius ? herdRadiiIn(world.species) : new Map();
     }
     perception.clear();
     world.neighbourhood.clear();
+    world.neighbourhoodRadius.clear();
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
       // The whole resolved `perception` block is handed down, rather than the
@@ -155,6 +200,20 @@ export class PerceptionSystem extends SimulationSystem {
     // `locomotion/flight.js`.
     const ground = sensing?.radius ?? this.defaultRadius;
     const radius = entity.flying === true ? ground * flightVisionMultiplier(species) : ground;
+    // ⚠⚠ **The neighbour walk, which is a different number from `radius`**
+    // (BEHAVIOR-PLAN P0). Resolved *here*, inside, from the `species` already in
+    // hand and one `Map.get` per animal — never as a parameter, for D28's reason:
+    // one extra argument to this function cost 12% of total engine time at
+    // large-5k. It is the same trick the flight multiplier plays on the line
+    // above. `size === 0` is the whole cost for a roster that declares no herd
+    // radius, which is every roster before P1.
+    //
+    // ⚠ It widens `grid.queryRadius` — a bounding-box cell walk — and **not** the
+    // (2r+1)² cell scan below, which stays on `radius`. That is the whole point:
+    // the quadratic loop is untouched, and the linear one grows only for a species
+    // that asked for it.
+    const herd = this.#herdRadii.size === 0 ? 0 : (this.#herdRadii.get(entity.speciesId) ?? 0);
+    const neighbourRadius = Math.max(radius, herd, this.minNeighbourRadius);
     const foodMinLevel = sensing?.foodMinLevel ?? this.foodMinLevel;
     const radiusSquared = radius * radius;
     const los = this.lineOfSight;
@@ -187,39 +246,58 @@ export class PerceptionSystem extends SimulationSystem {
     // grid order, which is ascending id.
     /** @type {number[]} */
     const neighbours = [];
-    for (const otherId of world.grid.queryRadius(entity.x, entity.y, radius)) {
+    for (const otherId of world.grid.queryRadius(entity.x, entity.y, neighbourRadius)) {
       if (otherId === entity.id) continue;
       const other = world.entities.get(otherId);
       if (!other) continue;
       // Carcasses are what a carnivore actually eats (Step 16), so they are
       // sensed alongside the living.
+      //
+      // ⚠ **The `distance <= radius` test is new and is not an optimization**
+      // (BEHAVIOR-PLAN P0): this branch never had a distance gate of its own,
+      // because the query radius *was* the gate. Now that the query can reach
+      // past the senses, an ungated carcass branch would silently extend every
+      // scavenger's and cacher's nose. The rest of the reordering *is* free — all
+      // four predicates are pure and the record is only built when every one of
+      // them passes, so putting the register compares ahead of the raycast cannot
+      // change which carcass wins.
       if (other.kind === 'carcass') {
-        if (other.edibleMass > 0 && (!los || hasLineOfSight(world, entity.x, entity.y, other.x, other.y))) {
-          const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
-          if (nearestCarcass === null || distance < nearestCarcass.distance) {
-            const cell = world.cellOf(other.x, other.y);
-            nearestCarcass = {
-              id: otherId,
-              distance,
-              x: other.x,
-              y: other.y,
-              cellX: cell.cellX,
-              cellY: cell.cellY,
-              edibleMass: other.edibleMass,
-            };
-          }
+        const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
+        if (
+          distance <= radius &&
+          other.edibleMass > 0 &&
+          (nearestCarcass === null || distance < nearestCarcass.distance) &&
+          (!los || hasLineOfSight(world, entity.x, entity.y, other.x, other.y))
+        ) {
+          const cell = world.cellOf(other.x, other.y);
+          nearestCarcass = {
+            id: otherId,
+            distance,
+            x: other.x,
+            y: other.y,
+            cellX: cell.cellX,
+            cellY: cell.cellY,
+            edibleMass: other.edibleMass,
+          };
         }
         continue;
       }
       if (other.kind !== 'animal' || !other.alive) continue;
       const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
-      // The neighbour list is the shared walk the social system reuses (§1.4
-      // C6), so it stays the raw radius set — reuse must remain byte-identical to
-      // a fresh grid walk. Line of sight gates what this animal *perceives* — a
-      // prey, a threat, a mate, its guardian — not who is nearby for herding and
-      // alarm, since cohesion and a panic call are not strictly line-of-sight (an
-      // alarm is a sound that carries around a rock).
+      // The neighbour list is the shared walk the social and group systems reuse
+      // (§1.4 C6), so it stays the raw *neighbour-radius* set — unfiltered by
+      // line of sight, because cohesion and a panic call are not strictly
+      // line-of-sight (an alarm is a sound that carries around a rock), and
+      // unfiltered by the perception radius, because a herd can be wider than the
+      // eyes of the animals in it.
       neighbours.push(otherId, distance);
+      // ⚠⚠ **Everything from here down is perception, and perception stops at
+      // `radius`.** This one line is what separates "who is near me" from "what I
+      // can sense", and before P0 there was nothing to separate because the query
+      // radius did both jobs. It is deliberately *above* `animalCount`: that count
+      // is what the inspector shows and what `perception.test.js` asserts, and it
+      // has always meant animals this animal can perceive.
+      if (distance > radius) continue;
       animalCount += 1;
       // An animal behind an opaque obstacle is not *seen*, so it is none of the
       // things below. This is what makes rock and thicket a hiding place from
@@ -336,6 +414,10 @@ export class PerceptionSystem extends SimulationSystem {
       mateCandidates.length = this.maxMateCandidates;
     }
     world.neighbourhood.set(entity.id, neighbours);
+    // ⚠ Published beside the list rather than in the summary below, which is
+    // projected whole to entity inspection: putting it there would make an
+    // internal scratch value a protocol change (invariant 11).
+    world.neighbourhoodRadius.set(entity.id, neighbourRadius);
 
     // --- Cell features: a local scan of the radius neighborhood (bounded, not
     // global). Nearest food (vegetation ≥ threshold), water, and obstacle.

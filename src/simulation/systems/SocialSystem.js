@@ -57,6 +57,17 @@
  * for the measured claim that a world with no declaring species is arithmetically
  * unchanged.
  *
+ * ⚠⚠ **There are two radii as of BEHAVIOR-PLAN P1, and confusing them is the way
+ * to break this file.** `config.social.groupRadius` is what it always was — who
+ * counts as a **groupmate**, and therefore as an adult, a defender and a mobber,
+ * and how far a **label** carries in one hop. A species' `behavior.herdRadius` is
+ * new and moves exactly one thing: who contributes to the **centre of mass**. The
+ * two are gated independently in the neighbour loop below, and the reasoning for
+ * widening only the second — that `adults` feeds collective vigilance, so widening
+ * it would make the large grazers harder to kill as a side effect of a cohesion
+ * change — is in `social/herding.js`. The world-level switch is
+ * `config.social.perSpeciesRadius`.
+ *
  * Runs in the `decision` phase at priority -10, ahead of the decision system
  * (priority 0) which consumes the summary to score `herd` and `defend`, and
  * ahead of anything that reads alarm state. Ownership: writes `groupId`,
@@ -72,6 +83,7 @@ import {
   associationWeightFor,
   associationsIn,
 } from '../social/association.js';
+import { herdRadiiIn } from '../social/herding.js';
 
 export class SocialSystem extends SimulationSystem {
   /**
@@ -83,6 +95,13 @@ export class SocialSystem extends SimulationSystem {
   #associationsFrom = null;
   /** @type {Map<string, Record<string, number>>} */
   #associations = new Map();
+  /**
+   * Per-species herd radii (BEHAVIOR-PLAN P1), on the same registry guard and
+   * resolved in the same place, since both answer "what does this species say
+   * about standing with others" and both are empty for a roster that says nothing.
+   * @type {Map<string, number>}
+   */
+  #herdRadii = new Map();
 
   /**
    * @param {object} [options]
@@ -112,6 +131,12 @@ export class SocialSystem extends SimulationSystem {
     // `association` field; these two are the machinery.
     associationEnabled = DEFAULT_ASSOCIATION.enabled,
     associationSharesAlarm = DEFAULT_ASSOCIATION.sharesAlarm,
+    // Per-species herd radius (BEHAVIOR-PLAN P1). ⚠ Wired from `config.social`, a
+    // global section, for the same reason as the two above: a species block beats
+    // the config, so a switch inside `behavior` could not switch anything off.
+    // False makes every species herd at `groupRadius` again — the reproducible
+    // control, and byte-identical to the pre-P1 world.
+    perSpeciesRadius = true,
     updateInterval = 1,
   } = {}) {
     super({ id: 'social', phase: 'decision', priority: -10, updateInterval });
@@ -124,6 +149,7 @@ export class SocialSystem extends SimulationSystem {
     this.minGroupSize = minGroupSize;
     this.associationEnabled = associationEnabled;
     this.associationSharesAlarm = associationSharesAlarm;
+    this.perSpeciesRadius = perSpeciesRadius;
   }
 
   update(world, context) {
@@ -153,11 +179,27 @@ export class SocialSystem extends SimulationSystem {
     // the loop below the loop it has always been.
     const associations = this.#associationsFor(world);
     const associating = associations.size > 0;
+    // Per-species herd radii (BEHAVIOR-PLAN P1), on the same one-comparison
+    // early-out. Empty when the switch is off or nobody declares one, and then
+    // every `herdRadius` below is `this.groupRadius` and every gate is the gate it
+    // has been since Step 23.
+    const herdRadii = this.#herdRadiiFor(world);
+    const herding = herdRadii.size > 0;
 
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
 
-      const radius = Math.max(this.groupRadius, this.alarmRadius);
+      // ⚠⚠ **Two radii now, and which job each does is the whole of P1.**
+      // `herdRadius` decides who is in the **centre of mass**; `this.groupRadius`
+      // decides who is a **groupmate** — and therefore an adult, a defender, a
+      // mobber — and how far a **label** carries in one hop. See
+      // `social/herding.js` for why widening only the first is deliberate: the
+      // other two would turn a cohesion knob into a predation knob and a metrics
+      // change. They are gated independently below rather than one clamped
+      // against the other, so a species that declared a *narrower* herd than its
+      // label would get exactly that.
+      const herdRadius = herding ? (herdRadii.get(entity.speciesId) ?? this.groupRadius) : this.groupRadius;
+      const radius = Math.max(herdRadius, this.groupRadius, this.alarmRadius);
       let groupmates = 0;
       let adults = 0;
       let sumX = 0;
@@ -165,13 +207,25 @@ export class SocialSystem extends SimulationSystem {
       let sumSin = 0;
       let sumCos = 0;
       let nearestMate = Infinity;
-      // The heterospecific half of the same sums. Kept in its own
-      // accumulator rather than folded into `groupmates` so the conspecific
-      // arithmetic below is untouched — `groupmates + 0` is exactly `groupmates`,
-      // which is what makes a world with no association bit-identical rather than
+      // The heterospecific half of the same sums. Kept in its own accumulator
+      // rather than folded into the conspecific one so that arithmetic is
+      // untouched — `conspecificWeight + 0` is exactly `conspecificWeight`, which
+      // is what makes a world with no association bit-identical rather than
       // merely equivalent.
       let associates = 0;
       let associateWeight = 0;
+      // ⚠⚠ **The centroid's denominator, and it may no longer be `groupmates`.**
+      // Until P1 every conspecific contributed exactly `1` to `sumX` and lived
+      // inside the same gate as `groupmates`, so a headcount *was* the total
+      // weight behind the mean. Both halves of that stopped being true: a
+      // conspecific inside `herdRadius` but outside `groupRadius` contributes a
+      // position without being a groupmate. Divide a weighted numerator by a
+      // headcount denominator and the mean is not a mean — it is a point scaled
+      // away from the origin, silently, by however far the two disagree. So the
+      // weight is accumulated rather than counted. ⚠ With one radius and no
+      // associates this is *exactly* `groupmates`: summing `1.0` n times is the
+      // integer n in IEEE-754, so the division below is the division it was.
+      let conspecificWeight = 0;
       const association = associating ? (associations.get(entity.speciesId) ?? null) : null;
       // Every animal can always found a herd on its own id, at zero hops from
       // itself. Seeding from the *id* rather than from the label it happens to
@@ -218,46 +272,60 @@ export class SocialSystem extends SimulationSystem {
         // a `shun` action would have had to compete with foraging (the Step 24
         // lesson). Note it only works on *symptomatic* animals: an incubating
         // one looks fine and is embraced, which is how the outbreak spreads.
-        if (distance <= this.groupRadius && !isSymptomatic(other)) {
+        const inHerd = distance <= herdRadius;
+        const inGroup = distance <= this.groupRadius;
+        if ((inHerd || inGroup) && !isSymptomatic(other)) {
           // ⚠ An associate contributes a *position* and nothing else: it is not a
           // groupmate, not an adult of this herd, and never a label. Everything
           // downstream that counts bodies — mobbing's `minMobbers`, the hunting
           // system's collective vigilance — reads the conspecific counts, and a
           // mob of the wrong species defends nobody (see social/association.js).
           if (!conspecific) {
-            associates += 1;
-            associateWeight += worth;
-            sumX += other.x * worth;
-            sumY += other.y * worth;
-            sumSin += Math.sin(other.heading) * worth;
-            sumCos += Math.cos(other.heading) * worth;
+            if (inHerd) {
+              associates += 1;
+              associateWeight += worth;
+              sumX += other.x * worth;
+              sumY += other.y * worth;
+              sumSin += Math.sin(other.heading) * worth;
+              sumCos += Math.cos(other.heading) * worth;
+            }
           } else {
-            groupmates += 1;
-            if (other.lifeStage === 'adult' || other.lifeStage === 'senescent') adults += 1;
-            sumX += other.x;
-            sumY += other.y;
-            sumSin += Math.sin(other.heading);
-            sumCos += Math.cos(other.heading);
-            if (distance < nearestMate) nearestMate = distance;
-            // Label propagation: the smallest id in sight wins, which makes merges
-            // symmetric — both herds reach the same answer without negotiating.
-            // A label is only worth taking if its root is still reachable within
-            // `maxGroupHops`; that is the check a split fails. The size cap is
-            // checked against a *live* tally (see below), so a rush of animals
-            // joining in one tick cannot collectively overshoot it.
-            //
-            // ⚠ Inside the conspecific branch on purpose (§3.16): a label that
-            // crossed species would merge two species into one herd and make every
-            // per-species herd metric meaningless. Association is an attraction,
-            // never a membership.
-            if (other.groupId !== null) {
-              const hops = (other.groupHops ?? 0) + 1;
-              const better = other.groupId < label || (other.groupId === label && hops < labelHops);
-              if (hops <= this.maxGroupHops && better) {
-                const size = groupSizes.get(other.groupId) ?? 0;
-                if (size < this.maxGroupSize || other.groupId === entity.groupId) {
-                  label = other.groupId;
-                  labelHops = hops;
+            if (inHerd) {
+              conspecificWeight += CONSPECIFIC_WEIGHT;
+              sumX += other.x;
+              sumY += other.y;
+              sumSin += Math.sin(other.heading);
+              sumCos += Math.cos(other.heading);
+            }
+            // ⚠ Everything from here to the end of the branch is **groupmate**
+            // arithmetic, on `groupRadius` rather than on `herdRadius`, and it is
+            // the half P1 deliberately left where it was: `adults` feeds
+            // collective vigilance and mobbing, and the label feeds every herd
+            // metric there is.
+            if (inGroup) {
+              groupmates += 1;
+              if (other.lifeStage === 'adult' || other.lifeStage === 'senescent') adults += 1;
+              if (distance < nearestMate) nearestMate = distance;
+              // Label propagation: the smallest id in sight wins, which makes merges
+              // symmetric — both herds reach the same answer without negotiating.
+              // A label is only worth taking if its root is still reachable within
+              // `maxGroupHops`; that is the check a split fails. The size cap is
+              // checked against a *live* tally (see below), so a rush of animals
+              // joining in one tick cannot collectively overshoot it.
+              //
+              // ⚠ Inside the conspecific branch on purpose (§3.16): a label that
+              // crossed species would merge two species into one herd and make every
+              // per-species herd metric meaningless. Association is an attraction,
+              // never a membership.
+              if (other.groupId !== null) {
+                const hops = (other.groupHops ?? 0) + 1;
+                const better = other.groupId < label || (other.groupId === label && hops < labelHops);
+                if (hops <= this.maxGroupHops && better) {
+                  const size = groupSizes.get(other.groupId) ?? 0;
+                  if (size < this.maxGroupSize || other.groupId === entity.groupId) {
+                    label = other.groupId;
+                    labelHops = hops;
+                  }
                 }
               }
             }
@@ -321,11 +389,14 @@ export class SocialSystem extends SimulationSystem {
       }
       entity.groupId = groupId;
 
-      // Total weight behind the centre of mass: one per groupmate, its declared
-      // worth per associate. ⚠ With no associates this is *exactly* `groupmates` — an
-      // integer-valued float added to zero — so every division below is the
-      // division it was before phase 12, bit for bit.
-      const weight = groupmates + associateWeight;
+      // Total weight behind the centre of mass: one per conspecific inside the
+      // *herd* radius, its declared worth per associate. ⚠ With no associates and
+      // no declared herd radius this is *exactly* `groupmates` — an integer-valued
+      // float added to zero — so every division below is the division it was
+      // before phase 12, bit for bit. ⚠⚠ It is `conspecificWeight` rather than
+      // `groupmates` because those two stopped being the same number in P1; see
+      // the accumulator's own note above for what dividing by the wrong one does.
+      const weight = conspecificWeight + associateWeight;
       world.social.set(entity.id, {
         groupId,
         groupmates,
@@ -366,8 +437,26 @@ export class SocialSystem extends SimulationSystem {
     if (this.#associationsFrom !== registry) {
       this.#associationsFrom = registry;
       this.#associations = this.associationEnabled ? associationsIn(registry) : new Map();
+      this.#herdRadii = this.perSpeciesRadius ? herdRadiiIn(registry) : new Map();
     }
     return this.#associations;
+  }
+
+  /**
+   * The herd radius of every species in this world that declares one (P1), keyed
+   * by id — empty when the switch is off or nobody declares one, which is the one
+   * `Map.size` comparison the whole mechanism costs such a world.
+   *
+   * ⚠ Resolved by `#associationsFor`, off the same registry check, so the two maps
+   * can never describe different rosters. Split into its own reader only because
+   * the caller wants them as two values.
+   *
+   * @param {import('../world/World.js').World} world
+   * @returns {Map<string, number>}
+   */
+  #herdRadiiFor(world) {
+    this.#associationsFor(world);
+    return this.#herdRadii;
   }
 
   /**
@@ -386,7 +475,11 @@ export class SocialSystem extends SimulationSystem {
   #neighboursOf(world, context, entity, radius) {
     if (world.neighbourhoodTick === context.tick) {
       const shared = world.neighbourhood.get(entity.id);
-      if (shared !== undefined && (world.perception.get(entity.id)?.radius ?? 0) >= radius) {
+      // ⚠ The **neighbour** radius, not the perception radius (BEHAVIOR-PLAN P0).
+      // Those were the same number until the walk was allowed to reach past the
+      // senses, and reading the wrong one here would drop back to a second grid
+      // walk for exactly the species the widening was built for.
+      if (shared !== undefined && (world.neighbourhoodRadius.get(entity.id) ?? 0) >= radius) {
         return shared;
       }
     }

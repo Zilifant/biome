@@ -80,6 +80,20 @@ export function registerDemoSystems(engine) {
       // different config section, which is why both are named in full here.
       coverConcealment: engine.config.concealment.enabled,
       coverConcealmentStrength: engine.config.concealment.strength,
+      // ⚠⚠ **The floor on the shared neighbour walk** (BEHAVIOR-PLAN P0), and the
+      // two numbers in it are the reason it exists: the alarm and the join range
+      // are **world-level** radii, so a species whose eyes are shorter than either
+      // would send `SocialSystem` or `GroupSystem` off to walk the grid a second
+      // time — the exact cost §1.4 C6 removed (+26 ms/tick at large-5k). Wired
+      // from the sections that own them rather than restated, so there is no
+      // second copy to drift (D11), and it is inert for today's roster because
+      // every shipped species already senses at least six cells.
+      minNeighbourRadius: Math.max(engine.config.social.alarmRadius, engine.config.groups.joinRadius),
+      // ⚠ Per-species herd radius (P1), from `config.social` — the same switch
+      // `SocialSystem` gets below, wired to both systems so that off means "does
+      // not happen" rather than "happens and is ignored". One is what the walk
+      // costs, the other is what reads it.
+      perSpeciesRadius: engine.config.social.perSpeciesRadius,
     }),
   );
   engine.registerSystem(new MemorySystem(engine.config.memory));

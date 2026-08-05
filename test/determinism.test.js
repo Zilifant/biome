@@ -80,6 +80,17 @@ describe('determinism', () => {
     // makes is still the one worth making — the engine holds no timer, so 5000
     // ticks take CPU time and not 5000 seconds. It stays far under the runner's
     // one-second authoritative tick.
-    assert.ok(elapsedMs < 120000, `5000 ticks took ${elapsedMs}ms`);
+    //
+    // ⚠ 120 000 until 2026-08-05, when BEHAVIOR-PLAN P1 gave the wildebeest and
+    // the buffalo a herd radius of 11. Measured back-to-back on this seed: 42.2 s
+    // before, 62.6 s after (+48%, and with 12% *fewer* animals alive — the cost is
+    // the clumping the feature exists to produce; see BENCHMARK.md). That alone
+    // fits, but `node --test` runs files in parallel, and under that contention
+    // the same run took **136 s** and failed. This is a smoke check on a wall
+    // clock competing with a dozen sibling processes, so the bound has to clear
+    // the contended case or it is a coin flip rather than an assertion — while
+    // still being ~20× under the 5000 seconds a timer-driven engine would need,
+    // which is the whole of what it claims.
+    assert.ok(elapsedMs < 240000, `5000 ticks took ${elapsedMs}ms`);
   });
 });

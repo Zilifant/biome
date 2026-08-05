@@ -401,7 +401,9 @@ export class GroupSystem extends SimulationSystem {
   #neighboursOf(world, context, entity, radius) {
     if (world.neighbourhoodTick === context.tick) {
       const shared = world.neighbourhood.get(entity.id);
-      if (shared !== undefined && (world.perception.get(entity.id)?.radius ?? 0) >= radius) {
+      // ⚠ The **neighbour** radius, not the perception radius (BEHAVIOR-PLAN P0) —
+      // see the same note in `SocialSystem#neighboursOf`.
+      if (shared !== undefined && (world.neighbourhoodRadius.get(entity.id) ?? 0) >= radius) {
         return shared;
       }
     }

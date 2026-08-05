@@ -126,6 +126,20 @@ export const herbivoreWildebeest = Object.freeze({
     // the config's 0.6/2.0 a founding cohort this size grazes itself apart.
     herdWeight: 1.0,
     herdDistance: 2.0,
+    // ⚠⚠ **The first species to declare a herd wider than the world's six cells**
+    // (BEHAVIOR-PLAN P1). This animal founds in the largest cohort in the roster
+    // (fifteen, at `spread: 6`), so at `social.groupRadius` a founding herd is
+    // already wider than the radius that is supposed to hold it together and the
+    // centre of mass an animal on the edge steers at is built from a third of its
+    // own herd. Eleven covers a `spread: 6` disc from either edge.
+    //
+    // ⚠ It widens the **centre of mass and nothing else** — not the herd label,
+    // not `adults`, and therefore not collective vigilance or mobbing. See
+    // `social/herding.js` for why that line is where it is. It is above this
+    // species' `perception.radius` of 7 on purpose: a wildebeest keeps station
+    // with a herd larger than it can see across, which is what the shared
+    // neighbour walk was widened to express.
+    herdRadius: 11,
     thirstWeight: 1.15,
     defendRange: 5.5,
   }),

@@ -961,7 +961,16 @@ export class DecisionSystem extends SimulationSystem {
     if (species === null || !this.cooperation.enabled) return null;
     if (!((species.hunting?.cooperationWeight ?? 0) > 0)) return null;
     if (world.neighbourhoodTick !== context.tick) return null;
-    return adoptedPrey(world, entity, world.neighbourhood.get(entity.id), this.cooperation);
+    // ⚠ The shared walk can reach further than this animal senses (BEHAVIOR-PLAN
+    // P0), so the perception radius goes with it: joining a pride-mate's hunt
+    // needs a pride-mate you can actually see.
+    return adoptedPrey(
+      world,
+      entity,
+      world.neighbourhood.get(entity.id),
+      this.cooperation,
+      world.perception.get(entity.id)?.radius ?? Infinity,
+    );
   }
 
   /**

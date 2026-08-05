@@ -152,6 +152,18 @@ export const herbivoreBuffalo = Object.freeze({
     // units apart is a herd on paper and a row of lone buffalo in practice.
     herdWeight: 1.1,
     herdDistance: 2.0,
+    // ⚠⚠ **A herd wider than six cells** (BEHAVIOR-PLAN P1), and for this species
+    // it is the same argument as the tight `herdWeight` above rather than a new
+    // one: mobbing is a density mechanism, and a herd whose members are steering
+    // at a centre built from only the neighbours inside six cells drifts into
+    // subgroups too small to mob. Founding cohorts of twelve at `spread: 5` are
+    // what this number has to hold together.
+    //
+    // ⚠ The centre of mass only. `adults` — which is what `mobbing.minMobbers`
+    // and the hunting system's collective vigilance actually count — stays on
+    // `social.groupRadius`, so this animal is no harder to catch than it was.
+    // That separation is the whole of `social/herding.js`.
+    herdRadius: 11,
     // Water is the need this animal organizes its life around.
     thirstWeight: 1.35,
     // A big animal reaches further to put itself between a predator and a calf.

@@ -88,6 +88,18 @@ export class World {
     // is the order `SpatialGrid.queryRadius` guarantees.
     /** @type {Map<number, number[]>} */
     this.neighbourhood = new Map();
+    // The radius each entry of `neighbourhood` was actually walked at, which is
+    // **not** the perception radius: since BEHAVIOR-PLAN P0 the animal query can
+    // reach further than the senses do, so that a species whose herd is wider
+    // than its eyes still gets its neighbours out of the one shared walk. Every
+    // consumer gates by distance, so a longer list can only cost time — but a
+    // *shorter* one silently drops neighbours, which is the question the reuse
+    // checks in `SocialSystem` and `GroupSystem` ask, and this is what they must
+    // ask it of. Kept beside the list for the same reason the list is kept out of
+    // the perception summary: that summary is projected to inspection (invariant
+    // 11) and this is an internal scratch value. Transient, never serialized.
+    /** @type {Map<number, number>} */
+    this.neighbourhoodRadius = new Map();
     // The tick `neighbourhood` was built on. A consumer must check this: the
     // perception system supports `updateInterval`, so on a staggered tick the
     // map holds a stale neighbourhood and the consumer has to walk the grid

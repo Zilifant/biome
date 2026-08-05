@@ -549,6 +549,25 @@ export const defaultSimulationConfig = Object.freeze({
   // seed from an empty world.
   social: Object.freeze({
     groupRadius: 6, // how far conspecifics count each other as groupmates
+    // ⚠⚠ **Whether a species may herd at a radius of its own** (BEHAVIOR-PLAN P1).
+    // Six cells is right for a gazelle and too small to coordinate a wildebeest
+    // aggregation, so a species may declare `behavior.herdRadius` and widen the
+    // one thing that decides its **centre of mass** — never the label, never
+    // `adults`. `social/herding.js` is the argument for that line; the short
+    // version is that `adults` feeds collective vigilance and mobbing, so widening
+    // it would make the large grazers harder to kill as a side effect of a
+    // cohesion change.
+    //
+    // ⚠ Here rather than in `behavior` by the phase-8 rule: a species block beats
+    // the config, so an off switch inside one could not switch anything off.
+    // `false` restores the single-radius world exactly, which is what makes it the
+    // reproducible control (`--set=social.perSpeciesRadius=false`).
+    //
+    // ⚠ It gates the **consumer**, not the walk. `PerceptionSystem` always sizes
+    // the shared neighbour list to cover the widest declared herd, because the
+    // list is transient, never serialized, and gated by distance at every consumer
+    // — so a longer one costs time and cannot change an answer.
+    perSpeciesRadius: true,
     // ⚠⚠ **24 since 2026-07-30 (phase 13), and the decision took a measurement
     // that reframed the question.** PLAN-SPECIES §7 asked "is 12 the wrong cap for
     // wildebeest?" and deferred it to batch 3. Measured there, `maxGroupSize` 12
