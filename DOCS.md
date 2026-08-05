@@ -82,7 +82,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | `PROTOCOL_VERSION`    | **32** — `flying` in bulk snapshots (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | **31** — `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
-| Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled — so **the §20 ten-seed gate has not been run at these values** and every survival reading in this document describes the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
+| Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eleven** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30, `climbs` on 2026-08-03, **`flight` on 2026-08-04** (§8). ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all eleven fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
@@ -724,34 +724,57 @@ reminder.
 
 ### 1.4 Structural and configuration debt
 
-**A81 — The demo roster has not been through the §20 gate** _(2026-08-04)_. The
-demo became the `ngorongoro-500-10x` world on that date — 332×280, `roundness: 4`,
-the four terrain formation counts doubled, and ~500 animals at the real crater's
-herbivore ratios (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3,
-lion 10, vulture 5, hyena 9), replacing 222 animals on a 160×120 rectangle. ⚠ The
-counts it replaced were a **swept knife edge**: every previous roster change ran
-ten seeds × 15 000 ticks against a control before it shipped, and three of four
-species batches failed that sweep the first time. These counts are an **observed
-census scaled instead**, which is a better world to look at and no evidence at all
-about survival — so ⚠⚠ **every coexistence reading in this document ("all eight
-alive on 10/10 seeds", the predator/prey oscillation, the gazelle means) describes
-the world that was replaced.** Run `npm run sweep` before quoting any of them as
-current. Two secondary readings are also stale until it is run: the mobbing and
-cooperative-capture densities (§9) were established as *counts* on a map ~4.8×
-smaller, and the demo-default benchmark row (§13, `BENCHMARK.md`) needs
-re-baselining — its scenario now follows the demo, so its pre-2026-08-04 figures
-describe a different world.
+**A81 — Three species do not persist in the new demo, and the demo is no longer
+held to a knife edge** _(2026-08-04)_. The demo became the `ngorongoro-500-10x`
+world on that date — 332×280, `roundness: 4`, the four terrain formation counts
+doubled, and ~500 animals at the real crater's herbivore ratios (gazelle 60,
+wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9),
+replacing 222 animals on a 160×120 rectangle. The counts it replaced were a
+**swept knife edge**; these are an **observed census scaled**.
 
-⚠ **The suite already found one difference, and it is the shape of thing the gate
-exists to find.** `test/carcass.test.js`'s steady-state check failed at its old
-9000-tick window because the standing carcass count is **still climbing** there
-(152 removed against 204 standing). Measured to 16 000 ticks on seed 42 it does
-settle — peak ~364 around t11 000, then oscillating in the 180–320 band while the
-population sits at 620–780 — so the window was lengthened to 15 000 rather than
-the assertion weakened. What that says about the world: bodies arrive faster than
-they are cleared for the first ~11 000 ticks, on a map ~4.8× the area with the
-same scavenger guild spread across it. Whether that is a transient of the founding
-or a standing property of the roster is exactly what the sweep would answer.
+⚠⚠ **Swept 2026-08-04, 10 seeds × 15 000 ticks** (`npm run sweep`), final
+populations as mean across seeds:
+
+| Species | Mean final | Seeds surviving | Per-seed range |
+| --- | ---: | ---: | --- |
+| gazelle | 169.5 | 10/10 | 31–230 |
+| wildebeest | 168.0 | 10/10 | 37–268 |
+| zebra | 147.2 | 10/10 | 54–207 |
+| buffalo | 96.5 | 10/10 | 53–165 |
+| lion | 17.1 | 10/10 | 7–28 |
+| hyena | 3.4 | 7/10 | 0–11 |
+| **vulture** | 4.7 | **1/10** | 0 on nine seeds, **47** on seed 5 |
+| **leopard** | 0.1 | **1/10** | 0 on nine seeds, 1 on seed 7 |
+
+The four grazers and the lion are robust and the lion *grows* (10 founders → 17.1
+mean). The leopard is gone on nine seeds of ten; the vulture likewise, but its one
+surviving seed carries **47 birds**, which says the layer works where it takes hold
+rather than that it cannot. The hyena persists thin. Leopard deaths across the
+sweep are 10 starvation to 30 age, so it is not being killed off — it is failing to
+find enough to eat as three founders scattered over a map ~4.8× the old one.
+
+⚠ **Under the old doctrine this is a failed gate.** It is accepted instead, by
+decision on 2026-08-04: **the demo is no longer maintained as a knife edge**, and
+adding mechanism takes priority over holding every species alive on every seed. So
+`npm run sweep` is now a **reading to record rather than a bar to pass** — the one
+thing it must not become is a reading nobody takes. The obvious lever if any of
+the three should persist is founder counts (3 leopards and 5 vultures are very few
+animals at this scale); nothing here argues the mechanisms are wrong.
+
+⚠ **The sweep and the test suite tell the same story from two directions.**
+`test/carcass.test.js`'s steady-state check failed at its old 9000-tick window
+because the standing carcass count is **still climbing** there (152 removed against
+204 standing). Measured to 16 000 ticks on seed 42 it does settle — peak ~364
+around t11 000, then oscillating in the 180–320 band while the population sits at
+620–780 — so the window was lengthened to 15 000 rather than the assertion
+weakened. Carrion piling up and the two obligate/facultative scavengers starving
+are **one finding, not two**: there is more carrion than the old world ever had and
+a guild too thin and too dispersed to find it.
+
+⚠ One reading remains stale by construction: the mobbing and cooperative-capture
+densities (§9) were established as *counts* on a map ~4.8× smaller. The sweep says
+the lion is doing well, which is indirect evidence cooperation still fires, but
+nothing here measures it directly.
 
 ⚠ **The committed renderer fixtures were deliberately not regenerated.** They are
 a sample of the *pre-2026-08-04* demo (seed 42, 160×120), still valid as protocol
@@ -5045,7 +5068,20 @@ change is a fixture change (§12).
 
 #### ⚠ The measurement gate — no species ships without it
 
-The demo is a knife edge, and the last four species each cost something nobody
+⚠⚠ **The bar in step 3 was retired on 2026-08-04, and the procedure was not.**
+When the demo became the ngorongoro world its sweep came back with the leopard and
+the vulture alive on 1 seed in 10 (§1.4 **A81**), and that was **accepted rather
+than re-tuned**: the demo is no longer maintained as a knife edge, because adding
+mechanism is worth more right now than holding every species alive on every seed.
+So read what follows as *how to take the reading and what to report*, with step 3's
+"≥6/10 seeds" as the historical bar every species through batch 4 was held to
+rather than a condition on shipping. **Steps 1, 2 and 4 are untouched** — proving a
+definition inert, sweeping ten seeds against a control, and asserting the mechanism
+directly are how you learn what a change did, and none of them depended on the
+world being balanced. A reading nobody takes is the only outcome that is worse than
+a reading that fails.
+
+The demo *was* a knife edge, and the last four species each cost something nobody
 predicted. The procedure below is the one eight species were shipped through; it
 is `npm run sweep` (`src/scripts/sweep.js`), which reports population by species
 at each checkpoint, deaths **by cause by species**, extinction ticks, carrion feeds

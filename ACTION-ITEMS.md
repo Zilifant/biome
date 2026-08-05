@@ -528,18 +528,24 @@ they are not re-opened by accident.
 
 ## Engine — schema and configuration
 
-- **A81 — The demo roster has not been through the §20 gate** _(2026-08-04)_. The
-  demo is now the `ngorongoro-500-10x` world (332×280, `roundness: 4`, doubled
-  terrain counts, ~500 animals at the real crater's herbivore ratios) in place of
-  222 animals on a 160×120 rectangle. ⚠ The counts it replaced were swept on ten
-  seeds × 15 000 ticks against a control; these are an observed census scaled, so
-  **every coexistence reading in the docs describes the world that was replaced**.
-  Run `npm run sweep` before quoting survival numbers. Also stale until then: the
-  mobbing / cooperative-capture densities, and the demo-default benchmark row.
-  ⚠ The suite already found one difference: carcasses are **still accumulating at
-  tick 9000** in this world (peak ~364 near t11 000, settling into a 180–320 band
-  by t16 000), so `test/carcass.test.js` now runs to 15 000 ticks.
-  See [`DOCS.md`](DOCS.md) §1.4.
+- **A81 — Three species do not persist in the new demo, and the demo is no longer
+  held to a knife edge** _(2026-08-04)_. The demo is now the `ngorongoro-500-10x`
+  world (332×280, `roundness: 4`, doubled terrain counts, ~500 animals at the real
+  crater's herbivore ratios) in place of 222 animals on a 160×120 rectangle.
+  ⚠⚠ Swept on ten seeds × 15 000 ticks: the four grazers and the lion are alive on
+  **10/10** seeds (gazelle 169.5, wildebeest 168.0, zebra 147.2, buffalo 96.5, lion
+  17.1 mean), the hyena on **7/10** (3.4), and the **leopard (1/10) and vulture
+  (1/10) are effectively gone** — the vulture's one surviving seed carrying 47
+  birds. Leopard deaths are 10 starvation to 30 age: three founders cannot find
+  enough on a map ~4.8× the old one.
+  ⚠ **Accepted rather than re-tuned** — as of this date the demo is not maintained
+  as a knife edge, and `npm run sweep` is a reading to record, not a bar to pass.
+  The lever if they should persist is founder counts.
+  ⚠ Carcasses are **still accumulating at tick 9000** (peak ~364 near t11 000,
+  settling into a 180–320 band by t16 000), so `test/carcass.test.js` now runs to
+  15 000 ticks — the same finding as the starving scavengers, from the other side.
+  Still stale: the mobbing / cooperative-capture densities, measured as counts on
+  the smaller map. See [`DOCS.md`](DOCS.md) §1.4.
 
 - **A49 — "Activity pattern" is not a schema field.** ⚠ Half of this item
   **closed 2026-07-29**: habitat preference now exists as a per-species `habitat`

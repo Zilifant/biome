@@ -1735,11 +1735,27 @@ export const defaultSimulationConfig = Object.freeze({
     // against ~332 km²), and the shape is its rim (`terrain.roundness: 4`). The
     // provenance is observation, not a sweep.
     //
-    // ⚠ **It has therefore not been through the §20 gate at these values.** The
-    // ten-seed × 15 000-tick sweep that every previous roster change passed has
-    // not been run on this one, so "every species alive on 10/10 seeds" is a
-    // claim about the *old* demo and must not be read as describing this world.
-    // Run `npm run sweep` before quoting survival numbers for it.
+    // ⚠⚠ **Swept on 2026-08-04 (10 seeds × 15 000 ticks) and it does NOT hold the
+    // old bar — deliberately.** The reading, final populations, mean across seeds:
+    //
+    //   gazelle 169.5 (10/10 seeds)   wildebeest 168.0 (10/10)
+    //   zebra   147.2 (10/10)         buffalo     96.5 (10/10)
+    //   lion     17.1 (10/10)         hyena        3.4 (7/10)
+    //   leopard   0.1 (1/10)          vulture      4.7 (1/10)
+    //
+    // The four grazers and the lion are robust; **the leopard is gone on 9 of 10
+    // seeds and the vulture on 9 of 10** (its one surviving seed carries 47 birds,
+    // so the layer works where it takes hold at all), and the hyena persists thin.
+    // Under the old doctrine that is a failed gate and these counts would have
+    // been re-tuned until it passed.
+    //
+    // ⚠ **The doctrine changed with this roster, by decision (2026-08-04): the
+    // demo is no longer maintained as a knife edge.** Adding mechanism now takes
+    // priority over holding every species alive on every seed, so `npm run sweep`
+    // is a *reading* to record rather than a bar to pass. What it must never
+    // become is a reading nobody takes — see §20 and A81, which carry this result
+    // and what would move it (the obvious lever is founder counts: 3 leopards and
+    // 5 vultures on a map ~4.8× the old one are very few animals).
     //
     // ⚠ Order is load-bearing and matches the preset file exactly: founders are
     // walked in this order, so ids, spawn order and every downstream random draw

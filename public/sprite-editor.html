@@ -1,176 +1,317 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>biome — sprite editor</title>
-  <link rel="stylesheet" href="/renderer/app/styles/dracula.css" />
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--dracula-background);
-      color: var(--dracula-foreground);
-      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--dracula-selection);
-    }
-    header h1 { font-size: 14px; margin: 0; color: var(--dracula-purple); }
-    header a { color: var(--dracula-cyan); }
-    #editor-status { color: var(--dracula-comment); margin-left: auto; }
-    #editor-main {
-      flex: 1;
-      display: flex;
-      min-height: 0;
-    }
-    #sheet-column, #slots-column {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      padding: 10px;
-    }
-    /* The glyph reference keeps a fixed-ish width on the left and is always in
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>biome — sprite editor</title>
+    <link rel="stylesheet" href="/renderer/app/styles/dracula.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--dracula-background);
+        color: var(--dracula-foreground);
+        font:
+          13px/1.45 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Monaco,
+          Consolas,
+          "Liberation Mono",
+          "Courier New",
+          monospace;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--dracula-selection);
+      }
+      header h1 {
+        font-size: 14px;
+        margin: 0;
+        color: var(--dracula-purple);
+      }
+      header a,
+      footer a {
+        color: var(--dracula-cyan);
+      }
+      #editor-status {
+        color: var(--dracula-comment);
+        margin-left: auto;
+      }
+      #editor-main {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      #sheet-column,
+      #slots-column {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 10px;
+      }
+      /* The glyph reference keeps a fixed-ish width on the left and is always in
        view; the sheet takes the rest. min-width: 0 on the sheet side is what
        lets a sheet wider than the viewport scroll INSIDE .sheet-scroll instead
        of forcing the whole page wide (flex items refuse to shrink below their
        content without it). */
-    #slots-column { flex: 0 1 420px; min-width: 300px; border-right: 1px solid var(--dracula-selection); }
-    #sheet-column { flex: 1 1 auto; min-width: 0; }
-    h2 { font-size: 12px; margin: 0 0 8px; color: var(--dracula-purple); text-transform: lowercase; }
-    h3 { font-size: 11px; margin: 10px 0 4px; color: var(--dracula-comment); text-transform: lowercase; }
+      #slots-column {
+        flex: 0 1 420px;
+        min-width: 300px;
+        border-right: 1px solid var(--dracula-selection);
+      }
+      #sheet-column {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      h2 {
+        font-size: 12px;
+        margin: 0 0 8px;
+        color: var(--dracula-purple);
+        text-transform: lowercase;
+      }
+      h3 {
+        font-size: 11px;
+        margin: 10px 0 4px;
+        color: var(--dracula-comment);
+        text-transform: lowercase;
+      }
 
-    #sheet-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1; }
-    .sheet-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-    .sheet-zoom-label { color: var(--dracula-comment); }
-    .sheet-scroll { overflow: auto; flex: 1; min-height: 0; border: 1px solid var(--dracula-selection); background: var(--dracula-background-dark); }
-    .sheet-canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
-    .sheet-empty { color: var(--dracula-comment); padding: 16px; max-width: 46em; }
-    .sheet-empty code { color: var(--dracula-orange); }
+      #sheet-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+        flex: 1;
+      }
+      .sheet-toolbar {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .sheet-zoom-label {
+        color: var(--dracula-comment);
+      }
+      .sheet-scroll {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+        border: 1px solid var(--dracula-selection);
+        background: var(--dracula-background-dark);
+      }
+      .sheet-canvas {
+        display: block;
+        image-rendering: pixelated;
+        cursor: crosshair;
+      }
+      .sheet-empty {
+        color: var(--dracula-comment);
+        padding: 16px;
+        max-width: 46em;
+      }
+      .sheet-empty code {
+        color: var(--dracula-orange);
+      }
 
-    #slots-panel { overflow: auto; flex: 1; min-height: 0; }
-    .slot-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      text-align: left;
-      padding: 3px 6px;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--dracula-foreground);
-      font: inherit;
-      cursor: pointer;
-    }
-    .slot-row:hover { background: var(--dracula-background-light); }
-    .slot-row.selected { border-color: var(--dracula-bright-yellow); background: var(--dracula-background-light); }
-    .slot-glyph { display: inline-block; width: 1.4em; text-align: center; font-weight: bold; }
-    .slot-label { flex: 1; }
-    .slot-assigned { color: var(--dracula-comment); min-width: 3.5em; text-align: right; }
-    .slot-thumb { background: var(--dracula-background-dark); border: 1px solid var(--dracula-selection); }
-    .slot-tint { width: 12px; height: 12px; border: 1px solid var(--dracula-selection); display: inline-block; }
+      #slots-panel {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+      }
+      .slot-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+        padding: 3px 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--dracula-foreground);
+        font: inherit;
+        cursor: pointer;
+      }
+      .slot-row:hover {
+        background: var(--dracula-background-light);
+      }
+      .slot-row.selected {
+        border-color: var(--dracula-bright-yellow);
+        background: var(--dracula-background-light);
+      }
+      .slot-glyph {
+        display: inline-block;
+        width: 1.4em;
+        text-align: center;
+        font-weight: bold;
+      }
+      .slot-label {
+        flex: 1;
+      }
+      .slot-assigned {
+        color: var(--dracula-comment);
+        min-width: 3.5em;
+        text-align: right;
+      }
+      .slot-thumb {
+        background: var(--dracula-background-dark);
+        border: 1px solid var(--dracula-selection);
+      }
+      .slot-tint {
+        width: 12px;
+        height: 12px;
+        border: 1px solid var(--dracula-selection);
+        display: inline-block;
+      }
 
-    #editor-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      align-items: flex-start;
-      padding: 10px 12px;
-      border-top: 1px solid var(--dracula-selection);
-    }
-    fieldset {
-      border: 1px solid var(--dracula-selection);
-      padding: 6px 8px;
-      margin: 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-    }
-    legend { color: var(--dracula-comment); padding: 0 4px; font-size: 11px; }
-    button, input[type='file']::file-selector-button {
-      background: var(--dracula-background-light);
-      color: var(--dracula-foreground);
-      border: 1px solid var(--dracula-selection);
-      font: inherit;
-      padding: 2px 8px;
-      cursor: pointer;
-    }
-    button:hover:not(:disabled) { background: var(--dracula-selection); }
-    button:disabled { opacity: 0.45; cursor: default; }
-    button[aria-pressed='true'] { border-color: var(--dracula-purple); color: var(--dracula-purple); }
-    input[type='color'] {
-      inline-size: 34px;
-      block-size: 24px;
-      padding: 0;
-      border: 1px solid var(--dracula-selection);
-      background: var(--dracula-background-light);
-      cursor: pointer;
-    }
-    input[type='file'] { color: var(--dracula-comment); max-width: 15em; }
-    .swatch { width: 16px; height: 16px; padding: 0; border: 1px solid var(--dracula-selection); }
-    .swatch:hover:not(:disabled) { outline: 1px solid var(--dracula-bright-yellow); }
-    #tint-swatches, #background-swatches { display: flex; flex-wrap: wrap; gap: 3px; max-width: 250px; }
-    #editor-preview { border: 1px solid var(--dracula-selection); image-rendering: pixelated; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>biome — sprite editor</h1>
-    <a href="/?renderer=sprite">open renderer in sprite mode</a>
-    <span id="editor-status" role="status" aria-live="polite"></span>
-  </header>
-  <div id="editor-main">
-    <div id="slots-column">
-      <h2>glyphs</h2>
-      <div id="slots-panel"></div>
+      #editor-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border-top: 1px solid var(--dracula-selection);
+      }
+      fieldset {
+        border: 1px solid var(--dracula-selection);
+        padding: 6px 8px;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      legend {
+        color: var(--dracula-comment);
+        padding: 0 4px;
+        font-size: 11px;
+      }
+      button,
+      input[type="file"]::file-selector-button {
+        background: var(--dracula-background-light);
+        color: var(--dracula-foreground);
+        border: 1px solid var(--dracula-selection);
+        font: inherit;
+        padding: 2px 8px;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) {
+        background: var(--dracula-selection);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      button[aria-pressed="true"] {
+        border-color: var(--dracula-purple);
+        color: var(--dracula-purple);
+      }
+      input[type="color"] {
+        inline-size: 34px;
+        block-size: 24px;
+        padding: 0;
+        border: 1px solid var(--dracula-selection);
+        background: var(--dracula-background-light);
+        cursor: pointer;
+      }
+      input[type="file"] {
+        color: var(--dracula-comment);
+        max-width: 15em;
+      }
+      .swatch {
+        width: 16px;
+        height: 16px;
+        padding: 0;
+        border: 1px solid var(--dracula-selection);
+      }
+      .swatch:hover:not(:disabled) {
+        outline: 1px solid var(--dracula-bright-yellow);
+      }
+      #tint-swatches,
+      #background-swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        max-width: 250px;
+      }
+      #editor-preview {
+        border: 1px solid var(--dracula-selection);
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>biome — sprite editor</h1>
+      <a href="/?renderer=sprite">open renderer in sprite mode</a>
+      <span id="editor-status" role="status" aria-live="polite"></span>
+    </header>
+    <div id="editor-main">
+      <div id="slots-column">
+        <h2>glyphs</h2>
+        <div id="slots-panel"></div>
+      </div>
+      <div id="sheet-column">
+        <h2>spritesheet</h2>
+        <div id="sheet-panel"></div>
+      </div>
     </div>
-    <div id="sheet-column">
-      <h2>spritesheet</h2>
-      <div id="sheet-panel"></div>
+    <div id="editor-controls">
+      <fieldset>
+        <legend>sheet</legend>
+        <label for="sheet-file">Load PNG…</label>
+        <input type="file" id="sheet-file" accept="image/png" />
+        <button type="button" id="sheet-default">Use default sheet</button>
+      </fieldset>
+      <fieldset>
+        <legend>sprite tint</legend>
+        <label for="tint-input">color</label>
+        <input type="color" id="tint-input" value="#F8F8F2" />
+        <span
+          id="tint-swatches"
+          role="group"
+          aria-label="Dracula palette tints"
+        ></span>
+        <button type="button" id="tint-clear">No tint (sheet colors)</button>
+        <button type="button" id="assignment-clear">Clear assignment</button>
+      </fieldset>
+      <fieldset>
+        <legend>canvas background</legend>
+        <label for="background-input">color</label>
+        <input type="color" id="background-input" value="#282A36" />
+        <span
+          id="background-swatches"
+          role="group"
+          aria-label="Dracula palette backgrounds"
+        ></span>
+        <button type="button" id="background-clear">Theme default</button>
+      </fieldset>
+      <fieldset>
+        <legend>preview</legend>
+        <canvas
+          id="editor-preview"
+          width="48"
+          height="48"
+          role="img"
+          aria-label="Preview of the selected slot's sprite over the chosen background"
+        ></canvas>
+      </fieldset>
+      <fieldset>
+        <legend>config</legend>
+        <button type="button" id="config-export">Export JSON</button>
+        <label for="config-import">Import…</label>
+        <input type="file" id="config-import" accept="application/json,.json" />
+        <button type="button" id="config-reset">Reset to default</button>
+      </fieldset>
     </div>
-  </div>
-  <div id="editor-controls">
-    <fieldset>
-      <legend>sheet</legend>
-      <label for="sheet-file">Load PNG…</label>
-      <input type="file" id="sheet-file" accept="image/png" />
-      <button type="button" id="sheet-default">Use default sheet</button>
-    </fieldset>
-    <fieldset>
-      <legend>sprite tint</legend>
-      <label for="tint-input">color</label>
-      <input type="color" id="tint-input" value="#F8F8F2" />
-      <span id="tint-swatches" role="group" aria-label="Dracula palette tints"></span>
-      <button type="button" id="tint-clear">No tint (sheet colors)</button>
-      <button type="button" id="assignment-clear">Clear assignment</button>
-    </fieldset>
-    <fieldset>
-      <legend>canvas background</legend>
-      <label for="background-input">color</label>
-      <input type="color" id="background-input" value="#282A36" />
-      <span id="background-swatches" role="group" aria-label="Dracula palette backgrounds"></span>
-      <button type="button" id="background-clear">Theme default</button>
-    </fieldset>
-    <fieldset>
-      <legend>preview</legend>
-      <canvas id="editor-preview" width="48" height="48" role="img" aria-label="Preview of the selected slot's sprite over the chosen background"></canvas>
-    </fieldset>
-    <fieldset>
-      <legend>config</legend>
-      <button type="button" id="config-export">Export JSON</button>
-      <label for="config-import">Import…</label>
-      <input type="file" id="config-import" accept="application/json,.json" />
-      <button type="button" id="config-reset">Reset to default</button>
-    </fieldset>
-  </div>
-  <script type="module" src="/renderer/app/editor/editorMain.js"></script>
-</body>
+    <script type="module" src="/renderer/app/editor/editorMain.js"></script>
+  </body>
 </html>

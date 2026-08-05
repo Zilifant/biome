@@ -604,7 +604,6 @@ input:focus-visible {
   white-space: nowrap;
 }
 
-
 .legend-label {
   color: var(--dracula-foreground);
 }
@@ -697,4 +696,8 @@ input:focus-visible {
   color: var(--dracula-comment);
   background: var(--dracula-background-dark);
   border: 1px solid var(--dracula-selection);
+
+  & a {
+    color: var(--dracula-cyan);
+  }
 }

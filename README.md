@@ -484,7 +484,8 @@ complete life cycle: an animal is born, is fed by the parent that bore it, is
 weaned, disperses at maturity, grazes and drinks, grows, breeds in its turn,
 ages, and dies — and each of those milestones is readable in its own bounded
 life history. The demo holds a roughly steady population with births
-balancing age deaths. Nothing enforces that balance — it emerges from
+balancing age deaths — measured 2026-08-04, ~500 founders reach roughly 600–800
+animals and stay there across ten seeds. Nothing enforces that balance — it emerges from
 reproductive cost, parental investment, lifespan, and food availability. The
 demo lifespan is deliberately compressed so growth, stage transitions, and age
 death are observable in a short run.
@@ -508,23 +509,33 @@ Stamina is what actually decides most chases: both sides trade it for speed and
 recover it only at rest.
 
 The demo holds predator and prey in a genuine oscillation rather than a fixed
-balance, and it is **a knife edge rather than a guarantee**. Nothing enforces any
-of it — it emerges from encounter rates, capture odds, lifespan, and competition
-for carrion.
+balance. Nothing enforces any of it — it emerges from encounter rates, capture
+odds, lifespan, and competition for carrion.
 
-⚠ **Measured 2026-07-20 over 15k ticks on ten seeds, when the world had three
-species**: roughly 8–75 grazers against 0–2 stalkers, both alive in 5 of 10 seeds,
-all three coexisting in 4 — the honest reading then being that predators went
-extinct about half the time. **That world no longer exists.** The roster is now
-eight species and the same gate reads very differently: every species alive on
-**10 of 10 seeds** (2026-07-30, phase 14), with the gazelle at a mean of 62 and
-each predator between 5 and 15. The mechanism is the same; the world it runs in
-is not, which is why both readings carry their date rather than one replacing the
-other.
+⚠⚠ **Measured 2026-08-04 over 15k ticks on ten seeds, on the current
+`ngorongoro-500-10x` world** — mean final population, and the number of seeds the
+species is still alive on:
 
-That number is measured on **ten** seeds for a reason. Five cannot resolve a
-one-seed difference here, and every tuning decision from Step 26 onward has been
-made against ten (see `config.demo` for the founding counts and
+| gazelle | wildebeest | zebra | buffalo | lion | hyena | vulture | leopard |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 169.5 (10/10) | 168.0 (10/10) | 147.2 (10/10) | 96.5 (10/10) | 17.1 (10/10) | 3.4 (7/10) | 4.7 (**1/10**) | 0.1 (**1/10**) |
+
+The four grazers and the lion are robust — the lion *grows*, from 10 founders to a
+mean of 17. **The leopard and the vulture are effectively gone**, each surviving on
+one seed in ten, though the vulture's surviving seed carries 47 birds. The leopard
+starves rather than being killed (10 starvation deaths against 30 of old age):
+three founders on this map are too few to find a living. That is **accepted rather
+than tuned away** — as of 2026-08-04 the demo is no longer maintained as a knife
+edge, because adding mechanism is worth more than holding every species alive on
+every seed. See [`ACTION-ITEMS.md`](ACTION-ITEMS.md) **A81**.
+
+Earlier readings, kept because a reading belongs to the world it was taken in:
+every species alive on **10 of 10 seeds** with the gazelle at a mean of 62
+(2026-07-30, the 222-animal world); and before that, three species only, 8–75
+grazers against 0–2 stalkers with both alive in 5 of 10 (2026-07-20).
+
+It is measured on **ten** seeds for a reason. Five cannot resolve a one-seed
+difference here (see `config.demo` for the founding counts and
 [`DOCS.md`](DOCS.md) §16 D14 for what happens when you trust five).
 
 **Disease travels ahead of its own symptoms.** An animal that has caught
@@ -605,7 +616,11 @@ one would spend its life being drawn back to its mother's ground. In the demo,
 young grazers end up a median of **~60 units** from where they were born, on a map
 128 across (measured 2026-07-20; the same mechanism read 70 before the species
 schema landed, which is the sort of drift [`DOCS.md`](DOCS.md)'s
-"How to read this document" exists to keep honest).
+"How to read this document" exists to keep honest). ⚠ That map no longer exists —
+the demo is 332×280 as of 2026-08-04 — and the figure has **not** been re-measured
+there. Dispersal distance is a bounded number of outward ticks rather than a
+fraction of the world, so on a map 2.6× wider it should be much the same distance
+and a far smaller share of the world; nothing has confirmed that.
 
 **Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
 bounded region on a clock — a few numbers saying where it is, how wide, and when
