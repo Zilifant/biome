@@ -78,8 +78,8 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
-| `PROTOCOL_VERSION`    | **32** — `flying` in bulk snapshots (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
+| Tests                 | **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| `PROTOCOL_VERSION`    | **33** — `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
 | `SAVE_FORMAT_VERSION` | **31** — `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
@@ -3352,9 +3352,14 @@ inspection — the record whole (`{ id, speciesId, size, memberIds, founderId,
 foundedTick }`), because the question is only answerable if you can see who else is
 in it — a **`groups` aggregate** on `/api/metrics` (count, total members, size
 distribution, and a per-species breakdown), and the `entity.grouped` /
-`entity.ungrouped` events. ⚠ `groupRecordId` stays **out** of the bulk snapshot: it
-changes rarely and matters for one animal at a time, which is the standing test
-(§11). The tests still assert the registry directly rather than through the
+`entity.ungrouped` events. ⚠ `groupRecordId` stayed **out** of the bulk snapshot at
+v29: it changes rarely and matters for one animal at a time, which is the
+standing test (§11). ⚠ **It went in at v33** (2026-08-04) — not because that
+judgement was wrong, but because the renderer's social layer asks a question the
+inspection block cannot answer: it outlines *every* pride, clan, band and herd on
+the map at once, and a layer over the whole world cannot be assembled from a
+query about one animal. See §11 Snapshots for the full reading, and note what did
+*not* change: the `group` block is still how you find out who else is in it. The tests still assert the registry directly rather than through the
 projection, because a mechanism that quietly never founded a second clan would
 project an empty world just as convincingly.
 
@@ -4094,8 +4099,23 @@ gated on a rarely-moving revision, is not a layer. **Inspection returns copies.*
 
 `PUBLIC_ENTITY_FIELDS`: `id, kind, speciesId, x, y, heading, age,
 energyFraction, hydrationFraction, bodyMass, healthFraction, lifeStage, sex,
-groupId, diseaseState, dispersing, gestating, seekingMate, action, alive,
-decayStage, elevation, flying`.
+groupId, groupRecordId, diseaseState, dispersing, gestating, seekingMate, action,
+alive, decayStage, elevation, flying`.
+
+⚠⚠ **`groupRecordId` (v33) is the standing bulk-vs-inspection test being met
+rather than waived, and it is worth reading as a worked example of the test.**
+The rule is "per-tick and cheap", which in practice asks two things: does it
+change rarely, and does it matter for one animal at a time? This field was held
+out from v29 to v32 on the *second* half — and that half stopped being true the
+moment a renderer wanted to draw every group on the map at once. Inspection
+answers "which pride is this lion in"; "where is each pride" is a different
+question, and no number of one-animal queries assembles it. The first half never
+stopped holding: exactly one writer (`GroupSystem`), and it moves only when an
+animal joins, leaves, or its record dissolves — ~107 membership events per
+6000-tick demo run after A64, which makes it **cheaper per delta than `flying`**,
+admitted one version earlier. ⚠ The inspection `group` block stays exactly as it
+was: the bulk field is an id, and "who else is in it" is still a question for one
+animal.
 
 ⚠ **`elevation` (v31) and `flying` (v32) are *stored*, unlike the two derived
 booleans below, and that is not a retreat from the D30 discipline** — neither is a
@@ -4429,7 +4449,10 @@ species list, and the projections the two previous phases deliberately deferred 
 A54); reproductive state made it **30**, and the vertical/aerial work
 ([`legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md`](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md),
 retired) has since taken the protocol to **32**
-(`elevation` at v31, `flying` at v32) and the save format to **31**.
+(`elevation` at v31, `flying` at v32) and the save format to **31**. The
+renderer's social layer took it to **33** (`groupRecordId`) with **no save-format
+change at all** — the field was already stored and already saved; only the
+projection moved.
 
 ⚠ **Two protocol bumps a day apart was the deliberate choice**, and it is worth
 saying why: `elevation` and `flying` are separately attributable changes shipped by

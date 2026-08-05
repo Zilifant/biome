@@ -19,6 +19,7 @@ import { StatusPanel } from './ui/StatusPanel.js';
 import { LegendPanel } from './ui/Legend.js';
 import { InspectorPanel } from './ui/InspectorPanel.js';
 import { MetricsPanel } from './ui/MetricsPanel.js';
+import { LayerPanel } from './ui/LayerPanel.js';
 import { EventLog } from './ui/EventLog.js';
 import { Controls } from './ui/Controls.js';
 import { makeSectionsCollapsible } from './ui/collapsible.js';
@@ -69,6 +70,12 @@ const ui = {
       onSelectEntity: (entityId) => appRef.current.selectEntity(entityId),
     },
   }),
+  // Which data layers are drawn over the map. Built once from the registry and
+  // never re-rendered; the app asks it what is on when a frame needs to know,
+  // and a toggle only has to throw away what was traced for the last one.
+  layerPanel: new LayerPanel(document.getElementById('layers-panel'), {
+    onChange: () => appRef.current?.invalidateLayers(),
+  }),
   // The legend is generated from the appearance registries and never changes
   // after construction, so it is built once and not given to the app to render.
   legendPanel: new LegendPanel(document.getElementById('legend-panel')),
@@ -99,6 +106,7 @@ ui.controls = new Controls(document.getElementById('controls-panel'), {
 // already a <details>, so it is not listed here).
 makeSectionsCollapsible([
   document.getElementById('controls-panel'),
+  document.getElementById('layers-panel'),
   document.getElementById('metrics-panel'),
   document.getElementById('event-log-panel'),
 ]);

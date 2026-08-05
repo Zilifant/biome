@@ -42,12 +42,13 @@ numbers, so re-measure rather than inherit.
 |                     |                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
-| Tests               | renderer 96 in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 13 spec files in `tests-ui`                                      |
-| Protocol understood | **32** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
-| Coverage            | every protocol layer through v32 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are both **status marks** (§9)        |
+| Tests               | renderer 127 in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 14 spec files in `tests-ui`                                      |
+| Protocol understood | **33** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
+| Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a) |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
 | Fixtures            | current — v32, all **eight** shipped species, regenerated 2026-08-04 for the **ngorongoro demo**: 500 entities on a 332×280 map (was 231 on 160×120), **3 airborne** so fixture mode still shows the flying mark offline, 3.5 MB committed (was 1.4 MB); ⚠ due on every **roster** change, not only a protocol bump (§10) |
 | Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
+| Map layers          | **one** — Social (§9a), off by default. The registry is `rendering/MapLayers.js`                                                     |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
 | Git                 | uncommitted (the user handles git)                                                                                                   |
 
@@ -69,6 +70,15 @@ Items keep the `P`/`E` identifiers they have in `PLAN-RENDERER.md` §4, so
 cross-references in code and history keep resolving.
 
 ### 1.1 Unverified
+
+- ✅ **The social layer *has* been seen in a browser** _(2026-08-04)_, which is
+  why it is not in this list: `tests-ui/layers.spec.js` counts pixels of a band's
+  colour on the canvas with the layer off, on and off again, and the outlines were
+  looked at by eye at 32px, 16px and the 10px floor. Recorded as the
+  counter-example to the two items below — the same session is what found the
+  half-pixel stroke alignment bug (§9a), which no amount of node testing would
+  have shown, and what proved the arm-to-an-outlier geometry actually reads as
+  one.
 
 - **⚠ The `»` flying mark has never been seen in a browser** _(2026-08-04)_. Its
   geometry is asserted through the canvas stub — twelve vertices, apex centred and
@@ -169,6 +179,16 @@ present** (P5).
   bulk snapshot unused; directional or pose sprite variants would be an
   additive slot-id suffix (the vocabulary is append-only), not a rework. Not
   built — v1 mirrors the glyph channels exactly.
+- **P18 — At the 10px zoom floor the social layer's two rings fuse into one
+  line.** The gap between the herd label's ring and a record's is a proportion of
+  the cell (`max(1.5px, cellSize × 0.14)`), so at the floor it is a pixel and a
+  half: an animal in a band inside a herd reads as one outline in the band's
+  colour rather than as two. Still legible as a group boundary, just not as two of
+  them, and one zoom level up separates them. The same trade the `»` chevron makes
+  at the same floor (§9), and listed for the same reason — so it is not read as a
+  bug. The lever is the 0.14 constant, and widening it costs the inner ring room
+  in a one-cell-wide arm.
+
 - **P17 — The status mark for a flying animal blinks, because the state genuinely
   changes every ~19 animal-ticks.** Flight is derived from the chosen action, and
   an animal alternating between a travelling action and a contact one is
@@ -263,7 +283,9 @@ app/
     Camera.js                 center + cell size, pan/zoom math (pure)
     GridProjection.js         world → cell → screen-pixel projection (pure)
     EntityAppearance.js       ASCII glyph/color/priority registry (pure)
-    AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → overlays
+    MapLayers.js              the map-layer registry and its persisted on-set (pure)
+    SocialLayer.js            grouping, bubble geometry, and the shared outline painter
+    AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → layers → overlays
     SpriteGridRenderer.js     the same drawing from a spritesheet (?renderer=sprite)
     SpriteSlots.js            slot vocabulary bridging the registries to sprites (pure)
     SpriteConfig.js           SHEET geometry constants + assignment persistence
@@ -282,6 +304,7 @@ app/
     CellDetail.js             pure description of one cell's ground
     InspectorView.js          what the inspector says (ground + occupants + sections)
     InspectorPanel.js         where the inspector is (floating popover or docked sidebar)
+    LayerPanel.js             one checkbox per map layer, and the key to what each draws
     Legend.js                 the key to the grid, generated from the registries
     MetricsPanel.js           population histograms and trends, one collapsible section per species
     EventLog.js               domain-event feed, one filter per event type
@@ -929,11 +952,18 @@ whatever the ages and sexes involved. Case and italic are **animal-only** — a
 carcass, plant, or unknown kind keeps its base glyph exactly.
 
 **Draw order is deliberate and layered:** kill flash → terrain → worn ground
-(features) → disturbances → memory marks / home-range ring → entities →
-brackets (herd, family, hunt) → selection overlay → status marks. The rule throughout is that the more permanent
+(features) → disturbances → entities → **social layer** → memory marks /
+home-range ring → brackets (herd, family, hunt) → selection overlay → status
+marks. The rule throughout is that the more permanent
 and less urgent a thing is, the further under it is drawn: worn ground is the most
 permanent thing on the map and the least urgent to see; an animal caught in a fire
 must stay visible, which is the whole point of watching it get caught.
+
+⚠ **The social layer is the one exception to "least urgent, furthest under", and
+it is drawn _over_ the entities on purpose.** It runs on cell **boundaries** and
+never covers a glyph, so putting it under the terrain pass would have grass drawn
+across the outline for no gain at all. It still sits under every
+selected-animal overlay, which is where it belongs by the rule above.
 
 ### A kill flashes its cell, for one tick
 
@@ -1196,6 +1226,155 @@ vegetation, hunts, heredity, territory, disease, migration, …), see
 
 ---
 
+## 9a. Map layers, and the social layer
+
+_(2026-08-04. `rendering/MapLayers.js`, `rendering/SocialLayer.js`,
+`ui/LayerPanel.js`, protocol v33.)_
+
+### What counts as a layer
+
+**A layer is a reading of the whole map that a viewer can switch off.** The
+category is narrow on purpose, and the two things it excludes are what define it:
+
+- **The grid's own passes are not layers.** Terrain, forage, worn ground,
+  disturbances, animals — that is the world, and a renderer that can be asked to
+  stop drawing the animals portrays nothing. There is no toggle for them and
+  there should not be.
+- **The selected animal's overlays are not layers either.** Its memories, its
+  home range, its family, its quarry, its groupmates' brackets — those appear and
+  vanish with the selection, so they are already under the viewer's control, and
+  a switch for them would be a second control over one thing.
+
+What is left is the class this registry exists for: **a fact about every animal
+at once, from bulk-snapshot fields**, worth seeing sometimes and in the way the
+rest of the time. `MAP_LAYERS` is one entry per such thing — id, label, note,
+default — and one entry is the whole cost of a layer's UI, the same claim §9
+makes for a species in `SPECIES_APPEARANCE` and a status in `STATUS_APPEARANCE`.
+
+⚠ **Layers default to off, and a switched-off layer costs exactly nothing.**
+Nothing is traced, nothing is drawn, and `RendererApp` returns a shared empty
+array without touching the store. That is what makes "off by default" honest
+rather than merely tidy: the argument for it is that the grid is dense already
+and something drawn over every animal that nobody asked for is noise the first
+time it is seen.
+
+⚠ **An empty stored set means "off", not "use the defaults".** Only an absent or
+unreadable value falls back — the same rule the event filter keeps, for the same
+reason: a viewer who switched everything off has said something.
+
+### The social layer draws two mechanisms at once
+
+The engine models sociality twice, and DOCS §9 is emphatic that they are not the
+same thing: `groupId` is the **herd label**, recomputed every tick from who an
+animal is standing with, and `groupRecordId` is the **record** — the pride, clan
+or band it belongs to, which survives its members walking apart.
+
+⚠⚠ **Drawing both, in different colours, on different rings, is the feature.** A
+zebra is in a band *and* in whatever herd is standing around it, so it is wrapped
+in two outlines — which is the label/record distinction made visible instead of
+explained. The label runs on the **outer** ring and every record inside it,
+because that is the containment the world has: bands are what a herd is made of,
+never the other way round. Two outlines on one ring would land on exactly the same
+cell boundary and only the last drawn would be visible, which would silently lose
+one of the two facts the layer exists for.
+
+⚠ **`groupRecordId` had to become a bulk field for this, and that is protocol
+v33.** It was inspection-only from v29 on the standing test (§11 of DOCS: does it
+change rarely, and does it matter for one animal at a time) — and the second half
+stopped being true the moment a renderer wanted every group at once. Inspection
+answers "which pride is this lion in"; "where is each pride" is a different
+question that no number of one-animal queries assembles. The first half still
+holds: it moves only when an animal joins, leaves, or its record dissolves, which
+is ~107 events per 6000-tick run after the engine's A64 fix — **cheaper per delta
+than `flying`**, which v32 admitted one version earlier on the same "a renderer
+cannot show what it cannot see" argument.
+
+**Naming a group is renderer-side**, exactly as `speciesLabel` is: the engine has
+one registry and one set of rules, and "pride" is what a viewer calls the lions'
+one. `SOCIAL_GROUP_APPEARANCE` holds the colour, the label and the ring;
+`recordGroupKind` maps a species to its kind and falls back to `group`, so a
+roster this build has never seen is outlined and nameable rather than invisible.
+
+### The shape of a bubble
+
+Four steps, all pure, all in `SocialLayer.js`, and each of them is answering a
+picture that was wrong without it:
+
+1. **The cells the members occupy**, deduplicated.
+2. **Padded by one cell.** Without it the outline traces the animals themselves
+   and reads as a shape cut around glyphs rather than as a bubble containing them.
+3. **Holes filled, per connected blob.** A ring of animals standing around a gap
+   is one group; drawing the gap as a second loop reads as a hole *in the herd*.
+4. **Blobs joined by one-cell-wide arms**, along a spanning tree over the closest
+   pair of members in each pair of blobs. This is what wraps an animal that has
+   wandered off without inflating the group's outline to cover all the ground in
+   between.
+
+⚠ **An arm longer than `MAX_CORRIDOR_CELLS` (48) is refused**, and the far member
+keeps an island outline in the group's colour. A dispersing animal can be most of
+a map away and an arm costs a cell per step, so this is a frame budget — and an
+island is the more honest picture of an animal that is nowhere near its clan
+anyway. ⚠ The blob still joins the spanning tree when its arm is refused, or the
+loop would not terminate.
+
+The boundary is traced as **directed edges with the region on their right**,
+chained into closed loops. That convention pays for itself twice: an enclosed
+hole comes back wound the other way with no special case, and "inward" is one
+fixed rotation — which is exactly what insetting a ring needs. ⚠ Where two blobs
+touch at a single corner the walk **turns right first**; turning left fuses them
+into one self-crossing loop, the same outline drawn as a bow tie.
+
+⚠ **The stroke is snapped so an odd width lands on a half-pixel.** Cell corners
+are integer pixel coordinates, so a 1px line centred on one straddles two pixel
+rows at half opacity each — at 10–16px the outline came out as a grey smudge with
+**no pixel actually its own colour**. The corner brackets have always solved this
+with their `+ 0.5`; `ringInset` is that rule generalized to any width and any
+ring. It was found by a UI test counting pixels of the band's colour, not by
+looking at it.
+
+### The same design language as the selection, deliberately
+
+A social outline and a selection bracket sit in the same lane just inside the
+cell edge, at the same one-pixel weight. What separates them is that the outline
+is **solid and rounded** where a bracket is four square corner arms: **a whole box
+for a whole group, corners for one cell.** The legend says so with `▢` against
+the selection's `[]`.
+
+Corners are rounded with `arcTo` between the **midpoints** of the two edges
+meeting there, so the radius can never exceed what the shorter edge has room for.
+That is not defensive coding: a one-cell-wide arm has edges exactly one cell long,
+and a fixed radius would overshoot and turn the arm inside out.
+
+### The budget, and where it is spent
+
+⚠ **Tracing is the most expensive thing this renderer computes**, and it is worth
+knowing the number before adding a second layer. Measured on the committed
+fixture (500 entities, ~60 concurrent groups, 2026-08-04):
+
+| | |
+| --- | --- |
+| Whole map, every group traced | **3.5 ms** per tick |
+| Viewport's worth (~4 groups)  | **0.36 ms** per tick |
+| Deterministic under entity order | yes — asserted |
+
+Two bounds get it there, and they are the ones the rest of the renderer already
+uses. **Only groups whose members' bounding box touches the viewport are traced**
+— the *whole* box, so a group with one animal above the view and one below still
+draws the arm that crosses it. And the result is **memoized on
+`(tick, viewport)`**, so a frame drawn for any other reason (a status mark
+cycling, a hover, a selection) reuses it; only a tick or a pan pays again.
+
+⚠ **The layer is deterministic, and one line makes it so.** The spanning tree
+keeps the first pair at the shortest distance and ties are common on a lattice, so
+before the member cells were sorted, two clients watching the same tick drew
+different arms and one client drew different arms after a reconnect. Nothing about
+the picture was wrong; it just was not a function of the world alone, which §3
+forbids. ⚠ Cell keys are **packed integers** rather than `"x,y"` strings for the
+same measurement's sake: the string-keyed version measured 6.5 ms for a whole-map
+pass against the 3.5 ms above.
+
+---
+
 ## 10. Conventions that are easy to miss
 
 These are load-bearing and cost real time to rediscover. Most have their own ⚠ in
@@ -1233,6 +1412,11 @@ the sections above; collected here as a checklist.
   a bulk field: an inspection-only fact is known for the _selected_ animal
   alone, so a status built on one would appear and vanish as the selection
   moved.
+- **A new map layer is one entry in `MAP_LAYERS`** plus the module that draws it
+  (§9a). ⚠ The bar for being a layer at all is narrow: it must be a fact about
+  **every** animal, from **bulk-snapshot** fields, and it must be something a
+  viewer would sometimes want gone. A selected-animal overlay is not a layer, and
+  neither is a pass that draws the world itself.
 - **A new event type is one entry in `EventCatalog.js`** — label, group, and a
   retention tier — and it appears in the filter list, in the store's retention
   policy, and in the test that checks the list against the protocol. A type added
@@ -1458,6 +1642,14 @@ panel surviving a tick.
   all). ⚠ A **new shape** is three edits rather than one — the registry, the
   `STATUS_SHAPE_GLYPHS` table in `Legend.js`, and `paintStatusMark`'s path — and
   the bar for adding one is high: see §9, the channel is at its useful limit.
+- **To add a map layer:** one entry in `MAP_LAYERS` (`id`, `label`, `note`,
+  `defaultEnabled`) gives it a switch, a remembered on/off state and a panel row;
+  the drawing is its own module, and its colours belong in `EntityAppearance.js`
+  like every other colour (invariant 4). Wire it as the social layer is: compute
+  in `RendererApp` behind `layerPanel.isEnabled(id)`, memoize on whatever it
+  actually depends on, pass it into `draw({...})`, and paint it from **one shared
+  painter** called by both grid renderers. ⚠ Check it belongs in the category
+  first — §9a's two exclusions rule out most candidates.
 - **To replace the Canvas renderer:** implement a new `draw({ store, camera })`;
   the store, transports, protocol, and engine are untouched.
 - **To use a different spritesheet:** edit the `SHEET` constants at the top of

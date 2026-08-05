@@ -27,6 +27,7 @@ import {
   MEMORY_APPEARANCE,
   UNKNOWN_APPEARANCE,
   STATUS_APPEARANCE,
+  SOCIAL_GROUP_APPEARANCE,
 } from '../rendering/EntityAppearance.js';
 
 /**
@@ -126,6 +127,22 @@ export function describeLegend() {
     label: status.label,
   }));
 
+  // The social layer's outlines. `▢` for a rounded box, because that is what the
+  // canvas draws — a solid rounded outline around a group of animals, where the
+  // selection's `[]` brackets are four corner arms around one cell. The two use
+  // the same design language deliberately, so the character has to distinguish
+  // them: a whole box for a whole group, corners for a single cell.
+  //
+  // ⚠ Every kind is listed, including the ones no shipped species forms yet
+  // (`family`, and the `group` fallback). The registry is what the grid draws
+  // from, and a legend that filtered it by today's roster would need editing
+  // every time the roster moved — the same reason the species rows list all ten.
+  const social = Object.values(SOCIAL_GROUP_APPEARANCE).map((appearance) => ({
+    glyph: '▢',
+    colorToken: appearance.colorToken,
+    label: appearance.label,
+  }));
+
   const memories = Object.entries(MEMORY_APPEARANCE).map(([kind, appearance]) => ({
     glyph: appearance.glyph,
     colorToken: appearance.colorToken,
@@ -141,6 +158,7 @@ export function describeLegend() {
     { title: 'Forage', entries: forage },
     { title: 'Worn ground', entries: worn },
     { title: 'Disturbances', entries: [...events, ...MOMENT_ENTRIES] },
+    { title: 'Social layer', entries: social },
     { title: 'Selected animal only', entries: [...memories, ...OVERLAY_ENTRIES] },
   ];
 }

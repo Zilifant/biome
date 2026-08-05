@@ -23,7 +23,20 @@ import {
   STATUS_CYCLE_MS,
   statusesOf,
   HURT_HEALTH_FRACTION,
+  SOCIAL_GROUP_APPEARANCE,
+  recordGroupKind,
 } from '../src/renderer/app/rendering/EntityAppearance.js';
+import {
+  describeSocialGroups,
+  membershipsOf,
+  socialRegion,
+  traceOutline,
+  insetLoop,
+  paintSocialLayer,
+  MIN_GROUP_MEMBERS,
+  MAX_CORRIDOR_CELLS,
+} from '../src/renderer/app/rendering/SocialLayer.js';
+import { MAP_LAYERS, resolveEnabledLayers } from '../src/renderer/app/rendering/MapLayers.js';
 import { AsciiGridRenderer } from '../src/renderer/app/rendering/AsciiGridRenderer.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend, STATUS_SHAPE_GLYPHS } from '../src/renderer/app/ui/Legend.js';
@@ -1330,5 +1343,369 @@ describe('event log filters', () => {
     assert.equal(isLastingEvent('entity.moved'), false);
     // Unknown types are presumed rare and kept, since both tiers are capped.
     assert.equal(isLastingEvent('entity.somethingNewInV29'), true);
+  });
+});
+
+describe('map layers', () => {
+  test('every layer has an id, a label, and a note saying what it draws', () => {
+    const ids = new Set();
+    for (const layer of MAP_LAYERS) {
+      assert.ok(layer.id && !ids.has(layer.id), `duplicate or missing layer id "${layer.id}"`);
+      ids.add(layer.id);
+      assert.ok(layer.label, `${layer.id} has no label`);
+      assert.ok(layer.note, `${layer.id} has no note`);
+      assert.equal(typeof layer.defaultEnabled, 'boolean');
+    }
+    assert.ok(ids.has('social'));
+  });
+
+  test('nothing stored means the defaults, and every layer defaults to off', () => {
+    // A layer earns the screen when it is asked for: something drawn over every
+    // animal that nobody switched on is noise the first time it is seen.
+    assert.deepEqual([...resolveEnabledLayers(null)], []);
+    assert.deepEqual([...resolveEnabledLayers(undefined)], []);
+    for (const layer of MAP_LAYERS) assert.equal(layer.defaultEnabled, false);
+  });
+
+  test('an empty stored set means off, not "use the defaults"', () => {
+    // The event filter's rule, for the same reason: a viewer who switched
+    // everything off has said something, and honouring it is the difference
+    // between a stored preference and a suggestion.
+    assert.deepEqual([...resolveEnabledLayers([])], []);
+    assert.deepEqual([...resolveEnabledLayers(['social'])], ['social']);
+  });
+
+  test('a layer id this build has never heard of is dropped, not carried', () => {
+    assert.deepEqual([...resolveEnabledLayers(['social', 'weather-from-a-later-version'])], ['social']);
+  });
+});
+
+describe('the social layer', () => {
+  const animal = (cellX, cellY, overrides = {}) => ({
+    id: cellX * 1000 + cellY,
+    kind: 'animal',
+    alive: true,
+    speciesId: 'herbivore.gazelle',
+    x: cellX + 0.5,
+    y: cellY + 0.5,
+    groupId: null,
+    groupRecordId: null,
+    ...overrides,
+  });
+  const world = { width: 60, height: 60 };
+  const cells = (region) => [...region].length;
+
+  describe('the registry', () => {
+    test('no two kinds of group share a colour, and every colour is real', () => {
+      // The same rule the statuses keep, and for the same reason: colour is what
+      // makes one outline distinguishable from another inside it, and two kinds
+      // in one colour would make the overlap unreadable — which is the whole
+      // feature.
+      const seen = new Map();
+      for (const [kind, appearance] of Object.entries(SOCIAL_GROUP_APPEARANCE)) {
+        assert.ok(DRACULA_COLORS[appearance.colorToken], `${kind} uses unknown colour "${appearance.colorToken}"`);
+        assert.ok(!seen.has(appearance.colorToken), `${kind} shares ${appearance.colorToken} with ${seen.get(appearance.colorToken)}`);
+        seen.set(appearance.colorToken, kind);
+        assert.ok(appearance.label, `${kind} has no label`);
+      }
+    });
+
+    test('the herd label runs outside every record, because that is the containment', () => {
+      // A band is part of a herd, never the other way round — so the label takes
+      // the outer ring and everything else nests inside it.
+      assert.equal(SOCIAL_GROUP_APPEARANCE.herd.ring, 0);
+      for (const [kind, appearance] of Object.entries(SOCIAL_GROUP_APPEARANCE)) {
+        if (kind === 'herd') continue;
+        assert.equal(appearance.ring, 1, `${kind} should nest inside the herd label`);
+      }
+    });
+
+    test('a species naming its own group gets it; anything else is a "group"', () => {
+      assert.equal(recordGroupKind('predator.lion'), 'pride');
+      assert.equal(recordGroupKind('scavenger.hyena'), 'clan');
+      assert.equal(recordGroupKind('herbivore.zebra'), 'band');
+      // A roster this build has never seen is outlined and nameable rather than
+      // invisible — the same fallback `speciesLabel` makes one level up.
+      assert.equal(recordGroupKind('predator.wildDogFromALaterVersion'), 'group');
+      assert.ok(SOCIAL_GROUP_APPEARANCE[recordGroupKind('anything')], 'the fallback kind is in the registry');
+    });
+  });
+
+  describe('membership', () => {
+    test('an animal in a herd and a band is in two groups at once', () => {
+      // The overlap is the point: the label is who it is standing with, the
+      // record is who it belongs to, and an animal has both.
+      const zebra = animal(5, 5, { speciesId: 'herbivore.zebra', groupId: 12, groupRecordId: 3 });
+      assert.deepEqual(membershipsOf(zebra), [
+        { key: 'herd:herbivore.zebra:12', kind: 'herd' },
+        { key: 'record:3', kind: 'band' },
+      ]);
+    });
+
+    test('a herd label is keyed by species as well as by id', () => {
+      // Labels are conspecific but the id is an animal's id, so keying on the id
+      // alone could enrol a gazelle into a wildebeest's outline.
+      const [gazelleHerd] = membershipsOf(animal(1, 1, { groupId: 7 }));
+      const [wildebeestHerd] = membershipsOf(animal(2, 2, { speciesId: 'herbivore.wildebeest', groupId: 7 }));
+      assert.notEqual(gazelleHerd.key, wildebeestHerd.key);
+    });
+
+    test('an unattached animal is in nothing', () => {
+      assert.deepEqual(membershipsOf(animal(1, 1)), []);
+    });
+  });
+
+  describe('the region a bubble encloses', () => {
+    test('one animal is a padded square, so the border clears its glyph', () => {
+      const region = socialRegion([{ cellX: 10, cellY: 10 }], world);
+      assert.equal(cells(region), 9, 'three by three around the animal');
+    });
+
+    test('two animals two cells apart are one blob, with no arm between them', () => {
+      const region = socialRegion([{ cellX: 10, cellY: 10 }, { cellX: 12, cellY: 10 }], world);
+      const loops = traceOutline(region);
+      assert.equal(loops.length, 1, 'the padding merged them');
+      assert.equal(cells(region), 15, 'a 5x3 block');
+    });
+
+    test('an outlying animal is reached by a one-cell arm, not by a bigger bubble', () => {
+      const region = socialRegion([{ cellX: 10, cellY: 10 }, { cellX: 11, cellY: 10 }, { cellX: 25, cellY: 18 }], world);
+      const loops = traceOutline(region);
+      assert.equal(loops.length, 1, 'the arm makes it one outline');
+      // The two padded squares are 12 and 9 cells; everything else is corridor,
+      // and a corridor is one cell wide by construction.
+      const corridor = cells(region) - 12 - 9;
+      assert.ok(corridor > 0 && corridor <= 15 + 8, `an arm of ${corridor} cells is one cell wide`);
+    });
+
+    test('⚠ an animal further than the corridor cap keeps its outline and loses its arm', () => {
+      // A frame budget, not a nicety: a dispersing animal can be most of a map
+      // away, and an unbounded arm would trace hundreds of cells for a group
+      // nobody is looking at. Two loops in one colour is also the more honest
+      // picture of an animal that is nowhere near its clan.
+      const far = MAX_CORRIDOR_CELLS + 10;
+      const wide = { width: 5 + far + 20, height: 60 };
+      const region = socialRegion([{ cellX: 5, cellY: 5 }, { cellX: 6, cellY: 5 }, { cellX: 5 + far, cellY: 5 }], wide);
+      assert.equal(traceOutline(region).length, 2, 'the far animal is its own island');
+    });
+
+    test('a ring of animals is one bubble, not a donut', () => {
+      // A gap in the middle of a herd is still the middle of the herd; drawing it
+      // as a second loop reads as a hole in the group.
+      const ring = [];
+      for (let angle = 0; angle < 12; angle += 1) {
+        ring.push({
+          cellX: 30 + Math.round(5 * Math.cos((angle * Math.PI) / 6)),
+          cellY: 30 + Math.round(5 * Math.sin((angle * Math.PI) / 6)),
+        });
+      }
+      assert.equal(traceOutline(socialRegion(ring, world)).length, 1);
+    });
+
+    test('a bubble never leaves the world, however close to the edge the animals are', () => {
+      const region = socialRegion([{ cellX: 0, cellY: 0 }], world);
+      assert.equal(cells(region), 4, 'a corner animal gets the quarter of its square that exists');
+    });
+  });
+
+  describe('tracing an outline', () => {
+    test('one cell traces one closed loop of four corners', () => {
+      const loops = traceOutline(socialRegion([{ cellX: 3, cellY: 4 }], world, { padding: 0 }));
+      assert.deepEqual(loops, [[
+        { x: 3, y: 4 },
+        { x: 4, y: 4 },
+        { x: 4, y: 5 },
+        { x: 3, y: 5 },
+      ]]);
+    });
+
+    test('every loop is closed, axis-aligned, and turns at every point it keeps', () => {
+      const region = socialRegion([{ cellX: 10, cellY: 10 }, { cellX: 14, cellY: 13 }], world);
+      for (const loop of traceOutline(region)) {
+        assert.ok(loop.length >= 4 && loop.length % 2 === 0, `a rectilinear loop has an even number of corners`);
+        for (let i = 0; i < loop.length; i += 1) {
+          const current = loop[i];
+          const next = loop[(i + 1) % loop.length];
+          const straight = current.x === next.x || current.y === next.y;
+          assert.ok(straight, 'every edge is horizontal or vertical');
+          assert.ok(current.x !== next.x || current.y !== next.y, 'no zero-length edge');
+        }
+      }
+    });
+
+    test('a loop is wound with the region on its right, which is what inset relies on', () => {
+      // The winding is not decoration: `insetLoop` moves each edge to the right
+      // of travel, so a loop wound the other way would inflate the bubble
+      // instead of tightening it — and a hole, which *is* wound the other way,
+      // needs exactly that opposite treatment.
+      const [loop] = traceOutline(socialRegion([{ cellX: 3, cellY: 4 }], world, { padding: 0 }));
+      const inset = insetLoop(loop, 0.25);
+      const width = Math.max(...inset.map((p) => p.x)) - Math.min(...inset.map((p) => p.x));
+      assert.ok(width < 1, `inset shrank the square to ${width}`);
+      assert.deepEqual(inset[0], { x: 3.25, y: 4.25 });
+    });
+
+    test('a zero inset is the loop itself, and a short loop is left alone', () => {
+      const [loop] = traceOutline(socialRegion([{ cellX: 1, cellY: 1 }], world, { padding: 0 }));
+      assert.equal(insetLoop(loop, 0), loop);
+      assert.deepEqual(insetLoop([{ x: 0, y: 0 }, { x: 1, y: 1 }], 2), [{ x: 0, y: 0 }, { x: 1, y: 1 }]);
+    });
+  });
+
+  describe('describing every group on the map', () => {
+    test('a herd and the band inside it are two outlines, in two colours, on two rings', () => {
+      // The headline claim: an animal can be wrapped in more than one outline,
+      // because the engine models more than one kind of belonging.
+      const band = [
+        animal(10, 10, { speciesId: 'herbivore.zebra', groupId: 4, groupRecordId: 2 }),
+        animal(11, 10, { speciesId: 'herbivore.zebra', groupId: 4, groupRecordId: 2 }),
+        animal(12, 10, { speciesId: 'herbivore.zebra', groupId: 4, groupRecordId: 9 }),
+        animal(13, 10, { speciesId: 'herbivore.zebra', groupId: 4, groupRecordId: 9 }),
+      ];
+      const groups = describeSocialGroups(band, world);
+      assert.deepEqual(groups.map((group) => group.kind), ['herd', 'band', 'band']);
+      assert.equal(groups[0].members, 4);
+      assert.equal(groups[0].ring, 0, 'the herd is drawn outside');
+      assert.ok(groups.slice(1).every((group) => group.ring === 1), 'both bands nest inside it');
+      assert.notEqual(groups[0].colorToken, groups[1].colorToken);
+    });
+
+    test('a pair is a group and a lone animal is not', () => {
+      // The engine agrees twice over: a herd label needs three animals to exist
+      // and a record dissolves below two. A bubble around one animal says nothing
+      // its own glyph does not.
+      assert.equal(describeSocialGroups([animal(1, 1, { groupId: 5 })], world).length, 0);
+      assert.equal(describeSocialGroups([animal(1, 1, { groupId: 5 }), animal(2, 1, { groupId: 5 })], world).length, 1);
+      assert.equal(MIN_GROUP_MEMBERS, 2);
+    });
+
+    test('the dead are not members, however they died', () => {
+      // A carcass keeps the record id it had — a fact about who it was, like
+      // `deathCause` — and enrolling it would stretch a bubble around a body long
+      // after the group had moved on.
+      const survivors = [
+        animal(4, 4, { groupId: 8 }),
+        animal(5, 4, { groupId: 8 }),
+        animal(20, 20, { groupId: 8, alive: false }),
+        animal(21, 20, { kind: 'carcass', groupId: 8, groupRecordId: 1 }),
+      ];
+      const [herd] = describeSocialGroups(survivors, world);
+      assert.equal(herd.members, 2);
+      assert.ok(herd.bounds.maxCellX < 10, 'the bubble does not reach the bodies');
+      assert.equal(describeSocialGroups(survivors, world).length, 1, 'and the carcass founds no record of its own');
+    });
+
+    test('⚠ the same tick always draws the same outlines, whatever order the entities arrive in', () => {
+      // Presentation must be reproducible from its inputs (§3). The spanning tree
+      // keeps the first pair at the shortest distance and ties are common on a
+      // lattice, so without a sorted membership two clients watching one tick drew
+      // different arms — and one client drew different arms after a reconnect.
+      const herd = [
+        animal(10, 10, { groupId: 3 }),
+        animal(10, 20, { groupId: 3 }),
+        animal(20, 10, { groupId: 3 }),
+        animal(20, 20, { groupId: 3 }),
+      ];
+      const forwards = describeSocialGroups(herd, world);
+      const backwards = describeSocialGroups([...herd].reverse(), world);
+      assert.deepEqual(backwards, forwards);
+    });
+
+    test('a group nobody can see is not traced at all', () => {
+      // The layer costs what is on the screen, not what is in the world — tracing
+      // is tens of set operations per cell covered, and the demo holds ~60 groups.
+      const near = [animal(10, 10, { groupId: 1 }), animal(11, 10, { groupId: 1 })];
+      const far = [animal(50, 50, { groupId: 2 }), animal(51, 50, { groupId: 2 })];
+      const visible = { minCellX: 0, minCellY: 0, maxCellX: 20, maxCellY: 20 };
+      const groups = describeSocialGroups([...near, ...far], world, { visible });
+      assert.deepEqual(groups.map((group) => group.key), ['herd:herbivore.gazelle:1']);
+    });
+
+    test('⚠ but a group straddling the view is traced whole, arm and all', () => {
+      // The test is the *whole* member bounding box, so a group with one animal
+      // above the view and one below still draws the arm that crosses it —
+      // clipping the membership instead would draw an outline that ends at the
+      // edge of the screen.
+      const straddling = [animal(30, 2, { groupId: 6 }), animal(30, 40, { groupId: 6 })];
+      const visible = { minCellX: 20, minCellY: 15, maxCellX: 40, maxCellY: 25 };
+      const [group] = describeSocialGroups(straddling, world, { visible });
+      assert.ok(group, 'the group is traced');
+      assert.ok(group.bounds.minCellY <= 2 && group.bounds.maxCellY >= 40, 'and traced whole');
+    });
+  });
+
+  describe('painting', () => {
+    /** A stub 2D context that records stroked rounded paths. */
+    function paintWith(groups, cellSize = 20) {
+      const strokes = [];
+      let current = null;
+      const ctx = {
+        lineJoin: 'miter',
+        lineWidth: 1,
+        strokeStyle: '',
+        beginPath() {
+          current = { points: [], colorToken: null, radii: [] };
+        },
+        moveTo(x, y) {
+          current.points.push([x, y]);
+        },
+        arcTo(x1, y1, x2, y2, radius) {
+          current.points.push([x1, y1], [x2, y2]);
+          current.radii.push(radius);
+        },
+        closePath() {},
+        stroke() {
+          strokes.push({ ...current, color: this.strokeStyle, lineJoin: this.lineJoin });
+        },
+      };
+      const projection = { cellSize, cellToScreen: (cellX, cellY) => ({ px: cellX * cellSize, py: cellY * cellSize }) };
+      paintSocialLayer(ctx, {
+        groups,
+        projection,
+        visible: { minCellX: 0, minCellY: 0, maxCellX: 40, maxCellY: 40 },
+        resolveColor: (token) => DRACULA_COLORS[token],
+      });
+      return strokes;
+    }
+
+    test('an outline is one stroked path per loop, in its kind’s colour', () => {
+      const zebra = (cellX) => animal(cellX, 6, { speciesId: 'herbivore.zebra', groupId: 4, groupRecordId: 2 });
+      const strokes = paintWith(describeSocialGroups([zebra(6), zebra(7)], { width: 40, height: 40 }));
+      assert.equal(strokes.length, 2, 'the herd label and the band');
+      // ⚠ Compared as resolved colours rather than as tokens: `comment` and
+      // `current-line` are the same hex in this palette, so a hex→token lookup
+      // cannot tell them apart and would fail on the right answer.
+      assert.deepEqual(strokes.map((stroke) => stroke.color), [
+        DRACULA_COLORS[SOCIAL_GROUP_APPEARANCE.herd.colorToken],
+        DRACULA_COLORS[SOCIAL_GROUP_APPEARANCE.band.colorToken],
+      ]);
+      // Rounded corners are the whole visual distinction from the selection's
+      // square corner brackets, so a radius of zero would be a silent regression.
+      assert.ok(strokes.every((stroke) => stroke.radii.every((radius) => radius > 0)));
+      assert.ok(strokes.every((stroke) => stroke.lineJoin === 'round'));
+    });
+
+    test('⚠ the inner ring is drawn inside the outer one, never on top of it', () => {
+      // Two outlines around the same cells would otherwise land on exactly the
+      // same boundary, and only the last drawn would be visible — which would
+      // silently lose one of the two facts the layer exists to show.
+      const zebra = (cellX) => animal(cellX, 6, { speciesId: 'herbivore.zebra', groupId: 4, groupRecordId: 2 });
+      const [herd, band] = paintWith(describeSocialGroups([zebra(6), zebra(7)], { width: 40, height: 40 }));
+      const spread = (stroke) => Math.max(...stroke.points.map((p) => p[0])) - Math.min(...stroke.points.map((p) => p[0]));
+      assert.ok(spread(band) < spread(herd), `the band (${spread(band)}) sits inside the herd (${spread(herd)})`);
+    });
+
+    test('a group off screen is skipped without being drawn', () => {
+      const groups = describeSocialGroups(
+        [animal(90, 90, { groupId: 2 }), animal(91, 90, { groupId: 2 })],
+        { width: 200, height: 200 },
+      );
+      assert.equal(groups.length, 1, 'it was traced');
+      assert.equal(paintWith(groups).length, 0, 'and not painted');
+    });
+
+    test('nothing at all is drawn while the layer is off', () => {
+      assert.deepEqual(paintWith([]), []);
+    });
   });
 });

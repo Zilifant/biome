@@ -675,6 +675,14 @@ they are not re-opened by accident.
 
 ## Renderer — verification and tooling
 
+- **✅ The social layer *has* been driven in a browser** _(2026-08-04, with the
+  layer itself)_ — `tests-ui/layers.spec.js` counts pixels of a band's colour on
+  the canvas with the layer off, on, and off again, and the outlines were also
+  looked at by eye at 32px, 16px and the 10px floor. Recorded here because it is
+  the counter-example to the two items below rather than an open item: the same
+  run is what found the half-pixel stroke alignment bug (`ringInset`), which no
+  amount of node testing would have shown.
+
 - **⚠ The `»` flying mark has never been drawn in a browser** _(opened 2026-08-04
   with phase F1)_. Its geometry is asserted through the canvas stub (twelve
   vertices, apex centred and above the midpoint, cyan) and its legend row from the
@@ -758,6 +766,14 @@ they are not re-opened by accident.
 - **P16 — Sprites ignore `heading` and `action`.** Both ride unused in every
   bulk snapshot; directional/pose sprite variants would be an additive slot-id
   suffix, not a rework.
+
+- **P18 — At the 10px zoom floor the social layer's two rings fuse into one line**
+  _(opened 2026-08-04 with the layer)_. The gap between the herd label's ring and a
+  record's is a proportion of the cell (`max(1.5px, cellSize × 0.14)`), so at the
+  floor it is a pixel and a half and an animal in a band inside a herd reads as one
+  outline in the band's colour. Still legible as a group boundary, just not as two;
+  one zoom level up separates them. The same trade the `»` chevron makes at the
+  same floor, and listed for the same reason — so it is not read as a bug.
 
 - **P17 — The flying status mark blinks, because the state genuinely changes every
   ~19 animal-ticks** _(opened 2026-08-04 with phase F1)_. Measured at **52

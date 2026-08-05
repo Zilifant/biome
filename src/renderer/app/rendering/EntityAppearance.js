@@ -400,6 +400,72 @@ export function resolveMemoryAppearance(kind) {
 }
 
 /**
+ * What a group of associated animals is *called*, and what colour its outline is
+ * drawn in on the social layer (`rendering/SocialLayer.js`).
+ *
+ * ⚠ **Two protocol facts, one channel.** The engine models sociality twice and
+ * the two are not the same thing (DOCS §9): `groupId` is a **herd label**,
+ * recomputed every tick from who an animal is standing with, and
+ * `groupRecordId` (v33) is a **record** — the pride, clan or band it belongs to,
+ * which survives its members walking apart. The layer draws both, which is why
+ * an animal can end up inside two outlines at once: a zebra is in a band *and*
+ * in whatever herd happens to be standing around it.
+ *
+ * `ring` is which lane the outline runs in, counted inward from the cell edge.
+ * Two outlines around the same cell would otherwise be drawn on exactly the same
+ * boundary and only the last one would be visible. The label goes **outside**
+ * (ring 0) and every record **inside** it (ring 1), which is the containment the
+ * world actually has: bands are what a herd is made of, never the other way
+ * round.
+ *
+ * ⚠ **Naming a group is renderer-side knowledge**, exactly as `speciesLabel` is.
+ * The engine has one registry and one set of rules — a record is a record — and
+ * "pride" is what a viewer calls the lions' one. A species with a record and no
+ * entry in `SPECIES_GROUP_KIND` falls back to `group`, so a roster this build has
+ * never seen is outlined and nameable rather than invisible.
+ *
+ * Colours: no two kinds share one (a test enforces it, as it does for statuses),
+ * and none of them is a **bracket** colour — brackets are the neighbouring
+ * channel, corner arms on a cell edge, and a social outline in hunt-red or
+ * follow-cyan would be read as one. `herd` is the exception and is deliberate: it
+ * is `comment`, the colour the selected animal's groupmate brackets already use,
+ * because it is the same relationship drawn two ways.
+ *
+ * @type {Readonly<Record<string, {colorToken: string, label: string, ring: number}>>}
+ */
+export const SOCIAL_GROUP_APPEARANCE = Object.freeze({
+  herd: Object.freeze({ colorToken: 'comment', label: 'herd', ring: 0 }),
+  band: Object.freeze({ colorToken: 'bright-cyan', label: 'band', ring: 1 }),
+  clan: Object.freeze({ colorToken: 'bright-pink', label: 'clan', ring: 1 }),
+  pride: Object.freeze({ colorToken: 'bright-purple', label: 'pride', ring: 1 }),
+  family: Object.freeze({ colorToken: 'bright-green', label: 'family', ring: 1 }),
+  group: Object.freeze({ colorToken: 'bright-white', label: 'group', ring: 1 }),
+});
+
+/**
+ * What each species calls its persistent group. Only three species form records
+ * today (lion, hyena, zebra — DOCS §9 Persistent groups); the elephant is on the
+ * planned roster and named here for the same reason its glyph already exists,
+ * so a species batch stays a config change.
+ */
+const SPECIES_GROUP_KIND = Object.freeze({
+  'predator.lion': 'pride',
+  'scavenger.hyena': 'clan',
+  'herbivore.zebra': 'band',
+  'herbivore.elephant': 'family',
+});
+
+/**
+ * The social-group kind for one species' record — `group` for a species this
+ * build has no name for.
+ * @param {string} speciesId
+ * @returns {string} a key of SOCIAL_GROUP_APPEARANCE
+ */
+export function recordGroupKind(speciesId) {
+  return SPECIES_GROUP_KIND[speciesId] ?? 'group';
+}
+
+/**
  * Health fraction below which a living animal counts as hurt. Injuries
  * themselves are inspection-only (protocol v16), but `healthFraction` has been
  * in every bulk snapshot since Step 4 — so the grid can show that an animal is

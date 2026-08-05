@@ -10,6 +10,7 @@
  * with the exact hex fallbacks from EntityAppearance for safety.
  */
 import { createProjection, worldCellOf } from './GridProjection.js';
+import { paintSocialLayer } from './SocialLayer.js';
 import {
   resolveAppearance,
   compareOccupants,
@@ -199,8 +200,12 @@ export class AsciiGridRenderer {
    *        `hasCyclingStatus`
    * @param {Array<{cellX: number, cellY: number}>} [options.killCells] cells
    *        where something was killed on **this** tick, flashed red
+   * @param {object[]} [options.socialGroups] the social layer (protocol v33):
+   *        every herd, band, clan and pride on screen, already traced into
+   *        outlines by `SocialLayer.describeSocialGroups`. Empty while the layer
+   *        is switched off, which is the default
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [] }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [], socialGroups = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -341,6 +346,22 @@ export class AsciiGridRenderer {
       ctx.fillText(appearance.glyph, px + half, py + half);
     }
     ctx.font = uprightFont;
+
+    // --- Social layer (protocol v22 + v33), first of the overlays and under
+    // every one of them. It is the only thing drawn here that is about the whole
+    // map rather than about the selected animal, and it is the least urgent: an
+    // outline says who belongs with whom, and any mark of a *this-moment* fact —
+    // a memory, a quarry, the cell you clicked — has to be readable over it.
+    //
+    // Drawn after the entities rather than before, though, because it runs on
+    // the cell *boundaries* and never covers a glyph: putting it under the
+    // terrain pass would have the grass drawn over the outline for no gain.
+    paintSocialLayer(ctx, {
+      groups: socialGroups,
+      projection,
+      visible: cells,
+      resolveColor: (token) => this.#color(token),
+    });
 
     // --- Overlay pass: remembered places first (they sit under everything —
     // they are the selected animal's private map, not world state), then family

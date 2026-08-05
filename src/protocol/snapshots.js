@@ -42,6 +42,28 @@ export const PUBLIC_ENTITY_FIELDS = Object.freeze([
   // delta size. Nothing about *who else* is in the group is projected — there
   // is no roster anywhere to project.
   'groupId',
+  // Persistent-group membership (v33). The *record* beside the label above:
+  // `groupId` is who this animal is standing with, `groupRecordId` is which
+  // pride, clan or band it belongs to — an identity that survives the members
+  // walking apart. `null` on anything unattached, which is most of the world.
+  //
+  // ⚠ **This was deliberately inspection-only until v33, and what changed is the
+  // consumer rather than the field.** The standing test (§11) is "does it change
+  // rarely, and does it matter for one animal at a time" — and the second half
+  // stopped being true the moment a renderer wanted to outline *every* group on
+  // the map at once. A layer over the whole world cannot be assembled from a
+  // query about one animal: inspection answers "which pride is this lion in",
+  // and "where is each pride" is a different question that only a bulk field can
+  // answer. Same argument `diseaseState`, `elevation` and `flying` each made in
+  // turn — a renderer cannot show what it cannot see.
+  //
+  // Cheap by construction, and cheaper than either of the last two bumps: one
+  // small integer with exactly one writer (`GroupSystem`), changing only when an
+  // animal joins, leaves, or its record dissolves — measured at ~107 membership
+  // events per 6000-tick demo run after A64, against `flying`'s 8–24 ticks per
+  // change. It is `null` for every entity in a world where nothing forms
+  // records, so it dirties no delta it was not already dirtying.
+  'groupRecordId',
   // Disease (Step 25). Bulk-projected because a symptomatic animal has to be
   // visible on the grid for an outbreak to be watchable at all — and because
   // the *incubating* value being projected too is the honest thing: the

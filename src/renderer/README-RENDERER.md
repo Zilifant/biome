@@ -88,7 +88,9 @@ app/
     Camera.js                 center + cell size, pan/zoom math (pure)
     GridProjection.js         world → cell → screen-pixel projection (pure)
     EntityAppearance.js       ASCII glyph/color/priority registry (pure)
-    AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → overlays
+    MapLayers.js              which data layers exist, and which are switched on (pure)
+    SocialLayer.js            the social layer: grouping, bubble geometry, outline painter
+    AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → social layer → overlays
   transports/
     RendererTransport.js      transport contract + normalized event types
     WebSocketRendererTransport.js  live stream, backoff reconnect, epoch guard
@@ -99,6 +101,7 @@ app/
     CellDetail.js             pure description of one cell's ground (terrain, forage, wear, disturbances)
     InspectorView.js          what the inspector says: ground + occupants, protocol fields, and the collapsible sections
     InspectorPanel.js         where the inspector is: floating popover anchored to the cell, or docked in the sidebar
+    LayerPanel.js             one checkbox per map layer, and the key to what each draws
     Legend.js                 the key to the grid, generated from the appearance registries
     MetricsPanel.js           population histograms, generations, selection differentials (polled), one collapsible section per species
     EventLog.js               domain-event feed with one filter per event type
@@ -250,6 +253,69 @@ doesn't send. Two follow-ups are easy to miss and both fail silently:
 formatter — `null` when the protocol sent nothing, so the section does not exist
 rather than appearing empty — and add it to `describeSections`. The `id` keys
 the remembered open/closed state, so it must be stable.
+
+## Map layers
+
+**A layer is a reading of the whole map, switched on and off from the Layers
+panel in the sidebar.** It is not one of the grid's own passes — terrain,
+forage, worn ground, animals are the world and are never toggleable — and it is
+not one of the *selected animal's* overlays, which appear and vanish with the
+selection. A layer is a fact about every animal at once, drawn from
+bulk-snapshot fields, worth seeing sometimes and in the way the rest of the time.
+
+Layers default to **off**, are remembered in `localStorage`
+(`biome.layers.enabled`), and cost exactly nothing while off — nothing is
+computed, nothing is drawn. Adding one is an entry in
+`rendering/MapLayers.js` (id, label, note, default) plus whatever module draws
+it; the panel row and the remembered set follow from the entry.
+
+### Social (protocol v22 + v33)
+
+**Every group of associated animals is wrapped in a solid, rounded outline**, one
+colour per kind of group:
+
+| Outline | Group | From |
+| --- | --- | --- |
+| ▢ comment blue | herd | `groupId`, the fission–fusion label |
+| ▢ bright-cyan | band | `groupRecordId` on a zebra |
+| ▢ bright-pink | clan | `groupRecordId` on a hyena |
+| ▢ bright-purple | pride | `groupRecordId` on a lion |
+| ▢ bright-green | family | `groupRecordId` on an elephant (roster, not yet shipped) |
+| ▢ bright-white | group | a record whose species this build has no name for |
+
+⚠ **An animal can be inside two outlines at once, and that is the point.** The
+engine models sociality twice (DOCS §9): the herd label is who an animal is
+standing with *now*, the record is who it belongs to. So a zebra band shows up
+inside the herd its members happen to be standing in, in a different colour. The
+label always runs on the **outer** ring and every record inside it, because that
+is the containment the world actually has — bands are what a herd is made of.
+
+The shape is built in `rendering/SocialLayer.js`, all of it pure and tested in
+`test/renderer-view.test.js`:
+
+1. the cells the members are standing in, **padded by one cell**, which is what
+   makes it a bubble rather than a shape cut around glyphs;
+2. **holes filled**, so a ring of animals standing around a gap is one outline
+   and not a donut;
+3. blobs joined by **one-cell-wide arms** along a spanning tree, so an animal
+   that has wandered off is still wrapped without inflating the group's whole
+   outline to cover the ground in between.
+
+⚠ **An arm longer than `MAX_CORRIDOR_CELLS` (48) is not drawn** and the far
+member keeps an island outline in the group's colour. That is a frame budget — a
+dispersing animal can be most of a map away — and the more honest picture besides.
+
+The same design language as the selection's corner brackets, deliberately: same
+lane just inside the cell edge, same one-pixel stroke. What distinguishes them is
+that a social outline is **solid and rounded** where a selection bracket is four
+square corner arms — a whole box for a whole group, corners for one cell.
+
+⚠ **Tracing is the most expensive thing this renderer computes**, so two things
+bound it: only groups whose members' bounding box touches the viewport are traced
+(the whole box, so a group straddling the screen still draws the arm that crosses
+it), and the result is memoized on `(tick, viewport)` — every other reason a
+frame is drawn reuses it. Measured on the committed fixture (500 entities, ~60
+groups): **3.5 ms for the whole map, 0.36 ms for a viewport's worth.**
 
 ## Sprite mode and the sprite editor
 
@@ -622,6 +688,15 @@ async assets calls `app.requestRedraw()` when they arrive.
 What the renderer does with each layer the protocol projects, and why. Open
 gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
+- Persistent-group membership (protocol v33): `groupRecordId` rides in bulk
+  snapshots, and the **social layer** (see "Map layers") outlines every pride,
+  clan and band on the map beside every herd label. It had been inspection-only
+  since v29 as a whole `group` block, and what changed is the question: a query
+  about one animal answers "which pride is this lion in", and no number of those
+  assembles "where is each pride". ⚠ Cheaper per delta than v32's `flying` — it
+  moves only when an animal joins, leaves, or its record dissolves (~107 events
+  per 6000-tick run) — and `null` on every entity in a world where nothing forms
+  records.
 - Flight (protocol v32): `flying` rides in bulk snapshots, and the grid marks it
   with a **cyan `»` rotated to point up** — the third status shape, which says
   *where* an animal is rather than what is wrong with it or what is happening to
@@ -718,6 +793,12 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
 - Fixture mode has no inspection or metrics data at all (`http` is null there),
   so those panels are empty offline. [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.4 (P6/E3).
 - Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.
+- **At the 10px zoom floor the social layer's two rings fuse into one line.** The
+  gap between them is a proportion of the cell, and at the floor that is a pixel
+  and a half — so an animal in a band inside a herd reads as one outline in the
+  band's colour rather than two. Legible as a group boundary, not as two of them;
+  a zoom level up separates them. The same trade the `»` chevron makes at the same
+  floor, for the same reason.
 - The **flying** mark blinks, and that is the world rather than the renderer: an
   animal alternates between travelling (airborne) and contact (grounded) actions,
   measured at ~52 ground↔air transitions per 1000 vulture animal-ticks, so the

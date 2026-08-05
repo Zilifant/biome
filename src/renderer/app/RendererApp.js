@@ -13,6 +13,7 @@ import { Camera } from './rendering/Camera.js';
 import { createProjection, occupantsInCell, worldCellOf } from './rendering/GridProjection.js';
 import { compareOccupants, STATUS_CYCLE_MS } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
+import { describeSocialGroups } from './rendering/SocialLayer.js';
 import { TransportEvents } from './transports/RendererTransport.js';
 import { describeCell } from './ui/CellDetail.js';
 import { matchWatched } from './ui/Watchlist.js';
@@ -63,6 +64,16 @@ export class RendererApp {
   /** Poll handle for the selected entity's inspection detail (B5). */
   #inspectionTimer = null;
   #inspectionIntervalMs;
+  /**
+   * The last social-layer trace, with the signature it was traced for. Tracing
+   * every group's outline is the most expensive thing this renderer computes
+   * (§9a), and it depends on exactly two things: the tick and the viewport. So it
+   * is memoized against both — a frame drawn for any other reason (a status mark
+   * cycling, a selection, a hover) redraws the same outlines rather than
+   * rebuilding them.
+   * @type {{signature: string, groups: object[]} | null}
+   */
+  #socialCache = null;
 
   /**
    * @param {object} options
@@ -187,6 +198,7 @@ export class RendererApp {
           hoverCell: this.#hoverCell,
           statusPhase: this.#statusPhase,
           killCells: this.#killCells(),
+          socialGroups: this.#socialGroups(),
         });
         this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
       }
@@ -588,6 +600,44 @@ export class RendererApp {
     const detail = this.#inspectionDetail?.entity;
     if (!detail || detail.id !== this.#store.selection?.activeId) return null;
     return detail.huntTargetId ?? null;
+  }
+
+  /**
+   * Every social group on screen, outlined (protocol v22 + v33) — the social
+   * **layer**, which is a different kind of thing from every overlay below it.
+   *
+   * ⚠ **A layer is about the whole map; an overlay is about the selection.** The
+   * herd brackets under `#selectedGroupId` mark the groupmates of one animal you
+   * clicked; this outlines every herd, band, clan and pride at once, whether or
+   * not anything is selected, because the question it answers is "what is the
+   * social structure of this place" rather than "who is this animal with". That
+   * is why it hangs off a toggle rather than off the selection, and why it reads
+   * only bulk-snapshot fields — an inspection-only fact is known for one animal
+   * and would make a layer that lied about everyone else.
+   *
+   * Returns the shared empty array while the layer is off, which is the default:
+   * nothing is traced, and the renderers' loops see nothing to draw.
+   * @returns {object[]}
+   */
+  #socialGroups() {
+    if (!this.#ui.layerPanel?.isEnabled('social')) return [];
+    const projection = createProjection(this.#camera, this.#grid.cssWidth, this.#grid.cssHeight);
+    const visible = projection.visibleCellBounds();
+    const signature = `${this.#store.tick}:${this.#store.entityCount}:${visible.minCellX},${visible.minCellY},${visible.maxCellX},${visible.maxCellY}`;
+    if (this.#socialCache?.signature === signature) return this.#socialCache.groups;
+    // ⚠ Every entity, not the viewport query the entity pass uses: a group's
+    // outline is decided by *all* its members, so one standing off screen still
+    // moves the bubble that is on screen. It is the tracing that is bounded by
+    // the viewport (`visible`), not the reading.
+    const groups = describeSocialGroups(this.#store.entities.values(), this.#store.world, { visible });
+    this.#socialCache = { signature, groups };
+    return groups;
+  }
+
+  /** Forget the traced outlines — the layer was switched on or off. */
+  invalidateLayers() {
+    this.#socialCache = null;
+    this.#dirty = true;
   }
 
   /**

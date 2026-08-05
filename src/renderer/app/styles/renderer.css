@@ -324,8 +324,11 @@ input[type="text"] {
 }
 
 /* One watchable per line, clickable across the whole row rather than only on
-   the box — these get toggled while watching the grid, not while aiming. */
-.watch-row {
+   the box — these get toggled while watching the grid, not while aiming. A map
+   layer's switch is the same control doing the same job, so it shares the rule
+   rather than restating it: a toggle should look the same wherever it is. */
+.watch-row,
+.layer-row {
   display: flex;
   gap: 6px;
   align-items: baseline;
@@ -333,12 +336,32 @@ input[type="text"] {
   padding: 1px 0;
 }
 
-.watch-row:hover {
+.watch-row:hover,
+.layer-row:hover {
   background: var(--dracula-background-light);
 }
 
-.watch-row input {
+.watch-row input,
+.layer-row input {
   accent-color: var(--dracula-purple);
+}
+
+/* The key to a layer's colours: swatch, name, swatch, name, in a grid that
+   wraps — the same two-column shape the legend uses, at the width of a sidebar
+   panel rather than of a whole legend. */
+.layer-key {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 0 6px;
+  margin-top: 4px;
+}
+
+.layer-swatch {
+  text-align: right;
+}
+
+.layer-swatch-label {
+  color: var(--dracula-comment);
 }
 
 button,

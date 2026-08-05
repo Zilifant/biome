@@ -60,6 +60,17 @@ function publicEntityView(entity, tick) {
     lifeStage: entity.lifeStage,
     sex: entity.sex,
     groupId: entity.groupId,
+    // Persistent-group membership (v33). Stored, like `elevation` and `flying`,
+    // and safe for the same reason: exactly one system writes it
+    // (`GroupSystem`), which is the guarantee `x` and `y` have — and
+    // `SocialSystem`, which owns the label above, is forbidden from touching it.
+    //
+    // ⚠ `?? null` rather than a bare read, because a carcass keeps the id it had
+    // (a fact about who it was, like `deathCause`) while anything constructed
+    // outside `EntityManager` may not carry the field at all — and an
+    // `undefined` here is exactly the v31 failure: the key arrives present and
+    // valueless with nothing erroring.
+    groupRecordId: entity.groupRecordId ?? null,
     diseaseState: entity.diseaseState,
     dispersing: isDispersing(entity, tick),
     // Reproductive state (Step 30), derived on read like `dispersing` above:
