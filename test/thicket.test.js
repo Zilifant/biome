@@ -7,7 +7,11 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { TerrainGrid, TerrainType, TERRAIN_LEGEND } from '../src/simulation/world/TerrainGrid.js';
 
 describe('thicket: terrain properties', () => {
-  const grid = new TerrainGrid({ width: 128, height: 128, seed: 42, params: {} });
+  // ⚠ `roundness: 0` since 2026-08-04: the demo ships a rim, and the rim is
+  // ROCK — which would have this suite's "more prevalent than rock" comparison
+  // measuring the world's *shape* against a thicket count. The claim is about
+  // rock **formations**.
+  const grid = new TerrainGrid({ width: 128, height: 128, seed: 42, params: { roundness: 0 } });
   const thicket = firstCell(grid, TerrainType.THICKET);
 
   test('passable, but a crawl (extremely slow) — you can enter, you just barely move', () => {
@@ -30,13 +34,35 @@ describe('thicket: terrain properties', () => {
     assert.equal(engine.world.blocksSightAt(cell[0] + 0.5, cell[1] + 0.5), true);
   });
 
-  test('placed in clumps, more prevalent than rock', () => {
+  test('placed in clumps, and a substantial share of the map', () => {
+    // ⚠ **This read "more prevalent than rock" until 2026-08-04**, which was a
+    // fact about the old default mix rather than about thickets: at `5/5`
+    // formations thicket beat rock, and at the ngorongoro demo's `10/10` it does
+    // not (thicket 423, rock 614 on this grid) — rock scales harder because
+    // stands are placed on **open ground only**, so the rock it must avoid is
+    // itself what is growing. Neither number was ever the claim. What the test
+    // is named for is the claim, so it now says that directly: a thicket is a
+    // *stand*, not per-cell noise, and there is enough of it to matter.
     const counts = grid.countByType();
     assert.ok(counts[TerrainType.THICKET] > 0, 'thickets exist');
-    assert.ok(
-      counts[TerrainType.THICKET] > counts[TerrainType.ROCK],
-      `thicket (${counts[TerrainType.THICKET]}) should be more prevalent than rock (${counts[TerrainType.ROCK]})`,
-    );
+    const share = counts[TerrainType.THICKET] / (grid.width * grid.height);
+    assert.ok(share > 0.01, `thicket is a real share of the map (${(share * 100).toFixed(1)}%)`);
+
+    let clumped = 0;
+    for (let y = 0; y < grid.height; y += 1) {
+      for (let x = 0; x < grid.width; x += 1) {
+        if (grid.codeAt(x, y) !== TerrainType.THICKET) continue;
+        const touches = [
+          [x - 1, y],
+          [x + 1, y],
+          [x, y - 1],
+          [x, y + 1],
+        ].some(([nx, ny]) => grid.codeAt(nx, ny) === TerrainType.THICKET);
+        if (touches) clumped += 1;
+      }
+    }
+    const clumpedShare = clumped / counts[TerrainType.THICKET];
+    assert.ok(clumpedShare > 0.9, `thicket cells sit in stands (${(clumpedShare * 100).toFixed(1)}% touch another)`);
   });
 
   test('no thickets when disabled', () => {

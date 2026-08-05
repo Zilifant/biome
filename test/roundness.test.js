@@ -257,23 +257,33 @@ describe('roundness: generation respects the outline', () => {
 });
 
 describe('roundness: the off state', () => {
-  test('⚠ level 0 is a true no-op — the terrain is identical to a world with no roundness param', () => {
-    // D30, the standing rule: an off switch must leave no trace. If the carve
-    // ran at all at level 0 — even writing rock it then read back — the two
-    // grids would differ.
+  test('⚠ level 0 is a true no-op — the carve writes nothing at all', () => {
+    // D30, the standing rule: an off switch must leave no trace.
+    //
+    // ⚠ **Restated 2026-08-04.** This used to compare level 0 against a grid
+    // built with *no* roundness param, which was the same world only while the
+    // default was 0 — the demo now ships at 4, so that comparison had become
+    // "off differs from on", which is not the claim. The claim is that the carve
+    // leaves no trace, and a world whose every other terrain generator is off
+    // says it directly: if the carve ran at all at level 0 — even writing rock it
+    // then read back — there would be rock on an otherwise empty map.
     for (const seed of [42, 7, 13]) {
-      const withParam = new TerrainGrid({ width: W, height: H, seed, params: { roundness: 0 } });
-      const without = new TerrainGrid({ width: W, height: H, seed, params: {} });
-      assert.deepEqual(
-        withParam.toRunLength(),
-        without.toRunLength(),
-        `seed ${seed}: level 0 changed the map`,
-      );
+      const bare = { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0, treeGroves: 0, treeSingles: 0 };
+      const off = new TerrainGrid({ width: W, height: H, seed, params: { ...bare, roundness: 0 } });
+      assert.equal(off.countByType()[TerrainType.ROCK] ?? 0, 0, `seed ${seed}: level 0 wrote rock`);
+      // ...and the carve does run when it is asked to, so the assertion above is
+      // evidence of an off switch rather than of a dead mechanism.
+      const on = new TerrainGrid({ width: W, height: H, seed, params: { ...bare, roundness: MAX_ROUNDNESS } });
+      assert.ok((on.countByType()[TerrainType.ROCK] ?? 0) > 0, `seed ${seed}: the carve did nothing at all`);
     }
   });
 
-  test('the shipped default is 0, so every existing seed generates the world it always did', () => {
-    assert.equal(defaultSimulationConfig.terrain.roundness, 0);
+  test('the shipped default is the demo, and level 0 is still the control', () => {
+    // ⚠ 0 until 2026-08-04, when the demo became the ngorongoro crater and the
+    // rim became part of it. The no-op above is what "every existing seed can
+    // still generate the world it always did" now rests on: ask for 0 and you
+    // get the rectangle, exactly as before.
+    assert.equal(defaultSimulationConfig.terrain.roundness, MAX_ROUNDNESS);
   });
 });
 

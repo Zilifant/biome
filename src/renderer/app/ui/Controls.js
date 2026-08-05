@@ -86,17 +86,18 @@ const MAX_PRESET_NAME_LENGTH = 60;
  * DEFAULT_TERRAIN_PREVALENCE.
  */
 const DEFAULTS = Object.freeze({
-  width: 160,
-  height: 120,
+  width: 332,
+  height: 280,
   // Prevalence levels, not formation counts: DEFAULT_TERRAIN_PREVALENCE means
   // "whatever the demo generates", so these are unaffected when the demo's rock
   // and thicket counts are retuned. Only the dimensions above have to be
   // re-synced by hand, and only because the renderer may not import simulation
-  // internals (DOCS §14).
-  rocks: 2,
-  thickets: 2,
-  trees: 2,
-  roundness: 0,
+  // internals (DOCS §14). ⚠ The *level* they hold did have to move on
+  // 2026-08-04, when the anchor itself went 2 → 4 with the ngorongoro demo.
+  rocks: 4,
+  thickets: 4,
+  trees: 4,
+  roundness: 4,
 });
 
 /**

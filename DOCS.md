@@ -78,10 +78,11 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| Tests                 | **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
 | `PROTOCOL_VERSION`    | **32** — `flying` in bulk snapshots (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections (§11) |
 | `SAVE_FORMAT_VERSION` | **31** — `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
+| Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled — so **the §20 ten-seed gate has not been run at these values** and every survival reading in this document describes the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eleven** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30, `climbs` on 2026-08-03, **`flight` on 2026-08-04** (§8). ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all eleven fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
@@ -722,6 +723,48 @@ reminder.
 | A69 | **Stotting — honest signalling by prey**                                                                                                                                      | _Settled_ — deferred indefinitely. It needs a predator's decision to read a per-prey condition signal and decline a chase on it, which is a new input to the hunt gate for an effect a convincing gazelle does not need; `hunting.agility` (§9 Hunting) is the part of the escape model that was worth building. Acceleration and turn radius were declined on a firmer basis: movement stores a heading and a step length with **no trajectory anywhere**, by design                                                                                                                                  |
 
 ### 1.4 Structural and configuration debt
+
+**A81 — The demo roster has not been through the §20 gate** _(2026-08-04)_. The
+demo became the `ngorongoro-500-10x` world on that date — 332×280, `roundness: 4`,
+the four terrain formation counts doubled, and ~500 animals at the real crater's
+herbivore ratios (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3,
+lion 10, vulture 5, hyena 9), replacing 222 animals on a 160×120 rectangle. ⚠ The
+counts it replaced were a **swept knife edge**: every previous roster change ran
+ten seeds × 15 000 ticks against a control before it shipped, and three of four
+species batches failed that sweep the first time. These counts are an **observed
+census scaled instead**, which is a better world to look at and no evidence at all
+about survival — so ⚠⚠ **every coexistence reading in this document ("all eight
+alive on 10/10 seeds", the predator/prey oscillation, the gazelle means) describes
+the world that was replaced.** Run `npm run sweep` before quoting any of them as
+current. Two secondary readings are also stale until it is run: the mobbing and
+cooperative-capture densities (§9) were established as *counts* on a map ~4.8×
+smaller, and the demo-default benchmark row (§13, `BENCHMARK.md`) needs
+re-baselining — its scenario now follows the demo, so its pre-2026-08-04 figures
+describe a different world.
+
+⚠ **The suite already found one difference, and it is the shape of thing the gate
+exists to find.** `test/carcass.test.js`'s steady-state check failed at its old
+9000-tick window because the standing carcass count is **still climbing** there
+(152 removed against 204 standing). Measured to 16 000 ticks on seed 42 it does
+settle — peak ~364 around t11 000, then oscillating in the 180–320 band while the
+population sits at 620–780 — so the window was lengthened to 15 000 rather than
+the assertion weakened. What that says about the world: bodies arrive faster than
+they are cleared for the first ~11 000 ticks, on a map ~4.8× the area with the
+same scavenger guild spread across it. Whether that is a transient of the founding
+or a standing property of the roster is exactly what the sweep would answer.
+
+⚠ **The committed renderer fixtures were deliberately not regenerated.** They are
+a sample of the *pre-2026-08-04* demo (seed 42, 160×120), still valid as protocol
+samples and still what `?mode=fixture` shows. Regenerating is one command
+(`npm run fixtures:renderer`) but multiplies 1.4 MB of committed JSON by roughly
+the world's growth, which is a repository-weight decision rather than a
+correctness one.
+
+⚠ A second, purely mechanical consequence: **`roundness: 4` carves everything
+outside the ellipse to impassable rock, and test sandboxes inherit the default.**
+Six suites were placing animals in what had become sea. `FLAT_TERRAIN` now zeroes
+`roundness` — the same rule that file already states for generator counts, applied
+to the one terrain quantity that is not a count.
 
 **B7 — Three mass-blind constants remain, recorded rather than fixed** _(from
 the 2026-07-28 mass audit, PLAN-SPECIES.md §4)_. Every constant that ought to
@@ -4231,6 +4274,17 @@ rules), `GET|PUT|DELETE /api/presets/:slug`. ⚠ On `PUT` the **path** decides w
 a preset is stored and the body supplies only the label, so a request cannot take
 effect somewhere other than where it was addressed.
 
+⚠ **A stored terrain level is read against the anchor, so the anchor moved when
+the demo did** (2026-08-04). `rocks`/`thickets`/`trees` are prevalence levels
+mapped linearly through `DEFAULT_TERRAIN_PREVALENCE` onto the demo's own
+formation counts, which means a preset's terrain is only stable while *both* ends
+move together: the ngorongoro demo doubled the four counts, so the anchor went
+2 → 4 and every preset already saved at level 4 still generates the terrain it
+was saved with. Leaving the anchor at 2 would have silently doubled all of them.
+The one thing that could not be preserved is an **omitted** level — it means "the
+demo's", and the demo's changed — so the five presets that stored no `trees` had
+`"trees": 2` written into them, which is what they had been generating.
+
 In the restart panel, Load **fills the fields and builds nothing** — a dropdown
 that destroys a running world the moment you brush it is a control that punishes
 curiosity. The startup listing is deliberately quiet (`quiet: true`): in fixture
@@ -4845,8 +4899,11 @@ Two traps, both caught by tests in `test/roundness.test.js`:
   time, so the stranded-component search now skips the `dist === -1` sentinel
   instead of treating it as the nearest cell.
 
-Level 0 ships as the default and is a **true no-op** (D30) — it skips the carve
-entirely, so every existing seed generates exactly the world it did before. Raising
+Level 0 is a **true no-op** (D30) — it skips the carve entirely, so every existing
+seed generates exactly the world it did before, and it remains the control the
+mechanism was proved against. ⚠ It was the default until 2026-08-04; the demo now
+ships at **4**, the ellipse, because the ngorongoro world it became is a caldera
+and the rim is what makes it one. Raising
 it shrinks the playable area without changing `world.width`/`height`: usable
 fraction by level is 1.000, 0.978, 0.927, 0.873, 0.785. Since the founding roster
 is a flat count, a level-4 world is ~27% denser in animals than a level-0 one of

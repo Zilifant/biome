@@ -24,6 +24,14 @@
  *   terrain: { ...FLAT_TERRAIN, thickets: 4 } // a stand to test against
  */
 export const FLAT_TERRAIN = Object.freeze({
+  // ⚠ **Not a generator count, and the reason it is here anyway** (2026-08-04).
+  // `roundness` carves everything outside an ellipse to impassable rock, and the
+  // demo now ships at 4 — so a sandbox that inherited the default got a rim, and
+  // a suite spawning an animal at (20, 20) in a 44×44 world was placing it in the
+  // sea. Same failure mode as the trees above: a terrain quantity that was zero
+  // by default stopped being zero, and the sandboxes never said they wanted a
+  // rectangle because they had never had to.
+  roundness: 0,
   lakes: 0,
   ridges: 0,
   thickets: 0,

@@ -584,8 +584,13 @@ const FORMATION_COUNT_AT_DEFAULT = Object.freeze({
  * rather than imported from the protocol (fixtures speak the simulation's
  * language, not the protocol's) — it must match the protocol's
  * DEFAULT_TERRAIN_PREVALENCE, which is what the renderer's dropdowns default to.
+ *
+ * ⚠ 2 until 2026-08-04, when the demo became the denser ngorongoro world and its
+ * four formation counts doubled. Anchor and counts moved together deliberately:
+ * the mapping is linear through this level, so a preset stored at level 4 against
+ * the old defaults still generates the terrain it was saved with.
  */
-const DEFAULT_TERRAIN_PREVALENCE = 2;
+const DEFAULT_TERRAIN_PREVALENCE = 4;
 
 /**
  * Translate an abstract prevalence level into a generator formation count,

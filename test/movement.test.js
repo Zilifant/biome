@@ -17,7 +17,11 @@ function findCell(terrain, type) {
 
 describe('terrain speed modifiers', () => {
   test('ground is unimpeded; cover and water are slower; out-of-bounds is zero', () => {
-    const terrain = new TerrainGrid({ width: 48, height: 48, seed: 42, params: {} });
+    // ⚠ `roundness: 0` since 2026-08-04: the demo ships a rim, and carving one
+    // into a 48×48 grid costs it the corners this test looks for its sample cells
+    // in. The claim is about what each terrain code does to speed, not about the
+    // world's outline.
+    const terrain = new TerrainGrid({ width: 48, height: 48, seed: 42, params: { roundness: 0 } });
     const ground = findCell(terrain, TerrainType.GROUND);
     const cover = findCell(terrain, TerrainType.COVER);
     const water = findCell(terrain, TerrainType.WATER);

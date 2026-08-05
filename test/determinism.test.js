@@ -73,6 +73,13 @@ describe('determinism', () => {
     assert.ok(engine.entityCount >= founded);
     // Generous bound — this is a smoke check that headless stepping is fast,
     // not a strict performance assertion.
-    assert.ok(elapsedMs < 30000, `5000 ticks took ${elapsedMs}ms`);
+    // ⚠ 30 000 until 2026-08-04, when the demo became the ngorongoro world:
+    // ~4.8× the map and ~2.3× the founders is **7.6 ms/tick** where the old demo
+    // was ~1 (measured uncontended: 5000 ticks in 37.9 s, so the old bound now
+    // fails on an idle machine). Raised rather than deleted, because the claim it
+    // makes is still the one worth making — the engine holds no timer, so 5000
+    // ticks take CPU time and not 5000 seconds. It stays far under the runner's
+    // one-second authoritative tick.
+    assert.ok(elapsedMs < 120000, `5000 ticks took ${elapsedMs}ms`);
   });
 });

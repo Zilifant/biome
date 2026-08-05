@@ -850,7 +850,8 @@ The v28 role fields are still accepted by the host for one version and are
 translated by `buildDemoConfig`; the renderer no longer sends them. **Terrain
 prevalence is an abstract
 `0..MAX_TERRAIN_PREVALENCE` level, not a count** — 0 is none of that terrain,
-`DEFAULT_TERRAIN_PREVALENCE` (2) reproduces the demo's own terrain, and the top
+`DEFAULT_TERRAIN_PREVALENCE` (4 since 2026-08-04, 2 before it) reproduces the
+demo's own terrain, and the top
 crowds out open grazing ground — and `buildDemoConfig` maps it linearly through
 the default to the generator's `terrain.ridges` (rock) and `terrain.thickets`
 formation counts, so the renderer never has to know a formation from a cell.

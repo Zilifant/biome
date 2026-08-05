@@ -379,12 +379,27 @@ describe('carcass: protocol, persistence, and the demo', () => {
     // so it now says that directly: the count **falls** repeatedly over the run
     // (a world that accumulated would climb monotonically), and far more entities
     // have been removed than are standing. Neither depends on a sampling stride.
+    //
+    // ⚠⚠ **The window went 9000 → 15 000 ticks on 2026-08-04, and the reason is
+    // a finding rather than a calibration.** In the ngorongoro demo the standing
+    // carcass count is still *climbing* at tick 9000 — the old window ends inside
+    // the transient, where the honest reading is that removal has not caught up
+    // yet (152 removed against 204 standing). Measured on seed 42, cumulative
+    // removed against standing: 177/314 at t10 000, 362/324 at t12 000, 607/284
+    // at t14 000, 818/303 at t16 000. The peak is ~364 around t11 000 and it
+    // oscillates in the 180–320 band thereafter, so the steady state is real —
+    // it just arrives later and holds several times as many bodies in a world
+    // ~4.8× the area with ~2.3× the founders. Lengthening the run was the only
+    // change that keeps the claim the same claim; the alternative on offer was to
+    // weaken the assertion until the transient satisfied it. See A81 — this world
+    // has not been through the ten-seed gate, and this is the first measurement
+    // that says so from inside the suite.
     const engine = createDemoSimulation({ seed: 42 });
     let removed = 0;
     let drops = 0;
     let previous = 0;
     const standingNow = () => [...engine.world.entities.all()].filter((e) => e.kind === 'carcass').length;
-    for (let tick = 0; tick < 9000; tick += 1) {
+    for (let tick = 0; tick < 15000; tick += 1) {
       const before = engine.events.lastSeq;
       engine.step(1);
       for (const event of engine.eventsSince(before)) {

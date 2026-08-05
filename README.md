@@ -53,7 +53,17 @@ npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 | `npm run fixtures:renderer`                  | Regenerate the committed renderer protocol fixtures                          |
 
 Environment variables for the server: `PORT` (default 3000), `SIM_SEED`
-(default 42), `SIM_TICK_MS` (default 1000).
+(default 2), `SIM_TICK_MS` (default 1000).
+
+⚠ **The hosted world is `ngorongoro-500-10x`** (2026-08-04): 332×280, rounded to
+the crater's rim, founded with ~500 animals at the real caldera's herbivore
+ratios — the composition in `presets/ngorongoro-500-10x.json`, which is why the
+server's seed default is 2 rather than 42. `config.demo`, `config.world` and
+`config.terrain` hold it, so booting the demo and loading that preset produce the
+same world (verified byte-identical at 50 ticks). Everything not run through the
+server — the tests, `npm run benchmark`, and the committed renderer fixtures —
+still builds on seed 42. ⚠ This roster has **not** been through the ten-seed
+§20 gate; the survival numbers quoted below are the tuned 222-animal world's.
 
 HTTP API: `GET /api/status`, `GET /api/snapshot`
 (`?minX=&minY=&maxX=&maxY=` for a region), `GET /api/terrain`,

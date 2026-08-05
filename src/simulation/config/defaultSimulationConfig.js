@@ -11,9 +11,17 @@ export const defaultSimulationConfig = Object.freeze({
   // the `engineering` decay/wear balance). They do **not** rescale with these
   // dimensions; changing the world changes what those mechanisms mean as a
   // fraction of it. The comments there name the map they were measured on.
+  //
+  // ⚠ **The demo is the `ngorongoro-500-10x` world from 2026-08-04** (see
+  // `presets/ngorongoro-500-10x.json`, which is the same composition expressed as
+  // a restart payload). It was 160×120 with a 222-animal roster until then, and
+  // every measurement in this file dated before 2026-08-04 was taken on that
+  // smaller map — they are kept with their dates rather than deleted, because a
+  // reading is only meaningful beside the world it was taken in (§"How to read
+  // this document").
   world: Object.freeze({
-    width: 160,
-    height: 120,
+    width: 332,
+    height: 280,
     cellSize: 8,
   }),
   // Time model (see PLAN.md §3). The engine holds no timer; these values only
@@ -48,13 +56,19 @@ export const defaultSimulationConfig = Object.freeze({
     // already reports beyond the world edge, so the rim needs no new terrain
     // type and no protocol change.
     //
-    // ⚠ **Level 0 ships as the default and is a true no-op** — it skips the
-    // carve entirely, so every existing seed generates exactly the world it did
-    // before roundness existed. Raising it shrinks the *playable* area without
-    // changing `world.width`/`height`: usable fraction by level is 1.000, 0.978,
-    // 0.927, 0.873, 0.785. Since the founding roster is a flat count, a level-4
-    // world is ~27% denser in animals than a level-0 one of the same dimensions.
-    roundness: 0,
+    // ⚠ **Level 0 is a true no-op** — it skips the carve entirely, so every
+    // existing seed generates exactly the world it did before roundness existed,
+    // and it remains the control the mechanism was proved against. Raising it
+    // shrinks the *playable* area without changing `world.width`/`height`: usable
+    // fraction by level is 1.000, 0.978, 0.927, 0.873, 0.785. Since the founding
+    // roster is a flat count, a level-4 world is ~27% denser in animals than a
+    // level-0 one of the same dimensions.
+    //
+    // ⚠ The demo shipped at 0 until 2026-08-04 and is now **4**, the ellipse: the
+    // caldera the roster is named for is a bowl, and the rim is what makes it one.
+    // The density note above therefore applies to the demo itself — its 500
+    // animals sit on 0.785 of 332×280.
+    roundness: 4,
     lakes: 1,
     lakeRadiusFraction: 0.14,
     // Fraction of a lake's radius that is deep (impassable) water at its centre,
@@ -68,7 +82,14 @@ export const defaultSimulationConfig = Object.freeze({
     // its outline is organic rather than a line or a circle. After all terrain
     // is placed, a connectivity pass carves the minimum rock needed so that no
     // passable region is walled off from the rest (see world/TerrainGrid.js).
-    ridges: 5,
+    // ⚠ 5 until 2026-08-04, when the demo became the ngorongoro world: these four
+    // formation counts (`ridges`, `thickets`, `treeGroves`, `treeSingles`) are all
+    // doubled, which is exactly what the old prevalence level 4 produced on the old
+    // defaults. `DEFAULT_TERRAIN_PREVALENCE` moved 2 → 4 in the same change so
+    // "the default level reproduces the demo's own terrain" still holds *and* every
+    // preset already saved at level 4 still generates the terrain it was saved
+    // with. See `buildDemoConfig` in the demo fixture for the mapping.
+    ridges: 10,
     rockFormationMinRadius: 1.5,
     rockFormationMaxRadius: 4,
     rockFormationMinSteps: 2,
@@ -85,7 +106,7 @@ export const defaultSimulationConfig = Object.freeze({
     // of overlapping discs, organic outline) but on open ground only.
     // `thickets` is the formation count (0 disables). See TerrainGrid
     // #carveThicketFormations.
-    thickets: 5,
+    thickets: 10, // 5 before 2026-08-04; see `ridges` above
     thicketMinRadius: 1.5,
     thicketMaxRadius: 4,
     thicketMinSteps: 2,
@@ -116,10 +137,10 @@ export const defaultSimulationConfig = Object.freeze({
     // and ⚠ **gazelle −15.4 (60.7 against 76.1)**. See DOCS §7 Terrain for what
     // is and is not established about that last one.
     //
-    // At these counts trees are **2.45% of the map** (5 seeds, 160×120), which
+    // At `8/60` trees are **2.45% of the map** (5 seeds, 160×120), which
     // takes sheltering ground from 5.05% to ~7.5% — the largest single change to
     // shelter availability since thicket arrived.
-    treeGroves: 8,
+    treeGroves: 16, // 8 before 2026-08-04; see `ridges` above
     treeGroveMinRadius: 2,
     treeGroveMaxRadius: 5,
     treeGroveMinSteps: 2,
@@ -130,7 +151,7 @@ export const defaultSimulationConfig = Object.freeze({
     // so a "single" is a single, a pair, or a triplet. A count rather than a
     // density because it is the one tree quantity that reads as a number of
     // *objects* on the map rather than as an area.
-    treeSingles: 60,
+    treeSingles: 120, // 60 before 2026-08-04; see `ridges` above
     treeClusterMax: 2,
   }),
   // Cell-level vegetation biomass (see world/VegetationGrid.js). Seeded from
@@ -1703,55 +1724,72 @@ export const defaultSimulationConfig = Object.freeze({
     // here, which is what makes "a species is config, not code" checkable
     // rather than merely claimed.
     //
-    // The counts are a measured knife edge; see the Step 16 and 22 notes for
-    // the grazer/stalker sweep behind 120/8, and the Step 29 notes for the
-    // scavenger's 10. §1.4 D14: five seeds cannot resolve a one-seed
-    // difference here, so re-measure on ten before changing any of them.
+    // ⚠⚠ **This is the `ngorongoro-500-10x` roster (2026-08-04)**, and it is a
+    // different *kind* of number from the roster it replaced. The old counts
+    // (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8,
+    // wildebeest 30, zebra 15 — 222 animals on 160×120) were a **tuned knife
+    // edge**: each one swept on ten seeds against a control until the world
+    // survived, which is why the notes below read as sweep results. These are
+    // instead **the real Ngorongoro Crater's census, scaled** — the herbivore
+    // ratios are the crater's, the map is the crater at 10× (332×280 cells
+    // against ~332 km²), and the shape is its rim (`terrain.roundness: 4`). The
+    // provenance is observation, not a sweep.
+    //
+    // ⚠ **It has therefore not been through the §20 gate at these values.** The
+    // ten-seed × 15 000-tick sweep that every previous roster change passed has
+    // not been run on this one, so "every species alive on 10/10 seeds" is a
+    // claim about the *old* demo and must not be read as describing this world.
+    // Run `npm run sweep` before quoting survival numbers for it.
+    //
+    // ⚠ Order is load-bearing and matches the preset file exactly: founders are
+    // walked in this order, so ids, spawn order and every downstream random draw
+    // depend on it. Booting the demo and loading `ngorongoro-500-10x` must
+    // produce the same world, and a reordered roster silently breaks that.
+    //
+    // §1.4 D14 still applies: five seeds cannot resolve a one-seed difference
+    // here, so re-measure on ten before changing any of them.
     founding: Object.freeze([
-      Object.freeze({ speciesId: 'herbivore.gazelle', count: 120 }),
-      Object.freeze({ speciesId: 'predator.leopard', count: 8 }),
+      // The three-tier grazing succession, at crater ratios: wildebeest are the
+      // most numerous animal in the real caldera, and the gazelle — the tuned
+      // demo's dominant herbivore at 120 — is now the *smallest* of the four
+      // cohorts. ⚠ **Herbivore intake is mass-scaled, so a count is not a
+      // headcount**: a 200 kg wildebeest eats 4.15× a gazelle and a 300 kg zebra
+      // 5.62×, so this roster's demand on the grass field is several times the
+      // old one's even before the map's own area is counted.
+      Object.freeze({ speciesId: 'herbivore.gazelle', count: 60 }),
+      Object.freeze({ speciesId: 'herbivore.wildebeest', count: 219 }),
+      Object.freeze({ speciesId: 'herbivore.zebra', count: 97 }),
+      // ⚠ **Buffalo is a density, not an appetite.** Mobbing needs
+      // `mobbing.minMobbers` adults within six units of the animal under attack,
+      // so a herd thin enough to graze alone cannot defend itself however well
+      // the mechanism resolves — measured at 20 buffalo on the old 160×120 map,
+      // mobbing reached **zero** capture attempts. 97 is well clear of that
+      // count, but density is what the mechanism actually reads and this map is
+      // ~4.8× the area, so the margin is smaller than the number suggests.
+      Object.freeze({ speciesId: 'herbivore.buffalo', count: 97 }),
+      // The leopard: solitary, and deliberately rare in the crater. It declares
+      // no group size, so `config.cohorts` scatters it where the lion is founded
+      // as prides (see ACTION-ITEMS A80 for what clustering costs it).
+      Object.freeze({ speciesId: 'predator.leopard', count: 3 }),
+      // ⚠ The pride, and the same density argument as the buffalo: cooperative
+      // capture is counted from lions committed to one quarry, which needs lions
+      // near each other. On the old map 8 was the count at which cooperation
+      // fired at all.
+      Object.freeze({ speciesId: 'predator.lion', count: 10 }),
       // An obligate scavenger, added in Step 29 with no engine changes
       // whatsoever — a carnivore that declares no prey, so it can only eat what
-      // is already dead. Small, because carrion is a thin and unreliable living.
-      Object.freeze({ speciesId: 'scavenger.vulture', count: 10 }),
-      // Batch 1's real change (PLAN-SPECIES.md phase 7): a facultative
-      // scavenger that hunts gazelle and steals kills, and the first species in
-      // the world to form persistent groups. ⚠ Swept on ten seeds × 15 000
-      // ticks against a hyena-free control before it went above zero, and the
-      // first sweep **failed** — see the species file for why, and D14 for why
-      // fewer seeds cannot settle a count. The passing world is a real
-      // ecological change, not a free addition: it costs the stalker three
-      // seeds in ten and holds the gazelle at about two thirds of its
-      // hyena-free abundance.
-      Object.freeze({ speciesId: 'scavenger.hyena', count: 6 }),
-      // Batch 2 (PLAN-SPECIES.md phase 11): the pair that finally exercises phase
-      // 10, and the first pair whose *counts* are load-bearing for a mechanism
-      // rather than only for survival.
-      //
-      // ⚠ **35 buffalo is a density, not an appetite.** Mobbing needs
-      // `mobbing.minMobbers` adults within six units of the animal under attack,
-      // so a herd thin enough to graze alone cannot defend itself however well the
-      // mechanism resolves — measured at 20 buffalo, mobbing reached **zero**
-      // capture attempts. The same is true of the pride: cooperative capture is
-      // counted from lions committed to one quarry, which needs lions near each
-      // other. Both were raised until the mechanisms fired, then gated.
-      //
-      // ⚠ The §9 procedure was followed in order: both went in at `count: 0` and
-      // the world was proved unchanged (5.9 MB of state identical across three
-      // seeds, modulo the roster literal itself) before either was raised.
-      Object.freeze({ speciesId: 'herbivore.buffalo', count: 35 }),
-      Object.freeze({ speciesId: 'predator.lion', count: 8 }),
-      // Batch 3 (PLAN-SPECIES.md phase 13): the competitive pair that completes
-      // the three-tier grazing succession, and the batch that finally gives the
-      // lion a prey base.
-      //
-      // ⚠ **Herbivore intake is mass-scaled, so a count is not a headcount.** A
-      // 200 kg wildebeest eats 4.15× a gazelle and a 300 kg zebra 5.62×, so these
-      // two cohorts are worth ~211 gazelle against the existing roster's ~452 —
-      // adding a third again to the demand on one grass field. That, not the
-      // animal count, is why the numbers are small.
-      Object.freeze({ speciesId: 'herbivore.wildebeest', count: 30 }),
-      Object.freeze({ speciesId: 'herbivore.zebra', count: 15 }),
+      // is already dead. Small, because carrion is a thin and unreliable living,
+      // and since phase V1 a flyer, so it reaches the leopard's cached kills.
+      Object.freeze({ speciesId: 'scavenger.vulture', count: 5 }),
+      // A facultative scavenger that hunts gazelle and steals kills, and the
+      // first species in the world to form persistent groups (PLAN-SPECIES.md
+      // phase 7). On the old roster it was swept on ten seeds × 15 000 ticks
+      // against a hyena-free control, and the first sweep **failed** — see the
+      // species file for why. It cost the stalker three seeds in ten there and
+      // held the gazelle at about two thirds of its hyena-free abundance; on a
+      // roster where the gazelle is no longer the dominant grazer, that reading
+      // does not transfer.
+      Object.freeze({ speciesId: 'scavenger.hyena', count: 9 }),
     ]),
   }),
 });

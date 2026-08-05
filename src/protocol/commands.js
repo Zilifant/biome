@@ -160,7 +160,16 @@ export const MAX_FOUNDING_SCAVENGERS = 5000;
  * stays a host-side modelling decision the protocol never learns.
  */
 export const MAX_TERRAIN_PREVALENCE = 10;
-export const DEFAULT_TERRAIN_PREVALENCE = 2;
+/**
+ * ⚠ **2 until 2026-08-04, now 4.** The constant means "the level that reproduces
+ * the demo's own terrain", and the demo became a denser world on that date (see
+ * `defaultSimulationConfig.terrain`). Moving the anchor with it is what keeps the
+ * *other* promise this scale makes: a preset saved at level 4 against the old
+ * defaults still generates exactly the terrain it was saved with, because the
+ * host's mapping is linear through this anchor and both ends doubled together.
+ * Leaving it at 2 would have silently doubled every stored preset's terrain.
+ */
+export const DEFAULT_TERRAIN_PREVALENCE = 4;
 
 /**
  * `roundness` is the world's *shape*, 0..MAX_ROUNDNESS: 0 is the plain
@@ -175,7 +184,8 @@ export const DEFAULT_TERRAIN_PREVALENCE = 2;
  * a dropdown, matching the terrain controls beside it.
  */
 export const MAX_ROUNDNESS = 4;
-export const DEFAULT_ROUNDNESS = 0;
+/** 0 (the plain rectangle) until 2026-08-04; the demo is now the crater's rim. */
+export const DEFAULT_ROUNDNESS = 4;
 
 /**
  * Successful command result.

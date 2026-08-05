@@ -33,7 +33,12 @@ const defaultPresetDir = path.resolve(path.dirname(fileURLToPath(import.meta.url
  *            listen: (port?: number) => Promise<import('node:net').AddressInfo>, close: () => Promise<void>}}
  */
 export function createServer({
-  seed = Number(process.env.SIM_SEED ?? 42),
+  // ⚠ 42 until 2026-08-04. The *hosted* world is the `ngorongoro-500-10x`
+  // composition, and that preset names seed 2 — the seed is part of a world, not
+  // a global default, so only this boot seed moved. `createDemoSimulation` still
+  // defaults to 42, which is what the tests, the benchmark and the committed
+  // renderer fixtures are built on.
+  seed = Number(process.env.SIM_SEED ?? 2),
   tickIntervalMs = Number(process.env.SIM_TICK_MS ?? 1000),
   presetDirectory = process.env.SIM_PRESET_DIR ?? defaultPresetDir,
 } = {}) {

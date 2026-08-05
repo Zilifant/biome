@@ -32,6 +32,41 @@ function world(seed, clustered) {
   return createDemoSimulation({ seed, config: { cohorts: { clustered } } });
 }
 
+/**
+ * The demo as it stood on 2026-08-04 *before* it became the ngorongoro world —
+ * 160×120, a plain rectangle, the pre-doubling terrain counts, and the 222-animal
+ * roster in its original order.
+ *
+ * ⚠ **Stated here because the recorded digests below belong to this world.** They
+ * were taken while clustering still defaulted to off, and a digest is only a
+ * baseline while the world it was taken in can still be built. Re-recording them
+ * against the new demo would have replaced a baseline with a photograph of the
+ * current behaviour — which is exactly the failure the digest test's own comment
+ * warns about — so the world is pinned instead.
+ */
+function preNgorongoroWorld(seed, clustered) {
+  return createDemoSimulation({
+    seed,
+    config: {
+      cohorts: { clustered },
+      world: { width: 160, height: 120 },
+      terrain: { roundness: 0, ridges: 5, thickets: 5, treeGroves: 8, treeSingles: 60 },
+      demo: {
+        founding: [
+          { speciesId: 'herbivore.gazelle', count: 120 },
+          { speciesId: 'predator.leopard', count: 8 },
+          { speciesId: 'scavenger.vulture', count: 10 },
+          { speciesId: 'scavenger.hyena', count: 6 },
+          { speciesId: 'herbivore.buffalo', count: 35 },
+          { speciesId: 'predator.lion', count: 8 },
+          { speciesId: 'herbivore.wildebeest', count: 30 },
+          { speciesId: 'herbivore.zebra', count: 15 },
+        ],
+      },
+    },
+  });
+}
+
 /** Living animals of one species, in creation order. */
 function cohortOf(engine, speciesId) {
   return [...engine.world.entities.all()].filter((e) => e.kind === 'animal' && e.speciesId === speciesId);
@@ -73,6 +108,10 @@ describe('cohorts: off is the previous world, exactly', () => {
     // renderer keeps committed fixtures: a baseline you can still generate is
     // not a baseline. If this fails, founding placement moved for a world that
     // asked for none — which is the one change here that would be a defect.
+    //
+    // ⚠ Built through `preNgorongoroWorld` since 2026-08-04, for that same
+    // reason: the demo's dimensions, terrain and roster all moved that day, and a
+    // digest outlives the config it was taken under only if the config is stated.
     const EXPECTED = new Map([
       [1, '962914c27f1e6f24'],
       [2, '85c45ea7d8a245fb'],
@@ -80,7 +119,7 @@ describe('cohorts: off is the previous world, exactly', () => {
     ]);
     for (const seed of SEEDS) {
       const digest = createHash('sha256')
-        .update([...world(seed, false).world.entities.all()].map((e) => `${e.speciesId}:${e.x},${e.y}`).join('|'))
+        .update([...preNgorongoroWorld(seed, false).world.entities.all()].map((e) => `${e.speciesId}:${e.x},${e.y}`).join('|'))
         .digest('hex')
         .slice(0, 16);
       assert.equal(digest, EXPECTED.get(seed), `seed ${seed}: unclustered founding placement moved`);

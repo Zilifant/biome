@@ -528,6 +528,19 @@ they are not re-opened by accident.
 
 ## Engine — schema and configuration
 
+- **A81 — The demo roster has not been through the §20 gate** _(2026-08-04)_. The
+  demo is now the `ngorongoro-500-10x` world (332×280, `roundness: 4`, doubled
+  terrain counts, ~500 animals at the real crater's herbivore ratios) in place of
+  222 animals on a 160×120 rectangle. ⚠ The counts it replaced were swept on ten
+  seeds × 15 000 ticks against a control; these are an observed census scaled, so
+  **every coexistence reading in the docs describes the world that was replaced**.
+  Run `npm run sweep` before quoting survival numbers. Also stale until then: the
+  mobbing / cooperative-capture densities, and the demo-default benchmark row.
+  ⚠ The suite already found one difference: carcasses are **still accumulating at
+  tick 9000** in this world (peak ~364 near t11 000, settling into a 180–320 band
+  by t16 000), so `test/carcass.test.js` now runs to 15 000 ticks.
+  See [`DOCS.md`](DOCS.md) §1.4.
+
 - **A49 — "Activity pattern" is not a schema field.** ⚠ Half of this item
   **closed 2026-07-29**: habitat preference now exists as a per-species `habitat`
   field (one weight per terrain name) consumed by the long-range cue, and the

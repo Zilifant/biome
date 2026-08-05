@@ -74,7 +74,11 @@ function deepCell(grid) {
 
 describe('world.nearestWater: the long-range water bearing', () => {
   test('points toward the lake, with distance falling as you approach', () => {
-    const engine = new SimulationEngine({ seed: 42 });
+    // ⚠ `roundness: 0` since 2026-08-04, when the demo's rim shipped on by
+    // default: the "far land corner" this test reads from is outside the ellipse
+    // and is now sea, so the bearing it asked for was correctly null. The claim
+    // is about the water bearing, not about the world's shape.
+    const engine = new SimulationEngine({ seed: 42, config: { terrain: { roundness: 0 } } });
     const world = engine.world;
     const lake = shallowWaterCentroid(world.terrain);
     assert.ok(lake, 'demo world has a lake');

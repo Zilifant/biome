@@ -49,16 +49,21 @@ import { defaultSimulationConfig } from '../simulation/config/defaultSimulationC
  * @type {Array<{name: string, world: object, founding: Array<{speciesId: string, count: number}>}>}
  */
 const SCENARIOS = [
-  { name: 'demo-default', world: { ...defaultSimulationConfig.world }, founding: [
-      { speciesId: 'herbivore.gazelle', count: 120 },
-      { speciesId: 'herbivore.wildebeest', count: 30 },
-      { speciesId: 'herbivore.zebra', count: 15 },
-      { speciesId: 'herbivore.buffalo', count: 35 },
-      { speciesId: 'predator.leopard', count: 8 },
-      { speciesId: 'predator.lion', count: 8 },
-      { speciesId: 'scavenger.vulture', count: 10 },
-      { speciesId: 'scavenger.hyena', count: 6 },
-    ] },
+  // ⚠ **Read from the config, not restated** (2026-08-04). This scenario's whole
+  // job is to describe the demo, and it was a hand-copied roster that happened to
+  // match — so when the demo became the ngorongoro world (332×280, ~500 animals
+  // at crater ratios) the row would have kept reporting a 222-animal world under
+  // the demo's name while silently picking up its new *dimensions* from the
+  // spread beside it. Deriving both ends means it cannot drift again.
+  // ⚠⚠ **demo-default figures dated before 2026-08-04 are not comparable** — they
+  // describe a 160×120 rectangle holding 222 animals. The row needs re-baselining;
+  // the three scale scenarios below are untouched and their history stands, though
+  // their rosters are still at the demo's *old* 120:30:15:35:8:8:10:6 ratio.
+  {
+    name: 'demo-default',
+    world: { ...defaultSimulationConfig.world },
+    founding: defaultSimulationConfig.demo.founding.map(({ speciesId, count }) => ({ speciesId, count })),
+  },
   { name: 'small-100', world: { width: 256, height: 256 }, founding: [
       { speciesId: 'herbivore.gazelle', count: 100 },
       { speciesId: 'herbivore.wildebeest', count: 25 },
