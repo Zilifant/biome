@@ -294,6 +294,19 @@ describe('the host, end to end', () => {
     assert.equal(body.error.code, 'world-size-limit');
   });
 
+  test('⚠ the health check reports the process without building a world', async () => {
+    // A platform pings this every few seconds and keeps no cookies. If it
+    // resolved a session, each ping would build and reap a whole engine.
+    const before = server.sessions.size;
+    for (let i = 0; i < 5; i += 1) {
+      const response = await fetch(`${base}/healthz`);
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).ok, true);
+      assert.equal(response.headers.get('set-cookie'), null, 'not even a cookie');
+    }
+    assert.equal(server.sessions.size, before, 'no worlds built');
+  });
+
   test('the sprite editor is not served, and its absence is a 404', async () => {
     assert.equal((await fetch(`${base}/sprite-editor.html`)).status, 404);
     // The main view is unaffected.

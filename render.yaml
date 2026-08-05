@@ -14,11 +14,16 @@ services:
     name: biome
     runtime: node
     plan: starter
-    buildCommand: npm ci
+    # ⚠ --omit=dev matters here. The runtime needs only express and ws, while the
+    # devDependencies carry Playwright, whose install downloads a browser —
+    # minutes of build time and a few hundred MB for something the server never
+    # runs.
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
-    # /api/status is an ordinary protocol query and needs no session, which is
-    # what makes it a good health check.
-    healthCheckPath: /api/status
+    # ⚠ /healthz, never /api/status. A health check keeps no cookies, so every
+    # ping at a session-resolving route would build and reap a whole engine;
+    # /healthz reports the process instead (see createServer.js).
+    healthCheckPath: /healthz
     numInstances: 1
     envVars:
       - key: NODE_VERSION

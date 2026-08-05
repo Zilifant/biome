@@ -95,6 +95,16 @@ export function createServer({
   app.set('trust proxy', 1);
   app.use(express.json());
 
+  // ⚠ **Liveness, and deliberately nothing else.** Registered before the session
+  // middleware so it neither reads nor mints a cookie: a platform health check
+  // arrives every few seconds and keeps no cookies, so pointing one at a route
+  // that resolves a session would build and then reap a whole engine — terrain,
+  // vegetation, and a founding population — on every ping, forever. It reports
+  // the process, not a world, which is exactly what a health check should ask.
+  app.get('/healthz', (_req, res) => {
+    res.json({ ok: true, sessions: sessions.size });
+  });
+
   // Issue a session cookie to anyone who does not have one, and record which id
   // this request speaks for.
   //
