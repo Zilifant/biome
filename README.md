@@ -27,9 +27,10 @@ two (the carcass-discovery network and the slow life history) unbuilt and now
 `ACTION-ITEMS.md` **A77** and **A78**. All three plans' "As built" blocks — where each
 phase's own prediction turned out wrong — are the part worth reading; everything they
 built is described in `DOCS.md`.
-[`HANDOFF.md`](HANDOFF.md) is the current session handoff (open ideas and findings
-not yet built); [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md) is the
-superseded original.
+[`legacy-docs/HANDOFF-2026-07-30.md`](legacy-docs/HANDOFF-2026-07-30.md) is the
+archived session handoff for species phases 12–14; [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md)
+is the superseded original. Current open work lives in `ACTION-ITEMS.md` and
+`DOCS.md` §1.
 
 Measurements carry the date and world on which they were taken. They are
 historical readings, not standing claims: re-measure rather than inherit them.

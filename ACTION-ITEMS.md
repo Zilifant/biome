@@ -580,8 +580,14 @@ they are not re-opened by accident.
   perception reports the nearest *eligible prey*, so a lion listing both gazelle
   and buffalo engaged a buffalo twice in 4000 ticks and batch 2 demonstrated
   nothing. Narrowing `preySpeciesIds` fixed that case; the general fix would close
-  both. Re-examine at batch 3, when three grazers disagree about what a good cell
-  is.
+  both. ⚠ **Re-examined at batch 3 (2026-07-30), it did not bite on the herbivore
+  side.** Three grazers now disagree about what a good cell is, and the preference
+  still moved each in its declared direction: gazelle −0.97/−1.64 standing crop
+  against the mechanism off, wildebeest −0.51/−0.62, and the two bulk feeders
+  approximately zero. The discount does the work once an animal is standing on a
+  cell, and a grazer reaches nearby grass often enough. It remains open on the
+  predator side, where the lion's three-item prey list makes nearest-eligible prey
+  the animal it lives on.
 
 - **B7 — Three mass-blind constants, found by the 2026-07-28 mass audit** and
   deliberately left until the species that exposes each one exists. ⚠ **The
@@ -589,12 +595,13 @@ they are not re-opened by accident.
   rotting on a 6 kg animal's clock (one buffalo is 360 edible mass against a
   gazelle's 18, and the lion took 37.6% of all carrion in the world), and
   `hunting.captureStaminaCost` is flat against a `maxStamina` that now ranges
-  80–120. Both are still unfixed, because each changes a food source or a hunt
+  80–140 (lion 80, leopard 90, zebra 140). Both are still unfixed, because each changes a food source or a hunt
   and phase 11 already changed both.
   `carcass.decayTicks` (a 600 kg body rots on a 6 kg body's clock — and changing
   it changes a food source, so it needs its own multi-seed sweep);
   `hunting.captureStaminaCost` (flat against a per-species `maxStamina`, so the
-  ratio is expressible but untested until two predators differ); and
+  ratio is expressible but remains untested despite the lion and leopard differing
+  at 80 and 90); and
   `locomotion.maxOccupantsPerCell` (a headcount rather than a volume — the fix is
   an occupancy *cost*, on a knife edge). Every other candidate audited as scaled
   or correctly flat, with the verdict written into its config comment. Full

@@ -8,7 +8,8 @@ This document is the consolidated reference for the whole system: what exists,
 why it is shaped the way it is, what it costs, and **what is still open**. It
 supersedes `PLAN.md` (the linear 30-step development roadmap, now complete),
 [`legacy-docs/PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) (the eighteen-phase
-species roadmap, shipped through phase 14 and parked), and `HANDOFF.md` (the
+species roadmap, shipped through phase 14 and parked), and
+[`legacy-docs/HANDOFF-2026-07-30.md`](legacy-docs/HANDOFF-2026-07-30.md) (the
 session-handoff summary) as the place to look things up. Those remain as the
 historical record — every measurement in this document is traceable to a dated
 completion note there — but nothing in this document depends on reading them.
@@ -811,7 +812,7 @@ until the species that exposes them exists:
 | Constant                         | Why it is open                                                                                                                              |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `carcass.decayTicks`             | ⚠ **Now live** (phase 11): the 600 kg body exists. One buffalo is **360 edible mass** against a gazelle's 18, lying on a 6 kg animal's clock, and the lion took **37.6%** of all carrion in the world on the strength of it. Still not fixed here, because changing it changes a food source and the batch already was one — but it stops being hypothetical |
-| `hunting.captureStaminaCost`     | Flat against a per-species `maxStamina`, so the ratio is _expressible_ but no species varies it yet. Re-check when two predators differ      |
+| `hunting.captureStaminaCost`     | Flat against a per-species `maxStamina`, spanning 80–140 (lion 80, leopard 90, zebra 140). The ratio is _expressible_ but remains untested despite the two predators differing      |
 | `locomotion.maxOccupantsPerCell` | A headcount, not a volume: two 6 kg animals and two 600 kg animals cost a cell the same. The fix is an occupancy _cost_, on a knife edge     |
 
 Everything else audited as `scaled` or *correctly flat*. Two were fixed on the
