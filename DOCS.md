@@ -87,7 +87,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **eleven** always-per-species **fields**: `forage` and `habitat` new on 2026-07-29, `association` and `crypsis` on 2026-07-30, `climbs` on 2026-08-03, **`flight` on 2026-08-04** (§8). ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all eleven fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
 | Flight                | **A pace on the intent, not a simulation of flight** — `entity.flying`, added 2026-08-04 (phase F1). Faster travel with the terrain modifier bypassed, a wider sight radius, cheaper distance, nothing refusing the step, and out of reach of predation and fire. No altitude, no thermals, no takeoff cost. The **vulture** is the only flier (phase F2), and its ground radius dropped 14 → 9 so that flying restores exactly the 14 it had — the world's widest radius does not move. See §9 Movement |
-| Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, 2.45% of the demo map, shade + light concealment + near-open going. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
+| Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, shade + light concealment + near-open going. ⚠ **0.98% of the demo map since 2026-08-04**, against 2.45% before it (5 seeds each): the formation counts doubled but the map grew 4.84×, and tree, thicket and rock formations are absolute **counts** rather than densities. Full mix now, old in brackets: ground 71.1 [87.8], rock 22.1 [1.9] — almost all of it the rim — cover 2.60 [3.35], water 1.83 [1.87], tree 0.98 [2.48], deep water 0.78 [0.85], thicket 0.56 [1.69]. `coverPatchDensity` is the one that is per-area, and it is the one that held. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Species phases 0–14 are **committed** — `9fceb4d phase 12` and `83a6dd9 phase 14`, ⚠ the latter carrying phases 13 and 14 together (the user handles git) |
 
@@ -691,7 +691,7 @@ reminder.
 | A77 | **The vulture's carcass-discovery network** — birds that find food by watching other vultures descend _(from the retired trees/flight/vulture plan, phase V2)_                  | Open, **designed and not built**. It is `#joinedHunt` with a different noun: a scavenger with no carcass of its own in sight adopts the one a nearby conspecific has committed to, filling `seekFood`'s existing target — so it adds no action, no draw and no third neighbour walk, and being gated on "nothing of my own" means it can only ever *add* a searcher to a body. Biology in `scavenging: { followsKin, followRange }`, switch in `config.scavenging.enabled`; measure ticks from a carcass's creation to the *n*th feeder. ⚠⚠ **Read A73 and A76 first** — it takes carrion off the guild three phases have already reshuffled, by speeding up the species that now holds 45% of it |
 | A78 | **The vulture's slow life history** — slow maturation, one chick, long dependency _(from the retired plan, phase V3)_                                                           | Open and **now overdue rather than optional**. It was flight's named counterweight; F2 shipped with its own brake and held its gate, then V1 took the bird to 416.0 against 295.4 and 45.0% of all carrion (**A76**). ⚠ The extra meat is mostly *new* (the pool grows 193 → 221 t), so **B7**'s mass-blind `carcass.decayTicks` may be the better lever; **A62** caps how far the life history itself can honestly go, since the real knob is `ticksPerYear`. Needs ten seeds and per-seed pairs (**D41**) |
 | A79 | **Four of eight species do not name `tree`**, so adding a terrain code still shrinks every grazer's preferred habitat _(from 2026-08-03, phase T1)_                             | Open. A general property rather than a fact about trees: an unnamed terrain resolves to neutral 1 while the ground it replaced was weighted above 1, so **any** new code does this to every species that enumerates terrain by name. The leopard (T3) and vulture (V1) have caught up; the four herbivores have not. One weight apiece — ⚠ but it moves four species' habitat at once and wants its own arm, which is why T1 left it out of the gate measuring one terrain type |
-| A80 | **Founding cohorts ship on, on a gate that passed rather than convinced** — `config.cohorts.clustered` is `true` _(2026-08-04)_                                                  | Open as a **watch item**, not a defect. The gate's bar is met (10 seeds × 15 000: every species ≥6/10, worst 9/10) but per-seed pairs (**D41**) resolve exactly one effect — the **lion**, up on 8 of 10 seeds (12.7 → 15.9), the social predator founded as prides. Every other mean is a coin flip in its ordering: leopard 4up/6down, hyena 2up/5down/3tie, vulture 3up/7down, gazelle 5up/4down/1tie despite a +11.5 mean. ⚠ It costs the leopard a seed (10/10 → 9/10, starvation 2 → 8); **D14** says that wants more seeds rather than a parameter. ⚠ Its honest claim is narrow: group count and size converge on the scattered world's by tick 10 000 (7.5 × 5.3 against 7.8 × 5.3), so what it buys is a world that **starts** where it was going to end up, not a more social one. ⚠⚠ Group foundings rose 8818 → 15388 (+75%), which makes **A56**'s hysteresis fix worth building — three clan-forming species now flap against it. **Still to do: re-baseline `npm run benchmark`** (denser tick-0 neighbourhoods change perception cost) |
+| A80 | **Founding cohorts ship on, on a gate that passed rather than convinced** — `config.cohorts.clustered` is `true` _(2026-08-04)_                                                  | Open as a **watch item**, not a defect. The gate's bar is met (10 seeds × 15 000: every species ≥6/10, worst 9/10) but per-seed pairs (**D41**) resolve exactly one effect — the **lion**, up on 8 of 10 seeds (12.7 → 15.9), the social predator founded as prides. Every other mean is a coin flip in its ordering: leopard 4up/6down, hyena 2up/5down/3tie, vulture 3up/7down, gazelle 5up/4down/1tie despite a +11.5 mean. ⚠ It costs the leopard a seed (10/10 → 9/10, starvation 2 → 8); **D14** says that wants more seeds rather than a parameter. ⚠ Its honest claim is narrow: group count and size converge on the scattered world's by tick 10 000 (7.5 × 5.3 against 7.8 × 5.3), so what it buys is a world that **starts** where it was going to end up, not a more social one. ⚠⚠ Group foundings rose 8818 → 15388 (+75%), which makes **A56**'s hysteresis fix worth building — three clan-forming species now flap against it. ⚠ The benchmark re-baseline this item was waiting on **was taken on 2026-08-04** — but on the ngorongoro demo, which moved at the same time, so it measures both changes at once and can attribute neither: `demo-default` 5.5224 ms/tick, `large-5k` flat at 133.73 (§13). ⚠ Every per-seed number in this row is from the 160×120 world; the current demo's own sweep is **A81**, where the leopard is down to 1/10 |
 | A3  | **Individual tree/shrub entities.** Vegetation is a cell-level biomass field, not thousands of plant entities                                                                  | Open. The `plant` entity kind is reserved for them. Needed only by a step that wants _point_ vegetation                                                                                                                                                                                                                                          |
 | A5  | **Renderer debug overlay of perceived cells**                                                                                                                                  | Open — a later renderer pass                                                                                                                                                                                                                                                                                                                     |
 | A7  | **Action glyph tint.** The current action is textual in the inspector only                                                                                                     | Open — `action` already rides in the bulk snapshot, so this is renderer-only work                                                                                                                                                                                                                                                                |
@@ -761,6 +761,20 @@ thing it must not become is a reading nobody takes. The obvious lever if any of
 the three should persist is founder counts (3 leopards and 5 vultures are very few
 animals at this scale); nothing here argues the mechanisms are wrong.
 
+⚠⚠ **A likelier lever than founder counts: the world got emptier, not just
+bigger.** Rock, thicket and tree are absolute **formation counts**, so doubling
+them while the map grew 4.84× left them at roughly 40% of their old density —
+measured over 5 seeds, tree **2.48% → 0.98%** of the map and thicket
+**1.69% → 0.56%**. (`coverPatchDensity` is per-area and held: 3.35% → 2.60%.) The
+two species that collapsed are exactly the two that live off that terrain: the
+**leopard** is the world's one crypsis user, an ambush hunter that caches kills *in
+trees*, and the **vulture** declares a woodland `habitat` preference and roosts.
+Nothing here proves causation — the sweep measures populations, not why — but it
+is a sharper hypothesis than "three founders is too few", and it is testable in one
+command: `npm run sweep -- --rocks=8 --thickets=8` against the current arm. ⚠ The
+prevalence levels in the preset (`4`) were chosen for the old anchor, where they
+meant "twice the demo"; at this scale they buy less than half the demo's density.
+
 ⚠ **The sweep and the test suite tell the same story from two directions.**
 `test/carcass.test.js`'s steady-state check failed at its old 9000-tick window
 because the standing carcass count is **still climbing** there (152 removed against
@@ -776,12 +790,11 @@ densities (§9) were established as *counts* on a map ~4.8× smaller. The sweep 
 the lion is doing well, which is indirect evidence cooperation still fires, but
 nothing here measures it directly.
 
-⚠ **The committed renderer fixtures were deliberately not regenerated.** They are
-a sample of the *pre-2026-08-04* demo (seed 42, 160×120), still valid as protocol
-samples and still what `?mode=fixture` shows. Regenerating is one command
-(`npm run fixtures:renderer`) but multiplies 1.4 MB of committed JSON by roughly
-the world's growth, which is a repository-weight decision rather than a
-correctness one.
+⚠ **The committed renderer fixtures were regenerated** (`npm run fixtures:renderer`),
+so `?mode=fixture` shows the world the engine actually builds. They grew from
+1.4 MB to 3.5 MB of committed JSON — 1.7 MB snapshot, 1.4 MB events, 451 KB
+delta — which is the price of a fixture that describes a 332×280 world holding
+~500 animals.
 
 ⚠ A second, purely mechanical consequence: **`roundness: 4` carves everything
 outside the ellipse to impassable rock, and test sandboxes inherit the default.**
@@ -1328,6 +1341,12 @@ every species except the gazelle at 9/10 (lost on seed 1 at t14384, in the last
 +0.9, hyena −0.3, leopard −0.4, zebra −3.8, vulture −30.1 (371 vs 401), and
 ⚠ **gazelle −15.4 (60.7 against 76.1)**.
 
+⚠ **All of the above was measured on the 160×120 demo.** On the ngorongoro world
+(2026-08-04) the same `8/60`-doubled counts come to **0.98% of the map**, because
+they are counts and the map is 4.84× larger — so every share in this section
+roughly halves, and the sheltering-ground figure with it. See §1.4 **A81**, where
+that thinning is the leading suspect for the leopard and the vulture dying out.
+
 ⚠ **The gazelle number is recorded rather than tuned around, and what is *not*
 established about it matters.** Total gazelle deaths are the same in both arms
 (3691 against 3683) with almost the same profile, so this is not a mortality
@@ -1526,6 +1545,11 @@ carrion moves off the clan and onto the cat, the cat was not carrion-limited so
 starvation deaths and costs it a fifth of its numbers. ⚠ **The hyena is the
 species to watch** — 9/10 seeds in both arms, so not a gate failure, but with
 less margin than before.
+
+⚠ **Followed up 2026-08-04, on the ngorongoro demo**: the hyena is now 7/10 seeds
+at a mean of 3.4, and the leopard whose caching took that carrion is itself down to
+1/10. Both readings are from the world described in §1.4 **A81**; kill caching has
+not been re-measured there, and this A/B's numbers belong to the 160×120 world.
 
 ⚠ **Only ~26% of leopard kills get cached**, because a tree has to be within
 `cacheHaulDistance` and trees are 2.45% of the map. That is the same ceiling A57
@@ -3413,6 +3437,12 @@ claim this mechanism can support is that the world **starts** the way it was
 going to end up, which is exactly what a founding condition should do and is not
 the same claim as "more sociality".
 
+⚠ All of the above is the 160×120 world. The 2026-08-04 sweep of the ngorongoro
+demo reports **33 peak concurrent groups, 43 326 founded and 21 401 dissolved**
+over ten seeds × 15 000 ticks — a bigger world holding more, larger cohorts, on
+the same mechanism. The clustered/scattered A/B has **not** been re-run there, so
+the convergence claim above still belongs to the world it was measured in.
+
 ⚠⚠ **It sharpens A56, and that is the cost to watch.** Group foundings rose
 8818 → 15388 (+75%) across the gate. Peak concurrent groups fell 12 → 10, but
 the size measurement above says that is fewer-and-fuller rather than churn, so
@@ -4421,6 +4451,28 @@ protocol's and that every committed fixture carries it — the risk register's
 ## 13. Performance
 
 ### Current baseline (measured 2026-07-21, Node v23.4.0, darwin arm64, seed 42)
+
+Re-baselined **2026-08-04** on the ngorongoro demo:
+
+| Scenario     | World     | Start→end entities |    ms/tick | ticks/sec |
+| ------------ | --------- | -----------------: | ---------: | --------: |
+| demo-default | 332×280   |            500→516 |     5.5224 |      ~181 |
+| small-100    | 256×256   |            194→226 |     1.6554 |      ~604 |
+| medium-1k    | 512×512   |          1931→2255 |    20.9540 |       ~48 |
+| large-5k     | 1024×1024 |         9649→11173 | **133.73** |        ~7 |
+
+⚠ **`demo-default` broke with its own history on that date and the row is doing
+its job.** Its scenario follows the demo — it now reads the roster from
+`config.demo.founding` rather than restating it — so when the demo became 332×280
+with ~500 animals, the row did too. The 1.008 below (2026-07-21) and 2.3195
+(2026-08-01) describe a 160×120 world holding ~190 animals and must not be diffed
+against 5.5224. ⚠ **`large-5k` is comparable and is flat**: 133.73 against 134.46
+on 2026-08-01 (+0.5%), well inside the ±10% morning-to-evening drift this file
+records — which is the evidence that a config-only change cost the hot path
+nothing. Its end count moved 11094 → 11173 because the scale scenarios inherit
+`config.terrain`, so they picked up the rim and the doubled formation counts too.
+
+The Step-30 baseline, on the world of its day:
 
 | Scenario     | World     | Start→end entities |   ms/tick | ticks/sec |
 | ------------ | --------- | -----------------: | --------: | --------: |

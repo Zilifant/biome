@@ -15,7 +15,11 @@ npm run benchmark -- --ticks=5000 --seed=7
 ```
 
 The script (`src/scripts/benchmark.js`) runs the demo world headless (no
-server, no renderer, no real-time pacing) across scaled entity counts. Each
+server, no renderer, no real-time pacing) across scaled entity counts.
+⚠ Since 2026-08-04 `demo-default` takes **both** its dimensions and its roster from
+the config, so it tracks the demo without anyone remembering to edit it; the three
+scale scenarios still state their own dimensions and rosters, and inherit
+`config.terrain`. Each
 scenario warms up 50 ticks (JIT steady state) before timing the remainder,
 and reports start→end entity counts because populations change over the run
 (births, age deaths, carcasses). It also verifies two identical 2000-tick runs
@@ -364,6 +368,38 @@ Full run on the final tree: demo-default **2.3195**, small-100 **1.3494**, mediu
 13's 130.24 at the same roster size that is **flat** — the two readings differ by
 0.9% on a machine this file has repeatedly measured drifting ±25%, and the
 interleaved A/B above is the actual measurement.
+
+## Re-baseline: the demo becomes the ngorongoro world (2026-08-04)
+
+`config.demo`, `config.world` and `config.terrain` became the
+`ngorongoro-500-10x` composition — 332×280, `roundness: 4`, the four terrain
+formation counts doubled, ~500 founders. Full run, seed 42, 2000 ticks per
+scenario, determinism check OK:
+
+| Scenario | World | Start→end entities | ms/tick | ticks/sec |
+| --- | --- | ---: | ---: | ---: |
+| demo-default | 332×280 | 500→516 | **5.5224** | ~181 |
+| small-100 | 256×256 | 194→226 | 1.6554 | ~604 |
+| medium-1k | 512×512 | 1931→2255 | 20.9540 | ~48 |
+| large-5k | 1024×1024 | 9649→11173 | **133.7257** | ~7 |
+
+⚠⚠ **`demo-default` is not comparable with anything above it in this file, and
+that is the row working correctly.** It reads its roster from
+`config.demo.founding` now instead of restating it (before 2026-08-04 the two were
+a hand-copied match), so it follows the demo by construction. Its earlier
+figures — 1.008 on 2026-07-21, 2.3195 on 2026-08-01 — describe a 160×120 world
+holding ~190 animals; this one describes 332×280 holding ~500. Not a regression, a
+different world.
+
+⚠ **`large-5k` is comparable, and it is flat: 133.73 against 134.46 on
+2026-08-01** (+0.5%, against the ±10% same-HEAD drift documented above). That is
+the useful reading here — the change moved numbers in `config` and nothing in the
+hot path, and the benchmark agrees. Its end count moved 11094 → 11173 because the
+three scale scenarios specify only their dimensions and inherit `config.terrain`,
+so they picked up the rim and the doubled formation counts along with the demo.
+
+⚠ Not measured this session: a fresh per-system breakdown. The one below is from
+2026-07-21 and the roster has grown twice since.
 
 ## Results (post-Step-30)
 

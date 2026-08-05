@@ -379,10 +379,14 @@ to make, and a test will fail if you make one.
    `test/species-schema.test.js` scans for that and fails. Express behaviour as
    data instead: `diet`, `preySpeciesIds`, `territory.defends`,
    `migration.tracksForage`.
-5. ⚠ **Gate it.** Add the species at `count: 0` and prove the world unchanged, then
-   raise the count and sweep **10 seeds × 15 000 ticks** against the roster without
-   it: `npm run sweep -- --control=…`. Every species batch since phase 7 has done
-   this, and three of the four found a real problem that way — see
+5. ⚠ **Measure it.** Add the species at `count: 0` and prove the world unchanged,
+   then raise the count and sweep **10 seeds × 15 000 ticks** against the roster
+   without it: `npm run sweep -- --control=…`. Every species batch since phase 7 has
+   done this, and three of the four found a real problem that way. ⚠ Since
+   2026-08-04 this is a **reading to record, not a bar to pass** — the demo is no
+   longer maintained as a knife edge, and its own sweep has two species surviving on
+   one seed in ten (`ACTION-ITEMS.md` **A81**). Take the reading anyway: it is how
+   you find out what a change did. See
    [`DOCS.md`](DOCS.md) §20 for the procedure, and
    [`legacy-docs/PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) §9–§10 for what
    each batch cost.
@@ -404,19 +408,24 @@ and develop offline against the committed fixtures in
 with stable ids and deferred mutation, spatial grid, seeded random streams,
 bounded domain events, command queue, snapshots/deltas/queries, versioned
 save/load, HTTP + WebSocket host, headless runner, benchmark, the browser
-ASCII renderer, committed fixtures, and 705 tests.
+ASCII renderer, committed fixtures, and 1147 tests _(2026-08-04)_.
 
 **World:** seeded terrain (ground, shallow water and impassable **deep water**,
-impassable rock, low **cover**, and sight-blocking **thicket** — each with its own
-traversal cost and, for rock and thicket, opacity to line of sight), a cell-level
-vegetation biomass field that grows logistically toward a terrain-derived
-capacity, and a turning year — season, temperature, and weather spells that
-modulate both.
+impassable rock, low **cover**, sight-blocking **thicket**, and **tree** — each with
+its own traversal cost and, for rock and thicket, opacity to line of sight), a
+cell-level vegetation biomass field that grows logistically toward a
+terrain-derived capacity, and a turning year — season, temperature, and weather
+spells that modulate both. The demo world is **332×280 rounded to an ellipse**, the
+`ngorongoro-500-10x` composition.
 
-**Three species, and a species is data.** The world holds a **grazer**, the
-**stalker** that hunts it, and a **corvid** that eats what the stalker leaves.
-All three are configured species definitions (`config/species/*` — biology only,
-never glyphs or colors; looked up by id, never branched on by name).
+**Eight species, and a species is data.** ⚠ The passage that follows was written
+when there were **three** — a grazer, the stalker that hunted it, and a corvid that
+ate what the stalker left — and it is kept because the argument it makes is the
+point, not the roster. Today the world holds the **gazelle, wildebeest, zebra and
+buffalo**, the **leopard** and **lion** that hunt them, and the **vulture** and
+**hyena** that eat what is left. All eight are configured species definitions
+(`config/species/*` — biology only, never glyphs or colors; looked up by id, never
+branched on by name).
 
 Each species _overrides_ a shared set of defaults rather than restating
 everything, so a species file says only what is different about that animal — its
@@ -426,7 +435,7 @@ so reading an animal's biology in a hot loop is a single lookup.
 
 The predator/prey relation is itself data (`preySpeciesIds`), read in both
 directions: this species hunts those, therefore those fear this one. The corvid
-is the proof that this is real rather than decorative — **its entire
+(today's **vulture**) is the proof that this is real rather than decorative — **its entire
 implementation is one config file**. It is a carnivore, so it can eat carrion;
 it declares _no prey at all_, so nothing finds it anything to hunt and nothing
 fears it. Not a line of engine code was written to add a whole trophic level.
@@ -719,7 +728,8 @@ is the difference stated as data.
 
 ⚠ **What that buys is the first ten thousand ticks, not a different world.**
 Group counts and sizes converge on the scattered world's by tick 10 000
-(7.5 groups × 5.3 members against 7.8 × 5.3); at tick 1 the clustered world has
+(7.5 groups × 5.3 members against 7.8 × 5.3 — measured on the 160×120 world, and
+not re-run since the demo grew); at tick 1 the clustered world has
 six real prides and clans and the scattered one has none. Its ten-seed gate
 passed on the stated bar, but only one per-seed effect survives — the lion, up
 on 8 of 10 seeds, which is the social predator founded as prides. See
@@ -856,14 +866,23 @@ the same list with each item's evidence and the reasoning behind leaving it.
 
 ## Performance
 
-Measured **2026-07-21** (`npm run benchmark`; see `BENCHMARK.md` for the full
-table, the per-system breakdown, and the history):
+Re-baselined **2026-08-04** on the ngorongoro demo (`npm run benchmark`; see
+`BENCHMARK.md` for the full table, the per-system breakdown, and the history):
 
-| Scenario | Entities | ms/tick |
-| --- | ---: | ---: |
-| demo-default (128×128) | 138→188 | 1.01 |
-| medium-1k (512×512) | 1147→1556 | 9.23 |
-| large-5k (1024×1024) | 5733→7744 | 68.75 |
+| Scenario | World | Entities | ms/tick |
+| --- | --- | ---: | ---: |
+| demo-default | 332×280 | 500→516 | 5.52 |
+| small-100 | 256×256 | 194→226 | 1.66 |
+| medium-1k | 512×512 | 1931→2255 | 20.95 |
+| large-5k | 1024×1024 | 9649→11173 | 133.73 |
+
+⚠ **`demo-default` is not comparable with its own history** — it was 1.01 ms/tick
+on 2026-07-21 and 2.32 on 2026-08-01, describing a 160×120 world holding ~190
+animals. It now follows the demo (which is the whole point of that row), so it
+describes 332×280 holding ~500. `large-5k` **is** comparable and is flat: 133.73
+against 134.46 on 2026-08-01, a 0.5% difference on a machine `BENCHMARK.md` records
+drifting ±10% between mornings. The config change cost the hot path nothing, which
+is what you would expect of a change that only moves numbers in `config`.
 
 Every scenario sits far under the one-second authoritative tick budget. Step 30
 took large-5k from 86.59 to 68.75 ms/tick **without changing a single simulated

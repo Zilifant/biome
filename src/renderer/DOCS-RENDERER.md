@@ -46,7 +46,7 @@ numbers, so re-measure rather than inherit.
 | Protocol understood | **32** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
 | Coverage            | every protocol layer through v32 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are both **status marks** (§9)        |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
-| Fixtures            | current — v32, all **eight** shipped species, and **10 of 231 entities airborne** so fixture mode shows the flying mark offline; ⚠ due on every **roster** change, not only a protocol bump (§10) |
+| Fixtures            | current — v32, all **eight** shipped species, regenerated 2026-08-04 for the **ngorongoro demo**: 500 entities on a 332×280 map (was 231 on 160×120), **3 airborne** so fixture mode still shows the flying mark offline, 3.5 MB committed (was 1.4 MB); ⚠ due on every **roster** change, not only a protocol bump (§10) |
 | Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
 | Git                 | uncommitted (the user handles git)                                                                                                   |

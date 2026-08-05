@@ -489,10 +489,14 @@ they are not re-opened by accident.
   than one clan-forming species to tune against; there are now three, and this is
   the change that makes it pay.
 
-  **Still to do:** re-baseline `npm run benchmark` and update `BENCHMARK.md` —
-  denser tick-0 neighbourhoods change perception cost, and the figures on record
-  were taken against the scattered world. Related: **A56**, **A60** (a pride still
-  cannot hold shared ground), **A43**.
+  ⚠ **The benchmark re-baseline this item was waiting on happened on 2026-08-04**
+  (`BENCHMARK.md`, demo-default 5.5224 / large-5k 133.73, the latter flat against
+  134.46) — but the demo became the ngorongoro world in the same change, so the
+  numbers measure clustering *and* a new world together and attribute neither. A
+  clean clustering A/B would need `--set=cohorts.clustered=false` on the current
+  demo. ⚠ Every per-seed number above is from the 160×120 world; the current
+  demo's own sweep is **A81**, where the leopard is down to 1/10 seeds.
+  Related: **A56**, **A60** (a pride still cannot hold shared ground), **A43**.
 
 - **A68 — The species roster stops at eight; the rhino and the elephant are
   deferred** _(decided 2026-07-30)_. Scope rather than work. The **black rhino**
@@ -540,7 +544,12 @@ they are not re-opened by accident.
   enough on a map ~4.8× the old one.
   ⚠ **Accepted rather than re-tuned** — as of this date the demo is not maintained
   as a knife edge, and `npm run sweep` is a reading to record, not a bar to pass.
-  The lever if they should persist is founder counts.
+  ⚠⚠ The likelier lever is **terrain density, not founder counts**: rock, thicket
+  and tree are absolute formation counts, so doubling them on a map 4.84× larger
+  left tree at **0.98%** of the map (was 2.48%) and thicket at **0.56%** (was
+  1.69%) — and the two species that collapsed are the crypsis ambusher that caches
+  kills in trees and the woodland scavenger that roosts in them. Testable in one
+  command: `npm run sweep -- --rocks=8 --thickets=8`.
   ⚠ Carcasses are **still accumulating at tick 9000** (peak ~364 near t11 000,
   settling into a 180–320 band by t16 000), so `test/carcass.test.js` now runs to
   15 000 ticks — the same finding as the starving scavengers, from the other side.
