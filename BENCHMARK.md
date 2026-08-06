@@ -739,6 +739,49 @@ the `bandmates` counter `SocialSystem` publishes for the gate, which is in both 
 — one hoisted null check per animal, and one comparison per conspecific neighbour
 for animals that hold a record at all.
 
+### The herd consensus and leadership (2026-08-06, BEHAVIOR-PLAN.md P8)
+
+**≈ +2% of a demo tick**, and it is at the edge of what this machine can resolve.
+Eight interleaved measured rounds of 450 ticks on seed 42 (round 1 discarded as JIT),
+`consensus.enabled: false` + `groups.leadWeight: 0` against the shipped defaults:
+
+| arm | ms/tick |
+| --- | --- |
+| pre-P8 (both switches off) | 6.06 · 6.16 · 5.76 · 5.51 · 6.01 · 5.97 · 5.86 · 5.64 — **mean 5.871** |
+| **P8 (shipped)** | 6.10 · 6.13 · 5.68 · 5.63 · 6.25 · 6.21 · 6.15 · 5.84 — **mean 5.999** |
+
+⚠ **Read the pairs, not the ranges.** The two ranges overlap almost completely
+(5.51–6.16 against 5.63–6.25), which is this machine's ±5% within a single session
+and exactly what §"Re-baseline in the same session" warns about. The *paired*
+per-round differences are +0.04, −0.03, −0.08, +0.12, +0.24, +0.24, +0.29, +0.20 —
+positive on 6 of 8 and averaging +0.128 ms. That is a small real cost, not a clean
+one, and it is recorded as such rather than rounded to zero.
+
+⚠ Entity counts are 499 against 496 rather than matched exactly, because these are
+two genuinely different worlds by tick 500. Three animals in 500 is well inside the
+noise above.
+
+What it buys: **one walk of the world plus two walks of the animals whose species
+declared a `consensusWeight`** — the wildebeest and the buffalo, ~310 of ~500 — with
+no grid walk, no spatial query, and two parallel arrays per tick as the only
+allocation. ⚠ The first cut walked the world three times and was measurably worse;
+collecting the participants in pass 1 and iterating *those* is what the two later
+passes do now, and it was proved byte-identical (seeds 1/2/42 × 1500 ticks) before
+and after. The rest of the cost is the leadership weighting inside
+`GroupSystem#rally`, which calls `leadershipOf` twice per member over a walk bounded
+by `maxGroups × maxMembers`.
+
+⚠ **The off arm needs *both* switches**, and that is worth knowing before measuring
+anything here: `consensus.enabled: false` alone still leaves `groups.leadWeight: 0.5`
+moving every band's centre, and each switch alone was confirmed to move the world.
+
+**Full-suite run the same day** (`npm run benchmark`, determinism OK): demo-default
+**8.2993**, small-100 **1.9997**, medium-1k **26.3688**, large-5k **165.7333**. ⚠
+**Not comparable with 2026-08-04's 5.5224 / 1.66 / 20.95 / 133.73** — nothing in the
+simulation changed by 24%, and the interleaved table above is what P8 actually cost.
+This is the drift this file exists to warn about, recorded so the next person does not
+read it as a regression. Re-baseline before believing any of it.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

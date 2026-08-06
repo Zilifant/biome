@@ -931,6 +931,66 @@ export const defaultSimulationConfig = Object.freeze({
     // times a gradient that is usually well under 1) rather than to dispersal:
     // reunion is a preference, not an errand.
     rallyStrength: 0.35,
+    // ⚠⚠ **How far a record's centre leans toward the animals it would actually
+    // follow** (BEHAVIOR-PLAN P8) — the seam P7 left open, since `leadershipOf` was
+    // P8's to add. `w = 1 + leadWeight × (score / best in this record)`, so **0 is
+    // the identity and the reproducible control**: every member weighs exactly 1 and
+    // the centre is the plain mean P7 shipped, bit for bit.
+    //
+    // ⚠ The score is normalized **inside the record** rather than used raw. It is
+    // `dominanceOf` scaled, and `dominanceOf` is dominated by body mass, so a raw
+    // score would make this parameter mean something different for a 600 kg buffalo
+    // than for a 30 kg gazelle. Relative standing within one band is the question.
+    //
+    // ⚠ Nothing is stored — no leader, no election, no history (`GroupRegistry.js`:
+    // standing is derived, never stored). The *age* half of leadership is
+    // per-species (`behavior.leadAgeWeight`); this is the machinery, so it lives in
+    // the global section by the rule that a species block beats the config.
+    //
+    // ⚠ **0.5 is a shape, not a measurement.** At 0.5 the strongest member of a band
+    // pulls its centre half again as hard as the weakest, which is enough to be
+    // visible in a two-animal record and far too weak to make a band a queue behind
+    // one animal. The rally it feeds is itself a preference, not an errand.
+    leadWeight: 0.5,
+  }),
+  // ⚠⚠ **Herd movement consensus** (BEHAVIOR-PLAN P8) — the herd label's first
+  // behavioural consumer, and DOCS §9 said it had none for a week. See
+  // `social/consensus.js` for the whole argument; the short version is that the
+  // animals of one label pool their migration drifts into a single heading, hold it
+  // for `commitTicks` whatever their own cues do next, and the decision system
+  // steers a fresh `wander` by it **in place of** the migration drift.
+  //
+  // ⚠ Two kinds of field, as ever: everything here is **world-level** machinery, and
+  // the biology is the per-species `behavior.consensusWeight`, which is **0** for
+  // six of the eight species and therefore free for them (the `mobWeight` pattern).
+  consensus: Object.freeze({
+    // The reproducible control, in the pattern every mechanism since migration
+    // ships: off means the system is never registered, so a sweep measures the
+    // mechanism against a world that genuinely lacks it rather than against a
+    // hand-assembled one. ⚠ It is also byte-identical with every species at weight
+    // 0, which is the second, independent off-arm.
+    enabled: true,
+    // ⚠ **The re-decision cadence, and it is not only a cost control.** Because a
+    // label re-decides only on a tick this system runs, commitments quantize onto
+    // multiples of this number — so herds that were founded ticks apart still expire
+    // *together*, which is what turns n independent re-decisions into one collective
+    // one. ⚠ The other side of the same coin: a commitment ends at the next
+    // consensus tick rather than exactly when it falls due, so `commitTicks` is a
+    // floor rounded up to this cadence.
+    updateInterval: 5,
+    // How long a member holds the herd's heading. ⚠ Sized against the `wander`
+    // commitment it steers (8–24 ticks, `decision.minCommitTicks`) and against
+    // migration's own re-evaluation (`migration.updateInterval: 10`): it has to
+    // outlast both, or "the commitment outlives the cue" is not a claim, it is a
+    // rounding error. 60 ticks is ~an hour in world time and three or four wander
+    // commitments.
+    commitTicks: 60,
+    // ⚠ **Well below `migration.dispersalWeight: 0.9`**, which wins outright, and
+    // comparable to the forage drift this replaces (`migration.biasWeight: 0.5`
+    // times a gradient usually well under 1). A herd agreeing is not more urgent
+    // than a young animal leaving home, and a consensus is gated on `isDispersing`
+    // besides — the second of two guards rather than the only one.
+    maxStrength: 0.6,
   }),
   // How a founding cohort is *arranged* on the ground, against `demo.founding`,
   // which says only how many of each there are. Two sections, two questions:
@@ -1693,6 +1753,30 @@ export const defaultSimulationConfig = Object.freeze({
     // point — mobbing competes with fleeing, never with foraging. The buffalo
     // arrives in phase 11 and is what it will be tuned against.
     mobWeight: 0,
+    // ⚠⚠ **How hard this species holds to the heading its whole herd label agreed
+    // on** (BEHAVIOR-PLAN P8, and see `social/consensus.js`). **0 for six of the
+    // eight species, and 0 means the mechanism never runs**: the species is not in
+    // the weight map, so nothing is accumulated for it, nothing is committed, and no
+    // field is ever written. The `mobWeight` shape exactly.
+    //
+    // ⚠ It is not a competitor in the utility table — there is no `follow the herd`
+    // action, and four phases have recorded what one would cost. It scales the
+    // *drift* that already steers a fresh `wander`, replacing the animal's own
+    // migration heading with its herd's.
+    //
+    // ⚠ **1 is the reference point rather than the maximum**: at 1 a perfectly
+    // coherent herd drifts at exactly the mean strength of the cues behind it, so
+    // the consensus is the herd's version of the same drift rather than an
+    // amplification of it. Above 1 a herd pulls harder than its own evidence.
+    consensusWeight: 0,
+    // ⚠ **How far this species' societies follow their elders** (BEHAVIOR-PLAN P8).
+    // `dominanceOf`'s maturity term rates a senescent animal *below* a prime adult,
+    // which is right for a shoving match and backwards for who a herd follows; this
+    // is what `leadershipOf` weights the age term by. **0 is the identity** —
+    // `leadershipOf` is then `dominanceOf` to the digit — and it is spent only where
+    // `config.groups.leadWeight` spends it, on a group record's centre of mass.
+    // Nothing is stored: there is no leader, only a weight.
+    leadAgeWeight: 0,
     // Caching a kill in a tree (phase T3). ⚠ **0 for every species but the
     // leopard**, and the whole expression short-circuits on it, so this is one
     // comparison and then nothing for the rest of the roster — the shape

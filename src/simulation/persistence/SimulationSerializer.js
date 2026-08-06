@@ -213,10 +213,34 @@
  *       store slot for the rest of the run. `GroupRegistry.restore` defaults it
  *       with `?? null` for exactly that reason, and this version number is what
  *       makes the defaulting unreachable rather than load-bearing.
+ *  33 — herd movement consensus (BEHAVIOR-PLAN.md P8): four per-entity fields
+ *       (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the
+ *       new `HerdConsensusSystem` descriptor, a new `config.consensus` section, and
+ *       `config.groups.leadWeight` beside two new `config.behavior` weights.
+ *
+ *       ⚠⚠ **A commitment is the first per-entity drift here that genuinely must be
+ *       saved, and the contrast with the pair beside it is the reason.** P7's
+ *       `rallyHeading` / `rallyStrength` are deliberately *not* persisted, because
+ *       `GroupSystem` (−8) rewrites them from scratch before `DecisionSystem` (0)
+ *       reads them every tick, so a restored value cannot matter. This pair is the
+ *       opposite kind of state by construction: the whole mechanism is a heading
+ *       that **outlives the cue that produced it**, held across up to
+ *       `consensus.commitTicks` ticks. A restore that dropped it would put a
+ *       marching herd back on its individual noses and diverge immediately from an
+ *       uninterrupted run — the same argument that made the migration drift saved
+ *       rather than rebuilt at v24, and a stronger one, since a consensus is not
+ *       recoverable from the vegetation field at all.
+ *
+ *       ⚠ Entities serialize whole, so the fields ride along and `createEntity`
+ *       would default a missing one — but `herdCommitLabel` defaulting to null on a
+ *       v32 save would make every animal in the world a *joiner* on the first
+ *       consensus tick, which is a different world, not a missing field. v32 saves
+ *       are invalidated on that account, on the config's, and on the system
+ *       lineup's.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 32;
+export const SAVE_FORMAT_VERSION = 33;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

@@ -202,6 +202,27 @@ export const herbivoreBuffalo = Object.freeze({
     // `social.groupRadius`, so this animal is no harder to catch than it was.
     // That separation is the whole of `social/herding.js`.
     herdRadius: 11,
+    // ⚠ **Moderate, against the wildebeest's 1.0** (BEHAVIOR-PLAN P8). A buffalo
+    // herd moves as a body between water and pasture, so it wants the shared
+    // commitment — but this animal organizes its life around the *lake*
+    // (`thirstWeight` below, `dehydrationRate` the highest in the roster), and a
+    // herd heading that could outvote an individual's thirst cue at full weight
+    // would walk thirsty animals past water. 0.6 lets the herd lean and leaves the
+    // individual's own need the louder voice. ⚠ The consensus only bends a
+    // `wander`; `drink` and `seekWater` are actions and are untouched by it.
+    consensusWeight: 0.6,
+    // ⚠ **The matriarch, and it is the species that asked for her** (P8). The
+    // record this animal declares above is a **cow–calf core**, and what a cow–calf
+    // core is led by is the oldest cow — while `dominanceOf`, which is right for a
+    // shoving match, rates a senescent animal *below* a prime adult. This is what
+    // `leadershipOf` re-weights, and it is spent in one place: the centre of mass a
+    // separated member rallies back toward (`config.groups.leadWeight`). At 0.5 a
+    // senescent cow of the same body outranks a prime adult by ~27%.
+    //
+    // ⚠ **Nothing is stored** — there is no matriarch field, no election, and no
+    // record of who led. She is derived from what each animal is right now, which
+    // means she changes when she is mauled and comes back when she heals.
+    leadAgeWeight: 0.5,
     // Water is the need this animal organizes its life around.
     thirstWeight: 1.35,
     // A big animal reaches further to put itself between a predator and a calf.

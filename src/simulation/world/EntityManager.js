@@ -269,6 +269,31 @@ function createEntity(id, definition) {
     // null-checks the heading besides.
     rallyHeading: definition.rallyHeading ?? null,
     rallyStrength: definition.rallyStrength ?? 0,
+    // Herd movement consensus (BEHAVIOR-PLAN P8). The fourth pair on the same
+    // channel — but this one **replaces** the migration drift while it is live
+    // rather than blending onto it, because it *is* a migration drift: the one this
+    // animal's whole herd label agreed on. Written by `HerdConsensusSystem`.
+    //
+    // ⚠⚠ **Persisted, unlike the rally pair above, and the difference is the
+    // mechanism.** A rally heading is rebuilt from scratch every tick before anyone
+    // reads it, so a restored value is irrelevant. A commitment is the opposite kind
+    // of thing — it exists precisely to outlive the cue that made it — so a restore
+    // that dropped it would put a marching herd back on its individual noses and
+    // diverge from an uninterrupted run. `SAVE_FORMAT_VERSION` 33.
+    //
+    // ⚠ `herdCommitUntil` is the clock and `herdCommitLabel` is **which herd the
+    // commitment was made in**, which is not bookkeeping: it is the only way to tell
+    // an animal whose commitment has merely lapsed (it re-decides with the rest of
+    // its herd) from one that has walked into a *different* herd (it adopts what
+    // that herd already agreed). See `social/consensus.js`.
+    //
+    // ⚠ The same null/zero defaults are load-bearing for the same reason the rally
+    // pair's are: `clamp01(undefined)` is `undefined`, which ends with `entity.x`
+    // at NaN permanently.
+    herdHeading: definition.herdHeading ?? null,
+    herdStrength: definition.herdStrength ?? 0,
+    herdCommitUntil: definition.herdCommitUntil ?? null,
+    herdCommitLabel: definition.herdCommitLabel ?? null,
     // Disease (Step 25; see disease/disease.js). Three fields hold the whole
     // compartmental state: which compartment, when it was entered, and when it
     // ends. Severity is *derived* from the compartment rather than stored, so

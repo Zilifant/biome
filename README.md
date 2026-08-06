@@ -14,9 +14,9 @@ the evidence and reasoning attached.
 
 **[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
 eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
-nothing acts on" to identity and group intent that steer movement. P0–P5 and P7
-have shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
-the code looks like now that those five have landed on it, and the landmines
+nothing acts on" to identity and group intent that steer movement. P0–P5, P7 and
+P8 have shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
+the code looks like now that those eight have landed on it, and the landmines
 they turned up.
 
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
@@ -56,7 +56,7 @@ npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 | `npm start`                                  | Run the server without nodemon                                               |
 | `npm run headless -- --ticks=5000 --seed=42` | Advance the simulation as fast as possible, no server                        |
 | `npm run benchmark`                          | Deterministic performance baseline across entity counts (see `BENCHMARK.md`) |
-| `npm test` / `npm run test:watch`            | Run the full `node:test` suite (~11 min)                                     |
+| `npm test` / `npm run test:watch`            | Run the full `node:test` suite (~13 min)                                     |
 | `npm run test:fast`                          | The same suite without the demo/persistence/determinism tiers (~5 min) — use this in an edit loop |
 | `npm run fixtures:renderer`                  | Regenerate the committed renderer protocol fixtures                          |
 
@@ -114,8 +114,8 @@ Headless Simulation Engine           src/simulation
    ├── World State      (entities, terrain, vegetation)
    ├── Spatial Grid     (uniform grid for local queries)
    ├── Systems          (weather, vegetation, perception, memory, social,
-   │                     decision, movement, feeding, hunting, reproduction,
-   │                     parenting, territory, migration, disturbance,
+   │                     decision, herd consensus, movement, feeding, hunting,
+   │                     reproduction, parenting, territory, migration, disturbance,
    │                     engineering, metabolism, hydration, injury, disease,
    │                     carcass, aging, metrics)
    ├── Environment      (season, weather, temperature — the one global state)
@@ -333,7 +333,7 @@ opponentDominance, escalated }` — both scores, because dominance decides it an
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `32`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `33`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, scent, the tombstone registry, the persistent-group
@@ -496,6 +496,7 @@ Their full loop is implemented:
 | `SocialSystem`       | decision    | Propagates herd labels between neighbours, summarizes each animal's local group, and carries alarm outward hop by hop. Reads the neighbour list perception already built rather than walking the grid again (Step 30)                                                                                                                                       |
 | `TerritorySystem`    | interaction | Accumulates each animal's home range in place, marks ground for the species that hold it, and settles disputes over ground by dominance                                                                                                                                                                                                                    |
 | `MigrationSystem`    | decision    | Reads the forage gradient around each animal and keeps a drift heading current; sends juveniles walking out of the range they were born in. Writes no action — the decision system folds the drift into `wander` (staggered)                                                                                                                               |
+| `HerdConsensusSystem` | decision   | Pools the drifts of everyone sharing a herd label into one heading, hands every member the same answer, and holds it for a spell whatever their own cues say next — the herd *label*'s first behavioural consumer. Writes no action; the decision system steers a `wander` by it in place of the migration drift |
 | `DisturbanceSystem`  | environment | Raises fires, floods, and storms as bounded regions on a clock, burns the forage inside one once, hurts whatever is standing in it, and drops the record when it ends. Every other effect is derived from that record on read                                                                                                                              |
 | `EngineeringSystem`  | interaction | Wears the ground animals walk on and digs the ground they rest on, fades what nobody uses, and keeps a drift toward the nearest trail. Runs after movement, so it reads the distance an animal actually just covered                                                                                                                                       |
 | `DiseaseSystem`      | physiology  | Runs the compartments, spreads infection outward from the infectious, and slowly mends the condition of animals that are well                                                                                                                                                                                                                              |
@@ -727,6 +728,32 @@ whoever actually saw the predator, so panic crosses a herd as a wave and then
 stops instead of becoming a chain reaction that never runs out of fuel. An
 animal that has been warned but has seen nothing itself still runs — away from
 where it was _told_ the danger was.
+
+**And a herd decides where to go together.** For most of this project the label was
+a *statistic* — measured, not assumed: doubling the cap on herd size left all eight
+species' populations identical to the digit, because every social behaviour here
+reads neighbours rather than labels. Since 2026-08-06 it has exactly one consumer.
+The animals sharing a label pool the directions their own noses are pulling them
+into a single average, everyone takes the same answer, and each of them **holds it
+for a while whatever its own nose says next**. Two things fall out of that one
+number: a herd bends as a front rather than as a smear, and it is still going after
+the reason has gone — nothing else in this world holds a direction across the
+disappearance of its cause.
+
+Disagreement costs it nothing and buys it nothing: the average of headings that
+cancel has no direction, and a herd that cannot agree simply does not have a
+consensus, so every animal goes back to its own nose. There is no decay rule
+anywhere — reversal *is* disagreement. And it is a **drift, not a decision**: it
+bends the direction an animal was going to pick at random anyway, which is why it
+cannot lose to hunger, and why nothing had to be added to the utility table for the
+fifth time.
+
+**Some animals are followed more than others**, and nothing anywhere stores who.
+A band's centre of mass leans toward its strongest members, weighted by a standing
+that is read off what each animal *is* right now. For a species whose societies
+follow their elders, that reading is deliberately not the one that settles a fight:
+the animal that wins a shove is a prime adult, and the animal that knows where the
+water is in a bad year is the old cow.
 
 **And the world starts grouped.** Founding animals used to be placed
 independently at uniform random over the whole map, so a lion pride began as

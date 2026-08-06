@@ -16,6 +16,12 @@
  * grows, starves, and heals, which is what you want: a rank you cannot lose by
  * being mauled is not a rank, it is a title.
  *
+ * ⚠ **Leadership joined it on 2026-08-06** (BEHAVIOR-PLAN P8) and is a *second*
+ * reading of the same state rather than a second axis of quality: who a herd
+ * follows is not who wins a shove, and `dominanceOf`'s maturity term is pointed the
+ * wrong way for the first question. It is still derived, still stored nowhere, and
+ * still O(1) — see `leadershipOf`.
+ *
  * **Kin recognition** (§1.4 A15) is finally given a reader here. Step 15
  * deliberately left kinship out of the decaying spatial memories because
  * `parents` / `offspring` are already exact, already sparse, and already
@@ -60,6 +66,78 @@ export function dominanceOf(entity) {
   const boldness = entity.traits?.boldness ?? 1;
   const maturity = entity.lifeStage === 'adult' ? 1 : entity.lifeStage === 'senescent' ? 0.85 : 0.5;
   return Math.max(0, entity.bodyMass * condition * sound * boldness * maturity);
+}
+
+/**
+ * How much of a *lead* an animal is given, as opposed to how much of a shove
+ * (BEHAVIOR-PLAN.md P8).
+ *
+ * ⚠⚠ **`dominanceOf` is pointed the wrong way for the species that asked for
+ * this.** Its `maturity` term is 1 for an adult and **0.85 for a senescent one**,
+ * which is right for a shoving match — an old animal genuinely loses those — and
+ * exactly backwards for who a herd follows. The animal that knows where the water
+ * is in a bad year is the old cow, and under `dominanceOf` she rates *below* a prime
+ * adult of the same size. So leadership is a second reading of the same state
+ * rather than a reuse of the first one.
+ *
+ * It is `dominanceOf` times a **seniority** term, and `ageWeight` is what the term
+ * is worth: at 0 this returns `dominanceOf` exactly, which is what makes the
+ * default the identity and the mechanism's off-arm free. At 0.5 a senescent animal
+ * of the same body outranks a prime adult (1.5 × 0.85 = 1.275 against 1.0), which
+ * is the whole point of the term existing — the ordering `dominanceOf` gets
+ * backwards is *reversed* rather than merely softened.
+ *
+ * ⚠ **Seniority is `senescent` or nothing**, and that coarseness is deliberate.
+ * The engine's only statement about an animal being old is its life stage, and a
+ * term that also lifted prime adults would spend itself against the maturity
+ * discount it exists to overturn (1.25 against 1.275 — a 2% edge, which is not a
+ * matriarch, it is a rounding error). ⚠ The consequence worth knowing before
+ * measuring anything: in a world with no senescent animals yet, this is the
+ * identity however loudly a species declares it.
+ *
+ * ⚠ **Nothing is stored, and that is a rule rather than an omission**
+ * (`world/GroupRegistry.js`: standing is derived, never stored). There is no leader
+ * field, no elected animal, and no history of who led. ⚠ The consequence
+ * `dominanceOf` already lives with applies here too: `condition` moves every tick,
+ * so the *ranking* flickers between closely matched animals. That is affordable
+ * because leadership is only ever spent as a **weight** — a flicker moves a group's
+ * centre by a hair, where a flickering elected leader would swap the animal a whole
+ * band was following.
+ *
+ * ⚠ Seniority is read off `lifeStage` rather than off `age`, because a raw age is
+ * not comparable across species and the entity does not carry its own `maxAge`.
+ * `lifeStage` is the same axis `dominanceOf` and the `adults` tally already use.
+ *
+ * Deterministic and side-effect free.
+ *
+ * @param {object} entity
+ * @param {number} [ageWeight] `behavior.leadAgeWeight`; 0 ⇒ exactly `dominanceOf`
+ * @returns {number} a positive score; only comparisons between animals matter
+ */
+export function leadershipOf(entity, ageWeight = 0) {
+  const standing = dominanceOf(entity);
+  if (!(ageWeight > 0) || standing === 0) return standing;
+  const seniority = entity.lifeStage === 'senescent' ? 1 : 0;
+  return standing * (1 + ageWeight * seniority);
+}
+
+/**
+ * The seniority weight a species declares, or 0 — `leadershipOf`'s one parameter,
+ * resolved from the species record so that callers read it in one place.
+ *
+ * ⚠ **0 is the identity**, and it is what `config.behavior` carries for every
+ * species that says nothing: `leadershipOf` then returns `dominanceOf` exactly and
+ * the mechanism leaves on its first comparison — the `mobWeight` pattern. It lives
+ * in `behavior` because it is biology: whether this animal's societies follow their
+ * elders. The world-level machinery is `config.groups.leadWeight`, outside any
+ * block, by the rule that a species block beats the config.
+ *
+ * @param {{behavior?: {leadAgeWeight?: number}}} [species] a resolved species record
+ * @returns {number}
+ */
+export function leadAgeWeightOf(species) {
+  const weight = species?.behavior?.leadAgeWeight;
+  return typeof weight === 'number' && Number.isFinite(weight) && weight > 0 ? weight : 0;
 }
 
 /**

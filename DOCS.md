@@ -79,9 +79,9 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| Tests                 | **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
 | `PROTOCOL_VERSION`    | **33** — `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
-| `SAVE_FORMAT_VERSION` | **31** — `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
+| `SAVE_FORMAT_VERSION` | **33** _(2026-08-06)_ — the herd movement consensus (BEHAVIOR-PLAN P8): four per-entity fields (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the `HerdConsensusSystem` descriptor, the new `config.consensus` section, and `config.groups.leadWeight`. ⚠ This is the first per-entity *drift* here that genuinely must be saved, and the contrast with P7's deliberately-transient `rallyHeading` is the reason: a commitment exists precisely to outlive its cue, so a restore that dropped it would put a marching herd back on its individual noses. v32 was A56's `belowMinSince` (P5a), where a v31 record would have restored as `undefined` and never dissolved. v31 was `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
@@ -3084,6 +3084,7 @@ model different things:
 | **Association** (`species.association` + `species.associationPull`) | who I am willing to stand with that is *not* my own kind, and how hard I hold to them | none at all — two weights in the species file | `SocialSystem` |
 | **Calf weight** (`config.social.calfWeight`) | that a body which cannot look after itself counts for more than one | none at all — one world-level number, shipped at its identity | `SocialSystem` |
 | **Rally drift** (`config.groups.rally*`) | going back to the band you have lost contact with | two transient entity fields + a derived centre map, neither persisted | `GroupSystem` |
+| **Herd consensus** (`config.consensus`) | a herd deciding where to go *together*, and keeping going after the reason has gone | four **persisted** entity fields — a heading, a strength, a ttl, and the label it was agreed in | `HerdConsensusSystem` |
 
 A gazelle in a wildebeest herd is in none of that herd's labels and none of its
 records, and is still standing in it. That is the whole reason the third row
@@ -3115,21 +3116,31 @@ by local propagation — take the smallest label you can see — so herds form,
 merge on contact, and split apart, all from one grid-local neighbour query per
 animal and without a single structural operation.
 
-⚠⚠ **The label has no behavioural consumer at all, and that was measured rather
+⚠⚠ **The label had no behavioural consumer at all, and that was measured rather
 than noticed** (2026-07-30, phase 13). Herding steers at a centroid built from
 *neighbours*; mobbing and collective defense count `adults` from the same
-neighbour summary; the alarm travels by proximity. **Nothing reads `groupId`
+neighbour summary; the alarm travels by proximity. **Nothing read `groupId`
 except the metrics, the entity projection, and the propagation that writes it.**
-So the herd label is a **statistic**, not a mechanism — the sociality *behaviours*
-are all proximity-based, and the label is the name this world puts on what they
-produce.
+So the herd label was a **statistic**, not a mechanism — the sociality *behaviours*
+were all proximity-based, and the label was the name this world put on what they
+produced.
 
-That is why `maxGroupSize` could be doubled (12 → 24) with every one of eight
+✅ **That is retracted as of 2026-08-06 (BEHAVIOR-PLAN P8), and only that.** The
+label now has exactly **one** behavioural consumer — the herd movement consensus
+below — and every sentence above about the *other* behaviours remains true: herding,
+mobbing, collective defense and the alarm are all still proximity mechanisms that
+never look at a label. The paragraph is kept rather than rewritten because the
+measurement it reports is what made the consensus the obvious place to spend a
+phase.
+
+That is also why `maxGroupSize` could be doubled (12 → 24) with every one of eight
 species' populations coming back **identical to the digit** over 3 seeds × 15 000
 ticks. It was raised on reporting grounds — at 12 a herd of thirty wildebeest was
 reported as three herds, with 13.7% of label samples sitting at the cap — and it
 stays a bound rather than being removed, because one label must not be able to
-swallow the population.
+swallow the population. ⚠ **That reading is now historical**: with a consumer
+attached, the cap decides how many animals can share a heading, so re-measuring it
+would no longer be free.
 
 ⚠ **`minGroupSize` counts groupmates, not members.** At the default of 2 an
 animal needs two *others* in range before it carries a label at all, so the
@@ -3462,6 +3473,199 @@ demo), because a calf follows its guardian and its guardian is an adult standing
 the herd. A test asserting that inequality alone would pass against an engine where
 this does nothing, which is why every assertion in the block is an A/B.
 
+#### ✅ Herd movement consensus — the label's first consumer, 2026-08-06 (BEHAVIOR-PLAN P8)
+
+✅ **The animals of one herd label now decide where to go together, and keep going
+after the reason has gone.** `HerdConsensusSystem` (decision phase, priority −3)
+pools the migration drifts of everyone sharing a label into a single circular mean,
+hands every member the same heading and strength, and each of them holds it for
+`consensus.commitTicks` whatever its own cue does next. `DecisionSystem` then steers
+a fresh `wander` by that consensus **in place of** the animal's own migration drift.
+
+That is two of the things the brief asked for, from one number:
+
+- **A collective front.** A herd bends the same way at the same time, because its
+  members are reading one heading rather than each its own gradient.
+- **A commitment that outlives its cue.** The strength travels with the heading, so
+  a herd is still moving after the gradient that started it has flattened. Nothing
+  else in this engine holds a direction across the disappearance of its reason.
+
+⚠ **It is a drift, never an action** — the `MigrationSystem` pattern, and the fifth
+phase to lean on it. A fresh `wander` heading is the one direction in the engine
+that was going to be arbitrary, so bending it costs nothing that was doing any work
+(A34).
+
+⚠⚠ **And it is not a fourth blend.** `wander` already blends three drifts —
+migration, rally, trail — and the consensus *replaces* the first rather than joining
+the queue. It is the same question answered better (where should I be going?), so
+blending them would be averaging a number with its own average, and a fourth channel
+would leave the strengths summing to nothing meaningful. One conditional in
+`DecisionSystem`, resolved once so the ranging gate and the blend cannot disagree
+about whether the animal has anywhere to be.
+
+##### The re-decision rule, which is the whole design
+
+Members join a label at different ticks. If each animal simply re-decided when its
+own commitment lapsed, a label's heading would be a rolling average over whoever
+happened to expire this tick — a **smear rather than a front**. So membership of a
+label splits three ways every consensus tick:
+
+1. **Free** — the commitment belongs to this label and has lapsed. It contributes
+   its cue to a fresh consensus and adopts the result. A label that decided together
+   expires together, so this is a *collective* re-decision.
+2. **Committed** — the commitment belongs to this label and is live. It keeps its
+   heading and contributes **nothing** to the recompute.
+3. **Joining** — the commitment belongs to *another* label, or there is none. It
+   adopts what this herd has already agreed, with a fresh ttl. ⚠⚠ This is the clause
+   that propagates a front through a herd that is *growing*, and the one that is
+   easy to omit: without it an animal walking into a marching herd keeps walking its
+   own way and a front can never outgrow the group that founded it.
+
+⚠⚠ **Clause 3 is why a commitment records its label.** "Joining" is not "my ttl
+expired", it is "my commitment belongs to something else" — unanswerable without
+remembering which label made it. `herdCommitLabel` is a fourth persisted field and
+it is the price of the clause.
+
+⚠ **`consensus.updateInterval` is not only a cost control.** Because a label
+re-decides only on a tick the system runs, commitments quantize onto multiples of
+it, so herds founded ticks apart still expire *together* — which is what turns n
+independent re-decisions into one collective one. The other side of the same coin:
+`commitTicks` is a floor rounded up to that cadence.
+
+##### The three traps
+
+⚠⚠ **`Math.atan2(0, 0)` is `0` — a valid-looking heading due east.** Opposed cues
+cancel to floating-point dust (`sin(0) + sin(π)` is `1.2e-16`, not 0), and asking
+that residue for a direction gives one. This is the third member of the family §16
+records — `0/0` silently deleting an action through `argmaxUtility`,
+`clamp01(undefined)` parking an animal at NaN — and much the nastiest to spot,
+because it does not look like an error: it looks like a whole wildebeest herd
+deciding to march into the sunrise. A resultant must clear `1e-12` or there is **no
+consensus**, and every member falls back to its own nose. ⚠ It is load-bearing
+rather than defensive: without it a herd that disagreed completely would hold a live
+commitment at a strength of 3e-17, which suppresses the migration drift it replaced
+for sixty ticks while steering by nothing.
+
+⚠⚠ **The strength must not be able to climb, and the guarantee is structural.** A
+herd that fed its own consensus back into its own consensus would ratchet — n
+animals agreeing perfectly is the best possible input to any formula that sums them.
+So a fresh consensus is computed **only from migration cues**, which this system
+never writes, and a joiner **copies** a standing strength rather than re-pricing it.
+There is no path from `herdStrength` back to `herdStrength`; `consensus.maxStrength`
+(0.6) is the second belt.
+
+⚠⚠ **A disperser is left alone**, and this is A64 at the movement layer for the
+second time. `MigrationSystem` writes a disperser's *outward* heading into
+`migrationHeading` at `dispersalWeight: 0.9` — so an ungated consensus would both
+drag the herd's heading toward wherever its young are leaving to and **replace that
+young animal's dispersal heading with the herd's**, walking it straight back in. P7
+gated its rally on the same predicate; the same warning applies to testing it, since
+the animal a dispersal gate protects has to be one that actually *reaches* the gate.
+
+##### The arithmetic
+
+The resultant of the free members' cues, divided by their **count**, is the circular
+mean magnitude: agreement returns the mean cue strength unscaled, disagreement drives
+it toward zero. ⚠ There is no decay term anywhere — **reversal is disagreement**, so
+"the consensus decays when the gradient turns" falls out of the mean rather than
+being modelled. Three cues at 0 and one at π, all at 0.4, give a strength of 0.2
+against the coherent 0.4.
+
+⚠ **The denominator counts every free member, not only the ones with a cue.** An
+animal with no reason to be going anywhere is a vote for staying put; counting only
+the movers would let one hungry animal march a satisfied herd across the map at full
+strength.
+
+`behavior.consensusWeight` prices the result, and **1 is the reference point rather
+than the maximum**: at 1 a coherent herd drifts at exactly the mean strength of the
+cues behind it, so the consensus is the herd's version of the drift the animal
+already had rather than an amplification of it. Above 1 a herd pulls harder than its
+own evidence. **0 is the identity and means never touched** — the species is not in
+the weight map, nothing accumulates, and its animals keep `createEntity`'s nulls for
+life (the `mobWeight` pattern). Six of the eight species are at 0; the **wildebeest
+declares 1.0** and the **buffalo 0.6**.
+
+##### Wildebeest subherds — what could not be built
+
+The brief wanted subherds that persist while spatially separated. That is literally a
+group record — but the wildebeest is 219 founders declaring `groups.forms: false` as
+a stated design decision about what a wildebeest aggregation *is*, and putting them
+on the registry needs ~28–100 records for one species against a `maxGroups` of 192.
+**The nearest legal thing is this commitment**: a shared heading carried on the
+entity, which two halves of a torn herd both keep holding after they can no longer
+see each other. ⚠ Do not "fix" this later by flipping `forms`.
+
+✅ **Persisted, unlike P7's rally pair, and the contrast is the mechanism.** A rally
+heading is rebuilt from scratch before every read within the same tick, so a restored
+value cannot matter. A commitment is the opposite kind of state by construction — it
+exists to outlive its cue — so a restore that dropped it would put a marching herd
+back on its individual noses and diverge immediately. `SAVE_FORMAT_VERSION` 33.
+
+##### Measured, 2026-08-06
+
+**The front is real.** Circular variance of the effective drift heading *within* a
+wildebeest label, sampled every 25 ticks from tick 300 to 3000 on the demo:
+
+| seed | consensus off | consensus on |
+| ---: | ---: | ---: |
+| 42 | 0.098 | **0.032** |
+| 1 | 0.131 | **0.024** |
+| 2 | 0.139 | **0.079** |
+
+⚠ **The realized wander-intent variance barely moves** (0.638 → 0.619 on seed 42),
+and that is honest rather than disappointing. The consensus strength on the demo runs
+about **0.10** — it is a weak bend applied to a random candidate heading, exactly as
+the migration drift it replaces is. What changes is *which* weak bend, and that a
+whole herd gets the same one. About 99% of the declaring roster carries a live
+commitment at any moment, and most labels hold a single shared heading rather than a
+spread.
+
+✅ **The off arm is byte-identical, and it takes both switches.**
+`consensus.enabled: false` **with** `groups.leadWeight: 0` reproduces the pre-P8
+world exactly (seeds 1/2/42 × 1500 ticks, hashed `captureSimulationState` with the
+four new entity fields stripped, since entities serialize whole). ⚠ Each switch alone
+leaves the other's difference in — checked, so neither is inert.
+
+⚠ **The population reading, and it changed shape when the horizon did.** Three seeds
+at tick 3000 showed wildebeest down on two of them (238→235, 216→152, 261→213), which
+looked like a cost. A proper sweep — 5 seeds × 8000 ticks,
+`--set=consensus.enabled=true --controlSet=consensus.enabled=false` — says otherwise.
+Mean living at t8000, consensus against control:
+
+| gazelle | wildebeest | zebra | buffalo | lion | hyena | vulture | leopard |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 110.0 (5/5) | **89.0** (5/5) | 159.4 (5/5) | 13.8 (4/5) | 17.4 (5/5) | **3.4** (5/5) | **13.8** (5/5) | **2.2** (4/5) |
+| 126.0 (5/5) | 91.4 (5/5) | 162.4 (5/5) | 16.8 (5/5) | 18.8 (5/5) | 2.0 (3/5) | 9.0 (4/5) | 0.6 (2/5) |
+
+The species the mechanism is *for* is **flat** (89.0 against 91.4 on a per-seed range
+of 40–128), and what moved is the top of the food web: **the leopard, hyena and
+vulture — the three A81 records as effectively gone — are all up, on both mean and
+seeds survived**, and extinctions across the run fall from 6 to 2. A herd that walks
+as a body is prey a predator can keep finding, and the carrion column agrees (the
+vulture feeds 6042 times against 4366). ⚠ Five seeds is exploratory and D14 records
+that five cannot resolve a one-seed difference; this is a reading, not a result, and
+A81 is explicit that the demo is not a bar to pass.
+
+⚠ **One mechanism was looked for specifically and is not there.** A consensus
+replaces the whole migration drift, and that drift multiplexes *thirst* — so a
+thirsty animal in a herd that is not thirsty can lose its long-range water cue for up
+to `commitTicks`. It would show up as dehydration deaths, and it does not: wildebeest
+dehydration over the sweep is **655 with the consensus against 708 without**. (The
+short-range `drink`, `seekWater` and `recallWater` are *actions* and are untouched by
+any of this — only the "smell of water on the wind" is replaceable.) ⚠ Worth
+re-checking if `consensusWeight` is ever raised; it is the reason the buffalo, which
+organizes its life around the lake, declares 0.6 rather than the wildebeest's 1.0.
+
+⚠ **`npm run ethologist` reports nothing new across six worlds** — the standing items
+only (A62's barren season, thirst deaths, a crypsis leopard that never perceives a
+mate). This is the check the phase most needed: an animal locked on one bearing is
+exactly what a badly-bounded consensus produces, and that tool already knows how to
+report it. Nothing anywhere reached a non-finite position or heading.
+
+Cost: **≈ +2% of a demo tick**, eight interleaved rounds, and the two ranges overlap
+almost completely — the paired per-round differences are positive on 6 of 8 and
+average +0.128 ms. A small real cost rather than a clean one; see `BENCHMARK.md`.
+
 ### Persistent groups
 
 _Added 2026-07-28 (PLAN-SPECIES.md §3.8, phase 3). See the note at the head of
@@ -3679,6 +3883,48 @@ produces, and "circling in need" and "unresolved intent" are anomalies it alread
 knows how to report. Across six worlds it reports the standing items (A62's barren
 season, thirst deaths, a crypsis leopard that never perceives a mate) and no animal
 holding a heading it should not.
+
+#### ✅ Leadership — a weight, never a leader, 2026-08-06 (BEHAVIOR-PLAN P8)
+
+✅ **A band's centre of mass now leans toward the animals it would actually follow**,
+so a separated member rallies back toward *them* rather than toward the arithmetic
+middle of everybody. This closes the seam P7 left open on purpose: that phase derived
+the centre as a plain mean and said so, because `leadershipOf` was P8's to add.
+
+**Nothing is stored.** There is no leader field, no election, and no record of who
+led — `GroupRegistry`'s rule that standing is derived and never stored is not bent
+here. What exists is a per-member weight, recomputed from what each animal is right
+now: `w = 1 + groups.leadWeight × (score / the best score in this record)`.
+
+⚠ **The score is normalized inside the record, and that is not tidiness.**
+`leadershipOf` is `dominanceOf` scaled, and `dominanceOf` is dominated by body mass —
+a raw score would make `leadWeight` mean something different for a 600 kg buffalo
+than for a 40 kg gazelle. Relative standing within one band is the question, and it
+is scale-free. **0 is the identity**: every weight is exactly 1, the multiply is
+skipped entirely, and the centre is the plain mean P7 shipped, bit for bit.
+
+⚠⚠ **`dominanceOf` is pointed the wrong way for the species that asked**, which is
+why leadership is a second reading rather than a reuse. Its `maturity` term is 1 for
+an adult and **0.85 for a senescent one** — right for a shoving match, backwards for
+who a herd follows, since the animal that knows where the water is in a bad year is
+the old cow. `behavior.leadAgeWeight` is what a seniority term is worth: at 0.5 a
+senescent animal of the same body outranks a prime adult by 27.5% (0.85 × 1.5 against
+1.0), so the ordering is **reversed** rather than merely softened. The **buffalo**
+declares it, because the record it declares is a cow–calf core and a cow–calf core is
+led by the oldest cow.
+
+⚠ **Seniority is `senescent` or nothing.** The engine's only statement about an
+animal being old is its life stage, and a term that also lifted prime adults would
+spend itself against the maturity discount it exists to overturn (1.25 against 1.275
+is not a matriarch, it is a rounding error). ⚠ The consequence to know before
+measuring anything: **in a world with no senescent animals yet, this is the identity
+however loudly a species declares it** — buffalo reach `adultUntil: 11000`, so a
+1500-tick run contains no matriarch at all.
+
+⚠ **`dominanceOf`'s flicker is inherited and is affordable here.** Condition moves
+every tick, so the *ranking* between closely matched animals wobbles. That would be
+intolerable for an elected leader a whole band followed and is fine for a weight: it
+moves a centre by a hair.
 
 #### ⚠⚠ Leaving is a window, not an instant — A64 _(found and fixed 2026-07-31)_
 
@@ -4740,7 +4986,7 @@ evict, because there the oldest entry is genuinely the least useful and
 ## 12. Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently **32**) with the tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently **33**) with the tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, the tombstone registry, the persistent-group
@@ -5498,7 +5744,7 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
 `engineering`, `disturbance`, `migration`, `disease`, `social`, `concealment`,
 `breeding`,
-`association`, `groups`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
+`association`, `groups`, `consensus`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
 `cooperation`, `mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`,
 `parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`,
 `decision`, `predation`, `climbing`, `flight`, `demo`.

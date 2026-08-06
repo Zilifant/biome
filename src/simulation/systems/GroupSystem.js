@@ -81,7 +81,12 @@
  * Ownership: writes `entity.groupRecordId`, `entity.rallyHeading` /
  * `entity.rallyStrength`, `world.groups` and `world.groupCentres`. Reads
  * positions, species, `guardianId`, `sex`, dispersal state, the shared
- * neighbourhood buffer, and (since P7) the social summary's `bandmates` count.
+ * neighbourhood buffer, the social summary's `bandmates` count (P7), and — since
+ * BEHAVIOR-PLAN P8 — each member's derived **leadership**, which weights the centre
+ * a rally steers at (`config.groups.leadWeight`, `behavior.leadAgeWeight`). ⚠ That
+ * last one is *read* and never stored: `GroupRegistry`'s rule that standing is
+ * derived rather than recorded holds here too, so there is no leader anywhere in
+ * state — only a weight recomputed from what each animal is right now.
  * ⚠ It never touches `groupId` or `groupHops` — those are `SocialSystem`'s, and
  * two systems must never write the same field.
  * Randomness: **none at all**, like migration and engineering, so this cannot
@@ -100,6 +105,7 @@ import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { groupsOf } from '../world/GroupRegistry.js';
 import { isDispersing } from '../migration/migration.js';
+import { leadAgeWeightOf, leadershipOf } from '../social/dominance.js';
 import { Sexes } from '../mating/mateChoice.js';
 
 /** `leavingSex` values that are not a sex. */
@@ -130,6 +136,7 @@ export class GroupSystem extends SimulationSystem {
    * @param {boolean} [options.rallyEnabled] whether a separated member drifts back toward its band (P7)
    * @param {number} [options.rallyRange] beyond this the band is lost and no drift is written
    * @param {number} [options.rallyStrength] how hard the drift bends a fresh wander
+   * @param {number} [options.leadWeight] how far a record's centre leans toward the animals it follows (P8)
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -143,6 +150,7 @@ export class GroupSystem extends SimulationSystem {
     rallyEnabled = false,
     rallyRange = 30,
     rallyStrength = 0.35,
+    leadWeight = 0,
     updateInterval = 1,
   } = {}) {
     // Priority -8 in `decision`: after `SocialSystem` (-10) has settled this
@@ -177,6 +185,14 @@ export class GroupSystem extends SimulationSystem {
     this.rallyEnabled = rallyEnabled;
     this.rallyRange = rallyRange;
     this.rallyStrength = rallyStrength;
+    // ⚠ **World-level, and 0 is the identity** (BEHAVIOR-PLAN P8, closing the seam
+    // P7 left open). At 0 every member weighs exactly 1 and the centre below is the
+    // plain mean P7 shipped — bit-for-bit, since the multiply is skipped entirely —
+    // which is what makes it the reproducible control. The *age* half of leadership
+    // is per-species (`behavior.leadAgeWeight`), because whether a society follows
+    // its elders is biology; this is the machinery, so it lives outside a block by
+    // the rule that a species block beats the config (DOCS §8).
+    this.leadWeight = leadWeight;
   }
 
   update(world, context) {
@@ -321,15 +337,51 @@ export class GroupSystem extends SimulationSystem {
     // Bounded by `maxGroups`, and each record's member list by `maxMembers`, so
     // this is a small fixed walk rather than anything proportional to the world.
     for (const record of registry.all()) {
+      // ⚠⚠ **Leadership weighting (BEHAVIOR-PLAN P8), the seam P7 left open on
+      // purpose.** P7 derived this centre as a plain mean and said so, because
+      // `leadershipOf` was P8's to add; this is the one multiply it wanted, in the
+      // loop that was already here. A band's centre leans toward the animals it
+      // would actually follow, so a separated member walks back toward *them*
+      // rather than toward the arithmetic middle of everybody.
+      //
+      // ⚠ `w = 1 + leadWeight · score` with the score **normalized against the
+      // strongest member of this record**, which is what makes `leadWeight: 0`
+      // exactly 1 and every weight exactly 1 in a record of equals. Normalizing is
+      // not tidiness: `leadershipOf` is `dominanceOf` scaled, and `dominanceOf` is
+      // dominated by body mass, so a raw score would make a buffalo's weight ~600
+      // and a gazelle's ~30 — the parameter would mean something different for
+      // every species. Relative standing inside one band is the question, and it is
+      // scale-free.
+      //
+      // ⚠ **Nothing is stored** (`world/GroupRegistry.js`: standing is derived,
+      // never stored). There is no leader, no election, and no record of who led —
+      // only a weight, recomputed from what each animal is right now. That is also
+      // why the flicker `dominanceOf` lives with is affordable here: it moves a
+      // centre by a hair rather than swapping the animal a band is following.
+      const ageWeight = this.leadWeight > 0 ? leadAgeWeightOf(world.species.get(record.speciesId)) : 0;
+      let best = 0;
+      if (this.leadWeight > 0) {
+        for (const memberId of record.memberIds) {
+          const member = world.entities.get(memberId);
+          if (!member || !member.alive) continue;
+          const score = leadershipOf(member, ageWeight);
+          if (score > best) best = score;
+        }
+      }
       let sumX = 0;
       let sumY = 0;
       let counted = 0;
       for (const memberId of record.memberIds) {
         const member = world.entities.get(memberId);
         if (!member || !member.alive) continue;
-        sumX += member.x;
-        sumY += member.y;
-        counted += 1;
+        // ⚠ `best > 0` guards the division; a record whose every member scores zero
+        // (all dead-but-listed, or all impossibly frail) falls back to the plain
+        // mean rather than to `0/0`, which would be a NaN centre and then a NaN
+        // heading and then an animal parked outside every spatial query for good.
+        const weight = best > 0 ? 1 + this.leadWeight * (leadershipOf(member, ageWeight) / best) : 1;
+        sumX += member.x * weight;
+        sumY += member.y * weight;
+        counted += weight;
       }
       if (counted > 0) centres.set(record.id, { x: sumX / counted, y: sumY / counted });
     }

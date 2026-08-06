@@ -161,6 +161,27 @@ export const herbivoreWildebeest = Object.freeze({
     // with a herd larger than it can see across, which is what the shared
     // neighbour walk was widened to express.
     herdRadius: 11,
+    // ⚠⚠ **The highest in the roster, and this is the species the mechanism was
+    // built for** (BEHAVIOR-PLAN P8). The animals of one herd label pool their
+    // forage drifts into a single heading and hold it for `consensus.commitTicks`
+    // whatever their own noses say next, so a wildebeest aggregation bends as a
+    // front and keeps going after the gradient that started it has flattened.
+    //
+    // ⚠ **1 is the reference point, not the maximum**: at 1 a herd that agrees
+    // drifts at exactly the mean strength of the cues behind it — the herd's version
+    // of the drift this animal already had, rather than an amplification of it. It
+    // is the highest declared because going where the grass is *together* is the
+    // whole of what a wildebeest does with its year, and because this species has
+    // the widest `migration.cueRadius` in the roster to agree about.
+    //
+    // ⚠⚠ **This is also the nearest legal thing to the subherds the brief asked
+    // for.** Persisting a subherd through separation is literally a group record,
+    // and 219 wildebeest on the registry would need ~28–100 records for one species
+    // against a `maxGroups` of 192 — while `groups.forms: false` above is a stated
+    // design decision about what a wildebeest aggregation *is*. A shared heading
+    // carried on the entity is what two halves of a torn herd can still both be
+    // holding. Do not "fix" this later by flipping `forms`.
+    consensusWeight: 1.0,
     thirstWeight: 1.15,
     defendRange: 5.5,
   }),

@@ -1330,7 +1330,32 @@ export class DecisionSystem extends SimulationSystem {
           entity.maxEnergy > 0 ? 1 - entity.energy / entity.maxEnergy : 0,
           entity.maxHydration > 0 ? 1 - entity.hydration / entity.maxHydration : 0,
         );
-        const roaming = need >= this.rangingThreshold && entity.migrationStrength <= 1e-6;
+        // ⚠⚠ **The herd's consensus stands *in place of* this animal's own drift
+        // while it is live** (BEHAVIOR-PLAN P8) — one conditional, and deliberately
+        // **not a fourth blend** onto the heading below. `HerdConsensusSystem`
+        // (priority −3) has already pooled the migration drifts of everyone sharing
+        // this animal's herd label and handed each member the same answer, so
+        // blending the two would be averaging a number with its own average and
+        // would leave the strengths summing to nothing meaningful. Replacing keeps
+        // one drift in the channel and lets the commitment do what it is for: the
+        // strength survives with the heading, so a herd keeps going after the
+        // gradient that started it has flattened.
+        //
+        // ⚠ The **ttl is owned and enforced by that system**, which clears both
+        // fields when a commitment lapses, so the question here is the same
+        // one-null-check `trailHeading` gets rather than a second reading of the
+        // clock (D11). ⚠ Its `updateInterval` is therefore also the resolution of
+        // the expiry: a commitment ends at the next consensus tick, not necessarily
+        // on the tick it fell due.
+        //
+        // ⚠ Null for every species that declares no `behavior.consensusWeight`,
+        // which is six of the eight, and for every animal of the other two that is
+        // alone, dispersing, or in a herd that could not agree — so this is one null
+        // comparison and then exactly the expression it has been since Step 26.
+        const consensus = entity.herdHeading !== null;
+        const drift = consensus ? entity.herdHeading : entity.migrationHeading;
+        const driftStrength = consensus ? entity.herdStrength : entity.migrationStrength;
+        const roaming = need >= this.rangingThreshold && driftStrength <= 1e-6;
         if (!intent || !intent.moving || intent.ttl <= 0) {
           // Migration (Step 26) enters here and **only** here. A fresh wander
           // commitment is the one heading in the whole system that was going to
@@ -1344,15 +1369,18 @@ export class DecisionSystem extends SimulationSystem {
           // distance: the heading is held for 8–24 ticks and re-picked toward
           // the same gradient while it persists, so an animal migrates by
           // drifting rather than by routing. Nothing here searches.
-          // Two drifts, blended in turn onto the same arbitrary heading, and
-          // both weak: the forage gradient (Step 26) says where the better
-          // ground is, and a worn trail (Step 28) says there is an easier way to
-          // walk. Sequential rather than summed because each blend already
-          // interpolates toward its target — and applied in this order because
-          // where you are going outranks how you get there.
-          const drift = entity.migrationHeading;
-          const withDrift =
-            drift === null ? candidateHeading : blendHeadings(candidateHeading, drift, entity.migrationStrength);
+          // Blended in turn onto the same arbitrary heading, and all weak: where
+          // the better ground is (Step 26), where the band this animal has lost
+          // contact with went (P7), and that a worn trail is an easier way to
+          // walk (Step 28). Sequential rather than summed because each blend
+          // already interpolates toward its target.
+          //
+          // ⚠ `drift` is the **effective** one, resolved above: the herd's agreed
+          // heading while a commitment is live (P8), this animal's own migration
+          // heading otherwise. The consensus *replaces* this channel rather than
+          // adding a fourth, and it is resolved once so the ranging gate and this
+          // blend cannot disagree about whether the animal has somewhere to be.
+          const withDrift = drift === null ? candidateHeading : blendHeadings(candidateHeading, drift, driftStrength);
           // ⚠ **Three drifts now, and the order is an argument** (BEHAVIOR-PLAN P7).
           // Reunion sits between them because it answers the same question the
           // forage drift does — *where* to go — while the trail answers *how to get

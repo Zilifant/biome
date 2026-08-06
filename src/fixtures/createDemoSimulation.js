@@ -28,6 +28,7 @@ import { MetricsSystem } from '../simulation/systems/MetricsSystem.js';
 import { SocialSystem } from '../simulation/systems/SocialSystem.js';
 import { GroupSystem } from '../simulation/systems/GroupSystem.js';
 import { MigrationSystem } from '../simulation/systems/MigrationSystem.js';
+import { HerdConsensusSystem } from '../simulation/systems/HerdConsensusSystem.js';
 import { DisturbanceSystem } from '../simulation/systems/DisturbanceSystem.js';
 import { EngineeringSystem } from '../simulation/systems/EngineeringSystem.js';
 import { TerritorySystem } from '../simulation/systems/TerritorySystem.js';
@@ -145,6 +146,15 @@ export function registerDemoSystems(engine) {
         habitatCueReference: engine.config.habitat.cueReference,
       }),
     );
+  }
+  // Priority -3: after the migration drift has settled (-5), so the consensus
+  // aggregates a finished number, and before the decision system (0), the only
+  // consumer. ⚠ Skipped entirely when disabled, which is the reproducible control —
+  // and it is byte-identical the other way too, since every species but the
+  // wildebeest and the buffalo declares `behavior.consensusWeight: 0` and is never
+  // touched. See `social/consensus.js`.
+  if (engine.config.consensus.enabled) {
+    engine.registerSystem(new HerdConsensusSystem(engine.config.consensus));
   }
   engine.registerSystem(
     new DecisionSystem({
