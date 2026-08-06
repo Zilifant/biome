@@ -1,6 +1,6 @@
 # Handoff — BEHAVIOR-PLAN P0–P5 and P7 done, P6 skipped, start on P8
 
-**Date:** 2026-08-05 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `5fa62e7 P5` — P7 uncommitted at the time of writing
+**Date:** 2026-08-05 → 06 (the session ran past midnight) · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `5fa62e7 P5` — P7 uncommitted at the time of writing
 
 Read [`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) first — it is the spec and it is still
 accurate. ⚠ P8 is the only phase left that adds a **system** rather than a number,
@@ -16,7 +16,7 @@ from the plan.
 | **P1** per-species herd radius | ✅ committed `ae3b4e9` |
 | **P2** affinity-weighted centroid | ✅ committed `49fa9f5` |
 | **P3** association pull (A61) | ✅ committed `b413449` |
-| **P4** calf-centred centroid | ✅ committed `ad0130e` — **shipped at its identity, on purpose** (below) |
+| **P4** calf-centred centroid | ✅ committed `ad0130e` — **shipped at its identity, on purpose** (below). ⚠ Its commit *message* also reads “P3”, so `git log` shows two of those; `b413449` is the real P3 |
 | **P5** A56 hysteresis, registry capacity, buffalo cow–calf core | ✅ committed `5fa62e7` — **A56 closed**, save format v32 |
 | **P6** bachelor bulls | ⛔ **skipped by decision** (2026-08-05) — a dispersed bull staying loosely with the local buffalo through the herd label is an acceptable bachelor. The plan section is kept, marked, with what it gives up stated |
 | **P7** band rally drift | ✅ this session — the record’s first mover |
@@ -28,12 +28,13 @@ new `groups.slow.test.js` is ~2). The cancelled
 ones are `presets.test.js`'s HTTP tests, which the command sandbox blocks from
 binding a port (`listen EPERM`) — pre-existing, unrelated, ignore them.
 
-⚠ Renderer fixtures are **stale** for the demo's behaviour (P1, P2 and P3 moved
-it). P4 is byte-identical in the demo, and so are P5b and P5c; **P5a is not** — the
-grace clock changes which records exist, though only after the first die-off around
-tick 4500, so short fixture runs are very likely unaffected. Verify rather than
-assume. That regen is deliberately deferred to P10 per DOCS §12 — "regenerate after
-the last behavioural change, not after the protocol change."
+⚠ Renderer fixtures are **stale** for the demo's behaviour. P1, P2, P3 and **P7**
+all move it; P4 is byte-identical and so are P5b and P5c; **P5a** changes which
+records exist but only after the first die-off (~tick 4500), so short fixture runs
+are probably unaffected by that one alone. **P7 is the one that certainly matters** —
+it moves animals from the first hundred ticks. That regen is deliberately deferred
+to P10 per DOCS §12 — "regenerate after the last behavioural change, not after the
+protocol change."
 
 ## ⚠⚠ Read this before P8: what P4 found out about steering
 
@@ -111,7 +112,38 @@ genuinely opposed cues, not merely different ones) and the "member joining a lab
 mid-commitment adopts the label's consensus" clause (needs a member that joins
 *after* the commitment was formed).
 
+## ⚠ The plan's line numbers into `DecisionSystem.js` are stale
+
+P3, P4 and P7 all edited that file, so every reference the plan makes into it is now
+**35–45 lines low**. Checked 2026-08-06; the ones P8 will actually follow:
+
+| BEHAVIOR-PLAN says | actually at | what it is |
+| --- | --- | --- |
+| `DecisionSystem.js:1311-1316` | **1353** | the `wander` drift blend — P8's one conditional goes here |
+| `DecisionSystem.js:1122-1139` | **1157** | `#intentFor`'s `herd` case |
+| `DecisionSystem.js:626-631` | **648** | the `herd` utility |
+| `DecisionSystem.js:1111-1116` | **1308** | the `wander` ttl continuation |
+
+✅ Its references into **other** files are still exact — `migration.js:333-335`,
+`dominance.js:61` (the `maturity` term P8 calls "pointed the wrong way"),
+`metrics.js:260`, `SimulationEngine.js:563`. Only `DecisionSystem.js` drifted.
+
 ## What P3–P7 changed about the code P8 touches
+
+**The `decision` phase is now four systems deep, and P8 inserts into it.** Verified
+2026-08-06:
+
+| priority | system | writes what P8 cares about |
+| ---: | --- | --- |
+| −10 | `SocialSystem` | herd labels, `world.social` (incl. `bandmates`) |
+| −8 | `GroupSystem` | records, `world.groupCentres`, `rallyHeading`/`rallyStrength` |
+| −5 | `MigrationSystem` | `migrationHeading` / `migrationStrength` |
+| **−3** | **`HerdConsensusSystem`** ← P8 | `herdHeading` / `herdStrength` |
+| 0 | `DecisionSystem` | reads all of the above |
+
+−3 is free and is the right slot for the plan's reason: it is after the migration
+drift has settled (so consensus aggregates a finished number) and before anything
+consumes it.
 
 **`SocialSystem` publishes `bandmates`** — how many of an animal's own record are
 inside its herd radius — added for P7's gate. It is counted whatever the species
@@ -176,7 +208,8 @@ for.
   [`test/protocol-v29.test.js`](test/protocol-v29.test.js); the row is recorded
   beside each. ⚠ An audit of the whole suite found **13** tests of this shape out of
   ~1236; these two are the worst case (a rare event in a short window) and the rest
-  have margin. `carcass.slow` and `mate-choice` are the next closest to the edge.
+  have margin (that audit covered ~1236 tests; the suite is 1270 now and the 13 are
+  unchanged). `carcass.slow` and `mate-choice` are the next closest to the edge.
 - **Mutation-test every new assertion, and make the fixture's numbers *different*.**
   P3 ran ten deliberate breakages, P4 seven, P5 six, P7 four. ⚠ **One of P4's and
   one of P7's survived the first pass.** P4's: `worth = calfWeight` instead of
