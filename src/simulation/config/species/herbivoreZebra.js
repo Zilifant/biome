@@ -105,6 +105,23 @@ export const herbivoreZebra = Object.freeze({
     herdDistance: 2.0,
     thirstWeight: 1.25,
     defendRange: 5.5,
+    // ⚠⚠ **The band finally drives behaviour** (BEHAVIOR-PLAN P2), and until this
+    // pair of numbers it did not. The record said who belonged together and
+    // *nothing read it* except carcass possession and cooperative hunting, so a
+    // zebra did not prefer its bandmates, did not steer at a band centre, and two
+    // bands that met became one aggregation while their rosters stayed separate.
+    // These two numbers are the whole fix: a bandmate is worth two and a half
+    // bodies when this animal works out where its herd is, an unfamiliar zebra
+    // about a third of one.
+    //
+    // ⚠ 0.35 rather than 0 so a bandless zebra — a disperser, or the survivor of a
+    // dissolved record — still has something to aggregate with. It is a discount,
+    // not a blindfold. And it cannot be a *push*: a weighted mean of positions has
+    // no way to repel, so what this produces is two bands drawn to two different
+    // points, which is separation as a consequence rather than as a rule
+    // (`social/banding.js`).
+    sameBandWeight: 2.5,
+    otherBandWeight: 0.35,
   }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

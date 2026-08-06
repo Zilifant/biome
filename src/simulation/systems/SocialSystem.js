@@ -68,6 +68,17 @@
  * change — is in `social/herding.js`. The world-level switch is
  * `config.social.perSpeciesRadius`.
  *
+ * ⚠⚠ **Three exchange rates now meet in one expression, and they are three
+ * different questions about the same slot.** The neighbour loop asks "how much of
+ * a body is this animal worth when my centre of mass is worked out", and the
+ * answer is composed of: `association.js` — is it my *species*; `banding.js` — is
+ * it in my *band* (P2, the group record's first mover); and nothing else. Each is
+ * spent inside the centroid exactly once, which is the line A61 was written to
+ * defend: a weight that is also charged against the pull is charged twice.
+ * `groupmates`, `adults` and `nearestDistance` are headcounts and stay headcounts,
+ * because collective vigilance and `mobbing.minMobbers` read them and a cohesion
+ * knob must not become a predation knob.
+ *
  * Runs in the `decision` phase at priority -10, ahead of the decision system
  * (priority 0) which consumes the summary to score `herd` and `defend`, and
  * ahead of anything that reads alarm state. Ownership: writes `groupId`,
@@ -84,6 +95,7 @@ import {
   associationsIn,
 } from '../social/association.js';
 import { herdRadiiIn } from '../social/herding.js';
+import { bandAffinitiesIn, bandWorthFor } from '../social/banding.js';
 
 export class SocialSystem extends SimulationSystem {
   /**
@@ -102,6 +114,12 @@ export class SocialSystem extends SimulationSystem {
    * @type {Map<string, number>}
    */
   #herdRadii = new Map();
+  /**
+   * Per-species band affinities (BEHAVIOR-PLAN P2) — the exchange rate between a
+   * bandmate's body and a stranger's. Same registry guard, same early-out.
+   * @type {Map<string, {same: number, other: number}>}
+   */
+  #bandAffinities = new Map();
 
   /**
    * @param {object} [options]
@@ -137,6 +155,12 @@ export class SocialSystem extends SimulationSystem {
     // False makes every species herd at `groupRadius` again — the reproducible
     // control, and byte-identical to the pre-P1 world.
     perSpeciesRadius = true,
+    // Band affinity (BEHAVIOR-PLAN P2). ⚠ From `config.social`, the global section,
+    // for the third time and the same reason: a species block beats the config, so
+    // the off arm has to live outside one. False makes every conspecific worth
+    // exactly one body again — byte-identical to the pre-P2 world, because the
+    // weights multiply into the sums as `× 1`.
+    bandAffinity = true,
     updateInterval = 1,
   } = {}) {
     super({ id: 'social', phase: 'decision', priority: -10, updateInterval });
@@ -150,6 +174,7 @@ export class SocialSystem extends SimulationSystem {
     this.associationEnabled = associationEnabled;
     this.associationSharesAlarm = associationSharesAlarm;
     this.perSpeciesRadius = perSpeciesRadius;
+    this.bandAffinity = bandAffinity;
   }
 
   update(world, context) {
@@ -185,6 +210,13 @@ export class SocialSystem extends SimulationSystem {
     // has been since Step 23.
     const herdRadii = this.#herdRadiiFor(world);
     const herding = herdRadii.size > 0;
+    // Band affinity (BEHAVIOR-PLAN P2), on the same one-comparison early-out as the
+    // other two. Empty when the switch is off or no species declares one, and then
+    // every conspecific below is worth exactly `CONSPECIFIC_WEIGHT` and every
+    // multiplication is `× 1` — which is why the off arm is byte-identical rather
+    // than merely equivalent.
+    const bandAffinities = this.#bandAffinitiesFor(world);
+    const banding = bandAffinities.size > 0;
 
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
@@ -227,6 +259,10 @@ export class SocialSystem extends SimulationSystem {
       // integer n in IEEE-754, so the division below is the division it was.
       let conspecificWeight = 0;
       const association = associating ? (associations.get(entity.speciesId) ?? null) : null;
+      // This animal's own declaration, read once per animal rather than per
+      // neighbour. Directional exactly as an association is: a zebra prefers its
+      // own band without any other zebra having an opinion about that.
+      const bandAffinity = banding ? (bandAffinities.get(entity.speciesId) ?? null) : null;
       // Every animal can always found a herd on its own id, at zero hops from
       // itself. Seeding from the *id* rather than from the label it happens to
       // be carrying is what lets an orphaned half of a split herd escape the
@@ -262,6 +298,19 @@ export class SocialSystem extends SimulationSystem {
           if (association === null) continue;
           worth = associationWeightFor(association, other.speciesId);
           if (worth === 0) continue;
+        } else if (bandAffinity !== null) {
+          // ⚠⚠ **Band affinity (P2), and it belongs on exactly this line** — the
+          // same slot the heterospecific weight occupies, because it answers the
+          // same question about a different pair of animals: how much of a body is
+          // this one worth when my herd's centre is worked out. Spent inside the
+          // centroid and nowhere else. See `social/banding.js` for why it is
+          // conspecific-only, why a negative weight is refused rather than clamped,
+          // and why "separation between bands" is differential attraction rather
+          // than the repulsion it sounds like.
+          //
+          // ⚠ It reads *last tick's* membership: `GroupSystem` writes
+          // `groupRecordId` at priority −8 and this runs at −10.
+          worth = bandWorthFor(bandAffinity, entity.groupRecordId, other.groupRecordId);
         }
         const distance = neighbours[i + 1];
 
@@ -291,11 +340,20 @@ export class SocialSystem extends SimulationSystem {
             }
           } else {
             if (inHerd) {
-              conspecificWeight += CONSPECIFIC_WEIGHT;
-              sumX += other.x;
-              sumY += other.y;
-              sumSin += Math.sin(other.heading);
-              sumCos += Math.cos(other.heading);
+              // ⚠ Weighted since P2, and numerator and denominator move together
+              // or the mean is not a mean — see `conspecificWeight`'s own note
+              // above for what dividing a weighted sum by a headcount does.
+              // ⚠ With no declared affinity `worth` is exactly `1`, and `x * 1` is
+              // `x` for every finite double, so this is bit-for-bit the arithmetic
+              // it was before P2.
+              conspecificWeight += worth;
+              sumX += other.x * worth;
+              sumY += other.y * worth;
+              // ✅ Alignment comes free: the mean *heading* is band-weighted by the
+              // same number, so the `herd` intent's alignment half follows its
+              // cohesion half without a second mechanism.
+              sumSin += Math.sin(other.heading) * worth;
+              sumCos += Math.cos(other.heading) * worth;
             }
             // ⚠ Everything from here to the end of the branch is **groupmate**
             // arithmetic, on `groupRadius` rather than on `herdRadius`, and it is
@@ -438,8 +496,23 @@ export class SocialSystem extends SimulationSystem {
       this.#associationsFrom = registry;
       this.#associations = this.associationEnabled ? associationsIn(registry) : new Map();
       this.#herdRadii = this.perSpeciesRadius ? herdRadiiIn(registry) : new Map();
+      this.#bandAffinities = this.bandAffinity ? bandAffinitiesIn(registry) : new Map();
     }
     return this.#associations;
+  }
+
+  /**
+   * The band affinity of every species in this world that declares one (P2), keyed
+   * by id — empty when the switch is off or nobody declares one. Resolved by
+   * `#associationsFor` off the same registry check, so the three maps can never
+   * describe different rosters.
+   *
+   * @param {import('../world/World.js').World} world
+   * @returns {Map<string, {same: number, other: number}>}
+   */
+  #bandAffinitiesFor(world) {
+    this.#associationsFor(world);
+    return this.#bandAffinities;
   }
 
   /**

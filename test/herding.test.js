@@ -1,8 +1,9 @@
 /**
- * The herd radius, and the neighbour walk that feeds it (BEHAVIOR-PLAN P0 + P1).
+ * The herd radius, the neighbour walk that feeds it, and the band affinity that
+ * weights it (BEHAVIOR-PLAN P0 + P1 + P2).
  *
- * Two changes with one seam between them, and the suite is organized around the
- * lines each is not allowed to cross.
+ * Three changes to one expression, and the suite is organized around the lines
+ * each is not allowed to cross.
  *
  * **P0** split one number into two. `world.neighbourhood` used to be the
  * perception radius by construction — the grid query *was* the gate on everything
@@ -18,10 +19,26 @@
  * herd label, not `groupmates`, not `adults`, and therefore not collective
  * vigilance or mobbing. `social/herding.js` is the argument; this is the pin.
  *
+ * **P2** made a bandmate worth more than a stranger of the same species — the
+ * group record's first consumer that moves an animal. Its claims are that the band
+ * dominates the centre, that the headcounts (`groupmates`, `adults`) stay
+ * headcounts, and that it does **not** collide with the heterospecific weight in
+ * `association.js`, which shares the same slot.
+ *
  * ⚠ The centroid's **denominator** is the subtle half and has its own block. Two
- * radii mean the numerator and the headcount can come from different sets, and a
- * weighted mean divided by the wrong total is not a mean — it is a point scaled
- * away from the origin, silently, by however far the two disagree.
+ * radii mean the numerator and the headcount can come from different sets, and
+ * weights mean the numerator is no longer a plain sum — a weighted mean divided by
+ * the wrong total is not a mean at all, but a point scaled away from the origin by
+ * however far the two disagree.
+ *
+ * ⚠⚠ **Mutation-tested 2026-08-05, and one assertion was written because of it.**
+ * Four deliberate breakages were introduced and every one must fail this file:
+ * unweighting the conspecific numerator (2 fail), returning the denominator to a
+ * headcount (2), treating every conspecific as a bandmate (3), and letting the band
+ * weight leak onto heterospecifics (1). ⚠ That last one passed at first — an
+ * associate with *no* declared association is dropped on the species comparison
+ * before any band weight could reach it, so only a species declaring **both** rates
+ * can catch the collision. That is what `MIXER` exists for.
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,6 +52,7 @@ import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { herdRadiiIn, herdRadiusOf } from '../src/simulation/social/herding.js';
+import { bandAffinitiesIn, bandAffinityOf, bandWorthFor } from '../src/simulation/social/banding.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
@@ -84,7 +102,43 @@ const SAME = Object.freeze({
   behavior: Object.freeze({ herdRadius: CONFIG.social.groupRadius }),
 });
 
-const SPECIES = [PLAIN, WIDE, SAME];
+/**
+ * A banding grazer (P2): a bandmate is worth four bodies, a stranger a quarter of
+ * one. Deliberately lopsided so a centroid built the wrong way is off by a distance
+ * a test can see rather than by a rounding error.
+ */
+const BANDED = Object.freeze({
+  ...PLAIN,
+  id: 'test.banded',
+  groups: Object.freeze({ forms: true }),
+  behavior: Object.freeze({ sameBandWeight: 4, otherBandWeight: 0.25 }),
+});
+
+/** The same animal with parity weights — the identity arm for band affinity. */
+const UNBANDED = Object.freeze({
+  ...PLAIN,
+  id: 'test.unbanded',
+  groups: Object.freeze({ forms: true }),
+  behavior: Object.freeze({ sameBandWeight: 1, otherBandWeight: 1 }),
+});
+
+/**
+ * ⚠ A grazer that declares **both** exchange rates — a band affinity and a
+ * heterospecific association. It exists for one assertion: the two must not
+ * overwrite each other. Without it the "conspecific-only" claim is untestable,
+ * because a heterospecific with *no* association is dropped on the species
+ * comparison before any band weight could reach it — so the only arrangement that
+ * can catch a leak is one where the associate is genuinely being weighted.
+ */
+const MIXER = Object.freeze({
+  ...PLAIN,
+  id: 'test.mixer',
+  groups: Object.freeze({ forms: true }),
+  behavior: Object.freeze({ sameBandWeight: 4, otherBandWeight: 0.25 }),
+  association: Object.freeze({ 'test.unbanded': 0.9 }),
+});
+
+const SPECIES = [PLAIN, WIDE, SAME, BANDED, UNBANDED, MIXER];
 
 function genome() {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [1, 1]]));
@@ -419,6 +473,25 @@ describe('herding: the centroid\'s denominator', () => {
     assert.equal(summary.groupmates, 3, 'three of the six are groupmates');
   });
 
+  test('⚠ and it still lands on the herd when the bodies are weighted unequally', () => {
+    // The P1 fix made numerator and denominator agree across two *radii*; P2 makes
+    // the numerator weighted as well. Six animals at one point, three of them worth
+    // four bodies and three worth a quarter — a mean that divides by anything but
+    // the total weight lands somewhere else entirely.
+    // ⚠ 44,44 rather than 45,45: `BANDED` keeps the ordinary six-cell radius, and
+    // 45,45 is 7.07 away — outside it. This test is about the weights, so the
+    // geometry has to stay inside the radius or it silently tests nothing.
+    const engine = socialSandbox();
+    const focus = spawn(engine, BANDED.id, { x: 40, y: 40, groupRecordId: 1 });
+    for (let i = 0; i < 3; i += 1) spawn(engine, BANDED.id, { x: 44, y: 44, groupRecordId: 1 });
+    for (let i = 0; i < 3; i += 1) spawn(engine, BANDED.id, { x: 44, y: 44, groupRecordId: 2 });
+    engine.step(1);
+    const { centroid } = summaryOf(engine, focus);
+    assert.ok(centroid, 'the company is inside the herd radius');
+    assert.ok(Math.abs(centroid.x - 44) < 1e-9, `x ${centroid.x} — every body is at 44`);
+    assert.ok(Math.abs(centroid.y - 44) < 1e-9, `y ${centroid.y} — every body is at 44`);
+  });
+
   test('a centroid never lands outside the animals that made it', () => {
     // The scaling failure states itself: a mean of positions is inside their
     // bounding box, and the broken denominator puts it outside.
@@ -429,5 +502,162 @@ describe('herding: the centroid\'s denominator', () => {
     const { centroid } = summaryOf(engine, focus);
     assert.ok(centroid.x >= 45 && centroid.x <= 49, `x ${centroid.x} inside [45, 49]`);
     assert.ok(centroid.y >= 44 && centroid.y <= 46, `y ${centroid.y} inside [44, 46]`);
+  });
+});
+
+describe('banding: what a species declares (P2)', () => {
+  test('parity is not a declaration, and neither is nonsense', () => {
+    assert.deepEqual(bandAffinityOf(BANDED), { same: 4, other: 0.25 });
+    assert.equal(bandAffinityOf(UNBANDED), null, '1 and 1 *is* the unweighted behaviour');
+    assert.equal(bandAffinityOf(PLAIN), null);
+    assert.equal(bandAffinityOf(undefined), null);
+    // ⚠ Zero is legal — "contributes no position" is a coherent thing to want.
+    assert.deepEqual(bandAffinityOf({ behavior: { otherBandWeight: 0 } }), { same: 1, other: 0 });
+    // ⚠⚠ Negative is refused rather than clamped: it reads as "push away", a
+    // weighted mean cannot do that, and it can drive the denominator through zero
+    // into an animal parked at NaN forever. See social/banding.js.
+    assert.equal(bandAffinityOf({ behavior: { sameBandWeight: -2 } }), null);
+    assert.equal(bandAffinityOf({ behavior: { otherBandWeight: Infinity } }), null);
+    assert.equal(bandAffinityOf({ behavior: { sameBandWeight: 'lots' } }), null);
+  });
+
+  test('an unattached animal is parity, never a discount', () => {
+    const affinity = { same: 4, other: 0.25 };
+    assert.equal(bandWorthFor(affinity, 1, 1), 4, 'my band');
+    assert.equal(bandWorthFor(affinity, 1, 2), 0.25, 'somebody else’s band');
+    assert.equal(bandWorthFor(affinity, 1, null), 1, 'unattached is not a rival');
+    assert.equal(bandWorthFor(affinity, null, 2), 1, 'and neither am I, if I have no band');
+    assert.equal(bandWorthFor(null, 1, 2), 1, 'no declaration, no effect');
+  });
+
+  test('the world map holds only the species that declare one', () => {
+    const registry = new SpeciesRegistry([...SPECIES_DEFINITIONS, ...SPECIES], CONFIG);
+    const map = bandAffinitiesIn(registry);
+    assert.ok(map.has(BANDED.id));
+    assert.equal(map.has(UNBANDED.id), false);
+    assert.equal(map.has(PLAIN.id), false);
+    assert.equal(bandAffinitiesIn(undefined).size, 0);
+  });
+
+  test('the shipped roster declares it on the band-forming grazer', () => {
+    const engine = createDemoSimulation({ seed: 42 });
+    const map = bandAffinitiesIn(engine.species);
+    assert.deepEqual([...map.keys()], ['herbivore.zebra'], 'the zebra, and only the zebra so far');
+    const zebra = map.get('herbivore.zebra');
+    assert.ok(zebra.same > 1 && zebra.other > 0 && zebra.other < 1, 'a preference and a discount, both positive');
+    // ⚠ And it is a species that actually forms records — a band affinity on a
+    // species whose `groupRecordId` is always null would be inert by construction.
+    assert.equal(engine.species.get('herbivore.zebra').groups.forms, true);
+  });
+});
+
+describe('banding: the band drives the centre of mass (P2)', () => {
+  /** Two overlapping bands of `n`, interleaved so neither owns a side of the field. */
+  function twoBands(engine, speciesId, n = 3) {
+    const mine = [];
+    const theirs = [];
+    for (let i = 0; i < n; i += 1) {
+      mine.push(spawn(engine, speciesId, { x: 38 + i, y: 40, groupRecordId: 1 }));
+      theirs.push(spawn(engine, speciesId, { x: 42 + i, y: 40, groupRecordId: 2 }));
+    }
+    return { mine, theirs };
+  }
+
+  test('a member steers at its own band, not at the aggregation it is standing in', () => {
+    const engine = socialSandbox();
+    const { mine } = twoBands(engine, BANDED.id);
+    engine.step(1);
+    // Band 1 sits at x 38,39,40 and band 2 at 42,43,44. Unweighted, the focus
+    // animal's centre would be the mean of the other five (~41.4). Weighted, its
+    // two bandmates dominate.
+    const centroid = summaryOf(engine, mine[0]).centroid;
+    assert.ok(centroid.x < 40, `steers toward its own band, not the middle (x ${centroid.x.toFixed(2)})`);
+
+    const flat = socialSandbox();
+    const control = twoBands(flat, UNBANDED.id);
+    flat.step(1);
+    const flatCentroid = summaryOf(flat, control.mine[0]).centroid;
+    assert.ok(flatCentroid.x > 40, `and parity weights do not (x ${flatCentroid.x.toFixed(2)})`);
+  });
+
+  test('two overlapping bands are drawn to two different points', () => {
+    // ⚠ The honest claim, and it is *differential attraction* rather than
+    // separation: nothing repels. Each band's members steer at their own centre,
+    // so the two centres are distinct — which is what makes the bands pull apart.
+    const engine = socialSandbox();
+    const { mine, theirs } = twoBands(engine, BANDED.id);
+    engine.step(1);
+    const a = summaryOf(engine, mine[0]).centroid;
+    const b = summaryOf(engine, theirs[0]).centroid;
+    assert.ok(a.x < b.x, `the two bands steer at different points (${a.x.toFixed(2)} vs ${b.x.toFixed(2)})`);
+  });
+
+  test('⚠ the headcounts stay headcounts', () => {
+    // Weighting `adults` would turn a cohesion knob into a predation one: it is
+    // what collective vigilance and `mobbing.minMobbers` count.
+    const engine = socialSandbox();
+    const { mine } = twoBands(engine, BANDED.id);
+    engine.step(1);
+    const summary = summaryOf(engine, mine[0]);
+    assert.equal(summary.groupmates, 5, 'five other bodies, whatever they are worth');
+    assert.equal(summary.adults, 5, 'and five adults');
+    assert.ok(Math.abs(summary.nearestDistance - 1) < 1e-9, 'nearest is a distance, not a weight');
+  });
+
+  test('band affinity is conspecific-only', () => {
+    // A record is single-species, so "in a different band" cannot be said about
+    // another species — and saying it would be a second heterospecific weight
+    // fighting the declared one in association.js.
+    const engine = socialSandbox();
+    const focus = spawn(engine, BANDED.id, { x: 40, y: 40, groupRecordId: 1 });
+    spawn(engine, UNBANDED.id, { x: 43, y: 40, groupRecordId: 2 });
+    engine.step(1);
+    // No association is declared between them, so the other species is skipped
+    // entirely and there is nobody left to build a centre from.
+    assert.equal(summaryOf(engine, focus).centroid, null, 'another species is not a discounted bandmate');
+  });
+
+  test('⚠⚠ and an associate keeps its declared weight, not the out-of-band discount', () => {
+    // The sharp version of the claim above, and the one that actually fails if the
+    // two exchange rates are ever refactored into competing branches: an associate
+    // with a *different* `groupRecordId` must be worth its association weight
+    // (0.9), never `otherBandWeight` (0.25). With a single neighbour the weight
+    // cancels out of the mean, so this needs two — one of each kind, at a distance
+    // the arithmetic can distinguish.
+    const engine = socialSandbox();
+    const focus = spawn(engine, MIXER.id, { x: 40, y: 40, groupRecordId: 1 });
+    spawn(engine, MIXER.id, { x: 38, y: 40, groupRecordId: 1 }); // bandmate, worth 4
+    spawn(engine, UNBANDED.id, { x: 44, y: 40, groupRecordId: 2 }); // associate, worth 0.9
+    engine.step(1);
+
+    const summary = summaryOf(engine, focus);
+    const expected = (38 * 4 + 44 * 0.9) / (4 + 0.9);
+    assert.ok(
+      Math.abs(summary.centroid.x - expected) < 1e-9,
+      `centroid ${summary.centroid.x.toFixed(4)} vs ${expected.toFixed(4)} — the associate is weighted by the association`,
+    );
+    assert.equal(summary.groupmates, 1, 'the associate is not a groupmate');
+    assert.equal(summary.associates, 1, 'it is company, counted separately');
+  });
+
+  test('the world switch turns it off, and a species cannot turn it back on', () => {
+    const off = socialSandbox({ social: { bandAffinity: false } });
+    const { mine } = twoBands(off, BANDED.id);
+    off.step(1);
+    assert.ok(summaryOf(off, mine[0]).centroid.x > 40, 'off, every conspecific is worth one body');
+  });
+
+  test('⚠ declaring parity is the identity, not a near-miss', () => {
+    // The same proof P1 uses: the weighted path, exercised in full, produces the
+    // byte-identical world the unweighted one does.
+    const run = (speciesId) => {
+      const engine = socialSandbox({ seed: 13 });
+      for (let i = 0; i < 6; i += 1) {
+        spawn(engine, speciesId, { x: 40 + (i % 3), y: 40 + Math.floor(i / 3), groupRecordId: 1 + (i % 2) });
+      }
+      engine.step(120);
+      return JSON.stringify(captureSimulationState(engine)).split(speciesId).join('test.species');
+    };
+    assert.equal(run(UNBANDED.id), run(PLAIN.id), 'parity weights are the pre-P2 arithmetic');
   });
 });

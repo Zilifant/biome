@@ -45,6 +45,7 @@ import { CANOPY } from '../src/simulation/locomotion/climbing.js';
 import { stepLength, stepRefused, normalizeStepRules } from '../src/simulation/locomotion/steps.js';
 import { isEligiblePrey, isReachablePrey } from '../src/simulation/predation/predation.js';
 import { SPECIES_BLOCKS } from '../src/simulation/config/species/schema.js';
+import { killAnimal } from '../src/simulation/systems/death.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 /** A bird: fast on the wing, far-sighted on the wing, cheap on the wing. */
@@ -206,6 +207,38 @@ describe('flight: the predicate', () => {
     bird.x = open.x;
     bird.y = open.y;
     assert.equal(flyingFor(engine.world, bird, species, true), false, 'and comes down over open ground');
+  });
+});
+
+describe('flight: death takes the wings with it', () => {
+  test('⚠⚠ a bird that dies airborne is not a flying carcass', () => {
+    // Found 2026-08-05 by `protocol-v32`'s "only a declared flier is ever airborne,
+    // and never a carcass", which caught it only because an unrelated trajectory
+    // change moved which animals die when. Latent since flight landed: `flying` is
+    // written once per tick by the decision system **for living animals**, so a
+    // bird killed mid-flight kept the flag for the whole life of its body — and
+    // `flying` is a bulk-projected field, so every client saw a flying corpse.
+    //
+    // Asserted here directly on the chokepoint rather than through a demo run,
+    // because a test that needs a vulture to die in a particular window is a test
+    // that reports the defect once a year (§1.4 D1).
+    const engine = sandbox();
+    const bird = spawn(engine, { speciesId: BIRD.id, x: 20, y: 20 });
+    bird.flying = true;
+    killAnimal(bird, 'predation', 5, () => {}, 100);
+    assert.equal(bird.kind, 'carcass');
+    assert.equal(bird.flying, false, 'the body is on the ground');
+  });
+
+  test('⚠ but a body cached up a tree is still aloft', () => {
+    // The neighbouring claim, and the reason `elevation` is *not* cleared beside
+    // `flying`: being off the ground and having wings are different facts, and the
+    // leopard's kill caching depends on the first surviving death.
+    const engine = sandbox();
+    const bird = spawn(engine, { speciesId: BIRD.id, x: 20, y: 20 });
+    bird.elevation = CANOPY;
+    killAnimal(bird, 'predation', 5, () => {}, 100);
+    assert.equal(bird.elevation, CANOPY, 'a cached carcass stays in the tree');
   });
 });
 

@@ -3180,6 +3180,54 @@ see `BENCHMARK.md`, including why the first reading said +21%. Off switch:
 `config.social.perSpeciesRadius`, wired into *both* perception and sociality so
 that off restores the cost as well as the behaviour.
 
+#### Band affinity, 2026-08-05 (BEHAVIOR-PLAN.md P2)
+
+✅ **The group record now moves an animal, which it never did before.** DOCS
+recorded that `groupRecordId` was read by exactly two things — carcass possession
+and cooperative hunting — so a zebra band was a roster nobody acted on. A species
+may now declare `behavior.sameBandWeight` / `behavior.otherBandWeight`, and a
+conspecific's contribution to the herd's centre of mass is scaled by whether it is
+**in this animal's band**. The zebra declares 2.5 and 0.35; nothing else does yet.
+
+**Three exchange rates now meet in one expression**, and they are three different
+questions about the same slot: is this animal my *species* (`association.js`), is
+it in my *band* (`banding.js`), and how far away is it. Each is spent inside the
+centroid exactly once — the line A61 exists to defend, since a weight also charged
+against the pull is charged twice.
+
+⚠⚠ **"Separation between adjacent bands" ships as differential attraction, and
+the difference is not cosmetic.** A weighted mean of positions cannot repel. Each
+band's members are drawn to their own centre, so two overlapping bands steer at
+two different points and drift apart — separation as a consequence, not a rule. A
+*negative* weight would be the literal request and is refused rather than clamped:
+it can drive the denominator through zero, and `sum / ~0` is ±Infinity, then a NaN
+heading, then an animal parked at NaN for the rest of the run. Zero is allowed and
+means "ignore".
+
+✅ **Alignment came free.** The same weight scales `sumSin`/`sumCos`, so the mean
+*heading* is band-weighted too, and the `herd` intent already blends cohesion with
+alignment. The brief's "align with their persistent group" needed no separate work.
+
+⚠ **It bites only where bandmates are already in sight, and that bound is the
+mechanism's shape rather than a defect.** Affinity re-weights neighbours; an animal
+whose band has scattered beyond the herd radius has no bandmate to weight, so this
+makes a band that is together *stay* together and does nothing to bring a scattered
+one back. Reunion is P7's job. Measured 2500 ticks × 4 seeds, the share of banded
+zebras standing within `groupRadius` of a bandmate: **52.7/62.6/88.2/70.8 with it
+on against 50.0/59.6/60.7/59.4 with it off — higher on every seed.** ⚠ The
+*aggregate* band spread is a much noisier number (2 of 3 seeds tighter, one looser)
+because it is dominated by bands that already fragmented, where the mechanism is
+inert by construction. Four seeds is exploratory, not a gate.
+
+Cost: **nothing measurable** — 4.83 ms/tick against 4.91 off, entity counts
+matched at 400 ticks. It is one `Map` lookup per animal and one multiply per
+neighbour, and the multiply is by exactly `1` for every species that declares
+nothing, which is what makes the off arm byte-identical rather than merely close.
+
+⚠ It reads **last tick's** membership: `SocialSystem` is priority −10 and
+`GroupSystem` −8. Harmless in steady state; a test that founds a band and asserts
+on the centroid must step twice. Off switch: `config.social.bandAffinity`.
+
 Alarm is staged into a map and committed after the pass, so panic spreads exactly
 one hop per tick regardless of entity iteration order. Writing straight to the
 entity would let an alarm race down the id ordering and cross the whole herd in a

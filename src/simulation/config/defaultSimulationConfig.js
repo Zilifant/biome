@@ -568,6 +568,21 @@ export const defaultSimulationConfig = Object.freeze({
     // list is transient, never serialized, and gated by distance at every consumer
     // — so a longer one costs time and cannot change an answer.
     perSpeciesRadius: true,
+    // ⚠⚠ **Whether a bandmate is worth more than a stranger** (BEHAVIOR-PLAN P2),
+    // and it is the persistent group record's first consumer that moves an animal.
+    // A species declares `behavior.sameBandWeight` / `behavior.otherBandWeight`;
+    // both spend themselves inside the herd's centre of mass, in the same slot the
+    // heterospecific weight uses. See `social/banding.js` — in particular for why
+    // "separation between adjacent bands" ships as **differential attraction**: a
+    // weighted mean of positions cannot repel, and a negative weight is a
+    // divide-by-almost-zero that ends with an animal at NaN.
+    //
+    // ⚠ The numbers are per-species and there is deliberately **no default pair
+    // here**, on P1's D11 grounds: a config default plus a species override is two
+    // homes for one number. Absent ⇒ parity ⇒ the arithmetic this world had before.
+    // `false` restores that for a species that does declare, which is what makes it
+    // the reproducible control (`--set=social.bandAffinity=false`).
+    bandAffinity: true,
     // ⚠⚠ **24 since 2026-07-30 (phase 13), and the decision took a measurement
     // that reframed the question.** PLAN-SPECIES §7 asked "is 12 the wrong cap for
     // wildebeest?" and deferred it to batch 3. Measured there, `maxGroupSize` 12
