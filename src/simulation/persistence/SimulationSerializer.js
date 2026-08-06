@@ -197,10 +197,26 @@
  *       refuses any other version outright, and the alternative is a save that
  *       claims to be v30 while carrying a field v30 never had. A loud refusal
  *       beats a save whose format number no longer identifies its contents.
+ *  32 — group dissolution hysteresis (BEHAVIOR-PLAN.md P5a, closing A56): a
+ *       per-record `belowMinSince` in the group registry — the tick a record
+ *       dropped below its species' `minMembers`, or null while it is at strength —
+ *       plus `config.groups.dissolveGraceTicks` and a raised
+ *       `config.groups.maxGroups` (64 → 192).
+ *
+ *       ⚠⚠ **Unlike v31's, this bump is a repair rather than a discipline, and a
+ *       v31 save would restore *silently wrong*.** Group records serialize whole
+ *       and restore whole, exactly as entities do — but there is no `createEntity`
+ *       equivalent to default a missing field on a *record*. A v31 record carries
+ *       no `belowMinSince` at all, so it would restore as `undefined`, and
+ *       `tick - undefined` is `NaN`, which is never `>= graceTicks`: that record
+ *       would sit below its minimum **forever without ever dissolving**, holding a
+ *       store slot for the rest of the run. `GroupRegistry.restore` defaults it
+ *       with `?? null` for exactly that reason, and this version number is what
+ *       makes the defaulting unreachable rather than load-bearing.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 31;
+export const SAVE_FORMAT_VERSION = 32;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

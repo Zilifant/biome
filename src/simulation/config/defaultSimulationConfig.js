@@ -850,9 +850,23 @@ export const defaultSimulationConfig = Object.freeze({
     enabled: true,
     updateInterval: 1, // membership changes slowly, but the no-forming-species
     // early-out already makes this free; stagger it if a long roster changes that
-    maxGroups: 64, // structural bound on the store. Full means a new group is
-    // **refused**, never that a living one is evicted — a stated limit in the
-    // spirit of `forgotten` in the tombstone registry
+    // ⚠⚠ **192 since 2026-08-05 (BEHAVIOR-PLAN P5b), up from 64, and the number
+    // is a bound rather than a hope.** Full means a new group is **refused**,
+    // never that a living one is evicted — a stated limit in the spirit of
+    // `forgotten` in the tombstone registry — but the refusal is *silent*:
+    // `found()` returns null, `#joinOrFound` returns, and there is no event, no
+    // metric and no log. A cap that binds therefore does not look like a cap, it
+    // looks like the feature intermittently not working.
+    //
+    // 64 was chosen against one clan-forming species and DOCS measured **33 peak
+    // concurrent** with three. The buffalo (P5c) is the fourth and much the most
+    // numerous at ~96 animals, which at its `maxMembers: 16` adds ~6 records — but
+    // 33 was already a maximum over ten seeds rather than a typical value. The
+    // worst case is provable instead of estimated: `ceil(population / minMembers)`
+    // over the group-forming species, ≈150 at peak herbivore populations. 192
+    // clears it. The cost is an `O(n log n)` sort per reconcile pass at n=192,
+    // which is nothing beside the neighbour walks in the same phase.
+    maxGroups: 192,
     joinRadius: 6, // how close two animals must be to found or join
     maxMembers: 8, // hard cap on one group
     minMembers: 2, // below this the record dissolves; a lone animal is not a
@@ -875,6 +889,24 @@ export const defaultSimulationConfig = Object.freeze({
     // taken before that date. Left as a switch rather than deleted so the arm
     // stays re-runnable, in the pattern every measured mechanism here ships.
     rejoinWhileDispersing: false,
+    // ⚠⚠ **A56's named fix** (BEHAVIOR-PLAN P5a, 2026-08-05): how long a record is
+    // held below its species' `minMembers` before it is destroyed. `minMembers: 2`
+    // makes a pair a group and a lone animal not one, so a pair that drifted apart
+    // dissolved on the tick it separated and re-founded on the tick it met again —
+    // 157 foundings against 150 dissolutions in 3000 ticks on seed 2, against 7 and
+    // 0 on seed 1. The identity that "survives separation" survived it for one
+    // tick.
+    //
+    // ⚠ **0 is the identity and the reproducible control** (`--set=groups.
+    // dissolveGraceTicks=0`): the clock starts and expires on the same tick, so the
+    // pre-P5a engine is exactly recoverable rather than approximately.
+    //
+    // 300 is measured, not picked — see DOCS §9 Persistent groups for the sweep of
+    // 0 / 100 / 300 / 600 over foundings, dissolutions and peak concurrent records.
+    // It is also a prerequisite rather than a nicety: P7's rally heading is keyed
+    // to a record, and a record that dissolves and re-founds every few ticks makes
+    // a heading that jumps between centres.
+    dissolveGraceTicks: 300,
   }),
   // How a founding cohort is *arranged* on the ground, against `demo.founding`,
   // which says only how many of each there are. Two sections, two questions:

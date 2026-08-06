@@ -57,6 +57,16 @@
  *      destroyed and its survivors released, which is what reclaims a group
  *      whose members have died. `minMembers: 2` mirrors the herd label's
  *      `minGroupSize` — a lone animal is not a group of one.
+ *
+ *      ⚠⚠ **Not immediately, as of BEHAVIOR-PLAN P5a (2026-08-05) — this is
+ *      A56's named fix.** A pair that drifted apart used to dissolve on the tick
+ *      it separated and re-found on the tick it met again: **157 foundings
+ *      against 150 dissolutions in 3000 ticks** on one seed. The record's
+ *      identity survived separation for exactly one tick, which is not what the
+ *      whole mechanism claims to model. A short record now carries
+ *      `belowMinSince` and is destroyed only if it is *still* short
+ *      `dissolveGraceTicks` later. ⚠ At 0 that is the old behaviour to the tick,
+ *      which is what makes it the reproducible control.
  *   6. **No merging.** Two groups meeting stay two groups. Labels merge on
  *      contact because a label *is* proximity; a persistent identity that
  *      dissolved into whichever clan it bumped into would not be persistent.
@@ -105,6 +115,7 @@ export class GroupSystem extends SimulationSystem {
    * @param {string} [options.leavingSex] which sex leaves its natal group at dispersal
    * @param {boolean} [options.inheritFromGuardian] whether young are born into their guardian's group
    * @param {boolean} [options.rejoinWhileDispersing] ⚠ `true` restores the A64 flapping — the measured control
+   * @param {number} [options.dissolveGraceTicks] how long a record is held below `minMembers` before it dissolves (P5a, A56)
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -114,6 +125,7 @@ export class GroupSystem extends SimulationSystem {
     leavingSex = Sexes.MALE,
     inheritFromGuardian = true,
     rejoinWhileDispersing = false,
+    dissolveGraceTicks = 0,
     updateInterval = 1,
   } = {}) {
     // Priority -8 in `decision`: after `SocialSystem` (-10) has settled this
@@ -131,6 +143,13 @@ export class GroupSystem extends SimulationSystem {
     // switch anything off. `true` is the pre-2026-07-31 behaviour exactly, which
     // is what the A64 fix was measured against.
     this.rejoinWhileDispersing = rejoinWhileDispersing;
+    // ⚠ World-level for the same reason as the line above, and **0 is the
+    // identity**: the clock starts and expires on the same tick, which is the
+    // pre-P5a engine exactly. The constructor default is 0 rather than the shipped
+    // value so that a system built with no options is the old system — every test
+    // that constructs one directly keeps meaning what it meant. `config.groups`
+    // carries the number the demo actually runs on.
+    this.dissolveGraceTicks = dissolveGraceTicks;
   }
 
   update(world, context) {
@@ -163,7 +182,30 @@ export class GroupSystem extends SimulationSystem {
           member.groupRecordId === record.id
         );
       });
-      if (record.memberIds.length < this.#paramsFor(world, record.speciesId).minMembers) doomed.push(record.id);
+      // ⚠⚠ **Dissolution is on a grace clock as of P5a, and that closes A56.**
+      // `minMembers: 2` makes a pair a group and a lone animal not one, so a pair
+      // that drifts apart used to dissolve the moment it separated and re-found on
+      // meeting again — 157 foundings against 150 dissolutions in 3000 ticks on
+      // seed 2. An identity that "survives separation" survived it for one tick.
+      // Now a short record is *held*: `belowMinSince` starts the clock, and only a
+      // record still short `dissolveGraceTicks` later is destroyed.
+      //
+      // ⚠ `markBelowMin` is idempotent, which is what makes this a delay rather
+      // than a reprieve: a record that stays short must not restart its own clock
+      // every tick, or it would never dissolve at all.
+      //
+      // ⚠ At `dissolveGraceTicks: 0` this is exactly the pre-P5a behaviour — the
+      // clock starts and expires on the same tick — which is what makes 0 the
+      // reproducible control rather than a special case in the code.
+      if (record.memberIds.length < this.#paramsFor(world, record.speciesId).minMembers) {
+        const since = registry.markBelowMin(record.id, context.tick);
+        if (since !== null && context.tick - since >= this.dissolveGraceTicks) doomed.push(record.id);
+      } else if (record.belowMinSince !== null) {
+        // Back at strength: the clock stops, and a later separation starts a fresh
+        // one. Gated on the field rather than called unconditionally so the common
+        // path — a healthy record, every tick — writes nothing.
+        registry.clearBelowMin(record.id);
+      }
     }
     for (const id of doomed) this.#dissolve(world, registry, id, context);
 

@@ -518,8 +518,18 @@ promises for a two-member clan, and it produces `entity.grouped` /
 ticks below the minimum — which is a design change to a mechanism whose first
 real measurement this is, so it is recorded rather than guessed at.
 
-**⚠ A56 — A two-member clan flaps between founding and dissolution** _(from
-2026-07-29, PLAN-SPECIES.md phase 7)_
+**✅ A56 — A two-member clan flaps between founding and dissolution** _(from
+2026-07-29, PLAN-SPECIES.md phase 7; **CLOSED 2026-08-05**, BEHAVIOR-PLAN P5a)_
+
+✅ **Closed by the named fix, and it was worse than this entry knew.** A record
+short of `minMembers` is now held for `config.groups.dissolveGraceTicks` (300)
+before dissolving. ⚠ The measurement below was taken at 3000 ticks, and the
+phenomenon **barely exists before tick 4000** — it arrives with the first wave of
+deaths. At 9000 ticks the control arm shows one hyena changing membership **937
+times**, against 9 with the fix. See §9 Persistent groups for the dose–response and
+`test/groups.slow.test.js` for why the assertion could not live at this suite's
+usual 1500-tick horizon. The entry below is kept for the reasoning that produced
+the fix.
 
 The measurement above, stated as its own item because it outlives the phase that
 found it. `groups.minMembers: 2` means a pair *is* a clan and a single animal is
@@ -534,7 +544,8 @@ before dissolving — which costs one field on the record and is the same shape 
 `alarmedUntil`. ⚠ Do not take it before batch 2: a lion pride has a different
 size distribution from a hyena clan, and tuning a dissolution delay against the
 only clan-forming species in the world would fit it to a case the mechanism is
-about to outgrow.
+about to outgrow. ✅ **Taken 2026-08-05 against four forming species** — hyena,
+lion, zebra and now buffalo — which is the roster this note was waiting for.
 
 **⚠ A59 — A pride cannot take prey a lone lion would refuse** _(from 2026-07-30,
 PLAN-SPECIES.md §3.7; narrowed by phase 11)_
@@ -1799,7 +1810,7 @@ half the test suite runs engines with different configs in one process.
 | `herbivore.gazelle`    | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; short-grass tier; the only species to declare an **`associationPull`** — how hard it holds to company of another kind, as opposed to how much of a body one of them is worth (P3) |
 | `herbivore.wildebeest` | prey, herbivore       |  200 |                 7 | The only species with a **breeding window** — a rut, and a calving season that emerges from it; mid tier. Declares an **`association`** with the zebra and deliberately no pull, which makes it P3’s in-roster control |
 | `herbivore.zebra`      | prey, herbivore       |  300 |                 8 | Coarse-grass tier; the first **prey animal** on the persistent group registry (a band, not a harem)        |
-| `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
+| `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass. ⚠ From 2026-08-05 the only species running **both** sociality mechanisms — a cow–calf group record inside a fission–fusion herd label |
 | `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory. ⚠ From 2026-08-03 the only species that **climbs** — it caches kills in trees, which is what finally closes the limitation its own file has stated since phase 14 |
 | `predator.lion`        | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming           |
 | `scavenger.vulture`    | obligate scavenger    |    6 |     9 (14 flying) | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty. ⚠ From 2026-08-04 the only species that **flies** (phase F2), and the radius drop is the point of the edit rather than a cost of it: 9 × 1.55 restores the 14 it always had, so the world's widest radius never moves. ⚠ Also **climbs** (V1) — for a roost that is inert by construction (**A75**) and a leopard's larder that is not |
@@ -3490,6 +3501,91 @@ never founded a second clan would pass any survival gate. ⚠ See **A56** for th
 one thing the first real measurement found: at `minMembers: 2` a clan can flap
 between founding and dissolution on some seeds.
 
+#### ✅ Dissolution is on a grace clock — A56 closed, 2026-08-05 (BEHAVIOR-PLAN P5a)
+
+**A record short of `minMembers` is now *held* rather than destroyed**, and only
+dissolves if it is still short `config.groups.dissolveGraceTicks` later. One field
+on the record — `belowMinSince`, the tick it dropped below, null while it is at
+strength — read by nothing but the reconcile pass that sets it. Same shape as
+`alarmedUntil`.
+
+⚠⚠ **A56 is much bigger than its 2026-07-29 measurement said, and the reason
+nobody saw it is a horizon.** The demo founds its records in the first hundred
+ticks and they sit there; the churn arrives with the **first wave of deaths**,
+when records lose members faster than they regain them. Cumulative membership
+events on seed 42 by tick: 212 at 1000, 217 at 2000, 220 at 3000, 235 at 4000 —
+and **3502 at 5000**. Every demo assertion in `test/groups.test.js` runs to 1500
+ticks, so the whole suite was measuring a world in which A56 had not happened yet.
+
+Measured 2026-08-05, seed 42 × 9000 ticks, dose–response:
+
+| `dissolveGraceTicks` | membership events | records destroyed | worst animal |
+| ---: | ---: | ---: | ---: |
+| 0 (the pre-P5a engine) | 2695 + 2350 | 1168 | **937 changes** |
+| 100 | 458 + 112 | 44 | 15 |
+| **300 (shipped)** | 401 + 57 | 18 | 9 |
+| 600 | 400 + 52 | 12 | 3 |
+
+An animal that changes membership 937 times in 9000 ticks does not have an
+identity, which is the whole claim the registry makes. **300 is the knee**: most
+of the benefit is already there at 100, 600 buys little and holds dead records
+twice as long. ⚠ **0 is the identity and the reproducible control** — the clock
+starts and expires on the same tick, so the old rule is recoverable exactly rather
+than approximately.
+
+⚠ Two properties make this a delay rather than a leak, and both have their own
+test: the clock is **idempotent** (a record that stays short must not restart it,
+or it is held forever) and it is **cleared on recovery** (a record that comes back
+to strength and drops again gets a fresh full grace). ⚠ Records are still
+reclaimed — 18 destroyed in 5000 ticks against the cap of 192.
+
+**Cost: a save-format bump to v32.** Records serialize *whole* and have no
+`createEntity` equivalent to default a missing field, so a v31 record would restore
+with `belowMinSince: undefined`, and `tick - undefined` is `NaN` — never past any
+grace, so that record would sit short **forever without dissolving**.
+
+#### The store's capacity, and the buffalo's cow–calf core (P5b, P5c)
+
+`config.groups.maxGroups` goes **64 → 192**, and the honest framing is *defensive
+rather than corrective*: measured peak concurrent records with the buffalo added is
+**35**, so the cap was never close to binding, and a demo run at 64 is byte-identical
+to one at 192. What justifies the raise anyway is the failure mode — at the cap
+`found()` returns null, `#joinOrFound` returns, and there is **no event, no metric
+and no log**, so a bound that binds does not look like a bound, it looks like the
+feature intermittently not working. 192 clears the provable worst case
+(`ceil(population / minMembers)` over the forming species, ≈150 at peak herbivore
+populations) rather than an estimate. ⚠ Making saturation *visible* is still
+unbuilt; the metrics aggregate is the place, and P10 is the phase.
+
+✅ **The buffalo declares `groups.forms: true`, and is the first species to run
+both sociality mechanisms at once** — the record is the **cow–calf core**, the
+label around it is still the fission–fusion herd. ⚠ Its file used to say
+"Not stated, deliberately: persistent groups", with the argument that buffalo herds
+are fission–fusion; that argument is **still true and is not withdrawn**, it was
+answering the wrong question. A buffalo herd is both things at different scales.
+
+It costs no new mechanism at all: `leavingSex: 'male'` is already the config
+default, `inheritFromGuardian` puts a calf in its guardian's record, and the
+guardian is the parent that gestated — so descent is **matrilineal with no sex
+conditional anywhere**. `maxMembers: 16` against the config's 8, matched to
+`cohort.groupSize: 12`, so a founding herd enrols as one record instead of splitting
+on tick 1.
+
+⚠⚠ **And it changes no animal, because nothing reads a buffalo's record yet.** A
+demo run with `forms: true` and one with `forms: false` produce identical
+populations at 3000/6000/9000 ticks on two seeds: `groupRecordId` is read by carcass
+possession, cooperative hunting, and P2's band affinity, and a herbivore that
+scavenges nothing, hunts nothing and declares no band affinity meets none of them.
+This is state P7's rally heading will consume — a roster nobody acts on, exactly as
+the zebra's was before P2.
+
+⚠ **The cow–calf core is asserted in a sandbox, not in the demo, and that is a
+measurement rather than a preference**: the demo's buffalo breed too slowly to
+guarantee a dependent calf at any given tick — **15 births in 9000 ticks** against
+96 founders, with the population falling 93 → 18 over the same span (a pre-existing
+trajectory, unchanged by this: see BENCHMARK.md's P1 note, where buffalo went
+116 → 74 when the herd radius landed).
+
 #### ⚠⚠ Leaving is a window, not an instant — A64 _(found and fixed 2026-07-31)_
 
 **A dispersing animal left its group on one tick and was re-admitted on the
@@ -3712,6 +3808,8 @@ the size measurement above says that is fewer-and-fuller rather than churn, so
 the founding count is the honest signal and the peak is not. A56's two-member
 flapping now has three clan-forming species to do it with, and its deferred
 hysteresis fix has become worth building. **A80** carries the whole reading.
+✅ **Built 2026-08-05** (BEHAVIOR-PLAN P5a) against four forming species; those
+founding counts are pre-fix and would now be an order of magnitude lower.
 
 ⚠ The transferable part is the shape: the gate is a verdict and it said pass, and
 two cheap measurements taken *after* it — per-seed pairs, and group size beside
@@ -4548,7 +4646,7 @@ evict, because there the oldest entry is genuinely the least useful and
 ## 12. Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently **31**) with the tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently **32**) with the tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, the tombstone registry, the persistent-group

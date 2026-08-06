@@ -1,5 +1,10 @@
 # Herbivore social behaviour — next level
 
+⚠ **P6 is skipped** (2026-08-05, by decision): a dispersed bull staying loosely
+associated with the local buffalo is an acceptable model of a bachelor, and the
+herd label already delivers it. The section is kept, marked, with what it gives up
+stated. The plan is therefore P0–P5 and P7–P10.
+
 ## Context
 
 `species-behavior-prompt.md` is the brief: the sociality architecture is sound and
@@ -314,7 +319,28 @@ nothing reports it today; the round-trip at `groups.test.js:214` covers
 
 ---
 
-## P6 — Bachelor bulls
+## P6 — Bachelor bulls — ⛔ **SKIPPED (2026-08-05, by decision)**
+
+**A dispersed bull staying loosely attached to the local buffalo is an acceptable
+model of a bachelor, and it is what the engine already does.** The herd *label* is
+fission–fusion by construction: a bull that has walked out of its natal group is
+still in whatever aggregation it is standing in, drifts in and out of it, and
+carries no membership anybody has to maintain. What P6 would have added is the
+narrower claim that a bachelor cannot **re-enrol in a cow group's record** — a
+distinction that costs a new per-species field, a second predicate beside the
+existing A64 one with a confusable name (`joinsAfterDispersal` against
+`rejoinWhileDispersing`), and a 100-tick transition-counting test to prove it.
+
+The scope this gives up is stated rather than hidden: **bachelor groups are not
+modelled as an identity**. Buffalo bull bands in the field are real and are
+somewhat persistent; here they will be loose local aggregation and nothing more.
+⚠ The section below is kept verbatim as the design that was not built — it is
+accurate, it costs nothing to leave, and it is the starting point if anybody wants
+it later. Nothing else in this plan depends on it: P5 stands alone, and P7's
+dispersal gate reads `isDispersing`, not anything P6 would have added.
+
+<details>
+<summary>The unbuilt design</summary>
 
 ⚠ **This does *not* fall out of the existing rules, and the code says why.**
 `#dispersingOut` goes false the instant the dispersal window closes; after that
@@ -341,6 +367,8 @@ A64 control. Use `joinsAfterDispersal` and cross-reference both in the comments.
 
 *Test:* `test/groups.test.js`, copying the **A64 idiom** — step 100 ticks and count
 transitions, never one tick. That is the test shape whose absence *caused* A64.
+
+</details>
 
 ---
 
@@ -572,7 +600,7 @@ a second threat**; an exhausted buffalo does not sprint.
 | --- | --- | --- |
 | Separation between adjacent bands | a weighted mean cannot repel; a negative weight is a divide-by-≈0 → NaN landmine | differential attraction (P2) |
 | A defensive **ring** | no repulsion force exists anywhere | calves measurably nearer the centroid than adults (P4) |
-| Bachelor groups "falling out" of existing rules | `#joinOrFound` has no admission test | `groups.joinsAfterDispersal: false`, scoped by `leavingSex` (P6) |
+| Bachelor groups "falling out" of existing rules | `#joinOrFound` has no admission test | ⛔ **not built** — P6 skipped 2026-08-05. A dispersed bull stays loosely attached to the local buffalo through the herd *label*, which is what fission–fusion already models; a bachelor **identity** is out of scope |
 | A stored leader / resident stallion | `GroupRegistry.js:44-51`, "standing is derived, never stored" | leadership-weighted centre, nothing stored (P7/P8) |
 | Wildebeest subherds persisting while separated | 219 wildebeest on the registry blows `maxGroups`; `forms: false` is a stated decision | the consensus commitment, carried on the entity (P8) |
 | Bands merging into a super-herd without losing identity | `GroupSystem` rule 6: records never merge, by design | overlapping labels over distinct records — already true |

@@ -30,11 +30,29 @@
  *   extinction — is the one to watch, and it is why the lion's `minHungerToHunt`
  *   is high and why this batch was swept before its counts went above zero.
  *
- * **Not stated, deliberately:** persistent groups. Buffalo herds are fission–fusion
- * — they merge and split with who happens to be standing where — which is exactly
- * what the *herd label* models and exactly what a group record does not (§3.8). It
- * shares that answer with the gazelle and differs from the lion and the hyena, so
- * the two sociality mechanisms now run side by side across four species.
+ * ⚠⚠ **This file used to say "Not stated, deliberately: persistent groups", and
+ * that is reversed as of 2026-08-05 (BEHAVIOR-PLAN P5c).** The old paragraph
+ * argued that buffalo herds are fission–fusion — they merge and split with who
+ * happens to be standing where — which is what the *herd label* models and what a
+ * group record does not (§3.8). ⚠ That argument is **still true and is not
+ * withdrawn**; it was simply answering the wrong question. Rewritten rather than
+ * deleted, on the precedent `GroupRegistry.js` sets for overriding a documented
+ * decision of this codebase's own.
+ *
+ * **A buffalo herd is both things at once, and they are different sizes.** The
+ * fission–fusion aggregation is the herd — hundreds in the field, dozens here, and
+ * it genuinely is whoever is standing there. Inside it sits a **cow–calf core**
+ * that does *not* dissolve when the herd splits: related females and their
+ * dependent young, with the bulls leaving at maturity. The label cannot express the
+ * core (it is positional, so it is gone the moment the herd tears) and the record
+ * cannot express the herd (it never merges, by design). So this species declares
+ * **both**, and it is the first in the roster to do so — `groups.forms: true`
+ * below for the core, the label around it as before.
+ *
+ * ⚠ It costs no new mechanism whatsoever. `leavingSex: 'male'` is the config
+ * default, `inheritFromGuardian` puts a calf in its guardian's record, and the
+ * guardian is the parent that gestated (DOCS §9 Reproduction) — so matrilineal
+ * descent falls out with no sex conditional anywhere in `src/simulation`.
  */
 export const herbivoreBuffalo = Object.freeze({
   id: 'herbivore.buffalo',
@@ -108,8 +126,28 @@ export const herbivoreBuffalo = Object.freeze({
   reproduction: Object.freeze({ gestationTicks: 1800, cooldownTicks: 2600 }),
   // A home range without exclusivity, like the gazelle: herds overlap freely.
   territory: Object.freeze({ defends: false, rangeRadius: 20, settleTicks: 1200 }),
-  // ⚠ Fission–fusion, so the **label**, not the record (§3.8). See the header.
-  groups: Object.freeze({ forms: false }),
+  // ⚠⚠ **Both, since 2026-08-05 (BEHAVIOR-PLAN P5c), and the header above says why
+  // this reverses what this file used to state.** The record is the **cow–calf
+  // core**; the label around it is still the fission–fusion herd.
+  //
+  // It needs no new machinery at all, which is the whole reason it is affordable:
+  // `leavingSex: 'male'` is already the config default, `inheritFromGuardian` puts
+  // a calf in its guardian's record, and the guardian is the parent that gestated —
+  // so descent is matrilineal with **no sex conditional anywhere**, and the bulls
+  // walk out at dispersal because that rule already exists.
+  //
+  // ⚠ `maxMembers: 16` against the config's 8, matched to `cohort.groupSize: 12`
+  // below. A founding herd of twelve placed inside `joinRadius` of each other would
+  // otherwise enrol eight and leave four to found a second record on tick 1 — which
+  // reads as the registry splitting a herd it never held. 16 leaves room for the
+  // calves that arrive later without being so large that one record swallows a
+  // third of the species.
+  //
+  // ⚠ **A bachelor bull is not modelled as an identity** (P6, skipped 2026-08-05).
+  // A dispersed bull leaves the cow record and is thereafter an ordinary unattached
+  // animal that the label keeps loosely with the local buffalo — which is what a
+  // bachelor looks like from a distance, and is all this world claims.
+  groups: Object.freeze({ forms: true, maxMembers: 16 }),
   // Three herds of twelve (`config.cohorts`). ⚠ The count was already a
   // *density* rather than an appetite — 35 was chosen because `mobbing`
   // needs `minMobbers` adults within six units of the animal under attack, and

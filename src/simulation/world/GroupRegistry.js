@@ -40,6 +40,14 @@
  *     who joined first.
  *   - `founderId` / `foundedTick` — facts about history, which is the only kind
  *     of thing worth storing that cannot be derived.
+ *   - `belowMinSince` — the tick this record dropped below its species'
+ *     `minMembers`, or null while it is at strength (BEHAVIOR-PLAN P5a, closing
+ *     **A56**). ⚠ It is a *deadline*, not a state: nothing reads it except the
+ *     reconcile pass that set it, and it exists because a pair that drifts apart
+ *     and meets again was dissolving and re-founding — 157 foundings against 150
+ *     dissolutions in 3000 ticks. Same shape as `alarmedUntil`, and the same
+ *     reasoning: an identity that survives separation has to survive it for
+ *     longer than a tick.
  *
  * ⚠ **No leader, and no rank.** The field sketch in the plan named a `leaderId`;
  * it is deliberately absent. DOCS §9 is explicit that "standing is derived, never
@@ -69,7 +77,7 @@
 
 /** Registry defaults. `maxGroups` is a world-level structural bound. */
 export const DEFAULT_GROUP_REGISTRY_PARAMS = Object.freeze({
-  maxGroups: 64,
+  maxGroups: 192,
 });
 
 /**
@@ -165,6 +173,9 @@ export class GroupRegistry {
       // Who it started with. A historical fact, not a rank — see the header.
       founderId: members[0],
       foundedTick: tick,
+      // At strength on the tick it is founded, by construction: `found` is only
+      // ever called with enough members to be a group (P5a).
+      belowMinSince: null,
     };
     this.#nextId += 1;
     this.#records.set(record.id, record);
@@ -233,6 +244,32 @@ export class GroupRegistry {
   }
 
   /**
+   * Note that this group is short of its minimum, starting the grace clock if it
+   * was not already running, and report the tick it dropped below (P5a, A56).
+   *
+   * ⚠ **Idempotent on purpose.** The reconcile pass runs every tick, so a record
+   * that stays short must not keep resetting its own clock — that would be a
+   * record that never dissolves rather than one that dissolves late, and the
+   * difference is a leak. Calling this on a group that is already short returns
+   * the *original* tick.
+   *
+   * @param {number} groupId @param {number} tick
+   * @returns {number|null} the tick it dropped below, or null if there is no such group
+   */
+  markBelowMin(groupId, tick) {
+    const record = this.#records.get(groupId);
+    if (!record) return null;
+    if (record.belowMinSince === null || record.belowMinSince === undefined) record.belowMinSince = tick;
+    return record.belowMinSince;
+  }
+
+  /** Note that this group is back at strength, stopping the grace clock (P5a). */
+  clearBelowMin(groupId) {
+    const record = this.#records.get(groupId);
+    if (record) record.belowMinSince = null;
+  }
+
+  /**
    * Destroy a group. The id is **not** reclaimed — `#nextId` only ever climbs —
    * so nothing that remembers this group can later be handed a different one.
    * @param {number} groupId
@@ -262,7 +299,17 @@ export class GroupRegistry {
     this.#records = new Map();
     this.#nextId = saved?.nextId ?? 1;
     for (const record of saved?.records ?? []) {
-      this.#records.set(record.id, { ...record, memberIds: [...record.memberIds] });
+      this.#records.set(record.id, {
+        ...record,
+        memberIds: [...record.memberIds],
+        // ⚠ Defaulted rather than assumed present. A record serializes *whole*, so
+        // a save written before P5a carries no `belowMinSince` at all — and
+        // `undefined` would make `tick - undefined` NaN, which is never `>= grace`,
+        // so that record would sit below its minimum **forever without
+        // dissolving**. The save-format bump makes such a save unloadable anyway;
+        // this is the belt beside those braces, and it costs one `??`.
+        belowMinSince: record.belowMinSince ?? null,
+      });
     }
   }
 }

@@ -294,7 +294,16 @@ they are not re-opened by accident.
   Folding A57 into `habitat` is not the answer — a flat per-terrain weight cannot
   express "a female *near term* prefers cover".
 
-- **⚠ A56 — A two-member clan flaps between founding and dissolution.**
+- **✅ A56 — A two-member clan flaps between founding and dissolution. CLOSED
+  2026-08-05** (BEHAVIOR-PLAN P5a). A record short of `minMembers` is now held
+  `config.groups.dissolveGraceTicks` (300) before dissolving — one field,
+  `belowMinSince`, save-format v32. ⚠ **It was far worse than the entry below
+  knew**: the 3000-tick measurement missed it almost entirely, because the churn
+  arrives with the first wave of deaths around tick 4500. At 9000 ticks the control
+  arm has one hyena changing membership **937 times** against 9 with the fix, and
+  1168 records destroyed against 18. DOCS §9 has the dose–response; the assertion
+  lives in `test/groups.slow.test.js` because it cannot be seen at the 1500-tick
+  horizon the rest of the suite uses. The original entry:
   `groups.minMembers: 2` makes a pair a clan and a lone animal not one, so a pair
   that drifts apart dissolves and re-founds on meeting again — measured
   2026-07-29 at **157 foundings against 150 dissolutions in 3000 ticks on seed 2**,

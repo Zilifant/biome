@@ -14,8 +14,8 @@ the evidence and reasoning attached.
 
 **[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
 eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
-nothing acts on" to identity and group intent that steer movement. P0–P4 have
-shipped. **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
+nothing acts on" to identity and group intent that steer movement. P0–P5 have
+shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
 the code looks like now that those five have landed on it, and the landmines
 they turned up.
 
@@ -333,7 +333,7 @@ opponentDominance, escalated }` — both scores, because dominance decides it an
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `31`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `32`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, scent, the tombstone registry, the persistent-group

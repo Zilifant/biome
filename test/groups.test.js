@@ -495,7 +495,11 @@ describe('persistent groups: inheritance, dispersal, and dissolution', () => {
   });
 
   test('a group falling below its minimum dissolves and releases its survivor', () => {
-    const engine = sandbox();
+    // ⚠ **At `dissolveGraceTicks: 0`, which is the pre-P5a engine.** The shipped
+    // config now holds a short record for a while first (see the hysteresis block
+    // below); this test is the control arm, and it is what says the grace is a
+    // *delay* rather than a change of rule.
+    const engine = sandbox({ config: { groups: { ...CONFIG.groups, dissolveGraceTicks: 0 } } });
     const a = spawn(engine, { x: 20, y: 20 });
     const b = spawn(engine, { x: 21, y: 20 });
     engine.step(1);
@@ -512,7 +516,9 @@ describe('persistent groups: inheritance, dispersal, and dissolution', () => {
   test('a group whose members are removed outright is reclaimed', () => {
     // The registry follows the world by filtering rather than by being told, so
     // a removal path it has never heard of still cannot leave a phantom clan.
-    const engine = sandbox();
+    // ⚠ Grace 0 for the same reason as above — this is about *reclamation*, not
+    // about when it happens.
+    const engine = sandbox({ config: { groups: { ...CONFIG.groups, dissolveGraceTicks: 0 } } });
     const a = spawn(engine, { x: 20, y: 20 });
     const b = spawn(engine, { x: 21, y: 20 });
     engine.step(1);
@@ -670,6 +676,252 @@ describe('persistent groups: the two mechanisms stay apart', () => {
       }
     }
     assert.ok(robbed > 0, `a carcass should be taken off its holder at least once (saw ${robbed})`);
+  });
+});
+
+/**
+ * BEHAVIOR-PLAN P5a — dissolution hysteresis, closing **A56**.
+ *
+ * `minMembers: 2` makes a pair a group and a lone animal not one, so a record that
+ * lost a member dissolved on that tick and its survivor re-founded on meeting
+ * somebody — an identity that "survives separation" surviving it for exactly one
+ * tick. A short record now carries `belowMinSince` and is destroyed only if it is
+ * *still* short `dissolveGraceTicks` later.
+ *
+ * ⚠ The two properties that make this a delay rather than a leak are the ones with
+ * their own tests here: the clock is **idempotent** (a record that stays short must
+ * not keep restarting it, or it never dissolves at all) and it is **cleared on
+ * recovery** (a record that comes back to strength and later drops again gets a
+ * fresh full grace, not the remains of the old one).
+ */
+describe('persistent groups: dissolution hysteresis (P5a)', () => {
+  const GRACE = 40;
+  const held = (seed = 5) => sandbox({ seed, config: { groups: { ...CONFIG.groups, dissolveGraceTicks: GRACE } } });
+
+  /** A pair, founded, with one of them then killed off. Returns the record id. */
+  function widowed(engine) {
+    const a = spawn(engine, { x: 20, y: 20 });
+    const b = spawn(engine, { x: 21, y: 20 });
+    engine.step(1);
+    const group = soleGroup(engine);
+    entity(engine, b).alive = false;
+    return { group: group.id, survivor: a };
+  }
+
+  test('a record below its minimum is held, and dissolves on the tick the grace expires', () => {
+    const engine = held();
+    const { group, survivor } = widowed(engine);
+
+    engine.step(1);
+    assert.notEqual(engine.world.groups.get(group), null, 'not dissolved on the tick it dropped');
+    assert.equal(entity(engine, survivor).groupRecordId, group, 'and the survivor is still a member');
+    assert.equal(engine.world.groups.get(group).belowMinSince, engine.tick, 'the clock started');
+
+    engine.step(GRACE - 1);
+    assert.notEqual(engine.world.groups.get(group), null, `still held at grace − 1 (tick ${engine.tick})`);
+
+    engine.step(1);
+    assert.equal(engine.world.groups.get(group), null, 'and gone on the tick the grace expires');
+    assert.equal(entity(engine, survivor).groupRecordId, null, 'the survivor is released, as it always was');
+  });
+
+  test('⚠ the clock is idempotent — a record that stays short still dissolves', () => {
+    // The failure this guards is the opposite of a leak-free one: if the reconcile
+    // pass reset `belowMinSince` every tick it was short, the record would be held
+    // **forever** and the store would fill with widows. Stepping well past the
+    // grace in one go is what catches it.
+    const engine = held();
+    const { group } = widowed(engine);
+    engine.step(GRACE * 3);
+    assert.equal(engine.world.groups.get(group), null, 'a permanent hold is not a grace period');
+    assert.equal(engine.world.groups.size, 0);
+  });
+
+  test('coming back to strength stops the clock, and a later drop starts a fresh one', () => {
+    const engine = held();
+    const a = spawn(engine, { x: 20, y: 20 });
+    const b = spawn(engine, { x: 21, y: 20 });
+    engine.step(1);
+    const group = soleGroup(engine).id;
+
+    // Short for most of a grace period, then a third animal walks up and joins.
+    entity(engine, b).alive = false;
+    engine.step(GRACE - 5);
+    assert.equal(engine.world.groups.get(group).belowMinSince !== null, true, 'the clock is running');
+    spawn(engine, { x: 21, y: 20 });
+    // ⚠ Two ticks, not one: reconcile runs *before* the entity pass, so the tick a
+    // newcomer joins is a tick on which the record was still short when it was
+    // inspected. The clock stops on the next pass. That ordering is the same one
+    // P2's band affinity reads last tick's membership through.
+    engine.step(2);
+    assert.equal(engine.world.groups.get(group).belowMinSince, null, 'back at strength, the clock stops');
+
+    // It must now survive longer than the *remains* of the first grace would allow.
+    const rejoined = engine.world.groups.get(group).memberIds.filter((id) => id !== a);
+    for (const id of rejoined) entity(engine, id).alive = false;
+    engine.step(1);
+    const restarted = engine.world.groups.get(group).belowMinSince;
+    assert.equal(restarted, engine.tick, 'the second drop starts its own clock, now');
+    engine.step(GRACE - 1);
+    assert.notEqual(engine.world.groups.get(group), null, 'and gets a full grace of its own');
+    engine.step(1);
+    assert.equal(engine.world.groups.get(group), null);
+  });
+
+  test('⚠ grace 0 is the pre-P5a engine to the tick, not merely close to it', () => {
+    // What makes the mechanism's control arm reproducible: the clock starts and
+    // expires on the same tick, so the old dissolution rule is recoverable exactly.
+    const engine = sandbox({ config: { groups: { ...CONFIG.groups, dissolveGraceTicks: 0 } } });
+    const { group } = widowed(engine);
+    engine.step(1);
+    assert.equal(engine.world.groups.get(group), null);
+  });
+
+  test('belowMinSince round-trips, and a restored world dissolves on the same tick', () => {
+    // ⚠ Records serialize **whole** and have no `createEntity` equivalent to
+    // default a missing field, so a save that dropped this would restore a record
+    // whose clock reads `undefined` — and `tick - undefined` is NaN, which is never
+    // past the grace. That record would never dissolve at all. Hence v32.
+    const engine = held();
+    const { group } = widowed(engine);
+    engine.step(3);
+    const since = engine.world.groups.get(group).belowMinSince;
+    assert.equal(typeof since, 'number');
+
+    const saved = JSON.parse(JSON.stringify(captureSimulationState(engine)));
+    assert.equal(saved.formatVersion, SAVE_FORMAT_VERSION);
+    // Rebuilt by hand, in this file's established idiom: the restoring engine has
+    // to be taught the invented species before the loader's unknown-species check.
+    const restored = new SimulationEngine({
+      seed: saved.seed,
+      config: saved.config,
+      simulationId: saved.simulationId,
+    });
+    withSpecies(restored, CLAN);
+    restored.registerSystem(new PerceptionSystem(restored.config.perception));
+    restored.registerSystem(new GroupSystem(restored.config.groups));
+    restoreSimulationState(restored, saved);
+    assert.equal(restored.world.groups.get(group).belowMinSince, since, 'the clock survived the save');
+
+    // And it expires where it would have: same remaining ticks, both ways.
+    engine.step(GRACE - 3);
+    restored.step(GRACE - 3);
+    assert.notEqual(engine.world.groups.get(group), null);
+    assert.equal(restored.world.groups.get(group) === null, false, 'neither has dissolved yet');
+    engine.step(1);
+    restored.step(1);
+    assert.equal(engine.world.groups.get(group), null);
+    assert.equal(restored.world.groups.get(group), null, 'and both dissolve on the same tick');
+  });
+});
+
+/**
+ * BEHAVIOR-PLAN P5b/P5c — the store's capacity, and the buffalo's cow–calf core.
+ */
+describe('persistent groups: capacity and the buffalo core (P5b, P5c)', () => {
+  test('⚠ the store is nowhere near full in the demo, and the cap is provable rather than hopeful', () => {
+    // At the cap `found()` returns null, `#joinOrFound` returns, and there is **no
+    // event, no metric and no log** — a bound that binds does not look like a
+    // bound, it looks like the feature intermittently not working. So the headroom
+    // is asserted rather than assumed.
+    const engine = createDemoSimulation({ seed: 42 });
+    let peak = 0;
+    for (let t = 0; t < 1500; t += 1) {
+      engine.step(1);
+      if (engine.world.groups.size > peak) peak = engine.world.groups.size;
+    }
+    assert.ok(peak > 0, 'the demo founds records at all');
+    assert.ok(
+      peak < engine.world.groups.maxGroups,
+      `peak ${peak} concurrent records against a cap of ${engine.world.groups.maxGroups}`,
+    );
+    // The bound the raise was argued from: worst case is one record per
+    // `minMembers` animals of the forming species.
+    let forming = 0;
+    const formingIds = new Set(engine.species.all().filter((s) => s.groups?.forms).map((s) => s.id));
+    for (const e of engine.world.entities.all()) {
+      if (e.kind === 'animal' && e.alive && formingIds.has(e.speciesId)) forming += 1;
+    }
+    assert.ok(
+      engine.world.groups.maxGroups >= Math.ceil(forming / CONFIG.groups.minMembers),
+      `the cap (${engine.world.groups.maxGroups}) covers the worst case for ${forming} group-forming animals`,
+    );
+  });
+
+  test('⚠ raising the cap changed nothing, which is what makes it defensive rather than corrective', () => {
+    // 64 → 192 is insurance against a silent failure, not a fix for one: the cap
+    // never bound, so the old value produces the identical world. If this ever
+    // starts failing, the cap *is* binding and the silence above matters.
+    const run = (maxGroups) => {
+      const engine = createDemoSimulation({ seed: 42, config: { groups: { ...CONFIG.groups, maxGroups } } });
+      engine.step(400);
+      return JSON.stringify(captureSimulationState(engine).entities);
+    };
+    assert.equal(run(64), run(192));
+  });
+
+  test('the buffalo declares a core, and its founding herds enrol whole', () => {
+    // ⚠ `maxMembers: 16` against `cohort.groupSize: 12`: a founding herd of twelve
+    // placed inside `joinRadius` of each other must enrol as **one** record, or the
+    // registry looks like it is splitting a herd it never held.
+    const engine = createDemoSimulation({ seed: 42 });
+    const buffalo = engine.species.require('herbivore.buffalo');
+    assert.equal(buffalo.groups.forms, true);
+    assert.ok(buffalo.groups.maxMembers >= buffalo.cohort.groupSize, 'the cap fits a founding herd');
+
+    engine.step(2);
+    const records = engine.world.groups.all().filter((r) => r.speciesId === 'herbivore.buffalo');
+    assert.ok(records.length > 0, 'the buffalo forms records in the demo');
+    for (const record of records) {
+      assert.ok(record.memberIds.length <= buffalo.groups.maxMembers);
+      for (const id of record.memberIds) {
+        assert.equal(engine.world.entities.get(id).speciesId, 'herbivore.buffalo', 'a record is single-species');
+      }
+    }
+  });
+
+  test('⚠ the core is matrilineal by construction — a calf takes its guardian’s record', () => {
+    // The whole of 5c: `inheritFromGuardian` puts a calf in its guardian's record
+    // and the guardian is the parent that gestated, so descent is matrilineal with
+    // **no sex conditional anywhere**. Asserted in a sandbox because the demo's
+    // buffalo breed too slowly to guarantee a dependent calf at any given tick —
+    // 15 births in 9000 ticks, measured 2026-08-05.
+    const engine = sandbox();
+    const cow = spawn(engine, { x: 20, y: 20 });
+    const aunt = spawn(engine, { x: 21, y: 20 });
+    engine.step(1);
+    const group = soleGroup(engine).id;
+
+    const calf = spawn(engine, { x: 20, y: 20, lifeStage: 'juvenile', bodyMass: 8, guardianId: cow, sex: Sexes.MALE });
+    engine.step(1);
+    assert.equal(entity(engine, calf).groupRecordId, group, 'the calf is in its mother’s record');
+    assert.deepEqual(
+      engine.world.groups.get(group).memberIds,
+      [cow, aunt, calf].sort((p, q) => p - q),
+    );
+
+    // And the bull leaves when it disperses — the other half, and also free: it is
+    // `leavingSex` filtering an event that already existed.
+    entity(engine, calf).guardianId = null;
+    entity(engine, calf).dispersalUntil = engine.tick + 100;
+    engine.step(1);
+    assert.equal(entity(engine, calf).groupRecordId, null, 'a dispersing male leaves the cow group');
+    assert.deepEqual(engine.world.groups.get(group).memberIds, [cow, aunt].sort((p, q) => p - q));
+  });
+
+  test('⚠ giving the buffalo a record changed no animal, because nothing reads one yet', () => {
+    // The honest scope of 5c. `groupRecordId` is read by carcass possession,
+    // cooperative hunting, and P2's band affinity — a herbivore that scavenges
+    // nothing, hunts nothing and declares no band affinity is touched by none of
+    // them. This is state that P7's rally heading will consume; today it is a
+    // roster nobody acts on, exactly as the zebra's was before P2.
+    const engine = createDemoSimulation({ seed: 42 });
+    engine.step(400);
+    let attached = 0;
+    for (const e of engine.world.entities.all()) {
+      if (e.speciesId === 'herbivore.buffalo' && e.alive && e.groupRecordId !== null) attached += 1;
+    }
+    assert.ok(attached > 0, 'the buffalo really are enrolled');
   });
 });
 
