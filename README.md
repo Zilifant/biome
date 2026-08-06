@@ -12,6 +12,13 @@ persistence, performance, and testing. Start there.
 open**, across the engine and the renderer; `DOCS.md` §1 is the same list with
 the evidence and reasoning attached.
 
+**[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
+eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
+nothing acts on" to identity and group intent that steer movement. P0–P2 have
+shipped. **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
+the code looks like now that those three have landed on it, and the landmines
+they turned up.
+
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
 produced the engine: a linear, numbered sequence of 30 steps with dated
 completion notes. **All 30 are done**, so it is now a historical record — read it
