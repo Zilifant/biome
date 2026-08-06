@@ -43,8 +43,8 @@ numbers, so re-measure rather than inherit.
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
 | Tests               | renderer 127 in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 14 spec files in `tests-ui`                                      |
-| Protocol understood | **33** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
-| Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a) |
+| Protocol understood | **34** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
+| Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a). ⚠ **v34 is a version the renderer speaks but does not yet show**: its additions are all inspection-only (a group's derived `centre`/`leaderId`, the `social.consensus`/`rally`/`charge` commitments, `pullScale`, `bandmates`), and *displaying* them is this roadmap's item rather than the engine plan's — nothing was owed here beyond the matching constant and a regenerated fixture set |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
 | Fixtures            | current — v33, all **eight** shipped species, regenerated 2026-08-04 for the **ngorongoro demo**: 500 entities on a 332×280 map (was 231 on 160×120), **3 airborne** so fixture mode still shows the flying mark offline, 3.5 MB committed (was 1.4 MB); ⚠ due on every **roster** change, not only a protocol bump (§10) |
 | Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
@@ -133,6 +133,19 @@ present** (P5).
 
 ### 1.3 Known limitations
 
+- **P19 — v34's sociality inspection is spoken but not shown** _(added
+  2026-08-06)_. The engine's BEHAVIOR-PLAN P10 bumped the protocol to 34 for six
+  inspection-only additions — a group's derived `centre` and `leaderId`, the three
+  steering commitments (`social.consensus`, `social.rally`, `social.charge`), and
+  `social.nearby`'s `pullScale` and `bandmates`. The store handles them
+  automatically (they arrive inside the inspection payload, which is passed
+  through), but the inspector renders none of them and nothing draws a commitment
+  on the map. ⚠ **This is scope, not an oversight**: that plan stated plainly that
+  displaying its fields is this roadmap's item, and it owed only the matching
+  constant, regenerated fixtures and a passing UI suite. The interesting ones to
+  draw are the two that *outlive their cue* — a consensus heading and a pursuit are
+  the only things in this world still going after their reason has gone, and an
+  arrow with a countdown is what would make that visible.
 - **P1 — Per-cell territory ownership is not shown.** The protocol carries a
   claim only via a selected animal's `territory.standingOn`, not as a projected
   layer. Blocked on engine item A36 (the claim layer would need to earn its

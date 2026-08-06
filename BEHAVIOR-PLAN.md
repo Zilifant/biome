@@ -1,5 +1,12 @@
 # Herbivore social behaviour — next level
 
+✅ **Complete, 2026-08-06.** P0–P5 and P7–P10 shipped; P6 was skipped by decision.
+This file is now a historical record on the same terms as the three plans in
+`legacy-docs/`: read it for the reasoning and for the **As built** notes, where a
+phase's own prediction turned out wrong, not for current state. What it built is
+described in [DOCS.md](DOCS.md) §9; what it taught is in
+[HANDOFF.md](HANDOFF.md); what it left open is in `ACTION-ITEMS.md`.
+
 ⚠ **P6 is skipped** (2026-08-05, by decision): a dispersed bull staying loosely
 associated with the local buffalo is an acceptable model of a bachelor, and the
 herd label already delivers it. The section is kept, marked, with what it gives up
@@ -565,6 +572,60 @@ a second threat**; an exhausted buffalo does not sprint.
   all". Update §9 Persistent groups, §19 the configuration map, and close or
   annotate **A61** (P3), **A56** (P5a), and **A43** (P2's band-separation test is
   the fragmentation assertion A43 says nobody has written).
+
+### ✅ As built — 2026-08-06
+
+Shipped as written, with **three additions the list predates** and **one item
+refused**:
+
+- ⚠ **P7's and P9's outputs had no inspection at all**, and the list only names
+  P8's. The plan's P10 was written before either existed. So `social` gained
+  `rally` (`{ heading, strength }`) and `charge` (`{ until, threat }`) beside
+  `consensus`, and `nearby` gained `bandmates` beside `pullScale`. That is not
+  scope creep: a **pursuit** is by construction the state that outlives every
+  visible cue, so `defendingId` has already gone null by the time one is what is
+  happening, and there was no way to see one at all.
+- ⚠ **`social.consensus` carries a fourth field, `label`.** P8 stores which herd a
+  commitment was made *in*, and with `groupId` projected three lines above, a
+  commitment held over from a herd the animal has since left reads as a
+  disagreement between the two rather than as a mystery.
+- ⚠⚠ **`group.centre` must not be read out of `world.groupCentres`.** That map is
+  rebuilt by `GroupSystem#rally`, and only when `config.groups.rallyEnabled` — so
+  the obvious implementation reports `null` for every group the moment somebody
+  switches the rally off, which is a control arm this suite uses. Measured on the
+  demo at tick 200: `groupCentres.size` is **28 with the rally on and 0 with it
+  off, against 28 live records either way**. Derived on read from `memberIds`
+  instead, as the plan's own wording required — and as the **plain** mean, because
+  a "where is this band" that moved with `config.groups.leadWeight` would be
+  answering a question about the mechanism.
+- ⬜ **A43 is narrowed, not closed, and the plan's claim about it is wrong.** P2's
+  two-bands test asserts a **centroid** — a steering input, one tick, a sandbox —
+  where A43 asks for a population fragmentation **outcome**. What P10 does deliver
+  is the *measure* A43's own resolution was waiting on (`groups.spread`), and its
+  first reading is that demo bands loosen from 5.5 to 15.6 mean spread over 1500
+  ticks with a per-record max of 83. The label-split reading is deliberately not
+  written as a demo assertion: a label count is an equilibrium, and an equilibrium
+  test measures the seed. See `ACTION-ITEMS.md` A43.
+- ✅ **The `groups` aggregate also ends the "silent cap" thread** P5b left open —
+  `capacity` beside `count`, plus a `saturated` flag. ⚠ A **sample**, at the
+  metrics stagger of 50 ticks, and it says so: counting refusals would need a
+  cumulative counter, which is history rather than state and would read
+  differently after a restore, for a failure mode that has never occurred (peak 37
+  against 192).
+- ✅ **Three of the four doc items were already done** at P8. Only A43 was left,
+  and see above.
+- ✅ **The fixtures were the point of the ordering**, and six behavioural phases
+  showed in them: `entity.grouped` went 113 → 209 and the `herd` action 95 → 111
+  of 500 animals in a 10-tick recording. ⚠ **No new event kind and no births or
+  deaths**, so `tests-ui/event-filters.spec.js`'s assumption survived — the UI spec
+  the handoff warned would probably move did not have to.
+- ⚠⚠ **The step this plan could not finish is `npm run test:ui`.** Playwright runs
+  and the tests execute, but every fixture *teardown* hangs in this sandbox — 35
+  failures, **all of them teardown timeouts and none of them assertions**, and a
+  120-second timeout does not help. Verified pre-existing by stashing to clean HEAD
+  and reproducing it against the *old* fixtures. See `HANDOFF.md` for the full
+  reading. The suite was run; it did not pass; nothing in it indicates the fixtures
+  are wrong.
 
 ---
 

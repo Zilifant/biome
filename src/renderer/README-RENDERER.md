@@ -688,6 +688,15 @@ async assets calls `app.requestRedraw()` when they arrive.
 What the renderer does with each layer the protocol projects, and why. Open
 gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
+- Sociality inspection (protocol v34): ⚠ **a layer the renderer speaks and does
+  not yet show.** Everything v34 added is inspection-only — a group's derived
+  `centre` and `leaderId`, the three steering commitments (`social.consensus`,
+  `social.rally`, `social.charge`), and `social.nearby`'s `pullScale` and
+  `bandmates` — so nothing arrives in a snapshot or a delta that the store has to
+  handle, and the version constant plus a regenerated fixture set is the whole of
+  what the bump asked of this side. Displaying any of it (a commitment arrow, a
+  band centre, a leader mark) is an item for this roadmap, not something the engine
+  plan left half-done.
 - Persistent-group membership (protocol v33): `groupRecordId` rides in bulk
   snapshots, and the **social layer** (see "Map layers") outlines every pride,
   clan and band on the map beside every herd label. It had been inspection-only

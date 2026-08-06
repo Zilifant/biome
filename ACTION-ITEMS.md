@@ -649,6 +649,35 @@ they are not re-opened by accident.
   by hop count and separate forage patches pull herds apart, but no test claims a
   fragmentation outcome.
 
+  ⚠ **Narrowed, not closed** _(decided 2026-08-06, BEHAVIOR-PLAN P10)_. The plan
+  proposed that P2's two-bands test is the assertion this item says nobody has
+  written. Read against what A43 asks for, it is not: that test asserts a
+  **centroid** — that one animal's centre of mass is dominated by its own band —
+  inside a two-band sandbox on a single tick. It is a differential-attraction claim
+  about a steering *input*, and A43 asks for a fragmentation **outcome** in a
+  population.
+
+  ✅ **What P10 does close is the half this item's own resolution named**: DOCS §1
+  said A43 waits on "a later observability pass, if a fragmentation _measure_ earns
+  its keep". That measure now exists — `groups.spread` in the metrics aggregate,
+  the mean distance of a record's living members from its own centre. Its first
+  reading on the demo (seed 42) is that bands loosen from **5.5** mean spread at
+  tick 200 to **14.8** at 600 and **15.6** at 1500, with a per-record maximum of
+  **83** — some bands are genuinely scattering, which is the thing A43 suspected and
+  nothing could previously say.
+
+  ⬜ **What is still open is one sentence long**: no test claims that a herd
+  *label* splits in a real world — that a population under a hop-count or forage
+  split ends up as two herds rather than one. ⚠ The reason it was not written here
+  is worth recording rather than leaving as an omission: a label count on the demo
+  is an **equilibrium**, and a test that measures an equilibrium is measuring the
+  seed unless it has been shown otherwise on five of them. That is the shape of the
+  13 tests already audited as fishing for a rare event in a fixed window, and adding
+  a fourteenth to close a documentation item would be the wrong trade. The
+  sandbox split assertion (`social.test.js`, "two separated herds keep separate
+  labels, and merge on contact") pins the *mechanism*; what is missing is a
+  population reading, and the measure to take it with now exists.
+
 - **A22 — Tombstones are bounded at 256**, so ancestry cannot be walked further
   back than that. Only bites a query that walks ancestry; lineage _depth_ is
   carried on the entity as `generation`.

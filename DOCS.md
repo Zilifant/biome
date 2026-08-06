@@ -79,8 +79,8 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1310 passing / 0 failing, 321 suites** _(2026-08-06, after BEHAVIOR-PLAN P9: +14 in `test/cooperation.test.js` — the charge and its walking control, the self-ward refusal, the stamina reserve, a commitment outliving its ward and expiring on schedule, the world's ceiling on `pursuitTicks`, flee winning against a second threat, and a save round-trip that then runs on identically)_. ⚠ The run is `npm test`, TAP: 1315 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. ⚠ P9 also **widened `test/cooperation.test.js`'s batch-2 seed list from four to six**, which costs two more 6000-tick demo runs and takes its thinnest cell from a 3-against-3 coin flip to n=10. Was **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
-| `PROTOCOL_VERSION`    | **33** — `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
+| Tests                 | **1327 passing / 0 failing, 326 suites** _(2026-08-06, after BEHAVIOR-PLAN P10: +17 in the new `test/protocol-v34.test.js` — the version/renderer/fixture agreement, a hand-checked plain-mean group centre, that centre surviving `rallyEnabled: false` **in both arms**, a dead-but-listed member excluded while a merely separated one still counts, `leaderId` flipping to the senescent animal at `leadAgeWeight: 0.5` and to the prime adult at 0, inspecting every animal leaving the save byte-identical, the four consensus fields against 25 live commitments, a commitment whose label disagrees with its herd, a projected pursuit, the `pullScale` unit guard, band spread hand-checked and distinguishing a packed band from a strung-out one, a record of one contributing no spread, and `saturated` in both arms)_. ⚠ The run is `npm test`, TAP: 1332 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1310 passing / 0 failing, 321 suites** _(2026-08-06, after BEHAVIOR-PLAN P9: +14 in `test/cooperation.test.js` — the charge and its walking control, the self-ward refusal, the stamina reserve, a commitment outliving its ward and expiring on schedule, the world's ceiling on `pursuitTicks`, flee winning against a second threat, and a save round-trip that then runs on identically)_. ⚠ The run is `npm test`, TAP: 1315 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. ⚠ P9 also **widened `test/cooperation.test.js`'s batch-2 seed list from four to six**, which costs two more 6000-tick demo runs and takes its thinnest cell from a 3-against-3 coin flip to n=10. Was **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| `PROTOCOL_VERSION`    | **34** _(2026-08-06)_ — the social mechanisms BEHAVIOR-PLAN built become **inspectable** (P10): a group's derived `centre` and `leaderId`, the three steering commitments (`social.consensus`, `social.rally`, `social.charge`), and `social.nearby`'s `pullScale` and `bandmates`. ⚠ **Nothing new rides in a bulk snapshot** — every addition is inspection-only, which is the same standing test as v33 answered the other way: these are one-animal questions, and three of the four blocks are null for most of the world. ⚠ It is the version bump the **fixtures** were waiting for: six behavioural phases (P1, P2, P3, P7, P8, P9) had landed since the last regeneration, and DOCS §12's rule is to regenerate after the last behavioural change rather than at the bump. v33 was `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
 | `SAVE_FORMAT_VERSION` | **34** _(2026-08-06)_ — the charge and the pursuit after it (BEHAVIOR-PLAN P9): three per-entity fields (`defendUntil`, `defendThreatX`, `defendThreatY`), a new `config.charge` section, and two new `config.behavior` weights. ⚠ **No system descriptor changed** — a charge is two lines inside `DecisionSystem`, not a system — so unlike v33 the only things invalidating a v33 save are the fields and the config, which is exactly the case §12 says to bump for. v33 was the herd movement consensus (BEHAVIOR-PLAN P8): four per-entity fields (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the `HerdConsensusSystem` descriptor, the new `config.consensus` section, and `config.groups.leadWeight`. ⚠ This is the first per-entity *drift* here that genuinely must be saved, and the contrast with P7's deliberately-transient `rallyHeading` is the reason: a commitment exists precisely to outlive its cue, so a restore that dropped it would put a marching herd back on its individual noses. v32 was A56's `belowMinSince` (P5a), where a v31 record would have restored as `undefined` and never dissolved. v31 was `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
@@ -729,7 +729,7 @@ reminder.
 | A39 | **An environmental spillover stands in for an unsimulated reservoir.** Without it the pathogen went extinct with its last carrier (one epidemic in 15k ticks)                  | _Settled_ — an honest modelling stand-in, the same shape as A42. Two draws per tick flat                                                                                                                                                                                                                                                         |
 | A40 | **Remembered routes are not implemented**                                                                                                                                      | _Settled._ Remembered _places_ already exist and `recallFood` already steers to them. A route is a trajectory, and the codebase deliberately stores no trajectory anywhere — a home range is four numbers for exactly this reason                                                                                                                |
 | A42 | **The forage cue reaches beyond perception** (18 units against 6)                                                                                                              | _Settled_ — a stated stand-in for coarse long-range cues this world does not simulate (the smell of green ground, the lie of the land). Bounded by being a _difference_: a flat world produces no pull                                                                                                                                           |
-| A43 | **Population fragmentation is enabled, not asserted.** Herd labels split by hop count and separate forage patches pull herds apart, but no test claims a fragmentation outcome | Open — a later observability pass, if a fragmentation _measure_ earns its keep                                                                                                                                                                                                                                                                   |
+| A43 | **Population fragmentation is enabled, not asserted.** Herd labels split by hop count and separate forage patches pull herds apart, but no test claims a fragmentation outcome | ⚠ **Narrowed 2026-08-06 (P10), not closed.** The *measure* this row was waiting on now exists — `groups.spread`, and it reads demo bands loosening 5.5 → 15.6 over 1500 ticks with a per-record max of 83. BEHAVIOR-PLAN proposed that P2's two-bands test closes the item; it does not — that asserts a **centroid** (a steering input, one tick, a sandbox) where A43 asks for a population **outcome**. What is left is a label-split reading on a real world, deliberately not written as a demo assertion because a label count is an equilibrium and an equilibrium test measures the seed (D14). See `ACTION-ITEMS.md` A43 |
 | A44 | **Drought and severe winter are not local disturbances**                                                                                                                       | _Settled._ Both exist as _global_ weather states, so a spatially bounded copy would be the same mechanism at a different scale. Fire, flood, and storm have no global analogue, which is why they are the three that shipped                                                                                                                     |
 | A45 | **A disturbance never modifies terrain**                                                                                                                                       | _Settled._ Terrain is derived and unsaved, so an edit would vanish on restore. "Affected terrain" is a derived traversal penalty plus a renderer overlay                                                                                                                                                                                         |
 | A46 | **Disturbance mortality is rare in the demo** — 0–12 deaths across ten seeds, against **852 burns** over the same runs                                                         | _Settled._ A region covers ~1% of the map and animals walk out of it, so the cost is local and **sublethal** rather than demographic — the same shape disease turned out to have. The lethal path is exercised in a controlled test. Making it demographically significant means bigger or more frequent events, which breaks recovery (see D18) |
@@ -3877,8 +3877,15 @@ to one at 192. What justifies the raise anyway is the failure mode — at the ca
 and no log**, so a bound that binds does not look like a bound, it looks like the
 feature intermittently not working. 192 clears the provable worst case
 (`ceil(population / minMembers)` over the forming species, ≈150 at peak herbivore
-populations) rather than an estimate. ⚠ Making saturation *visible* is still
-unbuilt; the metrics aggregate is the place, and P10 is the phase.
+populations) rather than an estimate. ✅ **Saturation stopped being silent on
+2026-08-06** (P10): the `groups` metrics aggregate reports `capacity` beside
+`count` and a `saturated` flag, so a cap that binds now looks like a cap.
+⚠ **It is a sample and says so** — metrics run every `updateInterval` (50) ticks,
+so a store that fills and empties between two samples is not counted. That is the
+stated limit rather than a claim of completeness: counting *refusals* would need a
+cumulative counter, which is history rather than state and would read differently
+after a restore, for a failure mode that has never once occurred (peak 37 against
+192).
 
 ✅ **The buffalo declares `groups.forms: true`, and is the first species to run
 both sociality mechanisms at once** — the record is the **cow–calf core**, the
@@ -3945,6 +3952,9 @@ herd radius — and the rally fires on zero. A second distance test here would b
 rules for one question (D11). ⚠ The count is taken whatever the species declares,
 unlike P2's band *affinity*: the buffalo declares a record and no affinity, and a
 count riding on the affinity would be zero for exactly the species this is for.
+✅ **Both are inspectable since v34** — `social.rally` beside `social.nearby.bandmates`
+— so "why is this animal drifting off" and "because nobody from its band is in the
+centre it steers at" are the same look rather than two inferences (§11).
 
 ⚠ **Bounded by `groups.rallyRange` (30).** Every other drift cue in the engine is
 bounded by a sense; a heading toward a centre two hundred units away is knowledge no
@@ -4136,7 +4146,17 @@ contradict a rule this codebase already keeps:
   state where it could go stale.
 - **No size counter.** `memberIds.length`.
 
-**Bounded, and it says so.** At most `maxGroups` (64) records exist. A full store
+⚠ **Two of those three are now *projected*, and the rule is unchanged rather than
+bent** (v34, P10): the inspection block reports a `centre` and a `leaderId`, both
+walked from `memberIds` **on read**. Nothing is stored, nothing is cached, and
+`leaderId` is a reading at one instant rather than an office — `leadershipOf` reads
+condition, which moves every tick, so between closely matched animals it flickers.
+That is affordable for exactly the reason a leadership *weight* is: nothing follows
+that animal, only a centre weighted by the same ordering. See §11 for the two traps
+the projection has to avoid.
+
+**Bounded, and it says so.** At most `maxGroups` (**192** since P5b; it was 64 from
+phase 3) records exist. A full store
 **refuses to found** until one dissolves; it never evicts. Evicting would
 silently delete a group whose members are all still walking around, which is the
 failure `forgotten` exists to avoid in the tombstone registry. Ids climb
@@ -4649,6 +4669,31 @@ double-count on replay.
 It reports `null` rather than `0` when nothing has bred yet — an honest
 "unknown" instead of a misleading "no selection".
 
+⚠ **The `groups` aggregate gained two things on 2026-08-06** (P10), and both were
+open items rather than decoration:
+
+- **`spread`** — the mean distance of a record's living members from that record's
+  centre, summarized over records, so **cohesion is a number rather than an
+  impression**. Measured on the demo at seed 42: 5.5 at tick 200, 14.8 at 600,
+  15.6 at 1500, with a per-record max of 83 — bands loosen over the first few
+  hundred ticks and some of them scatter completely, which nothing else in this
+  world said out loud. ⚠ The centre is the **plain** mean, not the
+  leadership-weighted one `GroupSystem#rally` steers at, and it is derived here
+  rather than read out of `world.groupCentres` — that map is only rebuilt when
+  `groups.rallyEnabled`, so reading it would report nothing at all on the rally's
+  own control arm. ⚠ **A record of one contributes no spread**: the distance of an
+  animal from itself is not a cohesion reading, and records genuinely sit at one
+  member (`dissolveGraceTicks` holds a short one for 300 ticks on purpose), so
+  counting them as zero would drag the mean down exactly when bands are falling
+  apart. Both denominators are therefore reported — `count` includes singletons and
+  `spread.count` does not.
+- **`capacity` / `saturated`** — the store's structural bound and whether this
+  sample is against it, closing the "the cap is silent" thread P5b left open (§9
+  Persistent groups).
+
+Still aggregates only: a membership list here would be the per-organism record
+§11 rules out, and the inspector already answers the one-animal question.
+
 **Observation must not perturb.** A metrics layer that nudged anything would be
 measuring itself. A test runs the demo twice — once with metrics on the normal
 cadence, once with the system effectively disabled — and asserts the populations
@@ -4835,7 +4880,7 @@ this. **Assert the effect landed, not that the call happened.**
 
 ## 11. Protocol reference
 
-Everything a client sees carries `protocolVersion` (currently **33**) and is
+Everything a client sees carries `protocolVersion` (currently **34**) and is
 built by `src/protocol/`.
 
 ### Commands
@@ -4967,7 +5012,9 @@ speed, the action target, the utility breakdown, the perception summary, the
 individual's `traits` and `adultMass`, its `genome`/`genotype`/parent traits, its
 bounded `memories`, its `injuries` and derived `impairment`, its `stamina` and
 hunt target, carcass detail (including `possessorId` — who is standing over this
-body, v29), the `mateChoice` block, the `social` block, the **`group`** block,
+body, v29), the `mateChoice` block, the `social` block (with the three steering
+commitments and the two social-summary numbers v34 added, below), the **`group`**
+block (with v34's derived `centre` and `leaderId`),
 the `territory` block, the `disease` block (which spells out `infectious`
 separately from `symptomatic` — they are not the same claim), the `migration`
 block (the drift beside the live habitat reading it was computed from, so a bias
@@ -4977,13 +5024,55 @@ block (resolved `lineage`, parenting state, bounded `lifeEvents`).
 ⚠ **`group` and `social.groupId` are the two sociality mechanisms side by side**
 (§9 Sociality), and reporting both is the point: the label is who this animal is
 standing with now, the record is who it belongs to. The record comes whole —
-`{ id, speciesId, size, memberIds, founderId, foundedTick }` — because "which
-pride is this lion in" is only answerable if you can see who else is in it, and
-`memberIds` is bounded by `groups.maxMembers` so it cannot be large.
+`{ id, speciesId, size, memberIds, founderId, foundedTick, centre, leaderId }` —
+because "which pride is this lion in" is only answerable if you can see who else
+is in it, and `memberIds` is bounded by `groups.maxMembers` so it cannot be large.
 `possessorId` is not in the bulk snapshot: it changes rarely and matters for one
 animal at a time, which is the standing test for what stays inspection-only.
 `groupRecordId` is the explicit exception described above: the social layer needs
 every record's members at once, so it has been bulk-projected since v33.
+
+⚠⚠ **`centre` and `leaderId` (v34) are derived on read, and both are the rule
+`GroupRegistry` states rather than a convenience** — a record stores no centre
+because where a group is changes every tick, and no leader because standing is
+derived, never stored. Both walk `memberIds`, bounded by `groups.maxMembers`, so
+this is a small fixed walk for one animal on demand, exactly as the `migration`
+block recomputes its `habitat` reading rather than caching it.
+
+⚠⚠ **`centre` is *not* read out of `world.groupCentres`, and that is the trap
+worth naming.** That map is rebuilt by `GroupSystem#rally`, and only when
+`config.groups.rallyEnabled` — so a block that read it would report `null` for
+every group the moment somebody switched the rally off, which is a control arm the
+suite uses. Measured on the demo at tick 200: `groupCentres.size` is **28 with the
+rally on and 0 with it off, against 28 live records either way**. ⚠ The projected
+centre is also the **plain** mean where the rally steers at a
+leadership-weighted variant of the same point: "where is this band" is a fact about
+the band, and a figure that moved with `config.groups.leadWeight` would be
+answering a question about the mechanism instead. `leaderId` beside it says which
+way the rally's version leans. ⚠ Both count **living** members only — a record is
+reconciled once per tick, so averaging in a body that died this tick would report
+where the band used to be.
+
+⚠⚠ **The `social` block's three commitments (v34) exist because two of them
+outlive their own cue, which is exactly what makes them invisible otherwise.**
+
+| block | mechanism | why a field beside it is not enough |
+| --- | --- | --- |
+| `social.consensus` `{ heading, strength, until, label }` | the herd label's shared heading (P8) | `until` is the deadline the commitment is held to whatever the animal's own cues say next; `label` is the herd it was agreed **in**, so a commitment held over from a herd the animal has since left reads as a disagreement with `social.groupId` rather than as a mystery. ⚠ While this is non-null it **replaces** `migration.drift` rather than joining it |
+| `social.rally` `{ heading, strength }` | the drift back to a band this animal has lost contact with (P7) | null for almost everybody, which *is* the mechanism: it is written only for a member with no bandmate in its centroid, and `nearby.bandmates` is the gate that decided it. Not persisted, so this is always this tick's answer |
+| `social.charge` `{ until, threat }` | the pursuit after a charge (P9) | `social.defendingId` is *who* is being defended and has already gone null by the time a pursuit is what is happening. This is the one state nothing else can show |
+
+⚠ **`social.nearby` also gains `pullScale` and `bandmates` (v34)**, the two numbers
+on the social summary that decide a behaviour and were unreadable. `pullScale` is
+the exchange rate between company of this animal's own kind and company of
+another, and it is the only number in that summary **not** spent inside the
+centroid — the decision system divides `behavior.herdDistance` by it, so a gazelle
+sitting 3.6 units off a wildebeest centre and contentedly not closing looks like a
+broken dead band without it. Exactly `1` is both the default and what
+`association.scalesPull: false` publishes for everybody; ⚠ it is also the
+`weight === 0` guard being visible, because the alternative to publishing the unit
+for a lone animal is `0 / 0`, and `NaN` loses every `argmaxUtility` comparison
+silently.
 
 Full snapshots also embed:
 
@@ -5467,10 +5556,26 @@ Each figure is as of the step that took it; the world changed underneath them.
 
 ## 14. Testing
 
-1149 tests, 287 suites _(2026-08-04)_, plus **13 browser spec files in `tests-ui`**,
+1149 tests, 287 suites _(2026-08-04)_, plus **14 browser spec files in `tests-ui`**,
 which are a separate run (`npx playwright test`) and are the only thing that
 exercises the renderer's DOM — see D32 for the class of bug the node suite
-structurally cannot see. Layers:
+structurally cannot see.
+
+⚠⚠ **`npm run test:ui` cannot complete in a sandboxed shell, and the failure mode is
+misleading** _(measured 2026-08-06)_. Chromium launches and the tests **execute**;
+what hangs is fixture **teardown** — `Tearing down "appPage" exceeded the test
+timeout of 30000ms`, and raising it to 120 000 ms does not help, so it is a hang
+rather than a slow close. A full run gives **35 failures of which every single one is
+a teardown timeout and none is an assertion**, spread across `appPage`, the
+mocked-host `live` fixture, and the sprite editor's `editorPage` — the last of which
+loads no simulation fixture at all. Reproduced on clean HEAD against the previous
+fixtures, so it is the environment rather than any change. ⚠ The trap is reading the
+red as a regression, or reading "no assertion failed" as a pass: **neither is true,
+and the suite has to be run somewhere it can tear a browser down**. It is the same
+shape as the 5 cancelled `presets.test.js` HTTP suites, which the sandbox cannot bind
+a port for.
+
+Layers:
 
 - **Unit** — energy/metabolism math, utility scoring, inheritance,
   movement/terrain validation, spatial queries, world projection, protocol

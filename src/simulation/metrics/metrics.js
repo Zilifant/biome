@@ -253,24 +253,96 @@ export function computeMetrics(world, { tick, windowTicks }) {
     // Persistent groups (v29). ⚠ Not the `grouping` block on each species above
     // — that summarizes *herd labels*, which are positional and recomputed every
     // tick. This is the record store: how many prides or clans exist and how big
-    // they are. Summarized, never enumerated, for the same reason herds are: a
-    // membership list here would be the per-organism record the observation
-    // roadmap rules out, and the inspector already answers the one-animal
-    // question. Zero in every world today, because no shipped species forms one.
-    groups: world.groups
-      ? {
-          count: world.groups.size,
-          members: world.groups.all().reduce((total, record) => total + record.memberIds.length, 0),
-          size: describe(world.groups.all().map((record) => record.memberIds.length)),
-          // Per species, so "the clans are hyena clans" is answerable without
-          // walking a roster. Ascending id order, like everything else here.
-          bySpecies: world.groups.all().reduce((counts, record) => {
-            counts[record.speciesId] = (counts[record.speciesId] ?? 0) + 1;
-            return counts;
-          }, {}),
-        }
-      : null,
+    // they are, how tightly they hold together, and whether the store is full.
+    // ⚠ The sentence that used to close this comment — "zero in every world
+    // today, because no shipped species forms one" — has been false since the
+    // hyena arrived at phase 7; four species form records now (lion, hyena,
+    // zebra, buffalo). See `groupMetrics` for the rest.
+    groups: world.groups ? groupMetrics(world) : null,
     species,
+  };
+}
+
+/**
+ * The persistent-group store, summarized (v29; spread and capacity added at
+ * BEHAVIOR-PLAN P10).
+ *
+ * ⚠ **Cohesion is a number here, not an impression.** `spread` is the mean
+ * distance of a record's living members from that record's centre, averaged over
+ * records — so a band that is walking as a body and one that has scattered across
+ * forty units report differently, which nothing else in this world says. Bounded
+ * by `maxGroups × maxMembers`, so it is a small fixed walk however large the
+ * population gets.
+ *
+ * ⚠ The centre is the **plain** mean, where `GroupSystem#rally` steers at a
+ * leadership-weighted variant of the same point. Weighting it here would make a
+ * cohesion figure move with `config.groups.leadWeight`, which is a knob about a
+ * different mechanism — the same reasoning that puts the plain mean in the
+ * inspection block. ⚠ And it is derived here rather than read out of
+ * `world.groupCentres`: that map is only rebuilt when `groups.rallyEnabled`, so
+ * reading it would report nothing at all on the rally's own control arm.
+ *
+ * ⚠⚠ **`capacity` and `saturated` exist because the cap was silent.** At the cap
+ * `found()` returns null and `#joinOrFound` returns, with no event, no metric and
+ * no log — so a bound that binds does not look like a bound, it looks like the
+ * feature intermittently not working (DOCS §9, and the open thread P5b left). This
+ * is the metric that ends that. **It is a sample, and says so**: metrics run every
+ * `updateInterval` ticks, so a store that fills and empties between two samples is
+ * not counted. That is the stated limit rather than a claim of completeness —
+ * counting *refusals* would need a cumulative counter, which is history rather than
+ * state and would read differently after a restore. Peak concurrent records
+ * measured 2026-08-06 is 37 against a cap of 192, so this reads `false` today,
+ * which is the correct answer and is now checkable instead of assumed.
+ *
+ * Aggregates only, never a membership list: that would be the per-organism record
+ * §11 rules out, and the inspector already answers the one-animal question.
+ *
+ * @param {import('../world/World.js').World} world
+ */
+function groupMetrics(world) {
+  const records = world.groups.all();
+  const spreads = [];
+  for (const record of records) {
+    let sumX = 0;
+    let sumY = 0;
+    const members = [];
+    for (const id of record.memberIds) {
+      const member = world.entities.get(id);
+      // Living members only — a record is reconciled once per tick, so averaging
+      // in a body that died this tick would measure where the band used to be.
+      if (!member || member.kind !== 'animal' || !member.alive) continue;
+      members.push(member);
+      sumX += member.x;
+      sumY += member.y;
+    }
+    // ⚠ A record of one is skipped rather than counted as a spread of 0. The
+    // distance of an animal from itself is not a cohesion reading, and records do
+    // sit at one member — `dissolveGraceTicks` holds a short record for 300 ticks
+    // on purpose — so counting them would drag the mean toward zero exactly when
+    // bands are falling apart, which is backwards.
+    if (members.length < 2) continue;
+    const centreX = sumX / members.length;
+    const centreY = sumY / members.length;
+    let total = 0;
+    for (const member of members) total += Math.hypot(member.x - centreX, member.y - centreY);
+    spreads.push(total / members.length);
+  }
+  return {
+    count: world.groups.size,
+    // The structural bound and whether this sample is against it.
+    capacity: world.groups.maxGroups,
+    saturated: world.groups.full,
+    members: records.reduce((total, record) => total + record.memberIds.length, 0),
+    size: describe(records.map((record) => record.memberIds.length)),
+    // `count` includes records of one; this does not, so the two denominators are
+    // reported rather than left to be assumed equal.
+    spread: describe(spreads),
+    // Per species, so "the clans are hyena clans" is answerable without
+    // walking a roster. Ascending id order, like everything else here.
+    bySpecies: records.reduce((counts, record) => {
+      counts[record.speciesId] = (counts[record.speciesId] ?? 0) + 1;
+      return counts;
+    }, {}),
   };
 }
 

@@ -17,7 +17,7 @@ import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.j
 import { isLastingEvent } from './EventCatalog.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 33;
+export const SUPPORTED_PROTOCOL_VERSION = 34;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {

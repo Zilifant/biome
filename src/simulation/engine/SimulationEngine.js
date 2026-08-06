@@ -29,7 +29,7 @@ import { SPECIES_DEFINITIONS } from '../config/species/index.js';
 import { recordTombstone, lookupLineageList, lookupLineage } from '../world/lineage.js';
 import { genotypeOf } from '../traits/genetics.js';
 import { acceptanceThreshold, matePreferenceFor } from '../mating/mateChoice.js';
-import { dominanceOf } from '../social/dominance.js';
+import { dominanceOf, leadAgeWeightOf, leadershipOf } from '../social/dominance.js';
 import { territoryOf } from '../systems/TerritorySystem.js';
 import { diseaseSeverity, isInfectious, isSymptomatic } from '../disease/disease.js';
 import { forageGradient, isDispersing, migrationOf } from '../migration/migration.js';
@@ -548,9 +548,54 @@ export class SimulationEngine {
       // it. `memberIds` is bounded by `groups.maxMembers`, so this cannot be
       // large. Null for the overwhelming majority of animals, which is honest:
       // most species form no persistent groups at all.
+      // ⚠⚠ `centre` and `leaderId` are **derived here, on read** (v34,
+      // BEHAVIOR-PLAN P10), and that is the rule `GroupRegistry` states rather
+      // than a convenience: a group stores no centre because where it is changes
+      // every tick, and it stores no leader because standing is derived, never
+      // stored. Both walk `memberIds`, which `groups.maxMembers` bounds, so this
+      // is a small fixed walk for one animal on demand — the same judgement that
+      // recomputes the migration `habitat` reading below instead of caching it.
+      //
+      // ⚠⚠ **Not read out of `world.groupCentres`**, which is the trap worth
+      // naming: that map is rebuilt by `GroupSystem#rally` and only when
+      // `config.groups.rallyEnabled`, so a block that read it would report `null`
+      // for every group the moment somebody switched the rally off — which is a
+      // control arm the suite uses. Measured on the demo at tick 200:
+      // `groupCentres.size` is 28 with the rally on and **0** with it off,
+      // against 28 live records either way.
       group: (() => {
         const record = this.world.groups.get(entity.groupRecordId);
         if (!record) return null;
+        // Living members only. A record is reconciled once per tick, so a member
+        // that died this tick can still be listed, and averaging a carcass's
+        // position into "where this group is" would be reporting the past.
+        const members = record.memberIds
+          .map((id) => this.world.entities.get(id))
+          .filter((member) => member && member.kind === 'animal' && member.alive);
+        let sumX = 0;
+        let sumY = 0;
+        for (const member of members) {
+          sumX += member.x;
+          sumY += member.y;
+        }
+        // ⚠ The **plain** mean, deliberately, where `GroupSystem#rally` steers at
+        // a leadership-weighted variant of the same point. "Where is this band"
+        // is a fact about the band; a figure that moved with
+        // `config.groups.leadWeight` would answer a question about the mechanism
+        // instead, and `leaderId` beside it already says which way the rally's
+        // version leans.
+        const ageWeight = leadAgeWeightOf(this.world.species.get(record.speciesId));
+        let leaderId = null;
+        let best = 0;
+        for (const member of members) {
+          const score = leadershipOf(member, ageWeight);
+          // Ties go to the lower id — `memberIds` is ascending, so `>` alone
+          // gives that, the same convention `resolveContest` uses.
+          if (score > best) {
+            best = score;
+            leaderId = member.id;
+          }
+        }
         return {
           id: record.id,
           speciesId: record.speciesId,
@@ -558,6 +603,13 @@ export class SimulationEngine {
           memberIds: [...record.memberIds],
           founderId: record.founderId,
           foundedTick: record.foundedTick,
+          centre: members.length > 0 ? { x: sumX / members.length, y: sumY / members.length } : null,
+          // ⚠ A **reading at this instant, not an office.** `leadershipOf` reads
+          // condition, which moves every tick, so between closely matched animals
+          // this flickers — affordable because nothing anywhere follows *this
+          // animal*, only a centre weighted by the same ordering. Null when every
+          // member scores zero, which is honest rather than an arbitrary pick.
+          leaderId,
         };
       })(),
       social: {
@@ -568,6 +620,53 @@ export class SimulationEngine {
         alarmSource: entity.alarmSource ? { ...entity.alarmSource } : null,
         defendingId: entity.defendingId,
         lastContestTick: entity.lastContestTick,
+        // The shared heading a herd label has committed to (v34, BEHAVIOR-PLAN
+        // P8). ⚠ `until` is what makes this different from every other steering
+        // number in the world: the commitment **outlives the cue**, so a herd is
+        // still walking after the gradient that started it has flattened, and
+        // without the deadline beside the heading there is no way to tell a live
+        // commitment from a fresh reading of the same cue.
+        //
+        // ⚠ `label` is projected rather than left implicit, and it is the one
+        // field a reader would otherwise have to infer: a commitment is made
+        // *in* a herd, and an animal that has since walked into a different one
+        // carries the old herd's heading until its ttl lapses. With `groupId`
+        // three lines above, a stale commitment is visible as a disagreement
+        // between the two instead of a mystery.
+        //
+        // ⚠ **While this is non-null it *replaces* `migration.drift`** rather
+        // than joining it — see `DecisionSystem`'s wander branch — so an animal
+        // reporting both is being steered by this one.
+        consensus:
+          entity.herdHeading === null
+            ? null
+            : {
+                heading: entity.herdHeading,
+                strength: entity.herdStrength,
+                until: entity.herdCommitUntil,
+                label: entity.herdCommitLabel,
+              },
+        // The drift back toward a band this animal has lost contact with (v34,
+        // BEHAVIOR-PLAN P7). Null for the overwhelming majority of animals, which
+        // is the mechanism working: it is written only for a member of a record
+        // with **no bandmate contributing to its centroid**, so a value here says
+        // "separated" and `nearby.bandmates` below is the gate that decided it.
+        // ⚠ Not persisted (see `GroupSystem`'s header), so this is always this
+        // tick's answer.
+        rally: entity.rallyHeading === null ? null : { heading: entity.rallyHeading, strength: entity.rallyStrength },
+        // A pursuit in progress (v34, BEHAVIOR-PLAN P9). ⚠ `defendingId` above is
+        // *who* is being defended and goes null the moment the ward is out of
+        // sight; this is the commitment that keeps `defend` scoring afterwards,
+        // steering at where the threat was last seen. Without it a pursuit is
+        // invisible by construction — it is precisely the state that outlives the
+        // visible cue, so every other field about it has already gone null.
+        charge:
+          entity.defendUntil === null
+            ? null
+            : {
+                until: entity.defendUntil,
+                threat: entity.defendThreatX === null ? null : { x: entity.defendThreatX, y: entity.defendThreatY },
+              },
         nearby: (() => {
           const summary = this.world.social.get(entityId);
           if (!summary) return null;
@@ -580,8 +679,24 @@ export class SimulationEngine {
             // invariant 19 wants the one that moved its centre of mass visible.
             // 0 for every animal in this world until batch 3.
             associates: summary.associates ?? 0,
+            // How many of this animal's own **band** are in the centre it steers
+            // at (v34, P7). Reported beside `groupmates` for the same reason
+            // `associates` is: they are different facts, and this is the one
+            // `GroupSystem`'s rally gates on — 0 here is why `social.rally`
+            // above has a value, and non-zero is why it does not.
+            bandmates: summary.bandmates ?? 0,
             nearestDistance: summary.nearestDistance,
             drift: summary.centroid ? Math.hypot(summary.centroid.x - entity.x, summary.centroid.y - entity.y) : null,
+            // The exchange rate between company of this animal's own kind and
+            // company of another (v34, P3). ⚠ Exactly 1 means "as hard as my own
+            // kind", which is both the default and what `association.scalesPull:
+            // false` publishes for everybody — and it is the *only* number in
+            // this summary that is not spent inside the centroid: the decision
+            // system divides `behavior.herdDistance` by it, so a species holding
+            // loosely to another's herd tolerates proportionally more drift from
+            // it. Without it a gazelle sitting 3.6 units off a wildebeest centre
+            // and contentedly not closing looks like a broken dead-band.
+            pullScale: summary.pullScale ?? 1,
           };
         })(),
       },

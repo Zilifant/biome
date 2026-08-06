@@ -12,12 +12,13 @@ persistence, performance, and testing. Start there.
 open**, across the engine and the renderer; `DOCS.md` §1 is the same list with
 the evidence and reasoning attached.
 
-**[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
-eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
-nothing acts on" to identity and group intent that steer movement. P0–P5 and
-P7–P9 have shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
-the code looks like now that those nine have landed on it, and the landmines
-they turned up.
+**[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is complete** _(2026-08-06)_ — eleven
+phases (P0–P10) taking herbivore sociality from "persistent identity that nothing
+acts on" to identity and group intent that steer movement. **Ten shipped and P6 was
+skipped by decision**; the plan is now a historical record on the same terms as the
+three in `legacy-docs/`, read for the reasoning rather than for current state.
+**[`HANDOFF.md`](HANDOFF.md) is what those ten phases taught** — the landmines they
+turned up, six of which were the same mistake in a new suit, and what is left open.
 
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
 produced the engine: a linear, numbered sequence of 30 steps with dated
@@ -223,7 +224,7 @@ Run `npm run benchmark` for the current performance baseline; see
 
 ## Protocol overview
 
-Everything a client sees carries `protocolVersion` (currently `33`) and is
+Everything a client sees carries `protocolVersion` (currently `34`) and is
 built by `src/protocol/`:
 
 - **Commands** (`commands.js`, `validation.js`): `simulation.pause`,
@@ -251,13 +252,20 @@ built by `src/protocol/`:
   `impairment`, its `stamina` and hunt target, its carcass detail, its
   `mateChoice` block (what its species reads in a mate, its own choosiness, the
   standard it is currently holding, and the last animal it sized up), its
-  `social` block (herd, _derived_ dominance, alarm state, who it is defending),
+  `social` block (herd, _derived_ dominance, alarm state, who it is defending,
+  and the three steering **commitments** — the herd heading it agreed to and the
+  deadline it holds that to, the drift back toward a band it has lost, and the
+  pursuit it is on after a charge; plus how hard it holds to company of another
+  species and how many of its own band are in the centre it steers at), its
+  `group` block (the record whole, plus a `centre` and a `leaderId` **derived on
+  read**, because a group stores neither),
   its `territory` block (home range, drift from it, ground held, whose claim it
   is standing on), its `disease` block (compartment, whether it is infectious —
   which is _not_ the same as whether it looks ill — and how far through it is),
   its `migration` block (the drift it is currently being steered by, beside the
   live habitat reading that drift was computed from, so a bias is checkable
-  rather than mysterious), `caughtIn` (the disturbance covering this animal, or
+  rather than mysterious — ⚠ unless a herd consensus is live, which _replaces_
+  it), `caughtIn` (the disturbance covering this animal, or
   null — the active regions already ride in every snapshot, so what inspection
   adds is the geometry answer rather than the list), and the family/life-history
   block (resolved `lineage`, parenting state, bounded
