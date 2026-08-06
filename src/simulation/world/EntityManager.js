@@ -254,6 +254,21 @@ function createEntity(id, definition) {
     // trail nearby (which is most of the time and most of the world).
     trailHeading: definition.trailHeading ?? null,
     trailStrength: definition.trailStrength ?? 0,
+    // Reunion with a persistent group (BEHAVIOR-PLAN P7). The third pair on the
+    // same channel as the two above: a direction toward the centre of the record
+    // this animal belongs to, written only when it has drifted out of contact with
+    // every one of its bandmates, and folded into the same wander heading.
+    //
+    // ⚠⚠ **The defaults are load-bearing, not tidiness.** `blendHeadings` calls
+    // `clamp01`, and `clamp01(undefined)` returns `undefined` — both its
+    // comparisons are false — which makes the blend `NaN`, which makes
+    // `normalizeAngle(NaN)` `NaN`, which makes `entity.x = NaN` **permanently**, at
+    // which point the animal disappears from every spatial query in the world and
+    // never comes back. A null heading and a zero strength are what stop an
+    // unwritten field from ever reaching that path, and `DecisionSystem`
+    // null-checks the heading besides.
+    rallyHeading: definition.rallyHeading ?? null,
+    rallyStrength: definition.rallyStrength ?? 0,
     // Disease (Step 25; see disease/disease.js). Three fields hold the whole
     // compartmental state: which compartment, when it was entered, and when it
     // ends. Severity is *derived* from the compartment rather than stored, so

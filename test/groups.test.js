@@ -26,6 +26,8 @@ import { GroupRegistry, groupsOf } from '../src/simulation/world/GroupRegistry.j
 import { GroupSystem } from '../src/simulation/systems/GroupSystem.js';
 import { SocialSystem } from '../src/simulation/systems/SocialSystem.js';
 import { PerceptionSystem } from '../src/simulation/systems/PerceptionSystem.js';
+import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
+import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/species/index.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
@@ -922,6 +924,239 @@ describe('persistent groups: capacity and the buffalo core (P5b, P5c)', () => {
       if (e.speciesId === 'herbivore.buffalo' && e.alive && e.groupRecordId !== null) attached += 1;
     }
     assert.ok(attached > 0, 'the buffalo really are enrolled');
+  });
+});
+
+/**
+ * BEHAVIOR-PLAN P7 — band rally drift, i.e. reunion.
+ *
+ * ⚠⚠ **This is the first thing in the world that makes a group record move an
+ * animal on its own account.** P2's band affinity re-weights *neighbours*, so it
+ * makes a band that is together stay together and can do nothing at all for one
+ * that has scattered — there is nobody left in range to weight. This is that other
+ * half, and it is the reason the record has existed since phase 3.
+ *
+ * It writes a **drift, never an action** (the `MigrationSystem` pattern): a fresh
+ * `wander` commitment is the one heading in the engine that was going to be
+ * arbitrary, so bending it costs nothing that was doing any work. Four phases have
+ * recorded what happens to a movement behaviour that competes with foraging.
+ *
+ * The claims, in the order they are pinned below: it fires only when the band is
+ * genuinely out of contact, it is bounded, a **disperser is left alone**, and the
+ * pair actually reunites.
+ */
+describe('persistent groups: band rally drift (P7)', () => {
+  /** Perception + social + groups + decision + movement: the whole chain a drift needs. */
+  function rallySandbox({ seed = 5, rallyEnabled = true, groups = {} } = {}) {
+    const engine = sandbox({
+      seed,
+      systems: false,
+      config: { vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 } },
+    });
+    engine.registerSystem(new PerceptionSystem(engine.config.perception));
+    engine.registerSystem(new SocialSystem(engine.config.social));
+    engine.registerSystem(new GroupSystem({ ...engine.config.groups, rallyEnabled, ...groups }));
+    engine.registerSystem(
+      new DecisionSystem({ ...engine.config.decision, ...engine.config.behavior, foodMinLevel: engine.config.perception.foodMinLevel }),
+    );
+    engine.registerSystem(new MovementSystem(engine.config.locomotion));
+    return engine;
+  }
+
+  /** A founded pair, then torn `apart` units apart along +x. */
+  function torn(engine, apart) {
+    const a = spawn(engine, { x: 40, y: 40 });
+    const b = spawn(engine, { x: 42, y: 40 });
+    engine.step(2);
+    assert.equal(engine.world.groups.size, 1, 'the pair founded a record');
+    engine.world.moveEntity(entity(engine, b), 40 + apart, 40);
+    return { a, b };
+  }
+
+  test('a member standing with its band is not rallying at all', () => {
+    const engine = rallySandbox();
+    const a = spawn(engine, { x: 40, y: 40 });
+    spawn(engine, { x: 42, y: 40 });
+    engine.step(3);
+    const me = entity(engine, a);
+    assert.ok(engine.world.social.get(a).bandmates > 0, 'its bandmate is in range');
+    assert.equal(me.rallyHeading, null);
+    assert.equal(me.rallyStrength, 0);
+  });
+
+  test('a separated member is pointed at its band, and both ends of the pair are', () => {
+    const engine = rallySandbox();
+    const { a, b } = torn(engine, 20);
+    // ⚠ Read the positions *before* the step, not the literals they were spawned
+    // at: the pair has already wandered for two ticks. `GroupSystem` runs at
+    // priority −8 and movement in the next phase, so the heading it writes is
+    // computed from exactly these coordinates — which makes the expectation exact
+    // rather than approximate.
+    const [A, B] = [entity(engine, a), entity(engine, b)];
+    const before = { ax: A.x, ay: A.y, bx: B.x, by: B.y };
+    engine.step(1);
+
+    const cx = (before.ax + before.bx) / 2;
+    const cy = (before.ay + before.by) / 2;
+    assert.equal(engine.world.social.get(a).bandmates, 0, 'out of contact');
+    assert.ok(
+      Math.abs(A.rallyHeading - Math.atan2(cy - before.ay, cx - before.ax)) < 1e-9,
+      'pointed at the centre of its own record',
+    );
+    // The centre is the midpoint, so the two ends face each other — the whole of
+    // what makes this a *reunion* rather than one animal chasing another.
+    const opposed = Math.abs(Math.abs(A.rallyHeading - B.rallyHeading) - Math.PI);
+    assert.ok(opposed < 1e-9, `the two ends face each other (${A.rallyHeading} vs ${B.rallyHeading})`);
+    assert.equal(A.rallyStrength, CONFIG.groups.rallyStrength);
+  });
+
+  test('⚠ beyond the range the band is genuinely lost, and nothing is written', () => {
+    // Every other drift cue in the engine is bounded by a sense; a heading toward a
+    // centre two hundred units away is knowledge no animal has, and mechanically it
+    // is A34 in a new suit — an animal walking across the map ignoring forage.
+    const engine = rallySandbox({ groups: { rallyRange: 10 } });
+    const { a } = torn(engine, 30);
+    engine.step(1);
+    assert.equal(entity(engine, a).rallyHeading, null, '15 from a centre 10 units of range away');
+    assert.equal(entity(engine, a).rallyStrength, 0);
+  });
+
+  test('⚠ the drift is cleared the moment the band is back in contact', () => {
+    // A field not rewritten on some path outlives its tick — the `entity.flying`
+    // lesson. Every animal of a forming species is cleared and then re-set.
+    const engine = rallySandbox();
+    const { a, b } = torn(engine, 20);
+    engine.step(1);
+    assert.notEqual(entity(engine, a).rallyHeading, null, 'it was rallying');
+    engine.world.moveEntity(entity(engine, b), 41, 40);
+    engine.step(2);
+    assert.equal(entity(engine, a).rallyHeading, null, 'and stops the moment they are together');
+    assert.equal(entity(engine, a).rallyStrength, 0);
+  });
+
+  test('⚠⚠ a dispersing animal is left alone — A64 must not be undone at the movement layer', () => {
+    // Dispersal wins outright at strength 0.9 and is how a young animal leaves
+    // home. A rally blended onto it would drag it back toward the band it is
+    // walking out of. ⚠ Counted over 100 ticks rather than asserted on one, which
+    // is the test shape whose absence *caused* A64.
+    //
+    // ⚠⚠ **The disperser here is FEMALE, and that is the entire point of the
+    // arrangement.** A mutation that deleted this gate passed the first version of
+    // this test, which used a male: under `leavingSex: 'male'` a dispersing male has
+    // already left its record in the membership pass, so the rally loop drops it on
+    // the `groupRecordId === null` check and never reaches the gate — the gate was
+    // unreachable and the test could not tell. The animal the gate actually protects
+    // is the one dispersal *keeps*: a dispersing female still holds her membership
+    // while walking out of her natal range. Same hazard shape as `MIXER` in
+    // `herding.test.js` — only one arrangement can catch it.
+    const engine = rallySandbox();
+    const { a, b } = torn(engine, 20);
+    const disperser = entity(engine, b);
+    disperser.sex = Sexes.FEMALE;
+    disperser.dispersalUntil = engine.tick + 200;
+    let rallied = 0;
+    let held = 0;
+    for (let i = 0; i < 100; i += 1) {
+      engine.step(1);
+      if (disperser.rallyStrength > 0 || disperser.rallyHeading !== null) rallied += 1;
+      if (disperser.groupRecordId !== null) held += 1;
+    }
+    assert.equal(rallied, 0, `a disperser never rallies (${rallied} of 100 ticks)`);
+    assert.ok(held > 90, `and she kept her membership throughout (${held} of 100 ticks) — the gate was reachable`);
+
+    // ⚠⚠ **And the animal left behind pins the interaction between this phase and
+    // P5a**, which is not obvious in either file alone. The disperser's departure
+    // takes the record below `minMembers`, and before P5a that record would have
+    // dissolved on the next tick and released the survivor. It does not: the grace
+    // clock holds it, so the survivor is still a member 100 ticks later — and it
+    // still does not rally, because it is now the record's *only* living member,
+    // so the centre it would steer at is exactly where it is standing. That is the
+    // degenerate case the zero-distance guard exists for, and without the guard it
+    // would be `atan2(0, 0)` — a valid-looking heading due east, and a survivor
+    // marching off across the map for no reason.
+    const survivor = entity(engine, a);
+    assert.notEqual(survivor.groupRecordId, null, 'P5a is holding the record rather than dissolving it');
+    assert.equal(survivor.rallyHeading, null, 'and a band of one has nowhere to rally to');
+  });
+
+  test('⚠⚠ a torn band reunites, and without the drift it mostly does not', () => {
+    // The claim the phase exists for. ⚠ Three seeds, because a single-seed
+    // reunion measurement is a measurement of the seed: the control arm happens to
+    // re-meet by random walk on some of them (2 of 5 in the exploratory run), which
+    // is exactly why the assertion is on the *mean* and on the on-arm's
+    // consistency rather than on any one pair of numbers.
+    const closest = (rallyEnabled, seed) => {
+      const engine = rallySandbox({ seed, rallyEnabled });
+      const { a, b } = torn(engine, 20);
+      let nearest = Infinity;
+      for (let i = 0; i < 400; i += 1) {
+        engine.step(1);
+        const [A, B] = [entity(engine, a), entity(engine, b)];
+        if (!A?.alive || !B?.alive) break;
+        nearest = Math.min(nearest, Math.hypot(A.x - B.x, A.y - B.y));
+      }
+      return nearest;
+    };
+    const seeds = [5, 7, 11];
+    const on = seeds.map((seed) => closest(true, seed));
+    const off = seeds.map((seed) => closest(false, seed));
+    for (const [i, seed] of seeds.entries()) {
+      assert.ok(on[i] < CONFIG.groups.joinRadius, `seed ${seed} reunites within join range (${on[i].toFixed(1)})`);
+    }
+    const mean = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
+    assert.ok(
+      mean(on) < mean(off),
+      `and closer than the control (${mean(on).toFixed(1)} against ${mean(off).toFixed(1)})`,
+    );
+  });
+
+  test('the world switch writes nothing at all', () => {
+    const engine = rallySandbox({ rallyEnabled: false });
+    const { a, b } = torn(engine, 20);
+    engine.step(5);
+    for (const id of [a, b]) {
+      assert.equal(entity(engine, id).rallyHeading, null);
+      assert.equal(entity(engine, id).rallyStrength, 0);
+    }
+    assert.equal(engine.world.groupCentres.size, 0, 'and derives no centres');
+  });
+
+  test('⚠ the fields default to a heading of null and a strength of zero', () => {
+    // The NaN landmine, pinned at its source. `clamp01(undefined)` is `undefined`,
+    // which makes `blendHeadings` NaN, which makes `entity.x` NaN **permanently** —
+    // the animal then vanishes from every spatial query for the rest of the run.
+    const engine = rallySandbox();
+    const fresh = entity(engine, spawn(engine, { x: 10, y: 10 }));
+    assert.equal(fresh.rallyHeading, null);
+    assert.equal(fresh.rallyStrength, 0);
+  });
+
+  test('the group centres are transient and never serialized', () => {
+    // `GroupRegistry`'s header is explicit that a record holds no centre: where a
+    // group *is* changes every tick and is a pure function of where its members
+    // are, so a stored one is a cache that can go stale against its own inputs.
+    const engine = rallySandbox();
+    torn(engine, 20);
+    engine.step(2);
+    assert.ok(engine.world.groupCentres.size > 0, 'they are derived');
+    const saved = captureSimulationState(engine);
+    assert.ok(!('groupCentres' in saved), 'and nowhere in the save');
+    for (const record of saved.groups.records) {
+      assert.ok(!('x' in record) && !('centre' in record), 'a record still has no centre');
+    }
+  });
+
+  test('⚠ nobody ends up at NaN, asserted across a whole demo rather than a sandbox', () => {
+    // The failure mode this phase's NaN path produces is silent and permanent, so
+    // it is worth one brute-force sweep of a real world.
+    const engine = createDemoSimulation({ seed: 42 });
+    engine.step(600);
+    for (const e of engine.world.entities.all()) {
+      if (e.kind !== 'animal') continue;
+      assert.ok(Number.isFinite(e.x) && Number.isFinite(e.y), `#${e.id} is at (${e.x}, ${e.y})`);
+      assert.ok(Number.isFinite(e.rallyStrength), `#${e.id} has a non-finite rally strength`);
+      assert.ok(e.rallyHeading === null || Number.isFinite(e.rallyHeading), `#${e.id} has a NaN rally heading`);
+    }
   });
 });
 

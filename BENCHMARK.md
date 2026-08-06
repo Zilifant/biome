@@ -715,6 +715,30 @@ one short-circuited boolean per neighbour ought to look like. `weightingCalves` 
 false, so `keepsStationOnYoung` is false for every animal, and the per-neighbour
 test never reaches its second term.
 
+### The band rally drift (2026-08-05, BEHAVIOR-PLAN.md P7)
+
+**+0.9% of a demo tick**, five interleaved rounds of 450 ticks on seed 42 with entity
+counts matched at 500/501 (round 1 discarded as JIT):
+
+| arm | ms/tick |
+| --- | --- |
+| `groups.rallyEnabled: false` | 5.51 · 5.52 · 5.50 · 5.48 |
+| **rally on (shipped)** | 5.56 · 5.56 · 5.55 · 5.58 |
+
+What that buys is one extra O(N) entity walk with a species early-out, plus a
+records walk bounded by `maxGroups × maxMembers` (192 × 8 worst case, ~35 × 6
+measured). The third pass exists because a group's centre has to be derived from the
+membership the tick actually settled on — derived earlier it would point animals at
+records that dissolved in the reconcile pass or miss the members that joined in the
+entity pass.
+
+⚠ **The off arm is a true control here**, unlike the one in the calf-weight section:
+with the switch off `#rally` is never called at all, so the comparison is a code
+path against its own absence rather than two behaviours. What it does *not* cover is
+the `bandmates` counter `SocialSystem` publishes for the gate, which is in both arms
+— one hoisted null check per animal, and one comparison per conspecific neighbour
+for animals that hold a record at all.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

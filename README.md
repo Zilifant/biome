@@ -14,8 +14,8 @@ the evidence and reasoning attached.
 
 **[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
 eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
-nothing acts on" to identity and group intent that steer movement. P0–P5 have
-shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
+nothing acts on" to identity and group intent that steer movement. P0–P5 and P7
+have shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
 the code looks like now that those five have landed on it, and the landmines
 they turned up.
 

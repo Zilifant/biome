@@ -907,6 +907,30 @@ export const defaultSimulationConfig = Object.freeze({
     // to a record, and a record that dissolves and re-founds every few ticks makes
     // a heading that jumps between centres.
     dissolveGraceTicks: 300,
+    // ⚠⚠ **Reunion — the first thing in this world that makes a group record
+    // move an animal on its own account** (BEHAVIOR-PLAN P7). A member that has
+    // drifted out of contact with every one of its bandmates gets a drift toward
+    // the centre of its record, folded into the `wander` heading beside the
+    // migration and trail drifts. `false` is the reproducible control and is
+    // byte-identical: the fields stay at their `createEntity` defaults and the
+    // decision system's null check skips the blend entirely.
+    rallyEnabled: true,
+    // ⚠ **Bounded by something an animal could plausibly know.** Every other drift
+    // cue in the engine is bounded by a sense — `forageGradient` and
+    // `habitatGradient` sample within `cueRadius`, water is "the smell of water on
+    // the wind" — and a heading toward a band centre two hundred units away is
+    // knowledge no animal has. It is also A34 in a new suit: an animal walking
+    // across the map ignoring forage. Beyond this the band is genuinely lost and
+    // the animal is on its own. 30 against a `joinRadius` of 6 and the widest
+    // `cueRadius` in the roster (20).
+    rallyRange: 30,
+    // ⚠ **Well below `migration.dispersalWeight: 0.9`**, which "wins outright" —
+    // a rally must never out-argue an animal walking out of its natal group, and
+    // it is gated on `isDispersing` besides, so this is the second of two guards
+    // rather than the only one. Comparable to a forage drift (`biasWeight: 0.5`
+    // times a gradient that is usually well under 1) rather than to dispersal:
+    // reunion is a preference, not an errand.
+    rallyStrength: 0.35,
   }),
   // How a founding cohort is *arranged* on the ground, against `demo.founding`,
   // which says only how many of each there are. Two sections, two questions:

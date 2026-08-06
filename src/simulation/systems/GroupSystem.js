@@ -78,12 +78,23 @@
  * mutates a collection it is iterating — invariant 13's rule, applied to records
  * rather than to entities.
  *
- * Ownership: writes `entity.groupRecordId` and `world.groups`. Reads positions,
- * species, `guardianId`, `sex`, dispersal state, and the shared neighbourhood
- * buffer. ⚠ It never touches `groupId` or `groupHops` — those are
- * `SocialSystem`'s, and two systems must never write the same field.
+ * Ownership: writes `entity.groupRecordId`, `entity.rallyHeading` /
+ * `entity.rallyStrength`, `world.groups` and `world.groupCentres`. Reads
+ * positions, species, `guardianId`, `sex`, dispersal state, the shared
+ * neighbourhood buffer, and (since P7) the social summary's `bandmates` count.
+ * ⚠ It never touches `groupId` or `groupHops` — those are `SocialSystem`'s, and
+ * two systems must never write the same field.
  * Randomness: **none at all**, like migration and engineering, so this cannot
  * shift another system's stream even in principle.
+ *
+ * ✅ **`rallyHeading` / `rallyStrength` need no save-format guarantee, and the
+ * invariant that makes that true is worth stating because it is easy to break.**
+ * This system runs at priority −8 and `DecisionSystem` at 0, so within every tick
+ * the fields are written before anything reads them; a species that forms no groups
+ * never has them written at all and keeps `createEntity`'s null/zero for life. So a
+ * restored save's values are irrelevant — they are overwritten or ignored before
+ * they can matter. ⚠ **That breaks the moment anyone adds a reader at a priority
+ * below −8**, or moves this system later in the phase.
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
@@ -116,6 +127,9 @@ export class GroupSystem extends SimulationSystem {
    * @param {boolean} [options.inheritFromGuardian] whether young are born into their guardian's group
    * @param {boolean} [options.rejoinWhileDispersing] ⚠ `true` restores the A64 flapping — the measured control
    * @param {number} [options.dissolveGraceTicks] how long a record is held below `minMembers` before it dissolves (P5a, A56)
+   * @param {boolean} [options.rallyEnabled] whether a separated member drifts back toward its band (P7)
+   * @param {number} [options.rallyRange] beyond this the band is lost and no drift is written
+   * @param {number} [options.rallyStrength] how hard the drift bends a fresh wander
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -126,6 +140,9 @@ export class GroupSystem extends SimulationSystem {
     inheritFromGuardian = true,
     rejoinWhileDispersing = false,
     dissolveGraceTicks = 0,
+    rallyEnabled = false,
+    rallyRange = 30,
+    rallyStrength = 0.35,
     updateInterval = 1,
   } = {}) {
     // Priority -8 in `decision`: after `SocialSystem` (-10) has settled this
@@ -150,6 +167,16 @@ export class GroupSystem extends SimulationSystem {
     // that constructs one directly keeps meaning what it meant. `config.groups`
     // carries the number the demo actually runs on.
     this.dissolveGraceTicks = dissolveGraceTicks;
+    // ⚠ The rally's **switch** is world-level and its **numbers** are per-species
+    // fallbacks, exactly as `joinRadius` and `maxMembers` are: a switch inside a
+    // species block could not switch anything off (DOCS §8), while a range and a
+    // strength are biology a species may reasonably differ on. Default `false`
+    // here rather than `true` so that a system constructed with no options is the
+    // pre-P7 system — every test that builds one directly keeps meaning what it
+    // meant, and `config.groups` carries what the demo actually runs on.
+    this.rallyEnabled = rallyEnabled;
+    this.rallyRange = rallyRange;
+    this.rallyStrength = rallyStrength;
   }
 
   update(world, context) {
@@ -255,6 +282,111 @@ export class GroupSystem extends SimulationSystem {
 
       this.#joinOrFound(world, context, registry, entity, params);
     }
+
+    // ── 3. Reunion (P7). ⚠⚠ **A third pass, and the ordering is the whole of why
+    // it is one.** A group's centre has to be derived from the membership this
+    // tick actually settled on: derived before pass 1 it would include members who
+    // died, and derived before pass 2 it would miss the animals that just joined —
+    // in both cases pointing an animal at a record that no longer holds what it
+    // thinks. Records dissolved in pass 1 are simply absent from the map.
+    if (this.rallyEnabled) this.#rally(world, context, registry, forming);
+  }
+
+  /**
+   * Derive every record's centre of mass, then point separated members at their
+   * own (BEHAVIOR-PLAN P7 — reunion).
+   *
+   * ⚠⚠ **This is the group record's first consumer that moves an animal on its
+   * own account**, and it is the half P2's band affinity structurally cannot do:
+   * affinity re-weights neighbours, so it makes a band that is *together* stay
+   * together and does nothing whatsoever for one that has scattered — there is
+   * nobody left in range to weight. This is the other half.
+   *
+   * ⚠ **It writes a drift, never an action**, which is the `MigrationSystem`
+   * pattern and the reason it is affordable: a fresh `wander` commitment is the one
+   * heading in the whole engine that was going to be arbitrary, so bending it costs
+   * nothing that was doing any work (§1.4 A34). A `rally` action would have to
+   * compete with foraging, and four phases have now recorded what happens then.
+   *
+   * ✅ **It cannot fight P2's cohesion, and the reason is structural rather than
+   * tuned.** `herd` is an *action*, chosen when there is a centroid worth steering
+   * at; a rally only bends `wander`, which is what an animal does when nothing
+   * better won. And the gate below is "no bandmate is contributing to my centroid",
+   * so the rally fires exactly when the band is not part of what `herd` would aim
+   * at. The two are disjoint by construction.
+   */
+  #rally(world, context, registry, forming) {
+    const centres = world.groupCentres;
+    centres.clear();
+    // Bounded by `maxGroups`, and each record's member list by `maxMembers`, so
+    // this is a small fixed walk rather than anything proportional to the world.
+    for (const record of registry.all()) {
+      let sumX = 0;
+      let sumY = 0;
+      let counted = 0;
+      for (const memberId of record.memberIds) {
+        const member = world.entities.get(memberId);
+        if (!member || !member.alive) continue;
+        sumX += member.x;
+        sumY += member.y;
+        counted += 1;
+      }
+      if (counted > 0) centres.set(record.id, { x: sumX / counted, y: sumY / counted });
+    }
+
+    for (const entity of world.entities.all()) {
+      if (entity.kind !== 'animal' || !entity.alive) continue;
+      // ⚠ Non-forming species are skipped rather than cleared, and that is safe
+      // only because nothing ever writes these fields for them: they hold the
+      // `createEntity` defaults for life. Every animal that *can* be written is
+      // cleared first and then set, so a stale heading cannot outlive its tick —
+      // the `entity.flying` lesson, applied in advance.
+      if (!forming.has(entity.speciesId)) continue;
+      entity.rallyHeading = null;
+      entity.rallyStrength = 0;
+
+      if (entity.groupRecordId === null) continue;
+      const params = this.#resolve(groupsOf(world.species.get(entity.speciesId)));
+      // ⚠⚠ **A disperser is left alone.** Dispersal "wins outright" at strength 0.9
+      // and is the mechanism by which a young animal leaves home; a rally blended
+      // onto it would drag it back toward the band it is walking out of, which is
+      // A64 undone at the *movement* layer instead of the membership one.
+      //
+      // ⚠⚠ **`isDispersing`, deliberately, and NOT the `#dispersingOut` predicate
+      // the membership rules use** — the first cut used that one and it was dead
+      // code. `#dispersingOut` is dispersal *filtered by `leavingSex`*, and any
+      // animal it answers true for has already left its record in the pass above,
+      // so it never reaches this line at all. The animal that genuinely can be
+      // dragged home is the one dispersal keeps: a dispersing **female** under the
+      // default `leavingSex: 'male'` walks out of her natal range still holding her
+      // membership. The two predicates ask different questions and only the raw one
+      // is the question here.
+      if (isDispersing(entity, context.tick)) continue;
+      // ⚠ The gate, and it is deliberately read off the social summary rather than
+      // measured again here: "is anybody from my band contributing to the centre I
+      // am steering at?" A rally is for an animal whose answer is no. Two rules for
+      // one question is D11, and a raw distance test here would be exactly that.
+      // ⚠ No summary means no answer — sociality is staggered or absent — and the
+      // honest response to that is to write nothing.
+      const summary = world.social.get(entity.id);
+      if (!summary || summary.bandmates > 0) continue;
+
+      const centre = centres.get(entity.groupRecordId);
+      if (!centre) continue;
+      const dx = centre.x - entity.x;
+      const dy = centre.y - entity.y;
+      const distance = Math.hypot(dx, dy);
+      // ⚠ Beyond the range the band is genuinely lost; at zero distance there is no
+      // direction to give (`atan2(0, 0)` is a valid-looking heading due east, which
+      // is how a whole band ends up marching east — the same trap `blendHeadings`
+      // guards against internally).
+      if (distance > params.rallyRange || distance < 1e-9) continue;
+      // ⚠ The centre includes this animal's own position, which halves the pull it
+      // feels and is the right trade: a per-member centre would be O(members²) per
+      // record, and the two-member case converges either way.
+      entity.rallyHeading = Math.atan2(dy, dx);
+      entity.rallyStrength = params.rallyStrength;
+    }
   }
 
   /**
@@ -285,6 +417,8 @@ export class GroupSystem extends SimulationSystem {
       minMembers: groups?.minMembers ?? this.minMembers,
       leavingSex: groups?.leavingSex ?? this.leavingSex,
       inheritFromGuardian: groups?.inheritFromGuardian ?? this.inheritFromGuardian,
+      rallyRange: groups?.rallyRange ?? this.rallyRange,
+      rallyStrength: groups?.rallyStrength ?? this.rallyStrength,
     };
   }
 

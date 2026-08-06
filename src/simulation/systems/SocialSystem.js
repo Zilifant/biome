@@ -314,6 +314,17 @@ export class SocialSystem extends SimulationSystem {
       // associates this is *exactly* `groupmates`: summing `1.0` n times is the
       // integer n in IEEE-754, so the division below is the division it was.
       let conspecificWeight = 0;
+      // ⚠ **A headcount of the animal's own *band* inside the herd radius**
+      // (BEHAVIOR-PLAN P7). Not an exchange rate and not weighted by anything: it
+      // answers one yes/no question for `GroupSystem`'s rally drift — "is anybody
+      // from my record contributing to the centre I am steering at?" — and a rally
+      // fires exactly when the answer is no. Deriving that from this summary rather
+      // than from a second distance test is the D11 rule: one question, one rule.
+      //
+      // ⚠ It is counted whatever the species declares, unlike the band *affinity*
+      // beside it. A buffalo declares a record and no affinity, so a count that
+      // rode on the affinity would be zero for exactly the species P7 is for.
+      let bandmates = 0;
       // ⚠⚠ **The pull is a fourth number and it must not join the chain above**
       // (BEHAVIOR-PLAN P3). `worth` is composed of at most one exchange rate — the
       // heterospecific weight *or* the band affinity, never both — and every one of
@@ -341,6 +352,11 @@ export class SocialSystem extends SimulationSystem {
       // and the adults down, and a crèche would drift off the herd under its own
       // pull. See `social/calves.js`.
       const keepsStationOnYoung = weightingCalves && keepsStationOnCalves(entity);
+      // This animal's own record, hoisted for the same reason as the two lines
+      // above. Null for every animal of a species that forms no persistent groups
+      // — which is most of the world — and then the bandmate count below is one
+      // null comparison per animal rather than anything per neighbour.
+      const myBand = entity.groupRecordId;
       // Every animal can always found a herd on its own id, at zero hops from
       // itself. Seeding from the *id* rather than from the label it happens to
       // be carrying is what lets an orphaned half of a split herd escape the
@@ -449,6 +465,11 @@ export class SocialSystem extends SimulationSystem {
               // 0.999… — the numerator is then the same additions in the same order
               // as the denominator's conspecific half, and `a + 0` is `a`.
               if (pulls !== null) pullSum += worth;
+              // ⚠ Inside the `inHerd` gate on purpose: "contributing to my centre
+              // of mass" is what the rally asks about, so this has to be counted
+              // over exactly the animals that contributed. It reads *last tick's*
+              // membership, like the band affinity above and for the same reason.
+              if (myBand !== null && other.groupRecordId === myBand) bandmates += 1;
               sumX += other.x * worth;
               sumY += other.y * worth;
               // ✅ Alignment comes free: the mean *heading* is band-weighted by the
@@ -580,6 +601,10 @@ export class SocialSystem extends SimulationSystem {
         centroid: weight > 0 ? { x: sumX / weight, y: sumY / weight } : null,
         heading: weight > 0 ? Math.atan2(sumSin / weight, sumCos / weight) : null,
         nearestDistance: groupmates > 0 ? nearestMate : null,
+        // How many of this animal's own **band** are in the centre it steers at
+        // (P7). 0 for every animal that belongs to no record, which is most of
+        // them, and the one number `GroupSystem`'s rally drift gates on.
+        bandmates,
         // ⚠ **The one number here that is not spent inside the centroid.** The
         // decision system divides `behavior.herdDistance` by it, so a species that
         // holds loosely to another's herd tolerates proportionally more drift from

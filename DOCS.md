@@ -3083,6 +3083,7 @@ model different things:
 | **Group record** (`world.groups`) | identity that survives separation: who I belong to | a bounded, saved record with a membership list | `GroupSystem`  |
 | **Association** (`species.association` + `species.associationPull`) | who I am willing to stand with that is *not* my own kind, and how hard I hold to them | none at all — two weights in the species file | `SocialSystem` |
 | **Calf weight** (`config.social.calfWeight`) | that a body which cannot look after itself counts for more than one | none at all — one world-level number, shipped at its identity | `SocialSystem` |
+| **Rally drift** (`config.groups.rally*`) | going back to the band you have lost contact with | two transient entity fields + a derived centre map, neither persisted | `GroupSystem` |
 
 A gazelle in a wildebeest herd is in none of that herd's labels and none of its
 records, and is still standing in it. That is the whole reason the third row
@@ -3235,7 +3236,8 @@ alignment. The brief's "align with their persistent group" needed no separate wo
 mechanism's shape rather than a defect.** Affinity re-weights neighbours; an animal
 whose band has scattered beyond the herd radius has no bandmate to weight, so this
 makes a band that is together *stay* together and does nothing to bring a scattered
-one back. Reunion is P7's job. Measured 2500 ticks × 4 seeds, the share of banded
+one back. ✅ Reunion shipped at P7 (2026-08-05) — see **Reunion** under Persistent
+groups. Measured 2500 ticks × 4 seeds, the share of banded
 zebras standing within `groupRadius` of a bandmate: **52.7/62.6/88.2/70.8 with it
 on against 50.0/59.6/60.7/59.4 with it off — higher on every seed.** ⚠ The
 *aggregate* band spread is a much noisier number (2 of 3 seeds tighter, one looser)
@@ -3539,6 +3541,12 @@ or it is held forever) and it is **cleared on recovery** (a record that comes ba
 to strength and drops again gets a fresh full grace). ⚠ Records are still
 reclaimed — 18 destroyed in 5000 ticks against the cap of 192.
 
+✅ **`npm run ethologist` confirms it from the other direction**, which is the
+independent check worth having on a fix whose evidence is otherwise all in one test
+file: its pre-fix run flagged a `group-flapping` anomaly (a zebra changing
+membership 54 times in 3559 adult ticks, severity 3.6), and the post-fix run flags
+**none at all across six worlds**.
+
 **Cost: a save-format bump to v32.** Records serialize *whole* and have no
 `createEntity` equivalent to default a missing field, so a v31 record would restore
 with `belowMinSince: undefined`, and `tick - undefined` is `NaN` — never past any
@@ -3577,7 +3585,11 @@ populations at 3000/6000/9000 ticks on two seeds: `groupRecordId` is read by car
 possession, cooperative hunting, and P2's band affinity, and a herbivore that
 scavenges nothing, hunts nothing and declares no band affinity meets none of them.
 This is state P7's rally heading will consume — a roster nobody acts on, exactly as
-the zebra's was before P2.
+the zebra's was before P2. ✅ **P7 landed the same day and consumed it**: a buffalo
+that loses contact with its cow group now walks back to it, which is the first thing
+in this world that moves an animal because of a record rather than because of who is
+standing next to it. The measurement above therefore describes the world for the
+length of one phase.
 
 ⚠ **The cow–calf core is asserted in a sandbox, not in the demo, and that is a
 measurement rather than a preference**: the demo's buffalo breed too slowly to
@@ -3585,6 +3597,88 @@ guarantee a dependent calf at any given tick — **15 births in 9000 ticks** aga
 96 founders, with the population falling 93 → 18 over the same span (a pre-existing
 trajectory, unchanged by this: see BENCHMARK.md's P1 note, where buffalo went
 116 → 74 when the herd radius landed).
+
+#### ✅ Reunion — the record's first mover, 2026-08-05 (BEHAVIOR-PLAN P7)
+
+✅ **A separated member now walks back to its band, and this is the thing the
+registry has existed for since phase 3.** `GroupSystem` derives each record's centre
+of mass into a transient `world.groupCentres` map and writes
+`entity.rallyHeading` / `rallyStrength` for a member that has drifted out of contact
+with every one of its bandmates; `DecisionSystem` folds that into the fresh `wander`
+commitment beside the migration and trail drifts.
+
+⚠ **It is the half P2 structurally could not do.** Band affinity re-weights
+*neighbours*, so it makes a band that is together stay together and does nothing at
+all for one that has scattered — there is nobody left in range to weight. DOCS
+recorded that limit when P2 shipped; this closes it.
+
+**A drift, never an action** — the `MigrationSystem` pattern, and the reason it is
+affordable. A fresh `wander` heading is the one direction in the engine that was
+going to be arbitrary, so bending it costs nothing that was doing any work (A34). A
+`rally` action would have had to beat foraging, and four phases have recorded what
+happens then.
+
+✅ **It cannot fight P2's cohesion, by construction rather than by tuning.** `herd`
+is an *action*, chosen when there is a centroid worth steering at; a rally only
+bends `wander`, which is what an animal does when nothing better won. And the gate
+is "no bandmate is contributing to my centroid" — so a rally fires exactly when the
+band is not part of what `herd` would aim at. The two are disjoint.
+
+⚠⚠ **The gate is read off the social summary, not measured again.** `SocialSystem`
+publishes a `bandmates` count — how many of the animal's own record are inside its
+herd radius — and the rally fires on zero. A second distance test here would be two
+rules for one question (D11). ⚠ The count is taken whatever the species declares,
+unlike P2's band *affinity*: the buffalo declares a record and no affinity, and a
+count riding on the affinity would be zero for exactly the species this is for.
+
+⚠ **Bounded by `groups.rallyRange` (30).** Every other drift cue in the engine is
+bounded by a sense; a heading toward a centre two hundred units away is knowledge no
+animal has, and mechanically it is A34 in a new suit — an animal walking across the
+map ignoring forage. Beyond the range the band is genuinely lost.
+`rallyStrength` is 0.35, well below `migration.dispersalWeight: 0.9`.
+
+⚠⚠ **A disperser is left alone, and the first implementation of that gate was dead
+code.** Dispersal wins outright at 0.9 and is how a young animal leaves home; a
+rally blended onto it drags the animal back toward the band it is walking out of —
+A64 undone at the *movement* layer instead of the membership one. The gate must be
+raw `isDispersing`, **not** the sex-filtered `#dispersingOut` the membership rules
+use: any animal that predicate answers true for has already left its record, so it
+never reaches the rally at all. The animal that can actually be dragged home is the
+one dispersal *keeps* — a dispersing **female** under the default
+`leavingSex: 'male'`, who walks out still holding her membership. Caught by a
+mutation, not by review.
+
+**Measured.** Sandbox, a founded pair torn 20 units apart, 400 ticks × 5 seeds: with
+the drift the pair reunites on **5 of 5** (closest approach ≤ 0.1 units); without it,
+on 2 — the other three end 30+ units apart having never come within 11. In the demo
+over 6000 ticks × 4 seeds, the share of banded animals with a bandmate inside their
+herd radius rises **72.7 → 80.7, 78.3 → 81.1, 79.3 → 76.8, 76.6 → 85.3** — up on
+three seeds of four, mean 76.7 → 81.0. ⚠ The reversal is worth reading honestly: by
+tick 6000 the two arms hold different populations (438 against 522 on that seed), so
+the percentage is measured over different worlds. Four seeds is exploratory.
+
+⚠ About **5% of banded animals are rallying at any moment** — the mechanism fires
+without being permanently on, which is what a reunion drift should look like. No
+animal anywhere reached a non-finite position or heading.
+
+✅ **Not persisted, and the invariant that allows that is worth stating.**
+`GroupSystem` (−8) precedes `DecisionSystem` (0) every tick, and a species that forms
+no groups never has the fields written at all — so a restored save's values are
+overwritten or ignored before anything reads them. ⚠ That breaks the moment anyone
+adds a reader at a priority below −8. `world.groupCentres` is transient for the
+reason `GroupRegistry` gives for storing no centre: where a group *is* changes every
+tick and is a pure function of where its members are.
+
+Cost: **+0.9% of a demo tick** (5.56 against 5.51 ms/tick, five interleaved rounds,
+entity counts matched at 500/501) — one extra O(N) entity walk with an early-out,
+plus a records walk bounded by `maxGroups × maxMembers`.
+
+⚠ **`npm run ethologist` flags nothing new**, which is the check this phase most
+needed: an animal locked on one bearing is precisely what a badly-bounded rally
+produces, and "circling in need" and "unresolved intent" are anomalies it already
+knows how to report. Across six worlds it reports the standing items (A62's barren
+season, thirst deaths, a crypsis leopard that never perceives a mate) and no animal
+holding a heading it should not.
 
 #### ⚠⚠ Leaving is a window, not an instant — A64 _(found and fixed 2026-07-31)_
 
@@ -5516,7 +5610,11 @@ animal's biology (`groups.forms`, `migration.tracksForage`, `territory.defends`,
 `association` — beside which sits `associationPull`, a *second* field rather than a
 key inside the first, because the two are the same shape over the same species ids
 and mean different things), while the config section holds world-level machinery — for `groups`
-that is `enabled`, `updateInterval`, and the store bound `maxGroups`; for `forage`
+that is `enabled`, `updateInterval`, the store bound `maxGroups`, the A56 grace
+clock `dissolveGraceTicks` and the reunion switch `rallyEnabled` (⚠ its `rallyRange`
+and `rallyStrength` sit beside them as *per-species fallbacks*, in the same shape as
+`joinRadius` and `maxMembers` — a switch cannot live in a species block, a range
+reasonably can); for `forage`
 and `habitat` (2026-07-29) it is `enabled` plus the shared shape of the effect
 (`qualityFloor`, `biasWeight`, `cueReference`); for `association` (2026-07-30) it is
 `enabled`, `sharesAlarm`, and — from 2026-08-05 — `scalesPull`. They are not blocks precisely *because* of that

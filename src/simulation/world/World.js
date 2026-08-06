@@ -113,6 +113,19 @@ export class World {
     // persisted, since who belongs to whom is evolved state no seed reproduces.
     // Empty in every world today: no shipped species forms persistent groups.
     this.groups = new GroupRegistry({ maxGroups: config.groups?.maxGroups });
+    // Where each group *is*, keyed by record id — rebuilt every tick by
+    // `GroupSystem` after membership settles, and read by nothing but the rally
+    // drift it exists for (BEHAVIOR-PLAN P7).
+    //
+    // ⚠⚠ **Transient and never serialized, and that is a rule rather than an
+    // optimization.** `GroupRegistry`'s header is explicit that a record holds no
+    // centre: where a group is changes every tick and is a pure function of where
+    // its members are, so a stored one is a cache that can go stale against the
+    // positions it was derived from. This map is that derivation, kept for the
+    // length of a tick in the same way `social` and `perception` are. Bounded by
+    // `maxGroups`.
+    /** @type {Map<number, {x: number, y: number}>} */
+    this.groupCentres = new Map();
     // Bounded memory of entities that have left the world (Step 18). Written at
     // the engine's removal chokepoint; see world/lineage.js for why this exists
     // and what "forgotten" means. Insertion-ordered, so eviction is FIFO.

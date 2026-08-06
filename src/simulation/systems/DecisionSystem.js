@@ -1353,9 +1353,25 @@ export class DecisionSystem extends SimulationSystem {
           const drift = entity.migrationHeading;
           const withDrift =
             drift === null ? candidateHeading : blendHeadings(candidateHeading, drift, entity.migrationStrength);
+          // ⚠ **Three drifts now, and the order is an argument** (BEHAVIOR-PLAN P7).
+          // Reunion sits between them because it answers the same question the
+          // forage drift does — *where* to go — while the trail answers *how to get
+          // there*, and where you are going outranks how you get there. It is a
+          // third blend rather than a fourth channel: `herd` is an action and this
+          // only bends a wander, so a rally applies exactly when there was no local
+          // centroid worth steering at (see `GroupSystem#rally`).
+          //
+          // ⚠⚠ The null check is not defensive tidiness. `blendHeadings` calls
+          // `clamp01`, and `clamp01(undefined)` returns `undefined`, which makes the
+          // blend NaN, `normalizeAngle(NaN)` NaN, and `entity.x = NaN`
+          // **permanently** — the animal then vanishes from every spatial query for
+          // the rest of the run. Written exactly the way `trailHeading` is, and
+          // backed by the `createEntity` defaults.
+          const rally = entity.rallyHeading;
+          const withRally = rally === null ? withDrift : blendHeadings(withDrift, rally, entity.rallyStrength);
           const trail = entity.trailHeading;
           return {
-            heading: trail === null ? withDrift : blendHeadings(withDrift, trail, entity.trailStrength),
+            heading: trail === null ? withRally : blendHeadings(withRally, trail, entity.trailStrength),
             ttl: this.minCommitTicks + (roaming ? this.rangingCommitBonus : 0) + Math.floor(roll * this.commitTickSpan),
             moving: true,
             sprint: false,
