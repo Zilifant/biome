@@ -179,6 +179,36 @@ export const herbivoreBuffalo = Object.freeze({
     // herdmate and `mobbing.minMobbers` adults are standing nearby, so a grazing
     // herd nobody is hunting behaves exactly as a gazelle herd does.
     mobWeight: 2.4,
+    // ⚠⚠ **And since P9 it presses the attack home rather than only turning to face
+    // it.** Mobbing is entirely reactive: a lion that thinks better of the hunt is
+    // not driven off, it simply stops being mobbed, and the whole herd goes back to
+    // grazing on the same tick. `chargeWeight` buys two things — a defender
+    // **sprints** to the animal under attack instead of walking, which is the whole
+    // of what 600 kg is worth when every effect of defending is positional; and it
+    // keeps `defend` scoring for `pursuitTicks` after the predator has broken
+    // contact, steering at where it was last seen.
+    //
+    // ⚠⚠ **0.9 is pinned between two of this animal's own numbers rather than
+    // chosen for feel, and the lower one is a finding.** It must clear
+    // `fleeWeight × 0.75` = **0.75**, the urgency of a herdmate's alarm: that
+    // product competes with a pursuit *by construction* — an alarm-flee fires
+    // exactly when no threat is perceived — and every pursuit begins inside
+    // `social.alarmTicks` of the predator that caused it, so a weight below it is an
+    // off switch rather than a safety margin. It was 0.7 for an afternoon and the
+    // mechanism formed commitments it never once acted on.
+    //
+    // ⚠ And it sits under **`eat`** for a hungry animal (`eatBias` 0.2 + hunger), so
+    // a buffalo above ~70% hunger breaks off and grazes. That is the A34 discipline
+    // holding with no threshold anywhere: a pursuit is what a comfortable animal
+    // does. ⚠ What it costs is stated in `predation/charge.js` — a pursuing buffalo
+    // ignores a *second-hand* alarm for up to `pursuitTicks`, which is consistent
+    // with an animal whose `mobWeight` of 2.4 already means it does not run from a
+    // lion it can see. A **perceived** threat cancels the pursuit outright.
+    chargeWeight: 0.9,
+    // ⚠ Half the world's ceiling of 40. A bounded errand — far enough to put a lion
+    // outside `defendRange` and give up the ground it was hunting on, nowhere near
+    // far enough to walk a herd off its own range.
+    pursuitTicks: 20,
     // ⚠ And it is less flighty than a gazelle in the first place: an adult buffalo
     // is not what a predator's presence should scatter. Below the config's 2.0 so
     // that mobbing wins when it applies, and so a lone adult does not bolt from a

@@ -204,6 +204,14 @@ export function registerDemoSystems(engine) {
       mobbingEnabled: engine.config.mobbing.enabled,
       mobbingMinMobbers: engine.config.mobbing.minMobbers,
       mobbingRange: engine.config.mobbing.range,
+      // The charge and the pursuit after it (BEHAVIOR-PLAN P9), from
+      // `config.charge` — a third global section for the same reason as the two
+      // above. ⚠ Everything wired here is a **bound**: the stamina a defender keeps
+      // back and the longest a pursuit may run. The biology (`behavior.chargeWeight`
+      // / `pursuitTicks`) is per-species and is 0 for everything but the buffalo.
+      chargeEnabled: engine.config.charge.enabled,
+      chargeStaminaFraction: engine.config.charge.staminaFraction,
+      maxPursuitTicks: engine.config.charge.maxPursuitTicks,
       // Neonatal concealment (PLAN-SPECIES.md §3.14): the `tend` action asks
       // whether a mother is close enough to feed her hidden calf and whether she
       // has anything to give, and both answers belong to `ParentingSystem`. Wired

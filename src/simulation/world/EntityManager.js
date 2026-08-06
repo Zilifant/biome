@@ -304,6 +304,27 @@ function createEntity(id, definition) {
     // The animal this one has decided to stand over, owned by the decision
     // system exactly as `huntTargetId` is, and read by hunting.
     defendingId: definition.defendingId ?? null,
+    // The charge's commitment (BEHAVIOR-PLAN P9): how long this animal goes on
+    // defending after the ward is gone, and **where the threat was last seen**,
+    // since by the time the commitment matters the threat is out of perception and
+    // there is nothing left to steer at.
+    //
+    // ⚠⚠ **The commitment is read by the *utility*, not by the intent, and that is
+    // the whole reason it is state at all.** `#intentFor` is called fresh from the
+    // winning action every tick and only `wander` reads a prior intent's ttl, so a
+    // `defend` intent with a long ttl commits to nothing: the moment its urgency
+    // reaches zero another action wins and overwrites it. These three fields are
+    // what keep the urgency non-zero.
+    //
+    // ⚠ Persisted, for the reason the herd consensus is: a commitment exists to
+    // outlive the cue that made it, so a restore that dropped it would stop a herd
+    // mid-pursuit and diverge from an uninterrupted run. `SAVE_FORMAT_VERSION` 34.
+    //
+    // ⚠ Null for every species that declares no `behavior.chargeWeight` — which is
+    // seven of the eight — because nothing ever writes them.
+    defendUntil: definition.defendUntil ?? null,
+    defendThreatX: definition.defendThreatX ?? null,
+    defendThreatY: definition.defendThreatY ?? null,
     // Bounded life history (see systems/lifeEvents.js).
     lifeEvents: definition.lifeEvents ?? [],
     // Injuries (Step 17; see injury/injuries.js). `impairment` is the cached

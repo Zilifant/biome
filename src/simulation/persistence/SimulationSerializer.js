@@ -237,10 +237,21 @@
  *       consensus tick, which is a different world, not a missing field. v32 saves
  *       are invalidated on that account, on the config's, and on the system
  *       lineup's.
+ *  34 — the charge and the pursuit after it (BEHAVIOR-PLAN.md P9): three per-entity
+ *       fields (`defendUntil`, `defendThreatX`, `defendThreatY`), a new
+ *       `config.charge` section, and two new `config.behavior` weights.
+ *
+ *       ⚠ The same argument as v33's, in a second mechanism: this is a commitment,
+ *       so it exists precisely to outlive the cue that made it. A restore that
+ *       dropped it would stop a herd in the middle of driving a predator off and
+ *       diverge from an uninterrupted run. ⚠ No system descriptor changed — the
+ *       charge is not a system, it is two lines inside `DecisionSystem` — so unlike
+ *       v33 the *only* things invalidating a v33 save are the fields and the config,
+ *       which is exactly the case §12 says to bump for anyway.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 33;
+export const SAVE_FORMAT_VERSION = 34;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

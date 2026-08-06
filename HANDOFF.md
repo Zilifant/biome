@@ -1,12 +1,13 @@
-# Handoff — BEHAVIOR-PLAN P0–P5, P7 and P8 done, P6 skipped, start on P9
+# Handoff — BEHAVIOR-PLAN P0–P5 and P7–P9 done, P6 skipped, start on P10
 
-**Date:** 2026-08-06 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `09f88be update handoff` — P8 uncommitted at the time of writing
+**Date:** 2026-08-06 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `56925c9 P8` — P9 uncommitted at the time of writing
 
 Read [`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) first — it is the spec and it is still
-accurate. ⚠ P9 is the last phase that adds a **behaviour** rather than a report, and
-it is the most dangerous one in the plan: it is the only mechanism here that
-**suppresses `flee`**, on a species whose whole point is not running away. This file
-is only what a fresh session cannot get from the plan.
+accurate. ⚠ **P10 is the last phase and it is the one that touches the renderer**: an
+inspection bump, a metrics aggregate, `PROTOCOL_VERSION` 34 matched by the renderer's
+`SUPPORTED_PROTOCOL_VERSION`, and `npm run fixtures:renderer` — which has been
+deliberately deferred through five behavioural phases and must be run **last**. This
+file is only what a fresh session cannot get from the plan.
 
 ## Where things stand
 
@@ -20,9 +21,9 @@ is only what a fresh session cannot get from the plan.
 | **P5** A56 hysteresis, registry capacity, buffalo cow–calf core | ✅ committed `5fa62e7` — **A56 closed**, save format v32 |
 | **P6** bachelor bulls | ⛔ **skipped by decision** (2026-08-05) |
 | **P7** band rally drift | ✅ committed `65d3474` |
-| **P8** herd consensus + leadership | ✅ this session — **save format v33**, and the herd *label* finally has a behavioural consumer |
-| P9 coordinated charge | ⬜ **next** |
-| P10 observability | ⬜ untouched |
+| **P8** herd consensus + leadership | ✅ committed `56925c9` — **save format v33**, and the herd *label* finally has a behavioural consumer |
+| **P9** coordinated charge and pursuit | ✅ this session — **save format v34** |
+| P10 observability and closing the loop | ⬜ **next** |
 
 ## What P8 shipped
 
@@ -43,7 +44,98 @@ New files: [`src/simulation/social/consensus.js`](src/simulation/social/consensu
 [`src/simulation/systems/HerdConsensusSystem.js`](src/simulation/systems/HerdConsensusSystem.js),
 [`test/consensus.test.js`](test/consensus.test.js) (31 tests).
 
-## ⚠⚠ Read this before P9: the five things P8 learned
+## What P9 shipped
+
+**A charge and a pursuit, and neither is a new action.** A defender of a species that
+declares `behavior.chargeWeight` **sprints** to the animal under attack instead of
+walking, and its `defend` keeps scoring for `behavior.pursuitTicks` after the ward is
+gone, steering at the place the threat was last seen. Three new **persisted** entity
+fields (`defendUntil`, `defendThreatX`, `defendThreatY`), a new `config.charge`
+section, `SAVE_FORMAT_VERSION` **34**. ⚠ **No new system** — this is two blocks
+inside `DecisionSystem` plus a resolver module.
+
+Shipped **on** for the **buffalo only**: `chargeWeight: 0.9`, `pursuitTicks: 20`.
+
+New file: [`src/simulation/predation/charge.js`](src/simulation/predation/charge.js);
+14 new tests in [`test/cooperation.test.js`](test/cooperation.test.js).
+
+## ⚠⚠ Read this before P10: the four things P9 learned
+
+### 1. ⚠⚠ A ttl on an intent commits to nothing, and the plan was right about it
+
+`#intentFor` is called fresh from the winning action **every tick**, and only the
+`wander` branch reads a prior intent's ttl as a continuation. So a `defend` intent
+with `ttl: 20` is overwritten on the very next tick, the moment `defendUrgency`
+reaches 0. **A commitment has to live in the utility** — state that keeps the *score*
+non-zero. That is now true of both P8's consensus and P9's pursuit, and it is the
+first thing to check if a later phase wants an animal to keep doing something after
+its reason has gone.
+
+### 2. ⚠⚠ The pursuit competes with `alarmFlee` by construction, and shipped inert
+
+`alarmFlee` is `fleeWeight × 0.75` and fires **exactly when no threat is perceived** —
+which is exactly the situation a pursuit exists for. Worse, every pursuit begins
+moments after a predator was standing in the herd, so the whole herd is inside
+`social.alarmTicks` when it starts. The buffalo shipped at `chargeWeight: 0.7`
+against an alarm of 0.75 for an afternoon: the mechanism formed commitments and
+**never once acted on one**, and the demo could not have told me — the sandbox test
+did. It is 0.9 now.
+
+> ⚠ **Before setting any new weight, list what it will actually be compared against
+> *in the situation the mechanism fires in*, not in general.** A weight sized against
+> `fleeWeight` was sized against the wrong number.
+
+### 3. ⚠⚠ A guard tested on the wrong species is not tested — the fifth instance
+
+The rule that stops a pursuit suppressing `flee` is "any perceived threat cancels it
+outright". On a species with the config's `fleeWeight: 2.0`, flee beats any sane
+`chargeWeight` on the weights alone, so **the guard can be deleted with every test
+still green**. `test/cooperation.test.js`'s `CHARGER` therefore carries the buffalo's
+own `fleeWeight: 1.0`, where a predator 5.5 cells away scores 0.54 against the
+pursuit's 0.9 — the weights say keep chasing and only the guard says otherwise.
+
+Same shape as `MIXER` (P2), `HOLDER` (P3), `worth *= calfWeight` (P4), P7's
+unreachable dispersal gate, and P8's double charge. **Six phases, six times.**
+
+### 4. ⚠ The batch-2 mobbing tripwire fired for the fourth time
+
+`test/cooperation.test.js`'s `soloMobbed` cell — solo lion attempts that are *also*
+mobbed, the rarest of its 2×2 — fell from n=7 to **n=2** against a threshold of 3.
+Not a regression: re-measured cumulatively across eight seeds the mobbed capture
+chance runs 0.204–0.224 against an unmobbed 0.363–0.371 **at every cumulative total**.
+The seed list is now `[42, 2, 3, 5, 1, 7]`, taking the cell to **n=10** — its first
+real margin, at the cost of two more 6000-tick demo runs. ⚠ That block's comment
+records the whole history; read it before touching a buffalo again.
+
+## What P9 measured
+
+**The mechanism, directly** (14 assertions): the charge and its walking control, the
+self-ward refusal, the stamina reserve, the commitment outliving the ward and
+expiring on schedule, the remembered position being refreshed while the threat is
+visible and steered at once it is not, clearing on giving up, the world ceiling on
+`pursuitTicks`, `pursuitTicks: 0` as its own arm, flee winning against a second
+threat, and a save round-trip that then runs on identically.
+
+⚠⚠ **It is inert in the demo for thousands of ticks, and that is the roster rather
+than the mechanism.** With `charge.enabled: false` the world is byte-identical to the
+shipped one until tick **3700** on seed 42 and **2300** on seed 1 — because a buffalo
+chooses `defend` about **25 ticks in 4000** to begin with, against ~1800 ticks in
+which it has any predator in view at all. Mobbing was already the rarest thing in
+this world (A33); P9 changes what happens on those ticks, not how often they come.
+⚠ **So do not look for a population signal here**, and do not tune toward one.
+
+⚠ `npm run ethologist` reports **no new anomaly kind** across six worlds — the check
+this phase most needed, since "a buffalo sprinting until it dies" is what a
+badly-bounded charge looks like and that tool already knows how to report an animal
+that covers ground and gets nowhere. Cost: **nothing measurable** (5.110 against
+5.120 ms/tick, eight interleaved rounds, four paired differences up and three down),
+which is the cost of *asking* — over the timed window the two arms are byte-identical.
+
+⚠⚠ **The machine drifted ~15% between P8's cost measurement and P9's**, same day,
+no code in between (5.83–6.07 against 4.96–5.39). Both tables in `BENCHMARK.md` are
+interleaved pairs for exactly that reason; do not read across them.
+
+## ⚠ Carried forward: the five things P8 learned
 
 ### 1. The off-arm proof needs *both* switches, and it is exact
 
@@ -134,8 +226,9 @@ alone. P4's three attempts at a spatial consequence all came back inside seed no
 assertion in the suite stopped at 1500 ticks and the churn arrives with the first
 wave of deaths (212 membership events at tick 1000, **3502** at 5000). `BENCHMARK.md`
 records the same defect from the other side — P1's cost understated 5× by a 400-tick
-window. **Before believing any demo measurement in P9–P10, ask what tick the thing
-you are measuring actually starts at.** `test/groups.slow.test.js` exists because of
+window. **Before believing any demo measurement in P10, ask what tick the thing you are
+measuring actually starts at.** ⚠ P9 is the third instance: its off arm is
+byte-identical for 2300–3700 ticks and then is not. `test/groups.slow.test.js` exists because of
 this and runs at a 5000-tick horizon.
 
 ## What P8 measured
@@ -189,9 +282,13 @@ BEHAVIOR-PLAN makes into that file are now **50–70 lines low**. The one P9 fol
 
 | BEHAVIOR-PLAN says | actually at | what it is |
 | --- | --- | --- |
-| `DecisionSystem.js:1111-1116` | **~1359** | the `wander` ttl continuation P9's note is about |
-| `DecisionSystem.js:1122-1139` | **~1157** | `#intentFor`'s `herd` case |
-| `DecisionSystem.js:626-631` | **~648** | the `herd` utility |
+| `SimulationEngine.js:563-585` | **563** | the inspection block P10 extends — ✅ still exact |
+| `metrics.js:260` | **260** | the `groups` aggregate — ✅ still exact |
+| `RendererStore.js:20` | **20** | `SUPPORTED_PROTOCOL_VERSION` — ✅ still exact |
+| `test/protocol-v33.test.js:32` | **32** | the shape `test/protocol-v34.test.js` copies |
+
+⚠ Only its references into `DecisionSystem.js` ever drifted, and P10 does not follow
+any of them.
 
 ✅ Its references into **other** files are still exact — `dominance.js:61` (the
 `maturity` term, now joined by `leadershipOf` directly below it), `metrics.js:260`,
@@ -239,13 +336,13 @@ touch this channel at all (it is a utility and an intent, not a drift).
 
 ## Test workflow
 
-Full suite after P8: **1301 tests, 1296 pass, 0 fail, 5 cancelled** (~13 min). The
+Full suite after P9: **1315 tests, 1310 pass, 0 fail, 5 cancelled** (~14 min). The
 cancelled ones are `presets.test.js`'s HTTP tests, which the command sandbox blocks
 from binding a port — pre-existing, unrelated, ignore them.
 
 ```bash
 npm run test:fast   # ~5 min — use this in the edit loop
-npm test            # ~13 min, everything — before committing
+npm test            # ~14 min, everything — before committing
 ```
 
 `test:fast` skips demo/persistence/determinism suites and the `*.slow.test.js` files.
@@ -291,6 +388,15 @@ ecological ones.
   determinism through the **age-death** path, and the **no-timer** tripwire.
 - **Nine determinism guards are byte-for-byte the same test** in nine files. First
   place to cut if the suite needs it.
+- ⚠ **P9 is the mechanism most likely to be judged by the wrong number.** It fires
+  ~25 ticks in 4000 in the demo, so any population or survival reading of it is noise
+  by construction. What it changes is the *shape* of the rare tick, and the shape is
+  what the 14 sandbox assertions pin. Anyone re-tuning `chargeWeight` should re-read
+  the `alarmFlee` collision first — that is the number it is actually competing with.
+- `src/simulation/predation/` now holds `charge.js` beside `mobbing.js`,
+  `cooperation.js` and `possession.js`. ⚠ P9 added no *system*: a charge is a sprint
+  flag on an intent and a commitment read by the utility, both inside
+  `DecisionSystem`, so a system would have been a fourth writer of `defendingId`.
 - `src/simulation/social/` now holds five modules beside `dominance.js`:
   `association.js` (P3's pulls), `herding.js` (P1), `banding.js` (P2), `calves.js`
   (P4), `consensus.js` (P8). ⚠ P7 deliberately added none — it is a system pass and

@@ -85,6 +85,7 @@ import { canClimb, isAloft } from '../locomotion/climbing.js';
 import { flyingFor } from '../locomotion/flight.js';
 import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
+import { DEFAULT_CHARGE, chargeWeightOf, pursuitTicksOf } from '../predation/charge.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
 import { forageOf, forageQualityAt, NEUTRAL_QUALITY } from '../habitat/forage.js';
 import { normalizeStepRules, stepLength, stepRefused } from '../locomotion/steps.js';
@@ -264,6 +265,15 @@ export class DecisionSystem extends SimulationSystem {
     mobbingEnabled = DEFAULT_MOBBING.enabled,
     mobbingMinMobbers = DEFAULT_MOBBING.minMobbers,
     mobbingRange = DEFAULT_MOBBING.range,
+    // The charge and the pursuit after it (BEHAVIOR-PLAN P9). ⚠ A third global
+    // section for the third time and the same reason, and the two numbers here are
+    // **bounds rather than preferences**: a species that declares
+    // `behavior.chargeWeight` is declaring an action that outranks fleeing, so how
+    // much stamina it must keep back and how long it may pursue are not things a
+    // species file gets to raise. See `predation/charge.js`.
+    chargeEnabled = DEFAULT_CHARGE.enabled,
+    chargeStaminaFraction = DEFAULT_CHARGE.staminaFraction,
+    maxPursuitTicks = DEFAULT_CHARGE.maxPursuitTicks,
     shelterWeight = 0.9,
     shelterStressThreshold = 2,
     shelterStressSpan = 10,
@@ -386,6 +396,12 @@ export class DecisionSystem extends SimulationSystem {
       enabled: mobbingEnabled,
       minMobbers: mobbingMinMobbers,
       range: mobbingRange,
+    });
+    this.charge = Object.freeze({
+      ...DEFAULT_CHARGE,
+      enabled: chargeEnabled,
+      staminaFraction: chargeStaminaFraction,
+      maxPursuitTicks,
     });
     this.shelterWeight = shelterWeight;
     this.shelterStressThreshold = shelterStressThreshold;
@@ -667,7 +683,35 @@ export class DecisionSystem extends SimulationSystem {
       const kinWard = this.#wardToDefend(world, entity, perceived, behavior);
       const mobWard = kinWard ? null : mobWardFor(world, entity, threat, behavior, this.mobbing, social);
       const ward = kinWard ?? mobWard;
-      const defendUrgency = kinWard ? behavior.defendWeight : mobWard ? behavior.mobWeight : 0;
+      // ⚠⚠ **The pursuit (BEHAVIOR-PLAN P9), and it belongs in the *utility***. A
+      // ttl on the `defend` intent would do nothing at all: `#intentFor` is called
+      // fresh from the winning action every tick, so the moment `defendUrgency`
+      // reaches 0 another action wins and overwrites the intent. What outlives the
+      // ward is a commitment the **scoring** reads — which is what makes a herd
+      // drive a predator off rather than stopping the tick it breaks contact.
+      //
+      // ⚠⚠ **`threat === null` is the guard that makes "flee still wins" structural
+      // rather than a comparison between two weights.** `defendWeight` and
+      // `mobWeight` both outrank `fleeWeight`, so a commitment that merely held
+      // `defend` open would hold it open against a *second* predator too. A pursuit
+      // is by definition about something you can no longer see: the instant a threat
+      // is perceived again the commitment is out of the running and the ordinary
+      // machinery decides on the current geometry. See `predation/charge.js`.
+      const chargeWeight = this.charge.enabled ? chargeWeightOf(species) : 0;
+      const pursuing =
+        ward === null &&
+        threat === null &&
+        chargeWeight > 0 &&
+        entity.defendUntil !== null &&
+        context.tick < entity.defendUntil &&
+        entity.defendThreatX !== null;
+      const defendUrgency = kinWard
+        ? behavior.defendWeight
+        : mobWard
+          ? behavior.mobWeight
+          : pursuing
+            ? chargeWeight
+            : 0;
 
       // Territory (Step 24). Two pulls, both read from state the territory
       // system already wrote — one O(1) grid lookup and four numbers on the
@@ -854,7 +898,11 @@ export class DecisionSystem extends SimulationSystem {
       else if (action === 'tend') followed = hiddenCalf;
       else if (action === 'followParent') followed = guardian;
       else if (action === 'chase' || action === 'stalk') followed = prey;
-      else if (action === 'defend') followed = threat;
+      // ⚠ The threat while it can be seen, and **the place it was last seen** while
+      // a pursuit is running (P9) — which is the whole reason the position is
+      // remembered rather than only the ttl: by the time the commitment matters the
+      // threat object is gone, and `#intentFor` needs somewhere to point.
+      else if (action === 'defend') followed = threat ?? { x: entity.defendThreatX, y: entity.defendThreatY };
       // ⚠ `herdDistance` rides along with the drift for the same reason the drift
       // does: `#intentFor`'s cohesion term is the *second* reader of that number,
       // and an animal that decided to close up at one distance and then steered by
@@ -895,10 +943,47 @@ export class DecisionSystem extends SimulationSystem {
       // What to run away from: the predator if it can see one, otherwise the
       // place a neighbour's alarm said one was.
       const fleeFrom = threat ?? (alarmed ? entity.alarmSource : null);
-      entity.moveIntent = this.#intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom, behavior);
       // The animal this one is standing over, so the hunting system can read the
       // defense and an observer can see it. Owned here, like `huntTargetId`.
-      entity.defendingId = action === 'defend' ? ward.id : null;
+      //
+      // ⚠ **Written before `#intentFor` since P9, and the ordering is load-bearing.**
+      // That method decides whether a defender charges or walks, and the one case it
+      // must refuse is an animal standing over *itself* — the hunted animal facing
+      // its attacker (phase 11). This field is how it asks, so it has to hold this
+      // tick's answer by the time the question is put. ⚠ Null during a pursuit: the
+      // animal is following a predator, not standing over anybody, and `mobbersFor`
+      // counts exactly the animals standing over a prey right now.
+      entity.defendingId = action === 'defend' ? (ward?.id ?? null) : null;
+      entity.moveIntent = this.#intentFor(world, action, entity, target, roll, candidateHeading, fleeFrom, behavior);
+      // ⚠⚠ **The commitment, written from the action rather than from the score**
+      // (P9). Three states and every animal of a declaring species passes through
+      // exactly one of them each tick, so a stale commitment cannot outlive its tick
+      // — the `entity.flying` lesson, applied to state that is *supposed* to outlive
+      // its cue and therefore needs its clearing path stated all the harder.
+      //
+      // ⚠ A species that declares no `chargeWeight` is never written at all and
+      // keeps `createEntity`'s nulls for life, which is what makes the off arm
+      // byte-identical rather than merely equivalent.
+      if (chargeWeight > 0) {
+        if (action === 'defend' && threat !== null) {
+          // Defending something it can see: the clock restarts from *this* sighting
+          // and the remembered position is refreshed, so a pursuit always begins
+          // from where the threat actually was last.
+          entity.defendUntil = context.tick + pursuitTicksOf(species, this.charge.maxPursuitTicks);
+          entity.defendThreatX = threat.x;
+          entity.defendThreatY = threat.y;
+        } else if (action !== 'defend') {
+          // It chose something else — grazing, running, going back to the herd. The
+          // commitment is dropped rather than left to expire, because an animal that
+          // gave up the chase is not still on it.
+          entity.defendUntil = null;
+          entity.defendThreatX = null;
+          entity.defendThreatY = null;
+        }
+        // The third state is the pursuit itself (`defend` with nothing in sight),
+        // which leaves the commitment exactly as it is so that it expires on the
+        // schedule the last sighting set.
+      }
     }
   }
 
@@ -1144,10 +1229,29 @@ export class DecisionSystem extends SimulationSystem {
         return { heading, ttl: 1, moving: true, sprint: true, breakThicket };
       }
       case 'defend': {
-        // Toward the threat, but at a walk: this is interposing, not charging,
-        // and an adult that arrives out of breath defends nothing.
+        // Toward the threat — at a walk for an interposing parent, because this is
+        // interposing and an adult that arrives out of breath defends nothing.
+        //
+        // ⚠⚠ **A species that declares `behavior.chargeWeight` sprints instead**
+        // (BEHAVIOR-PLAN P9), and the reason is that every mechanical effect of
+        // defending is *positional*: `shielding` and the `defenderInjuryBonus` both
+        // count who is standing there when the attempt resolves, so arriving sooner
+        // is the whole of what a heavy animal's mass is worth. See
+        // `predation/charge.js`.
+        //
+        // ⚠ **Two refusals, and neither is tidiness.** An animal standing over
+        // *itself* — the hunted one facing its attacker since phase 11 — must not
+        // charge: it would close the distance its predator has to cover and spend
+        // the stamina `captureChance` is about to read, an own goal on both terms.
+        // And an animal below its stamina reserve walks, so a charge can never leave
+        // it with nothing for the flee a second predator would ask of it.
         const heading = Math.atan2(target.y - entity.y, target.x - entity.x);
-        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: false };
+        const charging =
+          this.charge.enabled &&
+          (behavior.chargeWeight ?? 0) > 0 &&
+          entity.defendingId !== entity.id &&
+          entity.stamina >= entity.maxStamina * this.charge.staminaFraction;
+        return { heading: normalizeAngle(heading), ttl: 1, moving: true, sprint: charging };
       }
       case 'chase': {
         // Committed pursuit: sprint at the prey's current position.

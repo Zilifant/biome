@@ -79,9 +79,9 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| Tests                 | **1310 passing / 0 failing, 321 suites** _(2026-08-06, after BEHAVIOR-PLAN P9: +14 in `test/cooperation.test.js` — the charge and its walking control, the self-ward refusal, the stamina reserve, a commitment outliving its ward and expiring on schedule, the world's ceiling on `pursuitTicks`, flee winning against a second threat, and a save round-trip that then runs on identically)_. ⚠ The run is `npm test`, TAP: 1315 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. ⚠ P9 also **widened `test/cooperation.test.js`'s batch-2 seed list from four to six**, which costs two more 6000-tick demo runs and takes its thinnest cell from a 3-against-3 coin flip to n=10. Was **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
 | `PROTOCOL_VERSION`    | **33** — `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
-| `SAVE_FORMAT_VERSION` | **33** _(2026-08-06)_ — the herd movement consensus (BEHAVIOR-PLAN P8): four per-entity fields (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the `HerdConsensusSystem` descriptor, the new `config.consensus` section, and `config.groups.leadWeight`. ⚠ This is the first per-entity *drift* here that genuinely must be saved, and the contrast with P7's deliberately-transient `rallyHeading` is the reason: a commitment exists precisely to outlive its cue, so a restore that dropped it would put a marching herd back on its individual noses. v32 was A56's `belowMinSince` (P5a), where a v31 record would have restored as `undefined` and never dissolved. v31 was `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
+| `SAVE_FORMAT_VERSION` | **34** _(2026-08-06)_ — the charge and the pursuit after it (BEHAVIOR-PLAN P9): three per-entity fields (`defendUntil`, `defendThreatX`, `defendThreatY`), a new `config.charge` section, and two new `config.behavior` weights. ⚠ **No system descriptor changed** — a charge is two lines inside `DecisionSystem`, not a system — so unlike v33 the only things invalidating a v33 save are the fields and the config, which is exactly the case §12 says to bump for. v33 was the herd movement consensus (BEHAVIOR-PLAN P8): four per-entity fields (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the `HerdConsensusSystem` descriptor, the new `config.consensus` section, and `config.groups.leadWeight`. ⚠ This is the first per-entity *drift* here that genuinely must be saved, and the contrast with P7's deliberately-transient `rallyHeading` is the reason: a commitment exists precisely to outlive its cue, so a restore that dropped it would put a marching herd back on its individual noses. v32 was A56's `belowMinSince` (P5a), where a v31 record would have restored as `undefined` and never dissolved. v31 was `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
@@ -2273,6 +2273,18 @@ products that already exist (§9 Hunting). ⚠ The one rule worth carrying: **be
 adding an action, check whether the action you want is already described by one of
 these and merely unimplemented on one branch.**
 
+✅ **P9 (2026-08-06) added none either, and it is the sharper case**, because what
+it wanted genuinely was a *commitment* — a herd that goes on driving a predator off
+after it has broken contact. The obvious build is a ttl on the `defend` intent, and
+it does **nothing at all**: `#intentFor` is called fresh from the winning action
+every tick and only the `wander` branch reads a prior intent's ttl as a
+continuation, so a `defend` intent with `ttl: 20` is overwritten on the very next
+tick, the moment `defendUrgency` reaches 0. ⚠ **A commitment has to live in the
+utility, not in the intent** — three fields on the entity that keep the *score*
+non-zero — and that is worth carrying to any future phase that wants an animal to
+keep doing something after its reason has gone. See **The charge, and the pursuit**
+below.
+
 ⚠ **Two actions were added on 2026-07-29, and the rule above is what decided
 their shape.** `hide` and `tend` (§9 Parenting) exist because the hidden-fawn
 stage cannot be expressed as a bias on something else: an animal lying still is
@@ -2710,6 +2722,105 @@ mobbing counts adults within six units of the animal under attack, so a pride th
 forages four units apart and a herd thin enough to graze alone produce **zero** of
 either. Tightening `herdDistance` for both species is what turned a shared record
 into a shared hunt. See A33 and A59 for what remains open.
+
+#### ✅ The charge, and the pursuit after it — 2026-08-06 (BEHAVIOR-PLAN P9)
+
+**Mobbing is entirely reactive, and that is what P9 is about.** It exists only while
+a perceived predator is *committed to a groupmate*, so a lion that thinks better of
+the hunt is not driven off — it simply stops being mobbed, and every buffalo in the
+mob goes back to grazing on the same tick. Two halves are added, and they are two
+halves of one behaviour:
+
+- **The charge.** A defender of a declaring species **sprints** instead of walking.
+  `defend`'s own comment has read "at a walk: this is interposing, not charging"
+  since Step 23, and for an interposing parent that is right; for a 600 kg animal
+  going to a herdmate's aid it is not, because every mechanical effect of defending
+  is **positional** — `shielding` and the `defenderInjuryBonus` both count who is
+  standing there *when the attempt resolves*.
+- **The pursuit.** `defend` keeps scoring for a bounded spell after the ward is
+  gone, steering at the position the threat was last seen.
+
+⚠⚠ **A ttl on the intent would have done nothing, and this is the transferable
+part.** `#intentFor` is called fresh from the winning action every tick, and only
+the `wander` branch reads a prior intent's ttl as a continuation — so a `defend`
+intent with `ttl: 20` is overwritten on the very next tick, the moment
+`defendUrgency` reaches 0. **A commitment has to live in the utility**: three
+persisted fields (`defendUntil`, `defendThreatX`, `defendThreatY`) that keep the
+*score* non-zero. The position is remembered and not only the clock because by the
+time the commitment matters the threat is out of perception and there is nothing
+left to point at.
+
+##### The three guards
+
+⚠⚠ **Any perceived threat cancels the pursuit outright**, and that is what makes
+"flee still wins against a second predator" structural rather than a comparison
+between two weights. `defendWeight` (2.6) and `mobWeight` (2.4) both outrank
+`fleeWeight` (2.0), so a commitment that merely held `defend` open would hold it
+open against a *second* hunter too — the animal would follow the lion it drove off
+while another took it from behind. A pursuit is by definition about something you
+can no longer see; the instant you can see a predator again, the ordinary machinery
+decides on the current geometry.
+
+⚠ **An animal does not charge its own attacker.** Since phase 11 a mobbing
+species' *target* turns and faces rather than running (a fleeing target separates
+from its herd, and no attempt in 12 000 tick-seeds was ever resolved against a mob).
+Turning that stand into a sprint would close the distance the predator has to cover
+**and** spend the stamina `captureChance` is about to read — an own goal on both
+terms.
+
+⚠ **The sprint is gated on a stamina reserve** (`config.charge.staminaFraction`,
+0.4), so a charge can never leave a defender with nothing for the flee a second
+predator would ask of it. And the duration is bounded by
+`config.charge.maxPursuitTicks` (40) rather than by the species, because a bound a
+species file can raise is not a bound.
+
+##### ⚠⚠ The weight had to clear the alarm, and it shipped inert for an afternoon
+
+`behavior.chargeWeight` must exceed the species' own **`fleeWeight × 0.75`**, which
+is `alarmFlee` — what an animal does when it has been *told* about a predator it
+cannot see. The two are direct competitors **by construction**: an alarm-flee fires
+exactly when no threat is perceived, which is exactly the situation a pursuit exists
+for, and every pursuit begins moments after a predator was standing in the herd, so
+the whole herd is inside `social.alarmTicks` when it starts. The buffalo shipped at
+0.7 against an alarm of 0.75 and the mechanism **formed commitments it never once
+acted on** — the sandbox test caught it, not the demo. It is **0.9** now.
+
+⚠ What that costs, recorded rather than hidden: a pursuing animal ignores a
+*second-hand* alarm for up to `pursuitTicks`. That is bounded, and it is consistent
+with what the species already is — `mobWeight` 2.4 against `fleeWeight` 1.0 means a
+buffalo does not run from a lion it can **see**. ⚠ The weight also sits *below*
+`eat` for a hungry animal (`eatBias` 0.2 + hunger), so a pursuit is what a
+comfortable buffalo does and a hungry one gives up: the A34 discipline holding, with
+no threshold anywhere.
+
+##### Measured, 2026-08-06
+
+⚠ **Inert in the demo for thousands of ticks, and that is the roster rather than the
+mechanism.** With the switch off the world is byte-identical to the shipped one
+until tick **3700** on seed 42 and **2300** on seed 1 — because a buffalo defends
+about **25 ticks in 4000** to begin with (measured over 4000 ticks × 2 seeds, against
+~1800 ticks in which a buffalo has *any* predator in view). Mobbing was already the
+rarest thing in this world (A33); P9 changes what happens on those ticks, not how
+often they come.
+
+⚠ **`npm run ethologist` reports no new anomaly kind across six worlds** — the
+standing items only. That was the check this phase most needed: "a buffalo sprinting
+until it dies" is exactly what a badly-bounded charge produces, and that tool already
+knows how to report an animal that covers ground and gets nowhere. Cost: **nothing
+measurable** (5.110 against 5.120 ms/tick over eight interleaved rounds, four paired
+differences up and three down) — see `BENCHMARK.md`, and note that with the switch
+off the two worlds are byte-identical over the window being timed, so what that
+measures is the cost of *asking*.
+
+⚠⚠ **It moved the mobbing sample, which is the fourth firing of a tripwire this
+codebase has documented three times.** `test/cooperation.test.js`'s `soloMobbed`
+cell — solo lion attempts that are *also* mobbed, the rarest of four — fell from
+n=7 to **n=2** against a threshold of 3 on the old four seeds. Not a regression: the
+odds are what settle it, and re-measured cumulatively across eight seeds the mobbed
+capture chance runs **0.204–0.224 against an unmobbed 0.363–0.371 at every
+cumulative total**, with cooperation's claim holding at all eight. The seed list is
+now six, taking the cell to **n=10 against a threshold of 3** — its first real
+margin.
 
 ### Feeding
 
@@ -4986,7 +5097,7 @@ evict, because there the oldest entry is genuinely the least useful and
 ## 12. Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently **33**) with the tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently **34**) with the tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, the tombstone registry, the persistent-group
@@ -5524,6 +5635,7 @@ populations for stochastic runs.
 | —   | Forage-guild sandbox         | a short-grass grazer settles on the flush and walks off the rank sward; a tolerant one stays | the same two cells rank oppositely for the two species; a starving animal eats either; the demo gazelle feeds on visibly shorter grass than a preference-off control |
 | —   | Habitat sandbox              | a cover-liking animal drifts toward cover; a satisfied one still does | the drift exists where no need-cue would produce one; the demo **buffalo** spends more of its life on the open ground it prefers than a preference-off control. ⚠ This asserted the *gazelle's* cover share until phase 11, when a second grazer reversed it — competitive displacement, not a broken cue (§6 of the handoff) |
 | —   | Cooperative-action sandbox   | a pack hunter joins a clanmate's chase; a mobbing species turns on a predator that has committed to a herdmate | the odds move in both directions inside a 2×2 (company raises the capture chance, a mob lowers it) — ⚠ **controlled**, because a co-attacked animal is usually a mobbed one and the uncontrolled comparison reads backwards; both switches off leave a lion-free, buffalo-free world byte-identical |
+| —   | Charge-and-pursuit sandbox   | a mobbing species sprints to the animal under attack and keeps after the predator once it breaks contact | it charges at `chargeWeight > 0` and walks at 0; it does **not** charge its own attacker, nor below its stamina reserve; the commitment outlives the ward and expires on schedule; ⚠ **flee still wins against a second threat**, arranged on a species whose `fleeWeight` is low enough that only the guard decides |
 
 **Scenario 11 is the pattern to copy** whenever a step adds a _second_ force
 acting on something already being measured: run the same seeded world with the
@@ -5744,7 +5856,7 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `vegetation`, `events`, `metabolism`, `perception`, `reproduction`, `territory`,
 `engineering`, `disturbance`, `migration`, `disease`, `social`, `concealment`,
 `breeding`,
-`association`, `groups`, `consensus`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
+`association`, `groups`, `consensus`, `charge`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
 `cooperation`, `mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`,
 `parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`,
 `decision`, `predation`, `climbing`, `flight`, `demo`.

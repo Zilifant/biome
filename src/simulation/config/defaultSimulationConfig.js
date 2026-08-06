@@ -1318,6 +1318,40 @@ export const defaultSimulationConfig = Object.freeze({
     minMobbers: 2,
     range: 6, // how close the animal under attack must be to be worth going to
   }),
+  // ⚠⚠ **The charge, and the pursuit after it** (BEHAVIOR-PLAN P9) — mobbing seen a
+  // step later. See `predation/charge.js` for the argument; the short version is
+  // that mobbing is entirely reactive, so a lion that thinks better of a hunt is not
+  // driven off, it simply stops being mobbed, and every buffalo goes back to grazing
+  // on the same tick. Two halves: a defender **sprints** rather than walks, and its
+  // `defend` keeps scoring for a bounded spell after the ward is gone, steering at
+  // the place the threat was last seen.
+  //
+  // ⚠ **Everything here is a bound rather than a preference, and that is why it is
+  // world-level.** A species that declares `behavior.chargeWeight` is declaring an
+  // action that outranks fleeing, so how much stamina it must keep back and how long
+  // it may pursue are not numbers a species file gets to raise (DOCS §8: a species
+  // block beats the config).
+  charge: Object.freeze({
+    // The reproducible control, in the pattern every mechanism since migration
+    // ships: false ⇒ no defender ever sprints and no commitment is ever formed, so
+    // the world is byte-identical to the pre-P9 one. ⚠ It is byte-identical the
+    // other way too, since `behavior.chargeWeight` is 0 for every species but the
+    // buffalo and the whole mechanism short-circuits on it.
+    enabled: true,
+    // ⚠ The fraction of its maximum stamina a defender keeps back rather than
+    // spending on a charge — below it, it still defends, at a walk, exactly as every
+    // defender did before this phase. **The animal that pays for a sprint is the one
+    // sprinting**: `captureChance` reads the *prey's* stamina (`staminaEdge`), so an
+    // animal that spends its budget charging is measurably easier to catch
+    // afterwards and has nothing left for the flee a second predator would ask of
+    // it. At 0.4 against `locomotion.sprintStaminaCost: 2.5` a full buffalo charges
+    // for ~26 ticks before it drops to the reserve.
+    staminaFraction: 0.4,
+    // ⚠⚠ **The hard ceiling on a pursuit.** `defend` outranks `flee` for the species
+    // that declare it, so the duration of a commitment is a safety parameter, and a
+    // bound a species could raise is not a bound. 40 ticks is a bounded errand.
+    maxPursuitTicks: 40,
+  }),
   // Prey eligibility (see predation/predation.js). Which *individuals* a
   // predator will commit to, as opposed to which species it hunts —
   // `preySpeciesIds` has never had a size or age gate on it, so a predator
@@ -1753,6 +1787,25 @@ export const defaultSimulationConfig = Object.freeze({
     // point — mobbing competes with fleeing, never with foraging. The buffalo
     // arrives in phase 11 and is what it will be tuned against.
     mobWeight: 0,
+    // ⚠⚠ **How hard this species presses an attack home** (BEHAVIOR-PLAN P9, and see
+    // `predation/charge.js`). **0 for every species but the buffalo, and 0 means the
+    // mechanism never runs**: no defender sprints, no commitment is formed, and no
+    // field is ever written. The `mobWeight` shape for the third time.
+    //
+    // ⚠ It is both the switch and the utility a **pursuit** scores — one fact, "how
+    // hard I press this", rather than two numbers that would let a species charge
+    // hard and follow feebly. ⚠⚠ It has to clear its own **`fleeWeight × 0.75`**,
+    // which is `alarmFlee` — and that is a measured finding, not a preference. The
+    // two compete by construction: an alarm-flee fires exactly when no threat is
+    // perceived, which is exactly what a pursuit is for, and every pursuit starts
+    // inside `social.alarmTicks` of the predator that caused it. Below that product
+    // the mechanism forms commitments and never acts on one. See
+    // `predation/charge.js` for what it costs.
+    chargeWeight: 0,
+    // How long a pursuit lasts, clamped by `config.charge.maxPursuitTicks`. ⚠ **0 is
+    // legal and is its own arm**: charge in, do not follow — the difference between
+    // a herd that repels a predator and one that drives it off.
+    pursuitTicks: 0,
     // ⚠⚠ **How hard this species holds to the heading its whole herd label agreed
     // on** (BEHAVIOR-PLAN P8, and see `social/consensus.js`). **0 for six of the
     // eight species, and 0 means the mechanism never runs**: the species is not in

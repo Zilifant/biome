@@ -782,6 +782,34 @@ simulation changed by 24%, and the interleaved table above is what P8 actually c
 This is the drift this file exists to warn about, recorded so the next person does not
 read it as a regression. Re-baseline before believing any of it.
 
+### The charge and the pursuit (2026-08-06, BEHAVIOR-PLAN.md P9)
+
+**No measurable cost**, and for once that is the expected answer rather than a
+disappointing one. Eight interleaved measured rounds of 450 ticks on seed 42,
+`charge.enabled: false` against the shipped defaults:
+
+| arm | ms/tick |
+| --- | --- |
+| pre-P9 (switch off) | 5.28 · 5.03 · 5.25 · 4.96 · 4.98 · 5.03 · 5.28 · 5.15 — **mean 5.120** |
+| **P9 (shipped)** | 5.39 · 5.06 · 5.05 · 5.01 · 5.11 · 5.03 · 5.08 · 5.16 — **mean 5.110** |
+
+The paired differences are +0.11, +0.03, −0.20, +0.05, +0.13, 0.00, −0.20, +0.01 —
+four up, three down, mean **−0.01 ms**. There is nothing here to attribute.
+
+⚠ **Entity counts are identical (496/496), and that is not luck**: the mechanism does
+not change a single animal's behaviour on this window. With the switch off the world
+is byte-identical to the shipped one until tick **3700** on seed 42 (2300 on seed 1),
+because a buffalo chooses `defend` about **25 ticks in 4000** to begin with. This
+measures the *cost of asking*, which is the honest thing to measure for a mechanism
+this rare: one `chargeWeightOf` property read per animal per tick behind a world-level
+switch, three comparisons for the animals that pass it, and a sprint flag on an intent
+that was being allocated anyway.
+
+⚠ **Do not compare these absolutes with the P8 table above** (5.83–6.07 the same
+day): the machine drifted ~15% between the two sessions with no code change in
+between, which is the whole reason both tables are interleaved pairs rather than
+single readings.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

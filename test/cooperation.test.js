@@ -44,6 +44,8 @@ import {
   huntsTogether,
 } from '../src/simulation/predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor, mobbersFor } from '../src/simulation/predation/mobbing.js';
+import { DEFAULT_CHARGE, chargeWeightOf, pursuitTicksOf } from '../src/simulation/predation/charge.js';
+import { restoreSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
@@ -84,7 +86,11 @@ const LONE_HUNTER = Object.freeze({
   id: 'test.lone',
   kind: 'animal',
   diet: 'carnivore',
-  preySpeciesIds: Object.freeze([HERD_ANIMAL.id, MOBBER.id]),
+  // ⚠ A literal for the last one: `CHARGER` is declared below this, and the
+  // predator/prey relation is read in *both* directions — a species is only a threat
+  // to an animal this list names, so a charging species missing from it would
+  // perceive no predator and the whole P9 block would test nothing.
+  preySpeciesIds: Object.freeze([HERD_ANIMAL.id, MOBBER.id, 'test.charger']),
   bodyMass: 60,
   baseSpeed: 1.4,
   maxEnergy: 120,
@@ -107,7 +113,31 @@ const PACK_HUNTER = Object.freeze({
   hunting: Object.freeze({ cooperationWeight: 0.4, maxAttackers: 3 }),
 });
 
-const SPECIES = [HERD_ANIMAL, MOBBER, LONE_HUNTER, PACK_HUNTER];
+/**
+ * A mobber that presses the attack home (BEHAVIOR-PLAN P9): it sprints to the animal
+ * under attack rather than walking, and goes on defending for a bounded spell after
+ * the hunter has broken contact.
+ *
+ * ⚠⚠ **It is the buffalo's arrangement, number for number, and every part of that is
+ * load-bearing.** `fleeWeight: 1.0` (a heavy animal that does not bolt) is what makes
+ * two of the assertions below capable of failing at all:
+ *
+ *   - At the config's 2.0, `alarmFlee` is 1.5 and no `chargeWeight` a sane species
+ *     would declare could ever run a pursuit — the block would test a mechanism that
+ *     never fires. (That is not hypothetical: the shipped weight was 0.7 against a
+ *     0.75 alarm for an afternoon, and it was silently inert.)
+ *   - At the config's 2.0, `flee` also beats any pursuit on the weights alone, so the
+ *     guard that stops a pursuit suppressing `flee` could be **deleted with every
+ *     test still green**. At 1.0 a predator 5.5 cells away scores 0.54 against the
+ *     pursuit's 0.9 — the weights say keep chasing, and only the guard says otherwise.
+ */
+const CHARGER = Object.freeze({
+  ...HERD_ANIMAL,
+  id: 'test.charger',
+  behavior: Object.freeze({ mobWeight: 2.4, fleeWeight: 1.0, chargeWeight: 0.9, pursuitTicks: 20 }),
+});
+
+const SPECIES = [HERD_ANIMAL, MOBBER, CHARGER, LONE_HUNTER, PACK_HUNTER];
 
 function genome() {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [1, 1]]));
@@ -166,7 +196,7 @@ function spawn(engine, speciesId, { energyFraction = 0.5, ...overrides } = {}) {
 }
 
 /** Perception + sociality + decision, wired exactly as the demo fixture wires them. */
-function decisionSystems(engine) {
+function decisionSystems(engine, decision = {}) {
   engine.registerSystem(new PerceptionSystem({ ...engine.config.perception }));
   engine.registerSystem(new SocialSystem(engine.config.social));
   engine.registerSystem(
@@ -181,6 +211,13 @@ function decisionSystems(engine) {
       mobbingEnabled: engine.config.mobbing.enabled,
       mobbingMinMobbers: engine.config.mobbing.minMobbers,
       mobbingRange: engine.config.mobbing.range,
+      // ⚠ The charge's three bounds (P9), wired from `config.charge` exactly as the
+      // demo fixture wires them — without this a test that switches the mechanism
+      // off in its config would find the system still running on the defaults.
+      chargeEnabled: engine.config.charge.enabled,
+      chargeStaminaFraction: engine.config.charge.staminaFraction,
+      maxPursuitTicks: engine.config.charge.maxPursuitTicks,
+      ...decision,
     }),
   );
   return engine;
@@ -461,6 +498,302 @@ describe('mobbing: who stands, and when', () => {
   });
 });
 
+/**
+ * The charge, and the pursuit after it (BEHAVIOR-PLAN P9).
+ *
+ * Mobbing is entirely **reactive**: it exists only while a perceived predator is
+ * committed to a groupmate, so a lion that thinks better of the hunt is not driven
+ * off — it simply stops being mobbed, and every defender goes back to grazing on the
+ * same tick. Two halves are added here and they are two halves of one behaviour: a
+ * defender **sprints** rather than walks, and its `defend` keeps scoring for a
+ * bounded spell after the ward is gone, steering at where the threat was last seen.
+ *
+ * ⚠⚠ **The commitment lives in the *utility*, and a ttl on the intent is the trap
+ * the plan names.** `#intentFor` is called fresh from the winning action every tick,
+ * so a `defend` intent with `ttl: 20` commits to nothing at all: the moment
+ * `defendUrgency` reaches 0 another action wins and overwrites it. What persists is
+ * `defendUntil` plus the remembered position, read by the scoring.
+ *
+ * ⚠⚠ **Mutation-tested 2026-08-06, and all six were caught.** Every one of these
+ * deliberate breakages fails this block: deleting the `threat === null` guard (1
+ * fail), deleting the self-ward refusal in the sprint (1), deleting the stamina
+ * reserve (1), dropping the world's clamp on `pursuitTicks` (2), not clearing the
+ * commitment when the animal chooses something else (3), and not refreshing the
+ * remembered position while the threat is still visible (1).
+ *
+ * ⚠ **The `threat === null` guard is the one that had to be *arranged* to be
+ * testable**, and it is the sixth phase running with that shape (`MIXER`, `HOLDER`,
+ * `worth *= calfWeight`, P7's dispersal gate, P8's double charge). On a species with
+ * the config's `fleeWeight: 2.0` it is unreachable: flee wins on the weights alone,
+ * so deleting the guard changes no answer anywhere. `CHARGER` carries the buffalo's
+ * own 1.0 so that the guard is the only thing deciding.
+ */
+describe('the charge, and the pursuit after it (P9)', () => {
+  /**
+   * A hunter committed to one animal of a herd, with a charger beside it. Returns
+   * the pieces plus `breakOff`, which is what a predator giving up looks like from
+   * the defender's side: the quarry dropped **and** the animal out of perception.
+   */
+  function underCharge({ speciesId = CHARGER.id, company = 2, config = {}, ...overrides } = {}) {
+    const engine = decisionSystems(sandbox({ config }));
+    const ward = spawn(engine, speciesId, { x: 30, y: 30 });
+    const mobber = spawn(engine, speciesId, { x: 31, y: 30, ...overrides });
+    for (let i = 0; i < company; i += 1) spawn(engine, speciesId, { x: 31 + i * 0.5, y: 31 });
+    const hunter = spawn(engine, LONE_HUNTER.id, { x: 32, y: 30, energyFraction: 0.2 });
+    hunter.action = 'chase';
+    hunter.huntTargetId = ward.id;
+    const breakOff = () => {
+      hunter.huntTargetId = null;
+      hunter.action = 'wander';
+      engine.world.moveEntity(hunter, 60, 60);
+    };
+    return { engine, ward, mobber, hunter, breakOff };
+  }
+
+  test('a weight is a positive number, and anything else is no declaration at all', () => {
+    assert.equal(chargeWeightOf(CHARGER), 0.9);
+    assert.equal(chargeWeightOf(MOBBER), 0, 'mobbing without charging is a species that says nothing here');
+    assert.equal(chargeWeightOf(undefined), 0);
+    assert.equal(chargeWeightOf({ behavior: { chargeWeight: -1 } }), 0);
+    assert.equal(chargeWeightOf({ behavior: { chargeWeight: Infinity } }), 0);
+    assert.equal(chargeWeightOf({ behavior: { chargeWeight: 'hard' } }), 0);
+  });
+
+  test('⚠ a pursuit is bounded by the world, not by the species', () => {
+    // The bound has to be world-level or it is not a bound: `defend` outranks
+    // `flee` for the species that declare it, so the duration is a safety
+    // parameter rather than a preference.
+    assert.equal(pursuitTicksOf(CHARGER, DEFAULT_CHARGE.maxPursuitTicks), 20);
+    assert.equal(pursuitTicksOf({ behavior: { pursuitTicks: 9999 } }, 40), 40, 'a species cannot raise the ceiling');
+    assert.equal(pursuitTicksOf(CHARGER, 5), 5);
+    assert.equal(pursuitTicksOf(MOBBER, 40), 0, 'saying nothing is charge-but-do-not-follow');
+    assert.equal(pursuitTicksOf({ behavior: { pursuitTicks: -3 } }, 40), 0);
+    assert.equal(pursuitTicksOf(undefined, 40), 0);
+  });
+
+  test('a defender charges, and the same animal without the weight walks', () => {
+    const charged = underCharge();
+    charged.engine.step(1);
+    assert.equal(charged.mobber.action, 'defend');
+    assert.equal(charged.mobber.moveIntent.sprint, true, 'it sprints to the animal under attack');
+
+    const walked = underCharge({ speciesId: MOBBER.id });
+    walked.engine.step(1);
+    assert.equal(walked.mobber.action, 'defend', 'the control still defends');
+    assert.equal(walked.mobber.moveIntent.sprint, false, '...at the walk it always did');
+  });
+
+  test('⚠⚠ the animal being hunted stands its ground rather than charging its own attacker', () => {
+    // Since phase 11 a mobbing species' *target* turns and faces, because a fleeing
+    // target separates from its herd. Turning that stand into a sprint would close
+    // the distance the predator has to cover **and** spend the stamina
+    // `captureChance` is about to read (`staminaEdge`) — an own goal on both terms.
+    const { engine, ward, mobber, hunter } = underCharge();
+    hunter.huntTargetId = mobber.id;
+    engine.step(1);
+    assert.equal(mobber.action, 'defend', 'it stands');
+    assert.equal(mobber.defendingId, mobber.id, 'over itself');
+    assert.equal(mobber.moveIntent.sprint, false, '⚠ and does not charge');
+    assert.equal(ward.action, 'defend', 'while the herdmate coming to its aid...');
+    assert.equal(ward.moveIntent.sprint, true, '...does charge');
+  });
+
+  test('⚠ a defender below its stamina reserve defends at a walk', () => {
+    // The reserve is what it has left for the flee a second predator would ask of
+    // it, and a charge must never be able to spend it all.
+    const { engine, mobber } = underCharge({ stamina: 10 });
+    engine.step(1);
+    assert.equal(mobber.action, 'defend', 'it still defends');
+    assert.equal(mobber.moveIntent.sprint, false, 'it simply cannot charge');
+
+    const rested = underCharge({ stamina: 100 * DEFAULT_CHARGE.staminaFraction });
+    rested.engine.step(1);
+    assert.equal(rested.mobber.moveIntent.sprint, true, 'and exactly at the reserve it can');
+  });
+
+  test('the world switch turns it off whatever the species declares', () => {
+    const { engine, mobber } = underCharge({ config: { charge: { ...DEFAULT_CHARGE, enabled: false } } });
+    engine.step(1);
+    assert.equal(mobber.action, 'defend');
+    assert.equal(mobber.moveIntent.sprint, false);
+    assert.equal(mobber.defendUntil, null, 'and no commitment is formed');
+  });
+
+  test('⚠⚠ the commitment outlives the ward, and expires on its own schedule', () => {
+    const { engine, mobber, breakOff } = underCharge();
+    engine.step(1);
+    assert.equal(mobber.action, 'defend');
+    assert.equal(mobber.defendUntil, engine.tick + 20, 'the clock is set from the sighting');
+    assert.equal(mobber.defendThreatX, 32, 'and so is the place');
+    assert.equal(mobber.defendThreatY, 30);
+
+    breakOff();
+    // Nineteen more ticks of pursuing something it can no longer see.
+    let pursued = 0;
+    for (let i = 0; i < 19; i += 1) {
+      engine.step(1);
+      if (mobber.action === 'defend') pursued += 1;
+    }
+    assert.equal(pursued, 19, `it kept after the predator (${pursued} of 19 ticks)`);
+    assert.equal(mobber.defendingId, null, '⚠ standing over nobody — it is following, not shielding');
+
+    engine.step(1);
+    assert.notEqual(mobber.action, 'defend', 'and then the commitment runs out');
+    assert.equal(mobber.defendUntil, null, 'and is cleared rather than left to dangle');
+    assert.equal(mobber.defendThreatX, null);
+  });
+
+  test('⚠ it steers at the place the threat was last seen', () => {
+    // The reason a *position* is remembered and not only a clock: by the time the
+    // commitment matters the threat object is gone and there is nothing to point at.
+    const { engine, mobber, hunter, breakOff } = underCharge();
+    engine.step(1);
+    engine.world.moveEntity(hunter, 31, 34); // still visible: the memory must follow it
+    engine.step(1);
+    assert.ok(Math.abs(mobber.defendThreatX - 31) < 1e-9, 'refreshed while it can be seen');
+    assert.ok(Math.abs(mobber.defendThreatY - 34) < 1e-9);
+
+    breakOff();
+    engine.step(1);
+    assert.equal(mobber.action, 'defend');
+    const expected = Math.atan2(34 - mobber.y, 31 - mobber.x);
+    assert.ok(
+      Math.abs(mobber.moveIntent.heading - expected) < 1e-9,
+      `${mobber.moveIntent.heading} against ${expected} — at the last sighting, not at (32,30)`,
+    );
+  });
+
+  test('⚠ giving up on the chase clears the commitment rather than leaving it to expire', () => {
+    const { engine, mobber, breakOff } = underCharge();
+    engine.step(1);
+    assert.notEqual(mobber.defendUntil, null);
+    breakOff();
+    // Starve it: `eat` outscores a 0.7 pursuit long before the clock runs out, which
+    // is the A34 discipline holding — a pursuit is something a comfortable animal
+    // does and a hungry one gives up.
+    mobber.energy = 0;
+    engine.step(1);
+    assert.notEqual(mobber.action, 'defend', 'hunger won');
+    assert.equal(mobber.defendUntil, null, 'and the animal is not still on a chase it abandoned');
+    assert.equal(mobber.defendThreatX, null);
+    assert.equal(mobber.defendThreatY, null);
+  });
+
+  test('⚠⚠ flee still wins against a second threat, and the guard is the only reason', () => {
+    // ⚠⚠ **The arrangement is the test, and `CHARGER`'s `fleeWeight: 1.0` is the
+    // load-bearing part of it.** On a species with the config's 2.0 this proves
+    // nothing: flee beats any sane pursuit on the weights alone, so the guard could
+    // be deleted with every assertion still green. At the buffalo's own 1.0 a
+    // predator 5.5 cells away scores 0.54 against the pursuit's 0.9 — the *weights*
+    // say keep chasing, and only "a perceived threat cancels the pursuit outright"
+    // says otherwise.
+    // ⚠ Fed to the brim on purpose: at the harness's default half-energy `eat`
+    // scores 0.7 and wins on its own, which would make this block pass while saying
+    // nothing about fleeing at all.
+    const { engine, mobber, breakOff } = underCharge({ energyFraction: 1 });
+    engine.step(1);
+    assert.equal(mobber.action, 'defend');
+    breakOff();
+    engine.step(1);
+    assert.equal(mobber.action, 'defend', 'the pursuit is running');
+
+    // A second predator, uncommitted (so no fresh mob forms), and far enough that
+    // its flee urgency is *below* the pursuit's weight.
+    const second = spawn(engine, LONE_HUNTER.id, { x: mobber.x + 5.5, y: mobber.y, energyFraction: 0.9 });
+    second.huntTargetId = null;
+    engine.step(1);
+    const urgency = 1.0 * (0.5 + 0.5 * (1 - 5.5 / 6));
+    assert.ok(urgency < 0.9, `the weights favour the pursuit (${urgency.toFixed(3)} against 0.9)`);
+    assert.equal(mobber.action, 'flee', 'and it runs anyway');
+    assert.equal(mobber.defendUntil, null, 'the commitment is dropped, not merely outscored');
+  });
+
+  test('⚠ pursuitTicks 0 is its own arm — charge in, do not follow', () => {
+    // ⚠ Arranged through the **world ceiling** rather than a fourth species: the two
+    // are the same statement (`pursuitTicksOf` takes the smaller), and this is the
+    // arm that also proves the ceiling is the thing being read.
+    const engine = decisionSystems(sandbox(), { maxPursuitTicks: 0 });
+    const ward = spawn(engine, CHARGER.id, { x: 30, y: 30 });
+    const mobber = spawn(engine, CHARGER.id, { x: 31, y: 30 });
+    for (let i = 0; i < 2; i += 1) spawn(engine, CHARGER.id, { x: 31 + i * 0.5, y: 31 });
+    const hunter = spawn(engine, LONE_HUNTER.id, { x: 32, y: 30, energyFraction: 0.2 });
+    hunter.huntTargetId = ward.id;
+    engine.step(1);
+    assert.equal(mobber.action, 'defend');
+    assert.equal(mobber.moveIntent.sprint, true, 'it still charges');
+    assert.equal(mobber.defendUntil, engine.tick, 'and its commitment is already over');
+    hunter.huntTargetId = null;
+    engine.world.moveEntity(hunter, 60, 60);
+    engine.step(1);
+    assert.notEqual(mobber.action, 'defend', 'so nothing follows');
+  });
+
+  test('a species that declares nothing is never written at all', () => {
+    const { engine, mobber } = underCharge({ speciesId: MOBBER.id });
+    engine.step(3);
+    assert.equal(mobber.action, 'defend', 'it mobs exactly as it did');
+    assert.equal(mobber.defendUntil, null);
+    assert.equal(mobber.defendThreatX, null);
+    assert.equal(mobber.defendThreatY, null);
+  });
+
+  test('the shipped roster declares it where the brief asked and nowhere else', () => {
+    const engine = createDemoSimulation({ seed: 42 });
+    const charging = engine.species.all().filter((s) => chargeWeightOf(s) > 0).map((s) => s.id);
+    assert.deepEqual(charging, ['herbivore.buffalo'], 'the animal mobbing was built for, and only it');
+    const buffalo = engine.species.get('herbivore.buffalo');
+    // ⚠⚠ **Above its own `alarmFlee`, and that is a finding rather than a taste.**
+    // The two compete by construction — an alarm-flee fires exactly when no threat
+    // is perceived, which is exactly what a pursuit is for — and every pursuit begins
+    // inside `social.alarmTicks` of the predator that caused it. Below this product
+    // the mechanism forms commitments and never once acts on one, which is what the
+    // shipped 0.7 did for an afternoon.
+    assert.ok(
+      chargeWeightOf(buffalo) > buffalo.behavior.fleeWeight * 0.75,
+      'a pursuit can outlast the alarm that necessarily accompanies it',
+    );
+    // ⚠ And under `eat` for a hungry animal, so a pursuit is what a comfortable
+    // buffalo does and a hungry one gives up — the A34 discipline, with no threshold.
+    assert.ok(chargeWeightOf(buffalo) < CONFIG.decision.eatBias + buffalo.behavior.hungerWeight);
+  });
+
+  test('a commitment survives a save, and the run continues identically (persistence)', () => {
+    const build = () => decisionSystems(sandbox({ seed: 4 }));
+    const engine = build();
+    const ward = spawn(engine, CHARGER.id, { x: 30, y: 30 });
+    const mobber = spawn(engine, CHARGER.id, { x: 31, y: 30 });
+    for (let i = 0; i < 2; i += 1) spawn(engine, CHARGER.id, { x: 31 + i * 0.5, y: 31 });
+    const hunter = spawn(engine, LONE_HUNTER.id, { x: 32, y: 30, energyFraction: 0.2 });
+    hunter.huntTargetId = ward.id;
+    engine.step(1);
+    assert.notEqual(mobber.defendUntil, null);
+    const saved = JSON.parse(JSON.stringify(captureSimulationState(engine)));
+
+    const restored = build();
+    const registry = restored.species;
+    restoreSimulationState(restored, saved);
+    restored.species = registry;
+    restored.world.species = registry;
+    const same = restored.world.entities.get(mobber.id);
+    for (const field of ['defendUntil', 'defendThreatX', 'defendThreatY']) {
+      assert.equal(same[field], mobber[field], `${field} round-trips`);
+    }
+    // ⚠ Entities serialize whole, so a missing field fails *silently* — which is why
+    // this steps both worlds on rather than only checking the load did not throw.
+    engine.world.moveEntity(hunter, 60, 60);
+    restored.world.moveEntity(restored.world.entities.get(hunter.id), 60, 60);
+    hunter.huntTargetId = null;
+    restored.world.entities.get(hunter.id).huntTargetId = null;
+    engine.step(10);
+    restored.step(10);
+    assert.equal(
+      JSON.stringify(captureSimulationState(restored).entities),
+      JSON.stringify(captureSimulationState(engine).entities),
+      'and the restored run continues identically',
+    );
+  });
+});
+
 describe('mobbing: what it costs the hunter', () => {
   function standoff() {
     const engine = sandbox();
@@ -719,7 +1052,24 @@ describe('batch 2: the two mechanisms in the demo world', () => {
   // better-sampled cell and not a seed picked for its answer. It costs the suite
   // two more demo runs; the alternative is a 3-attempt sample deciding whether
   // mobbing works.
-  const SEEDS = [42, 2, 3, 5];
+  // ⚠⚠ **Widened a third time on 2026-08-06, and the tripwire fired exactly as
+  // predicted above — for the fourth time.** BEHAVIOR-PLAN P9 gave the buffalo a
+  // charge and a pursuit, which moves the demo's trajectory, and `[42, 2, 3, 5]`
+  // fell to **n=2** on a threshold of 3. Same story every time: not a regression,
+  // and the *odds* are what settle it. Re-measured cumulatively across 42, 2, 3, 5,
+  // 1, 7, 11, 13 — the method this block already uses — `soloMobbed` runs
+  // **0.204–0.224 against a `soloClean` of 0.363–0.371 at every cumulative total it
+  // has a sample at**, and the cooperation claim holds at all eight.
+  //
+  // ⚠ **The two extra seeds are chosen for sample size, and this time with room to
+  // spare.** `[42, 2, 3, 5, 1]` would clear the bar at n=5; `[42, 2, 3, 5, 1, 7]`
+  // takes it to **n=10 against a threshold of 3**, which is the first time this cell
+  // has had a margin rather than a coin flip. It costs the suite two more demo runs,
+  // and the alternative is re-tuning this list on every phase that touches a
+  // buffalo. ⚠ Note what the thin cell actually is: a **solo** lion attempt that is
+  // *also* mobbed is the rarest of the four, and nothing about mobbing being rare in
+  // the demo has changed — see DOCS §1.2 A33.
+  const SEEDS = [42, 2, 3, 5, 1, 7];
   const TICKS = 6000;
 
   const observed = (() => {

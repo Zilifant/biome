@@ -14,9 +14,9 @@ the evidence and reasoning attached.
 
 **[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
 eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
-nothing acts on" to identity and group intent that steer movement. P0–P5, P7 and
-P8 have shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
-the code looks like now that those eight have landed on it, and the landmines
+nothing acts on" to identity and group intent that steer movement. P0–P5 and
+P7–P9 have shipped (P6 skipped by decision). **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
+the code looks like now that those nine have landed on it, and the landmines
 they turned up.
 
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
@@ -56,7 +56,7 @@ npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 | `npm start`                                  | Run the server without nodemon                                               |
 | `npm run headless -- --ticks=5000 --seed=42` | Advance the simulation as fast as possible, no server                        |
 | `npm run benchmark`                          | Deterministic performance baseline across entity counts (see `BENCHMARK.md`) |
-| `npm test` / `npm run test:watch`            | Run the full `node:test` suite (~13 min)                                     |
+| `npm test` / `npm run test:watch`            | Run the full `node:test` suite (~14 min)                                     |
 | `npm run test:fast`                          | The same suite without the demo/persistence/determinism tiers (~5 min) — use this in an edit loop |
 | `npm run fixtures:renderer`                  | Regenerate the committed renderer protocol fixtures                          |
 
@@ -333,7 +333,7 @@ opponentDominance, escalated }` — both scores, because dominance decides it an
 ## Persistence
 
 `captureSimulationState(engine)` produces a versioned, JSON-safe save
-(`SAVE_FORMAT_VERSION`, currently `33`) with tick, random stream states,
+(`SAVE_FORMAT_VERSION`, currently `34`) with tick, random stream states,
 config, all entity state (including deferred queues), vegetation biomass, the
 season/weather record, the territorial claim layer, the active disturbances, the
 worn-ground feature layer, scent, the tombstone registry, the persistent-group
@@ -792,6 +792,19 @@ they fight, and that is likeliest between animals too evenly matched for either
 to back down. A fight wounds both, the loser worse. Together with mate choice
 this makes both halves of sexual selection real: **competition decides who she
 is offered, and she still decides whether to take him.**
+
+**And a heavy herd does not only stand — it comes at you.** A species built to
+mob sprints to the animal under attack rather than walking to it, which matters
+because everything defending does is *positional*: what shields a prey animal, and
+what makes the attempt dangerous for the hunter, is who is actually standing there
+when the attempt lands. And it keeps going for a while after the predator breaks
+off, steering at the place it was last seen — so a herd drives a hunter away rather
+than merely stopping being a problem for it. Both are bounded by the animal's own
+body: it keeps a reserve of sprint back for the escape it may need next, and it
+never charges the predator that is hunting *it*, since closing that distance and
+arriving winded are both ways of getting caught. A predator it can actually see
+cancels the chase outright — a pursuit is for something you have lost sight of, and
+that is what stops it being a way to ignore the next lion.
 
 **A herd is also a defence.** Adult groupmates standing around an animal make it
 measurably harder to catch — collective vigilance, with diminishing returns and
