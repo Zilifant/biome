@@ -61,6 +61,25 @@
  *     was inert, which is most of the range anyone would ever declare. So the
  *     weight means exactly one thing: **how much of a body a member of that
  *     species is worth when the herd's centre is worked out.**
+ *   - ✅ **A second, separate number says how hard to hold to that centre**
+ *     (`associationPull`, BEHAVIOR-PLAN.md P3, 2026-08-05) — the fix A61 named and
+ *     nobody had asked for until now. "Half attached to them, fully attached to my
+ *     own" was **not expressible**, because the weight above cancels out of the
+ *     mean entirely when only the other kind is standing there: a gazelle alone
+ *     among wildebeest stuck to them exactly as hard as to gazelle. See
+ *     `associationPullOf` below for the field and `SocialSystem`'s `pullScale` for
+ *     what it is spent on. ⚠ It is a **second declaration**, never a reuse of the
+ *     first, and that is the whole of A61: reusing the weight is the double charge
+ *     the paragraph above measured as inert.
+ *
+ *     ⚠⚠ **And it is spent on the *distance*, not on the utility**, which is the
+ *     other half of the same lesson. Scaling `herdWeight` by 0.55 puts the pull at
+ *     0.33 against a `wanderBias` of 0.35 for a bold gazelle and 0.495 against
+ *     0.175 for a timid one — a threshold effect keyed on a heritable trait,
+ *     dressed as a smooth weight, which is worse than either arm. Scaling the
+ *     *distance an animal tolerates* has no comparison to lose: it is monotone in
+ *     the pull, and it is directly measurable as the distance a follower settles
+ *     at.
  *   - ✅ **An associate's alarm carries** (`sharesAlarm`). This is the "better
  *     vigilance" §3.16 names as the *reason* the association exists, and the
  *     attraction alone cannot deliver it: standing beside an animal whose warnings
@@ -87,8 +106,8 @@
  * fitting a parameter to a world with nothing to associate *with*, which is the
  * mistake §9 warns against for `cooperationWeight`.
  *
- * The world-level off switch is `config.association.enabled`, in a global section
- * beside the per-species field rather than inside a species block — a species
+ * The world-level off switches are in `config.association`, a global section
+ * beside the per-species fields rather than inside a species block — a species
  * block beats the config (DOCS §8), so a switch inside one cannot switch anything
  * off. Same shape as `forage`, `habitat`, `cooperation`, and `mobbing`.
  */
@@ -104,16 +123,34 @@ export const NO_ASSOCIATION = 0;
 export const CONSPECIFIC_WEIGHT = 1;
 
 /**
+ * How hard an animal holds to a centre made of its own kind — and therefore the
+ * pull of a partner species it has said nothing more about, and of an animal
+ * standing alone with nobody to hold to at all (P3).
+ *
+ * Not a parameter, for the same reason `CONSPECIFIC_WEIGHT` is not one: "as hard as
+ * to my own kind" is the unit a declared pull is a fraction of, and it is what
+ * makes every species that declares no `associationPull` — which is seven of the
+ * eight shipped — arithmetically identical to the pre-P3 world. `x / 1` is `x` for
+ * every finite double, so the identity is bit-for-bit rather than close.
+ */
+export const CONSPECIFIC_PULL = 1;
+
+/**
  * World-level association parameters — the machinery and the off switches.
  *
- * ⚠ Two switches, not one. `enabled` is the control the mechanism as a whole is
+ * ⚠ Three switches, not one, and they are the 2×2 (plus a half) this mechanism has
+ * argued for since phase 12. `enabled` is the control the mechanism as a whole is
  * measured against; `sharesAlarm` splits the vigilance half from the attraction
  * half, because a co-attracted animal is usually also a co-alarmed one and the
- * pooled comparison would confound them (§10.2's 2×2, learned the expensive way).
+ * pooled comparison would confound them (§10.2's 2×2, learned the expensive way);
+ * `scalesPull` (P3) splits **how hard** an animal holds to mixed company from
+ * **where** that company puts its centre, which are the two things A61 found were
+ * inexpressibly welded together.
  */
 export const DEFAULT_ASSOCIATION = Object.freeze({
   enabled: true,
   sharesAlarm: true,
+  scalesPull: true,
 });
 
 /**
@@ -165,6 +202,91 @@ export function associationsIn(registry) {
   for (const species of registry?.all?.() ?? []) {
     const weights = associationOf(species);
     if (weights !== null) byId.set(species.id, weights);
+  }
+  return byId;
+}
+
+/** A usable pull: a finite number strictly above zero. See `associationPullOf`. */
+const isPull = (value) => typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+/**
+ * The pull strengths of a species, or null when it declares none (P3, closing A61).
+ *
+ * ⚠⚠ **A second always-per-species field, `associationPull`, and it is deliberately
+ * *not* nested inside `association`.** Nesting it there would break
+ * `associationOf`, `associationWeightFor`, and every test that reads the weights as
+ * a flat `{speciesId: number}` map — the two are the same shape over the same keys
+ * and they mean different things, which is exactly why they are two fields:
+ *
+ * ```js
+ * association:     Object.freeze({ 'herbivore.wildebeest': 0.5 }),  // how much of a body
+ * associationPull: Object.freeze({ 'herbivore.wildebeest': 0.55 }), // how hard to hold on
+ * ```
+ *
+ * ⚠ **An unnamed partner pulls at parity**, the opposite convention to
+ * `associationWeightFor`, and both are right. There, an unnamed species is not
+ * somebody this animal stands with at all, so the default has to be "no". Here, the
+ * animal has *already* said it stands with them; saying nothing further about how
+ * hard is saying "as hard as my own kind" — which is precisely the pre-P3
+ * behaviour, so a species that declares only weights keeps exactly the world it had.
+ *
+ * ⚠ **Zero is refused rather than clamped**, unlike `otherBandWeight` where it means
+ * a coherent "ignore". A pull of zero divides into an infinite tolerated distance —
+ * "never close up on them, however far away they get" — which is what *declining to
+ * associate at all* already says, in a field that says it clearly. Negative and
+ * non-finite go the same way, and for the harder reason: they reach `herdDistance /
+ * pull` and come out as a negative or NaN distance in the one comparison that
+ * decides whether an animal herds.
+ *
+ * ⚠ A map whose every usable entry is exactly `1` resolves to null, on
+ * `bandAffinityOf`'s precedent: parity *is* the unweighted behaviour, and an empty
+ * map is what buys every other species the single `Map.size` comparison this
+ * mechanism costs them.
+ *
+ * @param {{associationPull?: Record<string, number>}} [species]
+ * @returns {Record<string, number> | null}
+ */
+export function associationPullOf(species) {
+  const pulls = species?.associationPull;
+  if (!pulls || typeof pulls !== 'object') return null;
+  for (const key of Object.keys(pulls)) {
+    if (isPull(pulls[key]) && pulls[key] !== CONSPECIFIC_PULL) return pulls;
+  }
+  return null;
+}
+
+/**
+ * How hard this animal holds to a centre of mass made of `speciesId`, relative to
+ * one made of its own kind — `CONSPECIFIC_PULL` when it has said nothing about it.
+ *
+ * ⚠ Never called for a conspecific: your own kind pulls at the unit by definition,
+ * and a species naming *itself* here would otherwise be quietly obeyed.
+ *
+ * @param {Record<string, number> | null} pulls from `associationPullOf`
+ * @param {string} speciesId the *other* animal's species
+ * @returns {number}
+ */
+export function associationPullFor(pulls, speciesId) {
+  if (pulls === null) return CONSPECIFIC_PULL;
+  const pull = pulls[speciesId];
+  return isPull(pull) ? pull : CONSPECIFIC_PULL;
+}
+
+/**
+ * Every species in a world that declares a pull, keyed by id.
+ *
+ * Built once per world and checked for emptiness before the entity walk — the same
+ * early-out `associationsIn`, `herdRadiiIn` and `bandAffinitiesIn` use, and for the
+ * same reason.
+ *
+ * @param {{all: () => object[]}} [registry] the species registry
+ * @returns {Map<string, Record<string, number>>}
+ */
+export function associationPullsIn(registry) {
+  const byId = new Map();
+  for (const species of registry?.all?.() ?? []) {
+    const pulls = associationPullOf(species);
+    if (pulls !== null) byId.set(species.id, pulls);
   }
   return byId;
 }

@@ -79,6 +79,15 @@
  * because collective vigilance and `mobbing.minMobbers` read them and a cohesion
  * knob must not become a predation knob.
  *
+ * ⚠⚠ **`pullScale` (P3) is a fourth number and it is deliberately not one of
+ * them.** It answers a different question — "how hard do I hold to a centre made
+ * of *that* company" — and it therefore rides its own accumulator and is spent
+ * somewhere else entirely: the decision system divides `behavior.herdDistance` by
+ * it. Multiplying it into `worth` instead would be exactly the double charge the
+ * paragraph above refuses, and A61 records that being built and measured inert. It
+ * is the mean pull of the bodies actually behind the centre, weighted by their own
+ * contributions, so an all-conspecific group comes out at exactly 1.
+ *
  * Runs in the `decision` phase at priority -10, ahead of the decision system
  * (priority 0) which consumes the summary to score `herd` and `defend`, and
  * ahead of anything that reads alarm state. Ownership: writes `groupId`,
@@ -89,8 +98,11 @@ import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { isSymptomatic } from '../disease/disease.js';
 import {
+  CONSPECIFIC_PULL,
   CONSPECIFIC_WEIGHT,
   DEFAULT_ASSOCIATION,
+  associationPullFor,
+  associationPullsIn,
   associationWeightFor,
   associationsIn,
 } from '../social/association.js';
@@ -120,6 +132,13 @@ export class SocialSystem extends SimulationSystem {
    * @type {Map<string, {same: number, other: number}>}
    */
   #bandAffinities = new Map();
+  /**
+   * Per-species association pulls (BEHAVIOR-PLAN P3) — how hard this species holds
+   * to a centre of mass made of somebody else's bodies. The fourth map on the same
+   * registry guard, and the only one that is not spent inside the centroid.
+   * @type {Map<string, Record<string, number>>}
+   */
+  #associationPulls = new Map();
 
   /**
    * @param {object} [options]
@@ -132,6 +151,7 @@ export class SocialSystem extends SimulationSystem {
    * @param {number} [options.minGroupSize] neighbours needed before founding a group
    * @param {boolean} [options.associationEnabled] heterospecific association at all (§3.16)
    * @param {boolean} [options.associationSharesAlarm] whether an associate's warning carries
+   * @param {boolean} [options.associationScalesPull] whether a declared pull reaches the herd distance (P3)
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -149,6 +169,13 @@ export class SocialSystem extends SimulationSystem {
     // `association` field; these two are the machinery.
     associationEnabled = DEFAULT_ASSOCIATION.enabled,
     associationSharesAlarm = DEFAULT_ASSOCIATION.sharesAlarm,
+    // The third cell of the same 2×2 (BEHAVIOR-PLAN P3, closing A61): whether a
+    // declared `associationPull` reaches the *distance* an animal tolerates from
+    // mixed company. False publishes `pullScale: 1` for everybody — byte-identical
+    // to the pre-P3 world, because `herdDistance / 1` is `herdDistance` for every
+    // finite double. Wired from `config.association`, the global section, for the
+    // third time and the same reason.
+    associationScalesPull = DEFAULT_ASSOCIATION.scalesPull,
     // Per-species herd radius (BEHAVIOR-PLAN P1). ⚠ Wired from `config.social`, a
     // global section, for the same reason as the two above: a species block beats
     // the config, so a switch inside `behavior` could not switch anything off.
@@ -173,6 +200,7 @@ export class SocialSystem extends SimulationSystem {
     this.minGroupSize = minGroupSize;
     this.associationEnabled = associationEnabled;
     this.associationSharesAlarm = associationSharesAlarm;
+    this.associationScalesPull = associationScalesPull;
     this.perSpeciesRadius = perSpeciesRadius;
     this.bandAffinity = bandAffinity;
   }
@@ -217,6 +245,13 @@ export class SocialSystem extends SimulationSystem {
     // than merely equivalent.
     const bandAffinities = this.#bandAffinitiesFor(world);
     const banding = bandAffinities.size > 0;
+    // Association pull (BEHAVIOR-PLAN P3), the fourth map and the fourth one-
+    // comparison early-out. Empty when the switch is off or no species declares a
+    // pull, and then `pullScale` below is the literal `CONSPECIFIC_PULL` for every
+    // animal in the world and nothing accumulates it — which is what keeps the off
+    // arm byte-identical rather than merely equal to within a rounding error.
+    const associationPulls = this.#associationPullsFor(world);
+    const scalingPull = associationPulls.size > 0;
 
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
@@ -258,7 +293,19 @@ export class SocialSystem extends SimulationSystem {
       // associates this is *exactly* `groupmates`: summing `1.0` n times is the
       // integer n in IEEE-754, so the division below is the division it was.
       let conspecificWeight = 0;
+      // ⚠⚠ **The pull is a fourth number and it must not join the chain above**
+      // (BEHAVIOR-PLAN P3). `worth` is composed of at most one exchange rate — the
+      // heterospecific weight *or* the band affinity, never both — and every one of
+      // them is spent inside the centroid. This one is spent on the *distance* the
+      // decision system tolerates instead, so it rides its own accumulator: a
+      // second rate multiplied into `worth` would be a body counted twice, which is
+      // the charge A61 exists to refuse. It sums the same contributions in the same
+      // order, each scaled by how hard this animal holds to that kind of body.
+      let pullSum = 0;
       const association = associating ? (associations.get(entity.speciesId) ?? null) : null;
+      // This animal's own pull declaration, read once per animal. Null for every
+      // species that declares none, and then the accumulator above is never touched.
+      const pulls = scalingPull ? (associationPulls.get(entity.speciesId) ?? null) : null;
       // This animal's own declaration, read once per animal rather than per
       // neighbour. Directional exactly as an association is: a zebra prefers its
       // own band without any other zebra having an opinion about that.
@@ -333,6 +380,12 @@ export class SocialSystem extends SimulationSystem {
             if (inHerd) {
               associates += 1;
               associateWeight += worth;
+              // ⚠ The declared pull of *that* species, weighted by the same
+              // contribution its body is making — so `pullScale` below is the mean
+              // pull of the company actually behind the centre, not of the species
+              // list. One wildebeest among six gazelle barely moves it; six
+              // wildebeest and no gazelle move it all the way.
+              if (pulls !== null) pullSum += worth * associationPullFor(pulls, other.speciesId);
               sumX += other.x * worth;
               sumY += other.y * worth;
               sumSin += Math.sin(other.heading) * worth;
@@ -347,6 +400,12 @@ export class SocialSystem extends SimulationSystem {
               // `x` for every finite double, so this is bit-for-bit the arithmetic
               // it was before P2.
               conspecificWeight += worth;
+              // ⚠ `× CONSPECIFIC_PULL`, written as the bare addition it is: your own
+              // kind pulls at the unit by definition, which is what makes an
+              // all-conspecific group come out at exactly 1.0 rather than at
+              // 0.999… — the numerator is then the same additions in the same order
+              // as the denominator's conspecific half, and `a + 0` is `a`.
+              if (pulls !== null) pullSum += worth;
               sumX += other.x * worth;
               sumY += other.y * worth;
               // ✅ Alignment comes free: the mean *heading* is band-weighted by the
@@ -455,6 +514,14 @@ export class SocialSystem extends SimulationSystem {
       // `groupmates` because those two stopped being the same number in P1; see
       // the accumulator's own note above for what dividing by the wrong one does.
       const weight = conspecificWeight + associateWeight;
+      // How hard to hold to that centre, relative to one made of this animal's own
+      // kind (BEHAVIOR-PLAN P3). ⚠⚠ **The `weight === 0` arm is not defensive
+      // tidiness.** `0 / 0` is `NaN`, `NaN` propagates into `utilities.herd`, and
+      // `argmaxUtility` compares with `>` — so `NaN > x` is false, `herd` is
+      // silently *never chosen* for the rest of the animal's life, nothing throws,
+      // and the inspector reports `null`. An animal standing alone has nobody to
+      // hold to, and the honest value for that is the unit.
+      const pullScale = pulls === null || weight === 0 ? CONSPECIFIC_PULL : pullSum / weight;
       world.social.set(entity.id, {
         groupId,
         groupmates,
@@ -470,6 +537,14 @@ export class SocialSystem extends SimulationSystem {
         centroid: weight > 0 ? { x: sumX / weight, y: sumY / weight } : null,
         heading: weight > 0 ? Math.atan2(sumSin / weight, sumCos / weight) : null,
         nearestDistance: groupmates > 0 ? nearestMate : null,
+        // ⚠ **The one number here that is not spent inside the centroid.** The
+        // decision system divides `behavior.herdDistance` by it, so a species that
+        // holds loosely to another's herd tolerates proportionally more drift from
+        // it — and exactly 1 leaves the distance bit-for-bit what it was. See
+        // `social/association.js` for why the pull is a second declaration rather
+        // than a reuse of the centroid weight, and why it is spent on the distance
+        // rather than on the utility.
+        pullScale,
       });
     }
 
@@ -497,8 +572,23 @@ export class SocialSystem extends SimulationSystem {
       this.#associations = this.associationEnabled ? associationsIn(registry) : new Map();
       this.#herdRadii = this.perSpeciesRadius ? herdRadiiIn(registry) : new Map();
       this.#bandAffinities = this.bandAffinity ? bandAffinitiesIn(registry) : new Map();
+      this.#associationPulls = this.associationScalesPull ? associationPullsIn(registry) : new Map();
     }
     return this.#associations;
+  }
+
+  /**
+   * The association pull of every species in this world that declares one (P3),
+   * keyed by id — empty when the switch is off or nobody declares one. Resolved by
+   * `#associationsFor` off the same registry check, so the four maps can never
+   * describe different rosters.
+   *
+   * @param {import('../world/World.js').World} world
+   * @returns {Map<string, Record<string, number>>}
+   */
+  #associationPullsFor(world) {
+    this.#associationsFor(world);
+    return this.#associationPulls;
   }
 
   /**

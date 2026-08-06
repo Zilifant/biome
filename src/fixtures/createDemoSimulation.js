@@ -105,10 +105,14 @@ export function registerDemoSystems(engine) {
       // Heterospecific association (PLAN-SPECIES.md §3.16, phase 12). Both
       // switches from `config.association`, the global section that owns them —
       // ⚠ *not* from a species block, which a species overrides (DOCS §8). The
-      // per-species half is the `association` field, which no species declares,
-      // so this system's neighbour loop is exactly what it was.
+      // per-species half is the `association` field (the gazelle and, since P3,
+      // the wildebeest) and the `associationPull` beside it.
       associationEnabled: engine.config.association.enabled,
       associationSharesAlarm: engine.config.association.sharesAlarm,
+      // The third switch (BEHAVIOR-PLAN P3): whether a declared `associationPull`
+      // reaches the distance an animal tolerates from mixed company. Same section,
+      // same reason.
+      associationScalesPull: engine.config.association.scalesPull,
     }),
   );
   // Priority -8: after the herd labels are settled, before anything that would

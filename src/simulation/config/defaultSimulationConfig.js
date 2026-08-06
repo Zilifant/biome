@@ -765,6 +765,25 @@ export const defaultSimulationConfig = Object.freeze({
     // were working perfectly (§10.2). This splits the cells before anybody needs
     // them split. False keeps the attraction and leaves warnings conspecific.
     sharesAlarm: true,
+    // ⚠⚠ **The third switch, and the one that closes A61** (BEHAVIOR-PLAN P3).
+    // The weight above is an exchange rate between *bodies*, so it decides where a
+    // mixed group's centre is and cancels out of the mean entirely when only the
+    // other kind is standing there — "half attached to them, fully attached to my
+    // own" was not expressible. A species may now declare a second field,
+    // `associationPull`, one number per partner species, and `SocialSystem`
+    // publishes the contribution-weighted mean of it as `pullScale`.
+    //
+    // ⚠ It is spent on the **distance** an animal tolerates from that centre
+    // (`herdDistance / pullScale`), never on `herdWeight`. A61 measured the second
+    // of those inert: herding is the weakest utility there is, so a discount on the
+    // weight lands either side of `wanderBias` depending on the animal's heritable
+    // boldness — a threshold effect keyed on a trait, wearing a smooth weight's
+    // clothes. The distance has no comparison to lose.
+    //
+    // ⚠ `false` publishes `pullScale: 1` for every animal, and `herdDistance / 1`
+    // is `herdDistance` for every finite double, so the off arm is byte-identical
+    // rather than merely close (`--set=association.scalesPull=false`).
+    scalesPull: true,
   }),
   // Persistent social groups (see world/GroupRegistry.js and
   // systems/GroupSystem.js). PLAN-SPECIES.md §3.8.

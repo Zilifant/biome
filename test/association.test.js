@@ -24,6 +24,26 @@
  *      are correct and never do visible work, so the last block runs the decision
  *      system and asserts a follower actually herds toward company it is not
  *      related to.
+ *
+ * ⚠⚠ **A fifth claim arrived with BEHAVIOR-PLAN P3 (2026-08-05), and it is about
+ * the line *between* two numbers rather than the line the four above defend.**
+ * `associationPull` says how hard an animal holds to company of another kind, which
+ * A61 recorded as inexpressible: the weight is an exchange rate between bodies and
+ * cancels out of the mean when only the other kind is standing there. Three things
+ * need pinning, and each has a mutation behind it:
+ *
+ *   - **The pull is not the weight.** They are the same shape over the same species
+ *     ids in the same loop, so `HOLDER` declares 0.5 and 0.4 — an engine that read
+ *     one where it should read the other is invisible against a species declaring
+ *     the same number twice. Same hazard `MIXER` exists for in `herding.test.js`.
+ *   - **It is spent on the distance, never on the utility.** Scaling `herdWeight`
+ *     is inert for a bold animal and fires for a timid one (A61's measurement), so
+ *     the assertions are about *at what drift* an animal bothers, not how much.
+ *   - **Both readers of that distance move together.** The `herd` utility and
+ *     `#intentFor`'s cohesion term read the same number; the second is pinned
+ *     through the resulting heading, because a split there fails nothing else.
+ *
+ * ⚠ Mutation-tested 2026-08-05: ten deliberate breakages, every one caught.
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,8 +60,12 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../src/simulation/predation/mobbing.js';
 import {
+  CONSPECIFIC_PULL,
   DEFAULT_ASSOCIATION,
   associationOf,
+  associationPullFor,
+  associationPullOf,
+  associationPullsIn,
   associationWeightFor,
   associationsIn,
 } from '../src/simulation/social/association.js';
@@ -80,6 +104,25 @@ const FOLLOWER = Object.freeze({
   association: Object.freeze({ [GIANT.id]: 0.5 }),
 });
 
+/**
+ * ⚠ The same follower, saying **how hard** it holds on as well as how much of a
+ * body a giant is worth (P3). It is the only difference from `FOLLOWER`, which makes
+ * the pair a one-number A/B; at 0.4 its tolerated drift from a giant's centre is
+ * `herdDistance / 0.4` — two and a half times what it tolerates from its own kind.
+ *
+ * ⚠⚠ **0.4 rather than 0.5, and that is the `MIXER` lesson from P2 applied in
+ * advance.** The association weight beside it is 0.5. Declaring the same number for
+ * both would make an engine that read the *weight* where it should read the pull
+ * indistinguishable from a correct one — the two live in the same loop over the
+ * same species ids, so only a species declaring two different values can catch the
+ * collision.
+ */
+const HOLDER = Object.freeze({
+  ...FOLLOWER,
+  id: 'test.holder',
+  associationPull: Object.freeze({ [GIANT.id]: 0.4 }),
+});
+
 /** The same animal, mobbing, so "an associate is not a mobber" can be asserted. */
 const MOBBING_FOLLOWER = Object.freeze({
   ...FOLLOWER,
@@ -108,7 +151,7 @@ const HUNTER = Object.freeze({
   initialEnergyFraction: Object.freeze({ min: 0.5, max: 0.9 }),
 });
 
-const SPECIES = [GIANT, STRANGER, FOLLOWER, MOBBING_FOLLOWER, HUNTER];
+const SPECIES = [GIANT, STRANGER, FOLLOWER, HOLDER, MOBBING_FOLLOWER, HUNTER];
 
 function genome() {
   return Object.fromEntries(GENOME_LOCI.map((locus) => [locus, [1, 1]]));
@@ -150,6 +193,7 @@ function socialSandbox({ seed = 5, config = {}, association = {} } = {}) {
       ...CONFIG.social,
       associationEnabled: association.enabled ?? CONFIG.association.enabled,
       associationSharesAlarm: association.sharesAlarm ?? CONFIG.association.sharesAlarm,
+      associationScalesPull: association.scalesPull ?? CONFIG.association.scalesPull,
     }),
   );
   return engine;
@@ -213,15 +257,16 @@ describe('association: what a species declares', () => {
     const declaring = associationsIn(registry);
     assert.deepEqual(
       [...declaring.keys()].sort(),
-      [MOBBING_FOLLOWER.id, FOLLOWER.id, 'herbivore.gazelle'].sort(),
-      'the invented followers, and the one shipped species that declares one',
+      [MOBBING_FOLLOWER.id, FOLLOWER.id, HOLDER.id, 'herbivore.gazelle', 'herbivore.wildebeest'].sort(),
+      'the invented followers, and the shipped species that declare one',
     );
-    // ⚠ The claim the early-out rests on, and batch 3 narrowed it: the map is
-    // *small*, not empty. It held nothing at all until the gazelle declared an
-    // association (phase 13); what still matters is that every species not in it
-    // takes the untouched branch, which is seven of the eight shipped.
+    // ⚠ The claim the early-out rests on, and two phases have narrowed it: the map
+    // is *small*, not empty. It held nothing at all until the gazelle declared an
+    // association (phase 13) and the wildebeest joined it at P3; what still matters
+    // is that every species not in it takes the untouched branch, which is six of
+    // the eight shipped.
     const shipped = associationsIn(new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG));
-    assert.deepEqual([...shipped.keys()], ['herbivore.gazelle']);
+    assert.deepEqual([...shipped.keys()].sort(), ['herbivore.gazelle', 'herbivore.wildebeest']);
   });
 });
 
@@ -433,6 +478,11 @@ describe('association: the animal acts on it', () => {
     // unable to beat `wanderBias` at all: a 0.5 follower held station no better
     // than one with association switched off. The weight lives in the centroid and
     // nowhere else, and this test is what says so.
+    //
+    // ⚠ **It is also P3's pull-1 arm and must stay exactly as it is.** `FOLLOWER`
+    // declares a weight and no `associationPull`, which is the shipped wildebeest's
+    // shape; the block below is the same measurement for `HOLDER`, which declares
+    // both. If this ever starts failing, the pull has leaked back onto the weight.
     const pull = (companyId) => {
       const engine = decisionSandbox();
       const follower = spawn(engine, FOLLOWER.id, { x: 30, y: 30 });
@@ -445,6 +495,280 @@ describe('association: the animal acts on it', () => {
     const other = pull(GIANT.id);
     assert.ok(own > 0, `its own kind pulls (${own})`);
     assert.equal(other, own, 'and so does a herd it is merely standing with');
+  });
+});
+
+describe('association: how hard it holds on (P3, closing A61)', () => {
+  const resolved = (id) => new SpeciesRegistry(SPECIES, CONFIG).require(id);
+
+  test('a pull is a second declaration, and parity is not a declaration at all', () => {
+    assert.deepEqual(associationPullOf(resolved(HOLDER.id)), { [GIANT.id]: 0.4 });
+    assert.equal(associationPullOf(resolved(FOLLOWER.id)), null, 'a weight without a pull is no pull');
+    assert.equal(associationPullOf(undefined), null);
+    assert.equal(associationPullOf({ associationPull: {} }), null);
+    // Parity *is* the unweighted behaviour, so it buys nobody a map entry
+    // (`bandAffinityOf`'s precedent, and what the one-comparison early-out rests on).
+    assert.equal(associationPullOf({ associationPull: { 'test.x': 1 } }), null);
+    // ⚠ Zero is refused here where `otherBandWeight` accepts it: it divides into an
+    // infinite tolerated distance, and "never close up on them" is what declining to
+    // associate already says. Negative and non-finite reach the same division.
+    assert.equal(associationPullOf({ associationPull: { 'test.x': 0 } }), null);
+    assert.equal(associationPullOf({ associationPull: { 'test.x': -0.5 } }), null);
+    assert.equal(associationPullOf({ associationPull: { 'test.x': Infinity } }), null);
+    assert.equal(associationPullOf({ associationPull: { 'test.x': NaN } }), null);
+    assert.equal(associationPullOf({ associationPull: { 'test.x': 'hard' } }), null);
+    // One usable entry is a declaration even beside nonsense — the map is read per
+    // partner, so the good half must survive.
+    assert.deepEqual(associationPullOf({ associationPull: { a: 0, b: 0.4 } }), { a: 0, b: 0.4 });
+  });
+
+  test('⚠ an unnamed partner pulls like your own kind, the opposite of the weight', () => {
+    // The two conventions face opposite ways and both are right. A species not named
+    // in `association` is not somebody this animal stands with at all, so its weight
+    // is 0; a species not named in `associationPull` is one it has already agreed to
+    // stand with, so "nothing further to say" means "as hard as my own kind" — which
+    // is exactly the pre-P3 behaviour.
+    const pulls = associationPullOf(resolved(HOLDER.id));
+    assert.equal(associationPullFor(pulls, GIANT.id), 0.4);
+    assert.equal(associationWeightFor(associationOf(resolved(HOLDER.id)), GIANT.id), 0.5, 'and it is not the weight');
+    assert.equal(associationPullFor(pulls, STRANGER.id), CONSPECIFIC_PULL);
+    assert.equal(associationPullFor(null, GIANT.id), CONSPECIFIC_PULL);
+    assert.equal(associationWeightFor(associationOf(resolved(HOLDER.id)), STRANGER.id), 0, 'while the weight says no');
+    // A nonsense entry falls back to parity rather than to zero: a typo must not
+    // silently detach an animal from company it declared it wanted.
+    assert.equal(associationPullFor({ [GIANT.id]: -1 }, GIANT.id), CONSPECIFIC_PULL);
+  });
+
+  test('the world map holds only the species that declare one', () => {
+    const registry = new SpeciesRegistry([...SPECIES_DEFINITIONS, ...SPECIES], CONFIG);
+    const pulls = associationPullsIn(registry);
+    assert.deepEqual([...pulls.keys()].sort(), [HOLDER.id, 'herbivore.gazelle'].sort());
+    assert.equal(pulls.has(FOLLOWER.id), false, 'a weight is not a pull');
+    assert.equal(associationPullsIn(undefined).size, 0, 'and no registry is an empty map rather than a throw');
+  });
+});
+
+describe('association: pullScale, the number the pull is published as (P3)', () => {
+  test('a herd of its own kind is exactly the unit', () => {
+    const engine = socialSandbox();
+    const holder = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+    spawn(engine, HOLDER.id, { x: 32, y: 30 });
+    spawn(engine, HOLDER.id, { x: 30, y: 32 });
+    engine.step(1);
+    // Strict equality on purpose: `1.0` and not `0.999…` is what makes the herd
+    // distance of a species standing with its own kind bit-for-bit what it was.
+    assert.equal(summaryOf(engine, holder).pullScale, 1);
+  });
+
+  test('⚠⚠ an animal standing alone is 1, and the reason is not tidiness', () => {
+    // `pullSum / weight` is `0 / 0` for an animal with nobody in range. NaN then
+    // propagates into `utilities.herd`, `argmaxUtility` compares with `>`, and
+    // `NaN > x` is false — so `herd` would be silently never chosen again, nothing
+    // would throw, and the inspector would show `null`. This is that guard.
+    const engine = socialSandbox();
+    const alone = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+    engine.step(1);
+    const summary = summaryOf(engine, alone);
+    assert.equal(summary.centroid, null, 'genuinely alone');
+    assert.equal(Number.isNaN(summary.pullScale), false, 'not NaN');
+    assert.equal(summary.pullScale, 1);
+  });
+
+  test('company of another species scales it to exactly what the species declared', () => {
+    const engine = socialSandbox();
+    const holder = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 32 });
+    engine.step(1);
+    // Two giants, nothing else: the weight cancels out of the mean (that is A61)
+    // and what is left is the pull itself — 0.4, and pointedly not the 0.5 weight
+    // sitting beside it in the same species file.
+    assert.equal(summaryOf(engine, holder).pullScale, 0.4);
+  });
+
+  test('mixed company is the contribution-weighted mean, not the mean of the species', () => {
+    // ⚠ The claim that keeps `pullScale` honest: it is weighted by the same
+    // contributions that built the centre, so one giant among gazelle barely moves
+    // it. One conspecific at worth 1 pulling at 1, one giant at worth 0.5 pulling at
+    // 0.4 ⇒ (1 + 0.2) / 1.5.
+    const engine = socialSandbox();
+    const holder = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+    spawn(engine, HOLDER.id, { x: 32, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 30 });
+    engine.step(1);
+    const summary = summaryOf(engine, holder);
+    assert.equal(summary.groupmates, 1);
+    assert.equal(summary.associates, 1);
+    const expected = (1 * 1 + 0.5 * 0.4) / (1 + 0.5);
+    assert.ok(Math.abs(summary.pullScale - expected) < 1e-12, `pullScale ${summary.pullScale} vs ${expected}`);
+  });
+
+  test('a species that declares a weight and no pull is exactly 1, in any company', () => {
+    // The shipped wildebeest's shape, and P3's in-world control arm.
+    const engine = socialSandbox();
+    const follower = spawn(engine, FOLLOWER.id, { x: 30, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 32 });
+    engine.step(1);
+    const summary = summaryOf(engine, follower);
+    assert.equal(summary.associates, 2, 'it really is standing in mixed company');
+    assert.equal(summary.pullScale, 1);
+  });
+
+  test('the world switch turns it off, and a species cannot turn it back on', () => {
+    const engine = socialSandbox({ association: { scalesPull: false } });
+    const holder = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 30 });
+    engine.step(1);
+    const summary = summaryOf(engine, holder);
+    assert.equal(summary.associates, 1, 'the attraction half is untouched');
+    assert.equal(summary.pullScale, 1, 'and the pull half is gone');
+  });
+});
+
+describe('association: the pull is spent on the distance (P3)', () => {
+  function decisionSandbox(options = {}) {
+    const engine = socialSandbox(options);
+    engine.registerSystem(
+      new DecisionSystem({
+        ...engine.config.decision,
+        ...engine.config.behavior,
+        foodMinLevel: engine.config.perception.foodMinLevel,
+      }),
+    );
+    engine.registerSystem(new MovementSystem(CONFIG.locomotion));
+    return engine;
+  }
+
+  /** One animal of `speciesId` at a measured drift from a herd of giants. */
+  function atDrift(speciesId, drift, options = {}) {
+    const engine = decisionSandbox(options);
+    const focus = spawn(engine, speciesId, { x: 30, y: 30 });
+    // ⚠ Both on the same point, due east: the centroid is then that point whatever
+    // the weights are, and every giant's *distance* is exactly `drift` — which
+    // matters at 6, where a half-cell of spread would put them outside the herd
+    // radius and quietly turn the test into an assertion about nothing.
+    spawn(engine, GIANT.id, { x: 30 + drift, y: 30 });
+    spawn(engine, GIANT.id, { x: 30 + drift, y: 30 });
+    engine.step(1);
+    return { engine, focus, summary: summaryOf(engine, focus) };
+  }
+
+  test('⚠⚠ a declared pull moves the distance at which an animal bothers', () => {
+    // The whole of P3 in one comparison. `herdDistance` is 2 for both species and
+    // the centroid is identical — the only difference is that `HOLDER` tolerates
+    // `2 / 0.4 = 5` units of drift from a giant's centre and `FOLLOWER` tolerates 2.
+    // At a drift of 3 that is the difference between herding and not.
+    const loose = atDrift(HOLDER.id, 3);
+    const tight = atDrift(FOLLOWER.id, 3);
+    assert.ok(Math.abs(tight.summary.centroid.x - 33) < 1e-9, 'the same centre for both');
+    assert.ok(Math.abs(loose.summary.centroid.x - 33) < 1e-9);
+    assert.ok(tight.focus.utilityBreakdown.herd > 0, 'the tight one closes up');
+    assert.equal(loose.focus.utilityBreakdown.herd, 0, 'and the loose one is content where it is');
+  });
+
+  test('and past its own wider distance it wants the herd again', () => {
+    // Monotone, not a ceiling: a loose attachment is still an attachment. Six units
+    // is past `HOLDER`'s tolerated five, so the pull is back — which is what makes
+    // this a distance rather than an off switch.
+    const { focus } = atDrift(HOLDER.id, 6);
+    assert.ok(focus.utilityBreakdown.herd > 0, `herd ${focus.utilityBreakdown.herd}`);
+  });
+
+  test('⚠ it does nothing at all to how hard it holds to its own kind', () => {
+    // "Half attached to them, **fully** attached to my own" — the half of A61 that
+    // would be lost if the pull were read from the species rather than from the
+    // company actually standing there.
+    const engine = decisionSandbox();
+    const holder = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+    spawn(engine, HOLDER.id, { x: 33, y: 29.5 });
+    spawn(engine, HOLDER.id, { x: 33, y: 30.5 });
+
+    const control = decisionSandbox();
+    const follower = spawn(control, FOLLOWER.id, { x: 30, y: 30 });
+    spawn(control, FOLLOWER.id, { x: 33, y: 29.5 });
+    spawn(control, FOLLOWER.id, { x: 33, y: 30.5 });
+
+    engine.step(1);
+    control.step(1);
+    assert.ok(follower.utilityBreakdown.herd > 0, 'both are three units off their own herd');
+    assert.equal(holder.utilityBreakdown.herd, follower.utilityBreakdown.herd, 'and both close up identically');
+  });
+
+  test('⚠⚠ the intent steers by the same distance the decision used', () => {
+    // D11, and it would never fail a behavioural test: `#intentFor`'s cohesion term
+    // is the *second* reader of the herd distance, so leaving it on
+    // `behavior.herdDistance` gives an animal that decides to close up at one
+    // distance and steers by another — subtly wrong herding, no error anywhere.
+    //
+    // The signature is the blend. Cohesion is `(drift − d) / d`, so at a drift of 6
+    // the widened `d = 5` gives 0.2 (mostly falling in with the herd's heading) and
+    // the unwidened `d = 2` gives a clamped 1 (straight at the centre). The giants
+    // are heading due north and the centre is due east, so the two answers are far
+    // apart. `herdWeight` is lifted world-wide so `herd` actually wins in both arms;
+    // it is the same lift on both sides.
+    const heading = (association) => {
+      const engine = decisionSandbox({
+        association,
+        config: { behavior: { ...CONFIG.behavior, herdWeight: 3 } },
+      });
+      const focus = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+      spawn(engine, GIANT.id, { x: 36, y: 30, heading: Math.PI / 2 });
+      spawn(engine, GIANT.id, { x: 36, y: 30, heading: Math.PI / 2 });
+      engine.step(1);
+      assert.equal(focus.action, 'herd', 'the arm is only meaningful if it is herding');
+      return focus.moveIntent.heading;
+    };
+    const widened = heading({});
+    const unwidened = heading({ scalesPull: false });
+    assert.ok(Math.abs(unwidened) < 1e-9, `steers straight at the centre when tight (${unwidened})`);
+    const cohesion = (6 - 5) / 5;
+    const expected = Math.atan2(1 - cohesion, cohesion);
+    assert.ok(
+      Math.abs(widened - expected) < 1e-9,
+      `steers by the widened distance (${widened} vs ${expected}) — the cohesion term read the wrong number`,
+    );
+  });
+
+  test('a loosely-held follower settles further out, and keeps up anyway', () => {
+    // The behavioural claim, measured as an equilibrium rather than a snapshot: the
+    // pull engages past a distance, so a held animal oscillates in a band around the
+    // company rather than converging on it (the §1.4 D1 lesson). Mean distance over
+    // the second half of the run, one animal, one switch, everything else identical.
+    const settledDistance = (association) => {
+      const engine = decisionSandbox({ association });
+      const focus = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+      const company = [];
+      for (let i = 0; i < 4; i += 1) company.push(spawn(engine, GIANT.id, { x: 34 + (i % 2), y: 30 + i * 0.5 }));
+      let sum = 0;
+      let samples = 0;
+      for (let tick = 0; tick < 400; tick += 1) {
+        engine.step(1);
+        if (tick < 200) continue;
+        const cx = company.reduce((a, g) => a + g.x, 0) / company.length;
+        const cy = company.reduce((a, g) => a + g.y, 0) / company.length;
+        sum += Math.hypot(focus.x - cx, focus.y - cy);
+        samples += 1;
+      }
+      assert.equal(focus.alive, true, 'the follower survived the run');
+      return sum / samples;
+    };
+    const loose = settledDistance({});
+    const tight = settledDistance({ scalesPull: false });
+    assert.ok(loose > tight, `settles further out (${loose.toFixed(2)} vs ${tight.toFixed(2)} unscaled)`);
+    // ⚠ And it is still a follower: a pull below 1 is a longer leash, not a cut one.
+    // Without the association at all it wanders off entirely.
+    const adrift = (() => {
+      const engine = decisionSandbox({ association: { enabled: false } });
+      const focus = spawn(engine, HOLDER.id, { x: 30, y: 30 });
+      const company = [];
+      for (let i = 0; i < 4; i += 1) company.push(spawn(engine, GIANT.id, { x: 34 + (i % 2), y: 30 + i * 0.5 }));
+      engine.step(400);
+      const cx = company.reduce((a, g) => a + g.x, 0) / company.length;
+      const cy = company.reduce((a, g) => a + g.y, 0) / company.length;
+      return Math.hypot(focus.x - cx, focus.y - cy);
+    })();
+    assert.ok(loose < adrift, `still with them (${loose.toFixed(2)} against ${adrift.toFixed(2)} unattached)`);
   });
 });
 
@@ -463,19 +787,22 @@ describe('association: in the shipped world', () => {
     { speciesId: 'scavenger.hyena', count: 6 },
   ];
 
-  test('exactly one species declares an association, and only over species that exist', () => {
+  test('two species declare an association, and only over species that exist', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const declaring = engine.species.all().filter((species) => associationOf(species) !== null);
     assert.deepEqual(
-      declaring.map((s) => s.id),
-      ['herbivore.gazelle'],
-      'the small grazer follows the big ones, and the relation is directional',
+      declaring.map((s) => s.id).sort(),
+      ['herbivore.gazelle', 'herbivore.wildebeest'],
+      'the small grazer follows the big ones and the middle tier follows the coarse feeder, both directionally',
     );
     // A weight naming a species that does not exist is dead data that reads as
     // biology — the same failure a `preySpeciesIds` typo would be.
     const known = new Set(engine.species.ids());
-    for (const partner of Object.keys(associationOf(declaring[0]))) {
-      assert.ok(known.has(partner), `${partner} is not a species in this world`);
+    for (const species of declaring) {
+      for (const partner of Object.keys(associationOf(species))) {
+        assert.ok(known.has(partner), `${partner} is not a species in this world`);
+        assert.notEqual(partner, species.id, 'and nobody associates with itself');
+      }
     }
   });
 
@@ -517,5 +844,65 @@ describe('association: in the shipped world', () => {
 
   test('the shipped defaults are the ones the module documents', () => {
     assert.deepEqual({ ...CONFIG.association }, { ...DEFAULT_ASSOCIATION });
+  });
+
+  test('the gazelle declares a pull, and only over species it actually stands with', () => {
+    // A pull for a species this animal never associates with is dead data that reads
+    // as biology: the loop only ever asks for the pull of a body it has already
+    // decided to count, so such an entry could never be reached.
+    const engine = createDemoSimulation({ seed: 42 });
+    const pulls = associationPullsIn(engine.species);
+    assert.deepEqual([...pulls.keys()], ['herbivore.gazelle'], 'the small grazer, and only it so far');
+    const gazelle = engine.species.require('herbivore.gazelle');
+    const weights = associationOf(gazelle);
+    for (const [partner, pull] of Object.entries(associationPullOf(gazelle))) {
+      assert.ok(weights[partner] > 0, `${partner} is a species the gazelle associates with`);
+      assert.ok(pull > 0 && pull < 1, `${partner} is held to more loosely than its own kind (${pull})`);
+    }
+  });
+
+  test('⚠ the wildebeest declares an association and no pull, which is P3’s control arm', () => {
+    // Two species in one world, one on each side of the new field: the mechanism is
+    // separable in the shipped roster and not only in the test sandbox.
+    const engine = createDemoSimulation({ seed: 42 });
+    const wildebeest = engine.species.require('herbivore.wildebeest');
+    assert.deepEqual(associationOf(wildebeest), { 'herbivore.zebra': 0.5 });
+    assert.equal(associationPullOf(wildebeest), null);
+    assert.equal(associationOf(engine.species.require('herbivore.zebra')), null, 'and the zebra says nothing back');
+  });
+
+  test('and in the shipped world the pull is doing something', () => {
+    // §1.2's standing complaint again: a mechanism that is correct and never fires.
+    // Somebody must actually be standing in company it holds loosely.
+    const engine = createDemoSimulation({ seed: 42 });
+    engine.step(600);
+    let scaled = 0;
+    for (const entity of engine.world.entities.all()) {
+      if (entity.kind !== 'animal' || !entity.alive) continue;
+      const summary = engine.world.social.get(entity.id);
+      if (summary && summary.pullScale !== 1) scaled += 1;
+      // ⚠ And nobody anywhere is at NaN — the 0/0 guard, asserted across a whole
+      // world rather than only in the sandbox that provoked it.
+      assert.equal(Number.isFinite(summary?.pullScale ?? 1), true, `${entity.id} has a non-finite pullScale`);
+    }
+    assert.ok(scaled > 0, 'somebody is holding loosely to company of another species');
+  });
+
+  test('⚠ a world with no wildebeest and no zebra is byte-identical with the pull switched off', () => {
+    // The same property the block above pins for the whole mechanism, for the third
+    // switch on its own: the gazelle carries a pull in every world now, and where its
+    // partners do not exist it must cost exactly nothing. This is what keeps batch
+    // 2's numbers comparable across the phase boundary a second time.
+    const on = createDemoSimulation({ seed: 42, config: { demo: { founding: BATCH2 } } });
+    const off = createDemoSimulation({
+      seed: 42,
+      config: { demo: { founding: BATCH2 }, association: { ...CONFIG.association, scalesPull: false } },
+    });
+    on.step(400);
+    off.step(400);
+    assert.equal(
+      JSON.stringify(captureSimulationState(on).entities),
+      JSON.stringify(captureSimulationState(off).entities),
+    );
   });
 });

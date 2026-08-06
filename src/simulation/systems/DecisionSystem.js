@@ -77,6 +77,7 @@ import { bestMateCandidate, isChooser, matePreferenceFor } from '../mating/mateC
 import { DEFAULT_BREEDING } from '../mating/breeding.js';
 import { DEFAULT_CONCEALMENT, concealedApproach, stalksFromCover } from '../perception/concealment.js';
 import { isKin } from '../social/dominance.js';
+import { CONSPECIFIC_PULL } from '../social/association.js';
 import { territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
@@ -625,9 +626,28 @@ export class DecisionSystem extends SimulationSystem {
       const drift = social?.centroid
         ? Math.hypot(social.centroid.x - entity.x, social.centroid.y - entity.y)
         : 0;
+      // ⚠⚠ **What a declared association pull buys, and the only place it is
+      // spent** (BEHAVIOR-PLAN P3, closing A61). The weight above decides *where*
+      // mixed company puts the centre; this decides how close to it this animal
+      // insists on standing. A gazelle holding to wildebeest at 0.55 tolerates 3.6
+      // units of drift from a herd of them and 2.0 from its own — "half attached to
+      // them, fully attached to my own", which was not expressible until there were
+      // two numbers.
+      //
+      // ⚠ **The distance, not the weight**, and A61 is why: scaling `herdWeight`
+      // puts the pull either side of `wanderBias` depending on the animal's
+      // heritable boldness, so a smooth-looking parameter becomes a threshold
+      // keyed on a trait — inert for bold animals across most of its range. The
+      // distance has no comparison to lose. It is also monotone, and it is directly
+      // measurable as the distance a follower settles at.
+      //
+      // ⚠ `pullScale` is exactly 1 for every species that declares no pull and for
+      // every animal standing alone, and `x / 1` is `x` for every finite double, so
+      // this line is bit-for-bit what it was for all but the declaring species.
+      const herdDistance = behavior.herdDistance / (social?.pullScale ?? CONSPECIFIC_PULL);
       const herdPull =
-        social?.centroid && drift > behavior.herdDistance
-          ? behavior.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - behavior.herdDistance) / Math.max(behavior.herdDistance, 1e-6))
+        social?.centroid && drift > herdDistance
+          ? behavior.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - herdDistance) / Math.max(herdDistance, 1e-6))
           : 0;
 
       // Defense (§1.4 A11). An adult stands its ground when the predator is
@@ -835,7 +855,13 @@ export class DecisionSystem extends SimulationSystem {
       else if (action === 'followParent') followed = guardian;
       else if (action === 'chase' || action === 'stalk') followed = prey;
       else if (action === 'defend') followed = threat;
-      else if (action === 'herd') followed = { ...social.centroid, heading: social.heading, drift };
+      // ⚠ `herdDistance` rides along with the drift for the same reason the drift
+      // does: `#intentFor`'s cohesion term is the *second* reader of that number,
+      // and an animal that decided to close up at one distance and then steered by
+      // another would be wrong in a way no test would catch (D11). Carrying the
+      // one value that was actually used is how the two stay consistent rather than
+      // how they are kept in step.
+      else if (action === 'herd') followed = { ...social.centroid, heading: social.heading, drift, herdDistance };
       // Both `patrol` and `retreat` head for the animal's own ground: patrolling
       // because it has drifted off it, retreating because it is standing on
       // somebody else's. An animal with no range yet simply has nowhere to
@@ -1136,7 +1162,14 @@ export class DecisionSystem extends SimulationSystem {
         // mostly falls in line; one well outside mostly cuts back in.
         const toCentre = Math.atan2(target.y - entity.y, target.x - entity.x);
         const along = target.heading;
-        const cohesion = clamp01((target.drift - behavior.herdDistance) / Math.max(behavior.herdDistance, 1e-6));
+        // ⚠ **The distance the *utility* used, carried on the target** (P3): a
+        // declared `associationPull` widens it, and this is the second of the two
+        // places that read it. The fallback is the species number rather than a
+        // guess, so a target built without one degrades to the pre-P3 arithmetic
+        // instead of to `NaN` — which is what a missing field did to this exact
+        // expression once before (see the target literal's own note).
+        const herdDistance = target.herdDistance ?? behavior.herdDistance;
+        const cohesion = clamp01((target.drift - herdDistance) / Math.max(herdDistance, 1e-6));
         const heading =
           along === null
             ? toCentre

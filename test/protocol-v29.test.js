@@ -215,16 +215,17 @@ describe('protocol v29: the projections A54 owed', () => {
     // filed under it would be the UI lying.
     //
     // ⚠⚠ **This test fishes an emergent event out of the demo, so it is a hostage
-    // to the demo's trajectory** — §1.4 D1's warning, in a test that predates it.
-    // It ran on seed 42 until BEHAVIOR-PLAN P1 changed how the wildebeest and the
-    // buffalo herd; that moved where grazers die, and therefore where scavengers
-    // meet over a body, and seed 42's first theft went from inside this window to
-    // **tick 1682**. Nothing about kill theft changed — seed 42 still produces
-    // nine of them inside 3000 ticks. Measured 2026-08-05 over 3000 ticks, first
-    // theft by seed: 42→1682, 1→1329, **2→898**, 3→1561, 7→1505, 13→1116. Seed 2
-    // is chosen for the margin (and is the hosted world's seed); if this breaks
-    // again, re-measure that row before assuming the mechanism is gone.
-    const engine = createDemoSimulation({ seed: 2 });
+    // to the demo's trajectory** — §1.4 D1's warning, in a test that predates it —
+    // and the seed has now moved twice. P1 changed how the wildebeest and buffalo
+    // herd and pushed seed 42's first theft out to tick 1682, so it moved to seed 2;
+    // P3 gave the wildebeest an association with the zebra and pushed **seed 2** out
+    // to 1901 while pulling 42 back to 971. Nothing about kill theft changed either
+    // time: every seed measured still steals, 8–16 times inside 3000 ticks.
+    // Re-measured 2026-08-05 with P3 landed, first theft by seed: **42→971**,
+    // 1→1297, 2→1901, 3→311, 7→392, 13→1355. If this breaks again, re-measure that
+    // row before assuming the mechanism is gone — the failure mode here is *late*,
+    // never absent.
+    const engine = createDemoSimulation({ seed: 42 });
     const robbed = [];
     for (let i = 0; i < 1500; i += 1) {
       const before = engine.events.lastSeq;

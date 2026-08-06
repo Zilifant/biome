@@ -645,6 +645,53 @@ reason this section can attribute anything. A control arm that does not restore
 the cost cannot answer "what did this cost", which is the same lesson phase 4's
 possession-off row taught.
 
+### The association pull (2026-08-05, BEHAVIOR-PLAN.md P3)
+
+**The mechanism is free; the *declaration* costs ~3%, and it stays ~3% in the
+settled world — which is the thing the P1 section above says to go and check.**
+
+P3 added a second per-species field, `associationPull`, published as `pullScale` on
+the group summary and spent on the herd distance. It also gave the **wildebeest an
+association with the zebra**, and that is the half with a price: a species holding a
+non-null association map stops dropping heterospecific neighbours on the first
+comparison, and the wildebeest is a third of the roster.
+
+Both arms measured on seed 42, 450 ticks (a 50-tick warmup then 400 timed), five
+interleaved rounds, round 1 discarded as JIT, **entity counts printed and matched at
+501** — D24's shape and the trap the P1 row above fell into:
+
+| arm | demo world | entities |
+| --- | ---: | ---: |
+| P2 tree (no wildebeest association) | 4.91 ms/tick | 501 |
+| **P3 shipped** | 5.08 ms/tick | 501 |
+| P3 with `association.scalesPull: false` | 5.26 ms/tick | 501 |
+
+So the wildebeest's association is **+3.5%** and the pull machinery is **not
+resolvable** — the third row is *slower* than the second, which cannot be a cost and
+is the switch changing behaviour: a loosely-held gazelle herds less often, and a
+`herd` action is not free. A control arm that changes what animals do is not a
+control for what code costs, and this is what that looks like when it happens to
+land the right way round.
+
+⚠ **The settled world, because P1 proved a tick-400 figure can understate one of
+these by 5×.** Same method as P1's: seed 7, 5000 ticks, back to back.
+
+| arm | 5000 ticks | living at t5000 | carcasses |
+| --- | ---: | ---: | ---: |
+| P2 tree | 81.0 s | 491 | 242 |
+| **P3 shipped** | 83.4 s | **538** | 205 |
+
+**+3.0%, and the tree is carrying 9.6% *more* animals** — so unlike P1 this does not
+grow with settling, and a share of the 3% is simply more bodies. The reason is
+structural: P1 widened `grid.queryRadius` and then tightened the herds *inside* that
+radius, which is superlinear in the clumping it produces; P3 changes nothing about
+the query and only re-weights a list that was already walked.
+
+⚠ One seed is not a result (§20), but the population direction is worth recording
+against P1's: P1 cost the two herd-radius species animals, and P3 gives some back.
+The 3-seed exploratory sweep BEHAVIOR-PLAN schedules after P5 is where this gets
+characterized.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

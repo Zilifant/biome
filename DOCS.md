@@ -85,7 +85,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **fourteen** always-per-species **fields**: `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`, `forage`, `habitat`, `association`, `crypsis`, `climbs`, `flight`, `cohort`, and `initialEnergyFraction`. ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all fourteen fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **fifteen** always-per-species **fields**: `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`, `forage`, `habitat`, `association`, `associationPull` (2026-08-05), `crypsis`, `climbs`, `flight`, `cohort`, and `initialEnergyFraction`. ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all fifteen fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association` / `associationPull`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
 | Flight                | **A pace on the intent, not a simulation of flight** — `entity.flying`, added 2026-08-04 (phase F1). Faster travel with the terrain modifier bypassed, a wider sight radius, cheaper distance, nothing refusing the step, and out of reach of predation and fire. No altitude, no thermals, no takeoff cost. The **vulture** is the only flier (phase F2), and its ground radius dropped 14 → 9 so that flying restores exactly the 14 it had — the world's widest radius does not move. See §9 Movement |
 | Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, shade + light concealment + near-open going. ⚠ **0.98% of the demo map since 2026-08-04**, against 2.45% before it (5 seeds each): the formation counts doubled but the map grew 4.84×, and tree, thicket and rock formations are absolute **counts** rather than densities. Full mix now, old in brackets: ground 71.1 [87.8], rock 22.1 [1.9] — almost all of it the rim — cover 2.60 [3.35], water 1.83 [1.87], tree 0.98 [2.48], deep water 0.78 [0.85], thicket 0.56 [1.69]. `coverPatchDensity` is the one that is per-area, and it is the one that held. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
@@ -620,8 +620,17 @@ seasonal measurement in the project, which is why it was not done here. The ship
 window is a seasonal restriction rather than the compressed rut the animal is
 famous for, and that is recorded as the distortion it is.
 
-**⚠ A61 — An association weight only bites in mixed company** _(from 2026-07-30,
-phase 12, PLAN-SPECIES.md §3.16)_
+**✅ A61 — An association weight only bites in mixed company** _(from 2026-07-30,
+phase 12, PLAN-SPECIES.md §3.16; **answered 2026-08-05 by BEHAVIOR-PLAN P3**)_
+
+✅ **Closed by the lever this entry names.** A species now declares a second field,
+`associationPull`, and `SocialSystem` publishes its contribution-weighted mean as
+`pullScale` — spent on the **distance** an animal tolerates from a mixed centre
+(`herdDistance / pullScale`) rather than on `herdWeight`, because scaling the
+weight is inert for a bold animal and fires for a timid one, which is a threshold
+on a heritable trait wearing a smooth weight's clothes. See §9 Sociality,
+**Association pull**. The entry below is kept as written, because the measurement
+in it is why the fix has the shape it has.
 
 The weight a species declares for a partner species is an **exchange rate between
 bodies** in the herd's centre of mass, so it decides whose centre wins when both
@@ -641,8 +650,10 @@ ticks — and every weight below ~0.58 behaved the same way.
 
 The honest lever, if batch 3 wants the distinction, is a **separate weight for the
 pull** rather than a reuse of this one, declared high enough to clear `wanderBias`
-and understood as a second number rather than a discount on the first. Nothing has
-asked for it yet.
+and understood as a second number rather than a discount on the first. ✅ **Built
+on 2026-08-05** — as a second number, and spending it on the distance rather than
+on the weight, which sidesteps the `wanderBias` comparison altogether instead of
+having to clear it.
 
 **⚠ A57 — A hidden fawn is concealed only if it was born on cover, which is
 ~8–10% of the time** _(from 2026-07-29, PLAN-SPECIES.md §3.14)_
@@ -1694,7 +1705,7 @@ Alongside them sit fields that were always per-species: `matePreference`,
 `territory`, `migration`, `diet`, `preySpeciesIds` — and `groups`, which joined
 them the same day rather than becoming a block, because its config section also
 carries world-level machinery (see §19). **`forage` and `habitat` joined that list
-on 2026-07-29** (§9 Feeding), **`association` on 2026-07-30** (§9 Sociality), and
+on 2026-07-29** (§9 Feeding), **`association` on 2026-07-30** (§9 Sociality, joined by **`associationPull`** on 2026-08-05), and
 **`crypsis` the same day** (§9 Perception) — ⚠ that last one is a bare number with
 no config section of its own at all, because there is nothing world-level to say
 about how well an animal hides beyond the switch in `config.concealment`.
@@ -1785,8 +1796,8 @@ half the test suite runs engines with different configs in one process.
 
 | Species                | Role                  | Mass | Perception radius | Notes                                                                                                      |
 | ---------------------- | --------------------- | ---: | ----------------: | ---------------------------------------------------------------------------------------------------------- |
-| `herbivore.gazelle`    | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; short-grass tier; the only species to declare an **`association`**        |
-| `herbivore.wildebeest` | prey, herbivore       |  200 |                 7 | The only species with a **breeding window** — a rut, and a calving season that emerges from it; mid tier   |
+| `herbivore.gazelle`    | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; short-grass tier; the only species to declare an **`associationPull`** — how hard it holds to company of another kind, as opposed to how much of a body one of them is worth (P3) |
+| `herbivore.wildebeest` | prey, herbivore       |  200 |                 7 | The only species with a **breeding window** — a rut, and a calving season that emerges from it; mid tier. Declares an **`association`** with the zebra and deliberately no pull, which makes it P3’s in-roster control |
 | `herbivore.zebra`      | prey, herbivore       |  300 |                 8 | Coarse-grass tier; the first **prey animal** on the persistent group registry (a band, not a harem)        |
 | `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass  |
 | `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory. ⚠ From 2026-08-03 the only species that **climbs** — it caches kills in trees, which is what finally closes the limitation its own file has stated since phase 14 |
@@ -3059,7 +3070,7 @@ model different things:
 | ----------------------------- | ----------------------------------------- | ------------------------------------------------------ | -------------- |
 | **Herd label** (`groupId`)    | fission–fusion aggregation: who I happen to be standing with | a label, recomputed every tick by local propagation | `SocialSystem` |
 | **Group record** (`world.groups`) | identity that survives separation: who I belong to | a bounded, saved record with a membership list | `GroupSystem`  |
-| **Association** (`species.association`) | who I am willing to stand with that is *not* my own kind | none at all — a weight in the species file | `SocialSystem` |
+| **Association** (`species.association` + `species.associationPull`) | who I am willing to stand with that is *not* my own kind, and how hard I hold to them | none at all — two weights in the species file | `SocialSystem` |
 
 A gazelle in a wildebeest herd is in none of that herd's labels and none of its
 records, and is still standing in it. That is the whole reason the third row
@@ -3273,6 +3284,11 @@ weight below ~0.58 was inert, which is most of the range anyone would declare. S
 the weight means exactly one thing: **how much of a body a member of that species
 is worth when the herd's centre is worked out.**
 
+✅ **That still holds, and a *second* number now carries the other half** — see
+**Association pull** below (2026-08-05). The lesson was never "the pull cannot be
+scaled"; it was "a weight already spent cannot be spent twice". A separate
+declaration is a separate fact.
+
 **Predator dilution needs nothing and gets nothing.** It already falls out:
 perception reports the nearest eligible prey (A58), so a predator entering a mixed
 aggregation takes what is closest and the odds of that being any one species fall
@@ -3286,6 +3302,87 @@ species inside its group radius at any moment, and their alarms reach it. Every
 other species takes the untouched branch, and **a world with no wildebeest and no
 zebra is still byte-identical with `association.enabled: false`** — which is what
 keeps batch 2's numbers comparable across the phase boundary.
+
+#### Association pull, 2026-08-05 (BEHAVIOR-PLAN.md P3) — closing A61
+
+✅ **"Half attached to them, fully attached to my own" is expressible now, and it
+was not before.** A61 recorded the gap precisely: the association weight is an
+exchange rate between *bodies*, so it decides whose centre wins in mixed company
+and **cancels out of the mean entirely when only the other kind is standing
+there**. A gazelle alone among wildebeest therefore stuck to them exactly as hard
+as to gazelle. A species may now declare a second always-per-species field beside
+the first:
+
+```js
+association:     Object.freeze({ 'herbivore.wildebeest': 0.5,  'herbivore.zebra': 0.6  }), // how much of a body
+associationPull: Object.freeze({ 'herbivore.wildebeest': 0.55, 'herbivore.zebra': 0.65 }), // how hard to hold on
+```
+
+`SocialSystem` publishes the **contribution-weighted mean** of those pulls — 1 per
+conspecific, the declared value per associate — as `pullScale` on the transient
+group summary, so an all-conspecific group is exactly 1.0 and one wildebeest among
+six gazelle barely moves it.
+
+⚠⚠ **It is spent on the distance, never on the utility, and that is the whole of
+why A61 stayed open for six days.** A61's failed fix scaled the herd *pull* by the
+centroid weight; this one could have made the same mistake with a different number.
+Herding is the weakest utility in the table, so a discount on `herdWeight` lands
+either side of `wanderBias` depending on the animal's **heritable boldness**: for
+the gazelle at `herdWeight` 0.6, a fully-ramped bold animal (boldness 1) scores
+0.6 against a `wanderBias` of 0.35, and a 0.55 discount takes it to 0.33 — inert —
+while a timid one (boldness 0.5) scores 0.495 against 0.175 and fires. That is a
+**threshold effect keyed on a trait, dressed as a smooth weight**, which is worse
+than either arm of A61. So the pull divides the *distance* instead:
+
+```js
+effectiveHerdDistance = behavior.herdDistance / pullScale
+```
+
+Monotone, no comparison to lose, and directly measurable as the distance a
+follower settles at. At 0.55 a gazelle tolerates 3.6 units of drift from a
+wildebeest centre and 2.0 from its own. ⚠ Note it delays the *onset* of the pull
+rather than capping its strength — past twice the widened distance the ramp is
+still fully saturated, which is what keeps a loose attachment an attachment.
+
+⚠ **It is read in two places and they must be the same number** (D11): the `herd`
+utility's gate and ramp, and the `cohesion` term inside `#intentFor`. The
+computed distance rides on the herd target alongside the drift rather than being
+recomputed, so an animal cannot decide to close up at one distance and steer by
+another — a failure that changes herding subtly and fails no test on its own.
+`test/association.test.js` pins it through the resulting heading.
+
+⚠⚠ **`pullScale` is 1 for an animal standing alone, and that guard is not
+tidiness.** `pullSum / weight` is `0 / 0` for an animal with nobody in range; the
+`NaN` propagates into `utilities.herd`, `argmaxUtility` compares with `>`, and
+`NaN > x` is false — so `herd` would be **silently never chosen again**, with no
+crash and a `null` in the inspector.
+
+**Two shipped species, one on each side of the new field**, which is what makes it
+separable in the real roster rather than only in a sandbox. The gazelle declares
+both. The **wildebeest declares an association with the zebra** (0.5 — the zebra
+opens the coarse sward and the wildebeest takes the regrowth behind it, which the
+forage succession already said) and **no pull**, so its `pullScale` is exactly 1:
+the *distance* it tolerates from a herd is bit-for-bit what it was, and what
+changed for it is only *where* that herd's centre is — the phase-12 mechanism doing
+its ordinary job rather than anything P3 added. A world with no wildebeest and no
+zebra in it stays byte-identical with `association.scalesPull: false`, exactly as it
+does with the mechanism as a whole switched off.
+
+⚠ That new declaration is **not free of consequences elsewhere**: it moved the
+demo's trajectory enough that the two tests which fish an emergent carcass theft out
+of a fixed window had to change seed again (`test/groups.test.js`,
+`test/protocol-v29.test.js` — the row of per-seed first-theft ticks is re-measured
+beside each). It also gives the wildebeest the vigilance half: a zebra's alarm now
+carries to it.
+
+Cost, measured 2026-08-05 over 450 demo ticks on seed 42 with entity counts matched
+at 501, five interleaved rounds: the pull machinery itself is **not resolvable** —
+5.08 ms/tick on against 5.26 off, i.e. the *on* arm reads faster, which says the
+difference is behavioural (a loosely-held gazelle herds less often) rather than
+computational. What does cost something is the wildebeest's new association:
+**5.08 against 4.91 ms/tick without it, ~+3.5%**, and that is the phase-12
+mechanism's ordinary per-neighbour price arriving for a numerous species, not
+anything P3 added. Off switch: `config.association.scalesPull`.
 
 ### Persistent groups
 
@@ -5217,7 +5314,8 @@ herd *label* — positional, recomputed every tick, owned by `SocialSystem`.
 owned by `GroupSystem`. `association` (2026-07-30) is who an animal will stand
 with that is **not** its own kind, and it is neither a label nor a record: it is a
 weight in the species file, read by `SocialSystem` where the herd centre is
-computed. See §9 Sociality, which opens with the design decision the second
+computed — with `associationPull` (2026-08-05) beside it saying how hard to hold to
+that centre, which is the one number of the three that is *not* spent inside it. See §9 Sociality, which opens with the design decision the second
 overrode and ends with what the third is allowed to touch.
 
 ⚠ **`cohorts` is a fourth thing that sounds like all of them, and it is not a
@@ -5252,11 +5350,13 @@ the six sections that are half-global and half-per-species**, and none of them i
 species block. Each has a same-named field on the species record holding that
 animal's biology (`groups.forms`, `migration.tracksForage`, `territory.defends`,
 `forage.preferredBiomass`, `habitat.cover`, and a weight per partner species in
-`association`), while the config section holds world-level machinery — for `groups`
+`association` — beside which sits `associationPull`, a *second* field rather than a
+key inside the first, because the two are the same shape over the same species ids
+and mean different things), while the config section holds world-level machinery — for `groups`
 that is `enabled`, `updateInterval`, and the store bound `maxGroups`; for `forage`
 and `habitat` (2026-07-29) it is `enabled` plus the shared shape of the effect
 (`qualityFloor`, `biasWeight`, `cueReference`); for `association` (2026-07-30) it is
-`enabled` and `sharesAlarm`. They are not blocks precisely *because* of that
+`enabled`, `sharesAlarm`, and — from 2026-08-05 — `scalesPull`. They are not blocks precisely *because* of that
 mixture: a species inheriting `maxGroups` would be inheriting a knob on a store it
 does not own, and — the sharper reason, learned at phase 8 — **an `enabled` inside a
 species block is not an off switch at all**, because a species block beats the

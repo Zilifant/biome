@@ -647,15 +647,19 @@ describe('persistent groups: the two mechanisms stay apart', () => {
     // in batch 1: cooperative *hunting* cannot be shown against 30 kg prey, but
     // contested *possession* can, because the contested resource is the carcass.
     //
-    // ⚠⚠ **Seed 2 rather than 42, for the reason written up beside the identical
-    // fish in `protocol-v29.test.js`**: this waits for an emergent event, so it is
-    // a hostage to the demo's trajectory (§1.4 D1). BEHAVIOR-PLAN P1 changed how
-    // the wildebeest and buffalo herd, which moved where grazers die and therefore
-    // where scavengers meet over a body, and seed 42's first theft moved out past
-    // this window to tick 1682 — while still producing nine inside 3000. Measured
-    // 2026-08-05, first theft by seed: 42→1682, 1→1329, **2→898**, 3→1561,
-    // 7→1505, 13→1116. Re-measure that row before concluding theft has broken.
-    const engine = createDemoSimulation({ seed: 2 });
+    // ⚠⚠ **The seed here is a hostage to the demo's trajectory and has now moved
+    // twice** (§1.4 D1, and the reason written up beside the identical fish in
+    // `protocol-v29.test.js`): this waits for an emergent event, so any behavioural
+    // change moves where grazers die and therefore where scavengers meet over a
+    // body. P1 pushed seed 42's first theft out past this window and the test moved
+    // to seed 2; P3 gave the wildebeest an association with the zebra and pushed
+    // **seed 2** out to 1901, while pulling 42 back in. Re-measured 2026-08-05 with
+    // P3 landed, first theft by seed: **42→971**, 1→1297, 2→1901, 3→311, 7→392,
+    // 13→1355 — every seed thefts, and 8–16 of them inside 3000 ticks.
+    //
+    // ⚠ Re-measure that row before concluding theft has broken. The failure mode
+    // this test has is *late*, never absent, and the two are not the same finding.
+    const engine = createDemoSimulation({ seed: 42 });
     let robbed = 0;
     let seq = 0;
     for (let t = 0; t < 1500; t += 1) {

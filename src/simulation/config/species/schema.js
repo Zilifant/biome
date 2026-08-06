@@ -48,9 +48,16 @@
  * of the same name. Anything not listed here is either already per-species
  * (`matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, and —
  * from the species plan — `groups`, `forage`, `habitat`, `association`, `crypsis`,
- * and `climbs` from 2026-08-03, `flight` and `cohort` from 2026-08-04) or genuinely
- * world-level (terrain, weather, disturbances, the decision weights) and stays in
- * the config.
+ * and `climbs` from 2026-08-03, `flight` and `cohort` from 2026-08-04,
+ * `associationPull` from 2026-08-05) or genuinely world-level (terrain, weather,
+ * disturbances, the decision weights) and stays in the config.
+ *
+ * ⚠ **`associationPull` is a field beside `association`, not a key inside it**
+ * (BEHAVIOR-PLAN P3). The two are the same shape over the same species ids and mean
+ * different things — how much of a *body* a partner is worth in the herd's centre,
+ * and how hard to *hold* to that centre — so nesting one in the other would break
+ * `associationOf` and `associationWeightFor`, which read `association` as a flat
+ * `{speciesId: number}` map. See `social/association.js`.
  *
  * ⚠ **`cohort` is the same shape as `flight` and for the same reason**: it holds
  * `{ groupSize, spread }` — how this species' founders are arranged on the ground

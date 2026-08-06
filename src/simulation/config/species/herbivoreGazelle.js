@@ -29,8 +29,9 @@
  * hidden-fawn stage arrived at phase 8 (`aging.hiddenUntil`) and **short-grass
  * preference plus open-plain habitat at phase 9** (`forage` and `habitat` below,
  * which make this the first species to state either);
- * male rut territory waits for sex-restricted territory (phase 15), and
- * heterospecific association waits for a second herbivore (phase 12). The rest
+ * male rut territory waits for sex-restricted territory (phase 15). ✅
+ * Heterospecific association arrived with the second and third herbivores (phase
+ * 12–13) and gained its pull at BEHAVIOR-PLAN P3 — both are below. The rest
  * of the model — loose fission–fusion herds, alarm propagation, forage-tracking
  * migration, mother–calf attachment, fast juvenile development, heavy predation
  * pressure, and male competition through mate contests — is already here and
@@ -184,5 +185,25 @@ export const herbivoreGazelle = Object.freeze({
   // perception radius is the sharpest among the grazers and so is genuinely the
   // better animal to stand beside.
   association: Object.freeze({ 'herbivore.wildebeest': 0.5, 'herbivore.zebra': 0.6 }),
+  // ⚠⚠ **How hard it holds to them, which is a different question from how much
+  // of a body one of them is worth** (BEHAVIOR-PLAN P3, closing A61). The weights
+  // above are an exchange rate *between bodies*, so they decide whose centre wins
+  // in mixed company and cancel out of the mean entirely when only the other kind
+  // is standing there: until now a gazelle alone in a wildebeest herd stuck to it
+  // exactly as hard as to its own. This is the second number that says otherwise.
+  //
+  // ⚠ It is spent on the **distance** the animal tolerates, not on `herdWeight`:
+  // `herdDistance / pull`, so 0.55 turns this species' 2.0 into 3.6 units of
+  // allowed drift from a herd of wildebeest and leaves it at 2.0 among gazelle.
+  // Loose company, not a weaker preference for company — which is what standing
+  // with another species actually looks like, and is the shape A61 asked for after
+  // measuring the discount-the-weight version inert.
+  //
+  // ⚠ Deliberately **near but not equal** to the association weights beside them.
+  // They are independent declarations by design (A61: "a *separate* weight for the
+  // pull rather than a reuse of this one"); the ordering is shared because it comes
+  // from the same fact — the zebra's perception is the sharpest among the grazers,
+  // so it is both the better body to weight and the better animal to stay close to.
+  associationPull: Object.freeze({ 'herbivore.wildebeest': 0.55, 'herbivore.zebra': 0.65 }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

@@ -14,9 +14,9 @@ the evidence and reasoning attached.
 
 **[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is the plan currently being built** —
 eleven phases (P0–P10) taking herbivore sociality from "persistent identity that
-nothing acts on" to identity and group intent that steer movement. P0–P2 have
+nothing acts on" to identity and group intent that steer movement. P0–P3 have
 shipped. **[`HANDOFF.md`](HANDOFF.md) is where to start a session on it**: what
-the code looks like now that those three have landed on it, and the landmines
+the code looks like now that those four have landed on it, and the landmines
 they turned up.
 
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
@@ -381,7 +381,7 @@ to engine code; `test/species-schema.test.js` rejects those.
    as a list of what makes that animal unusual. Alongside them sit the
    always-per-species **fields**, which have no config default to fall back on:
    `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`,
-   `forage`, `habitat`, `association`, `crypsis`, `climbs`, `flight`, `cohort`,
+   `forage`, `habitat`, `association`, `associationPull`, `crypsis`, `climbs`, `flight`, `cohort`,
    and `initialEnergyFraction`.
 2. Add it to the roster in `config/species/index.js` and to `config.demo.founding`
    if it should exist in the demo world.

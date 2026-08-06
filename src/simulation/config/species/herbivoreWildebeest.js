@@ -120,6 +120,27 @@ export const herbivoreWildebeest = Object.freeze({
   // Open plain, more strongly than the gazelle: this is a species of the short-grass
   // plains and it wants nothing to do with cover.
   habitat: Object.freeze({ ground: 1.2, cover: 0.7, water: 1.05, thicket: 0.3 }),
+  // ⚠ **The second association declared in this world** (BEHAVIOR-PLAN P3), and the
+  // one the succession above implies: the zebra opens the tall coarse sward and
+  // this animal takes the regrowth behind it (`forage.preferredBiomass` 9 → 5), so
+  // a zebra band is a standing advertisement for ground a wildebeest wants. Mixed
+  // wildebeest–zebra aggregations are the ordinary state of the plain.
+  //
+  // ⚠ **Directional, and the direction is the point.** The zebra says nothing back:
+  // it is the animal in front, and it gains nothing from the herd behind it. One
+  // declaration, not two — the same asymmetry the gazelle's is built on. ⚠ It buys
+  // the vigilance half too (`association.sharesAlarm`): a zebra's warning now
+  // reaches the wildebeest standing with it, and the zebra has the sharpest eyes
+  // among the grazers.
+  //
+  // ⚠ **No `associationPull` beside it, deliberately**, and that makes this species
+  // P3's shipped control: `pullScale` is exactly 1 for it, so the *distance* it
+  // tolerates from a herd is bit-for-bit what it was, and what changed is only
+  // *where* that herd's centre is — which is the phase-12 mechanism doing its
+  // ordinary job, not P3's. A gazelle standing in the same crowd is the arm that
+  // moved. The distinction is not decoration: it is what says the two fields are
+  // genuinely separable in the shipped roster rather than only in a test sandbox.
+  association: Object.freeze({ 'herbivore.zebra': 0.5 }),
   behavior: Object.freeze({
     // Large herds, and tight enough to *be* herds — the phase-11 lesson that
     // anything counting neighbours is a density mechanism, applied in advance. At

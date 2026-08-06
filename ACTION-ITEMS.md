@@ -245,8 +245,15 @@ they are not re-opened by accident.
   lifespan is what makes a narrow window affordable, and it re-bases every seasonal
   measurement in the project.
 
-- **⚠ A61 — An association weight only bites in mixed company** (from
-  2026-07-30, phase 12). The weight is an *exchange rate between bodies* in the
+- **✅ A61 — An association weight only bites in mixed company** (from
+  2026-07-30, phase 12; **answered 2026-08-05**, BEHAVIOR-PLAN P3). A species now
+  declares a second field, `associationPull`, published as `pullScale` and spent on
+  the **distance** an animal tolerates from a mixed centre — not on `herdWeight`,
+  where a discount is inert for a bold animal and fires for a timid one. The gazelle
+  declares one; the wildebeest declares an association and no pull, which is the
+  in-roster control. DOCS §9 Sociality, *Association pull*. The rest of this entry
+  is kept because its measurement is why the fix has that shape.
+  The weight is an *exchange rate between bodies* in the
   herd's centre of mass, so it decides whose centre wins when both kinds are
   present and cancels out of the mean when only the other kind is: a gazelle alone
   among wildebeest sticks to them exactly as hard as to its own herd. ⚠ The obvious
