@@ -10,6 +10,7 @@ import { captureSimulationState } from '../src/simulation/persistence/Simulation
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 function hydrationOnlyEngine(params = {}) {
   const hydration = { dehydrationRate: 0.05, drinkRate: 5, drinkRange: 1.5, dehydrationDamage: 0.5, ...params };
@@ -157,8 +158,8 @@ describe('hydration: protocol, determinism, inspection', () => {
   });
 
   test('hydration keeps the demo deterministic and round-trips through save/load', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(300);
     b.step(300);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);

@@ -61,36 +61,21 @@ describe('determinism', () => {
     );
   });
 
-  test('benchmark-style: several thousand demo ticks advance without waiting on real time', () => {
-    const engine = createDemoSimulation({ seed: 7 });
-    const startedAt = performance.now();
-    engine.step(5000);
-    const elapsedMs = performance.now() - startedAt;
-    assert.equal(engine.tick, 5000);
-    // Entities are never removed (carcasses persist) and reproduction adds
-    // more, so the total only ever grows from the founding cohort.
-    const founded = engine.config.demo.founding.reduce((sum, f) => sum + f.count, 0);
-    assert.ok(engine.entityCount >= founded);
-    // Generous bound — this is a smoke check that headless stepping is fast,
-    // not a strict performance assertion.
-    // ⚠ 30 000 until 2026-08-04, when the demo became the ngorongoro world:
-    // ~4.8× the map and ~2.3× the founders is **7.6 ms/tick** where the old demo
-    // was ~1 (measured uncontended: 5000 ticks in 37.9 s, so the old bound now
-    // fails on an idle machine). Raised rather than deleted, because the claim it
-    // makes is still the one worth making — the engine holds no timer, so 5000
-    // ticks take CPU time and not 5000 seconds. It stays far under the runner's
-    // one-second authoritative tick.
-    //
-    // ⚠ 120 000 until 2026-08-05, when BEHAVIOR-PLAN P1 gave the wildebeest and
-    // the buffalo a herd radius of 11. Measured back-to-back on this seed: 42.2 s
-    // before, 62.6 s after (+48%, and with 12% *fewer* animals alive — the cost is
-    // the clumping the feature exists to produce; see BENCHMARK.md). That alone
-    // fits, but `node --test` runs files in parallel, and under that contention
-    // the same run took **136 s** and failed. This is a smoke check on a wall
-    // clock competing with a dozen sibling processes, so the bound has to clear
-    // the contended case or it is a coin flip rather than an assertion — while
-    // still being ~20× under the 5000 seconds a timer-driven engine would need,
-    // which is the whole of what it claims.
-    assert.ok(elapsedMs < 240000, `5000 ticks took ${elapsedMs}ms`);
-  });
+  // ⚠⚠ **Removed 2026-08-05: `benchmark-style: several thousand demo ticks
+  // advance without waiting on real time`.** It ran the demo 5000 ticks with a
+  // stopwatch and asserted the wall clock stayed under a bound — 92 s, and the
+  // bound had been raised twice (30 s → 120 s → 240 s) because it was really
+  // tracking *performance drift*, not the claim it was named for.
+  //
+  // ⚠ **What went with it.** The claim was that the engine holds **no timer**: a
+  // tick is a step of computation, so 5000 of them cost seconds rather than the
+  // 5000 seconds a real-time-coupled engine would need. That is a ~1000×
+  // signal and nothing else in the suite watches for it, so the tripwire against
+  // anyone adding a sleep, a timer, or a wall-clock wait inside `src/simulation`
+  // is now gone. Invariant 9 and the `Date.now()` ban in DOCS §4 still *state* the
+  // rule; no test enforces it.
+  //
+  // ⚠ If it returns, it should assert the two things separately — ticks completed,
+  // and a generous ceiling on a much shorter run. Conflating a 1000× tripwire with
+  // a few-percent performance number is what made it need three bounds in a year.
 });

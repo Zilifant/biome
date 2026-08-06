@@ -19,6 +19,7 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 
@@ -350,7 +351,7 @@ describe('memory: protocol, persistence, and determinism', () => {
   });
 
   test('memories survive save/load and the restored run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 42 });
+    const engine = smallDemo({ seed: 42 });
     engine.step(1200);
     const saved = captureSimulationState(engine);
     const before = [...engine.world.entities.all()].map((e) => ({ id: e.id, memories: e.memories }));
@@ -368,8 +369,8 @@ describe('memory: protocol, persistence, and determinism', () => {
   });
 
   test('memory keeps the demo deterministic', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(2000);
     b.step(2000);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);

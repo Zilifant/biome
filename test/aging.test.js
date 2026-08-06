@@ -2,9 +2,6 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { AgingSystem, bodyMassForAge, lifeStageForAge } from '../src/simulation/systems/AgingSystem.js';
-import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
-import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
-import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 
 const STAGES = { juvenileUntil: 400, subadultUntil: 1000, adultUntil: 6000 };
 const GROWTH = { birthMass: 5, adultMass: 30, maturityAge: 1000 };
@@ -123,41 +120,11 @@ describe('aging: senescence and age mortality', () => {
   });
 });
 
-describe('aging: protocol, determinism, demo', () => {
-  test('lifeStage is a public snapshot field', () => {
-    const engine = createDemoSimulation({ seed: 42 });
-    engine.step(3);
-    const snapshot = buildFullSnapshot(engine.getSnapshotData());
-    assert.ok(PUBLIC_ENTITY_FIELDS.includes('lifeStage'));
-    for (const entity of snapshot.entities) {
-      assert.ok(['juvenile', 'subadult', 'adult', 'senescent'].includes(entity.lifeStage));
-    }
-  });
-
-  test('aging is deterministic across two runs (incl. age deaths)', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
-    a.step(7000);
-    b.step(7000);
-    assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);
-  });
-
-  test('the demo shows growth, all four stages over a run, and age deaths', () => {
-    const engine = createDemoSimulation({ seed: 42 });
-    const stagesSeen = new Set();
-    let ageDeaths = 0;
-    for (let t = 0; t < 8000; t += 1) {
-      const before = engine.events.lastSeq;
-      engine.step(1);
-      for (const e of engine.eventsSince(before)) if (e.type === 'entity.died' && e.cause === 'age') ageDeaths += 1;
-      for (const e of engine.world.entities.all()) if (e.kind === 'animal' && e.alive) stagesSeen.add(e.lifeStage);
-    }
-    for (const stage of ['juvenile', 'subadult', 'adult', 'senescent']) {
-      assert.ok(stagesSeen.has(stage), `expected to observe ${stage}`);
-    }
-    assert.ok(ageDeaths > 0, 'expected at least one age death');
-  });
-
+// ⚠ The demo-world block that used to sit here now lives in
+// `aging.slow.test.js` — see that file's header for why (it was 61% of the whole
+// suite's wall clock, and `node --test` cannot parallelize within one file).
+// Nothing moved out of this file except those three tests, verbatim.
+describe('aging: staggering', () => {
   test('performance: staggering aging cuts per-tick cost proportionally', () => {
     // The system supports updateInterval; verify age stays ≈ accurate when
     // staggered (incremented by the interval each run).

@@ -49,7 +49,8 @@ npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 | `npm start`                                  | Run the server without nodemon                                               |
 | `npm run headless -- --ticks=5000 --seed=42` | Advance the simulation as fast as possible, no server                        |
 | `npm run benchmark`                          | Deterministic performance baseline across entity counts (see `BENCHMARK.md`) |
-| `npm test` / `npm run test:watch`            | Run the `node:test` suite                                                    |
+| `npm test` / `npm run test:watch`            | Run the full `node:test` suite (~11 min)                                     |
+| `npm run test:fast`                          | The same suite without the demo/persistence/determinism tiers (~5 min) — use this in an edit loop |
 | `npm run fixtures:renderer`                  | Regenerate the committed renderer protocol fixtures                          |
 
 Environment variables for the server: `PORT` (default 3000), `SIM_SEED`

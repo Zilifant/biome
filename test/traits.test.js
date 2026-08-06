@@ -15,6 +15,7 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const GRAZER = getSpecies('herbivore.gazelle');
 
@@ -325,7 +326,7 @@ describe('traits: protocol, persistence, and determinism', () => {
   });
 
   test('traits survive save/load and the restored run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 42 });
+    const engine = smallDemo({ seed: 42 });
     engine.step(1500);
     const saved = captureSimulationState(engine);
     const traitsBefore = [...engine.world.entities.all()].map((e) => ({ id: e.id, traits: e.traits, adultMass: e.adultMass }));
@@ -340,8 +341,8 @@ describe('traits: protocol, persistence, and determinism', () => {
   });
 
   test('individual variation keeps the demo deterministic', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(2000);
     b.step(2000);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);

@@ -25,6 +25,7 @@ import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/cre
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 const ENV = CONFIG.environment;
@@ -443,7 +444,7 @@ describe('weather: protocol, persistence, and the demo', () => {
   });
 
   test('the environment survives save/load and the run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 42 });
+    const engine = smallDemo({ seed: 42 });
     engine.step(3000);
     const saved = captureSimulationState(engine);
     assert.ok(SEASONS.includes(saved.environment.season), 'the environment is saved');
@@ -457,14 +458,14 @@ describe('weather: protocol, persistence, and the demo', () => {
   });
 
   test('weather keeps the demo deterministic, and its stream is independent', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(2000);
     b.step(2000);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);
 
-    const c = createDemoSimulation({ seed: 55 });
-    const d = createDemoSimulation({ seed: 55 });
+    const c = smallDemo({ seed: 55 });
+    const d = smallDemo({ seed: 55 });
     const scratch = d.randomStream('unrelated');
     for (let i = 0; i < 50; i += 1) scratch.next();
     c.step(500);

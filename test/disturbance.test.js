@@ -25,6 +25,7 @@ import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../sr
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -486,7 +487,7 @@ describe('disturbances: protocol, persistence, and the demo', () => {
   });
 
   test('an active disturbance survives save/load and the run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 13 });
+    const engine = smallDemo({ seed: 13 });
     // Step until something is actually running, so the save has one in it —
     // otherwise this test passes by saving nothing (§1.4 D5).
     let guard = 0;

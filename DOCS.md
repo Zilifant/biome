@@ -4724,6 +4724,103 @@ structurally cannot see. Layers:
   assertions.
 - **Performance** — benchmarks report; they do not gate.
 
+### Two tiers, because the suite is CPU-bound on simulation ticks (2026-08-05)
+
+`npm test` runs everything. **`npm run test:fast` skips the demo-world,
+persistence and determinism suites** and is what an edit loop should use:
+
+| | tests | wall clock |
+| --- | ---: | ---: |
+| `npm test` | 1204 | ~11 min (was 15.5) |
+| `npm run test:fast` | 1043 | **~5 min** |
+
+⚠ **The suite is not slow because there are many tests; it is slow because it runs
+~237 000 simulation ticks at ~7 ms each.** That is ~5150 s of CPU. The only reason
+it finishes in 13 minutes is `node --test` running files in parallel across ten
+cores — and the only reason it does not finish in 9 is that **parallelism is
+file-level and never within a file**, so one long file sets a floor nothing can go
+under. Measured before the split: `aging.test.js` alone was **565 s, 61% of the
+whole suite's wall clock**, while overall utilization sat at ~4 of 10 cores.
+
+That is what the **`.slow.test.js`** suffix is for. `aging`, `genetics` and
+`carcass` each had a demo block far larger than the rest of their file; moving
+those blocks into `aging.slow.test.js`, `genetics.slow.test.js` and
+`carcass.slow.test.js` lets them run *beside* the other long poles instead of
+after them. Nothing was rewritten, sampled, or deleted — the tests moved verbatim,
+and the count is identical either side of the split (1205, 1200 passing).
+
+⚠ **The gain was 16%, not the ~35% predicted, and the reason is worth recording:**
+three files were split but the individual *blocks* are still large
+(`aging.slow` 565 s, `genetics.slow` 538 s, `carcass.slow` 492 s), so the floor
+moved from one 565 s file to another. Utilization went 417% → 573%. Getting near
+the 515 s CPU-bound floor means splitting *within* those blocks — the single
+`aging is deterministic across two runs` test is 371 s of 2 × 7000 demo ticks on
+its own — or shrinking the work, which is the next item.
+
+### Right-sized worlds: `test/helpers/smallDemo.js` (2026-08-05)
+
+**A 30%-founder world on a 160×120 map runs 1000 ticks in 1.6 s against the full
+demo's 6.2 s — 3.9×.** Twenty-three guards were switched to it, taking the full
+suite from 12.9 min to **10.6 min**.
+
+⚠⚠ **The rule for using it is in the helper's header and it is not a
+formality.** ✅ Legitimate for determinism guards, save/load round trips, stream
+independence — every claim whose truth is a property of the *machinery*: two
+engines either agree byte for byte or they do not, and five hundred animals do not
+make that more true than sixty. ⛔ **Never for an ecological claim.** `the demo
+sustains both species`, `carcasses stop accumulating`, `the demo shows all four
+stages` stay full-size, because there the demo *is* the claim and shrinking the
+world would silently change what is being asserted into something nobody chose.
+
+⚠ The map is the pre-2026-08-04 demo's 160×120 rather than the current 332×280, so
+the scaled roster sits at comparable *density*. Density drives perception,
+sociality and predation; a smaller roster on the full map would exercise them
+**less**, which is the one way this swap could weaken a test unnoticed.
+
+⚠ Two existence assertions survived the shrink and were the ones to watch:
+`saved.tombstones.length > 0` ("something has been forgotten by now") and
+"the demo produced at least one courtship to round-trip". Both still hold at 30%.
+
+⚠ **Nine of the converted guards are byte-for-byte the same test** — two engines,
+one seed, 2000 ticks, `deepEqual` — living in nine different files under nine
+names (`injury keeps the demo deterministic`, `memory keeps…`, and so on). They
+were kept and right-sized rather than deduplicated, because each is a per-system
+tripwire whose *failure message* names the system a maintainer should look at. But
+they add no coverage over `determinism.test.js`'s baseline guard, and if the suite
+needs cutting again they are the obvious place.
+
+### Two tests removed on 2026-08-05, and what went with them
+
+Recorded here rather than only in the diff, because both guarded something real:
+
+- **`aging is deterministic across two runs (incl. age deaths)`** — 286 s, the most
+  expensive test in the suite. Age death is a per-tick random draw and this was the
+  only test that ran long enough (7000 ticks) to reach one; the surviving baseline
+  guard stops at 2000, short of any species' senescence. **Determinism through the
+  age-death path is now unguarded.** ⚠ It also never asserted an age death had
+  occurred — only byte-equality — so it had been half-testing its own name for
+  some time.
+- **`benchmark-style: several thousand demo ticks advance without waiting on real
+  time`** — 92 s. It asserted the engine holds **no timer**: a tick is a step of
+  computation, so 5000 of them cost seconds rather than 5000 seconds. That is a
+  ~1000× signal and nothing else watches for it, so **invariant 9's "no wall-clock
+  in the domain" is now stated but unenforced.** Its bound had been raised three
+  times (30 s → 120 s → 240 s) because it was really tracking performance drift,
+  which is what made it flaky rather than useful.
+
+Both are cheap to reinstate in right-sized form; neither should come back at full
+size.
+
+⚠ **And one plausible-sounding optimization is worthless: test-side work is free.**
+Several long tests scan every entity every tick. Sampling every 50th tick instead
+measures **1.00×** — engine ticks dominate so completely that the scan costs
+nothing. Do not spend time there.
+
+⚠ Two `node --test` behaviours that cost an hour between them:
+`--test-skip-pattern` is **silently ignored when it appears after the file
+arguments** (the flag must come first), and skipped tests are dropped from the
+`tests` count rather than reported as `skipped`.
+
 ⚠⚠ **"A featureless sandbox" is one shared constant, and a new generator quantity
 must be zeroed there in the same commit that adds it.** `test/helpers/flatTerrain.js`
 exists because "flat" was spelled out ~25 times — `{ lakes: 0, ridges: 0, thickets: 0,

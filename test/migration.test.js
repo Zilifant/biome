@@ -26,6 +26,7 @@ import { buildFullSnapshot } from '../src/protocol/snapshots.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 // Resolved species (Step 29): the accessors take a resolved record, not an id.
@@ -725,7 +726,7 @@ describe('migration: protocol, persistence, and the demo', () => {
   });
 
   test('migration survives save/load and the run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 7 });
+    const engine = smallDemo({ seed: 7 });
     engine.step(1200);
     const saved = JSON.parse(JSON.stringify(captureSimulationState(engine)));
 

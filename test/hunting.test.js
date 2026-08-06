@@ -14,6 +14,7 @@ import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapshots.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -457,8 +458,8 @@ describe('predation: demonstration scenario and the demo', () => {
   });
 
   test('predation keeps the demo deterministic', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(2000);
     b.step(2000);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);

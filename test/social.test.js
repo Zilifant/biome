@@ -16,6 +16,7 @@ import { buildFullSnapshot, PUBLIC_ENTITY_FIELDS } from '../src/protocol/snapsho
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 const GRAZER = getSpecies('herbivore.gazelle');
@@ -669,7 +670,7 @@ describe('social: protocol, metrics, and persistence', () => {
   });
 
   test('the herd label survives save/load and the run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 42 });
+    const engine = smallDemo({ seed: 42 });
     engine.step(1500);
     const saved = captureSimulationState(engine);
     const restored = restoreDemoSimulation(saved);

@@ -21,6 +21,7 @@ import { buildFullSnapshot, buildDeltaSnapshot, applyDeltaSnapshot } from '../sr
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const CONFIG = new SimulationEngine().config;
 const ENG = CONFIG.engineering;
@@ -468,7 +469,7 @@ describe('engineering: protocol, persistence, and the demo', () => {
   });
 
   test('worn ground survives save/load and the run continues identically', () => {
-    const engine = createDemoSimulation({ seed: 13 });
+    const engine = smallDemo({ seed: 13 });
     // Step until something has actually been worn in, so the save has features
     // in it — otherwise this passes by saving nothing (§1.4 D5).
     let guard = 0;

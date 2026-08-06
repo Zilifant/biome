@@ -6,6 +6,7 @@ import { lookupLineage, LineageStatus } from '../src/simulation/world/lineage.js
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 const PARAMS = {
   matingRange: 2.0,
@@ -233,8 +234,8 @@ describe('reproduction: demo integration', () => {
   });
 
   test('reproduction keeps the demo deterministic', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(1500);
     b.step(1500);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);

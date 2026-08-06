@@ -5,6 +5,7 @@ import { FeedingSystem } from '../src/simulation/systems/FeedingSystem.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 /**
  * Engine with only the feeding system on all-ground terrain (no lakes/ridges),
@@ -142,8 +143,8 @@ describe('feeding: the survival loop (demo integration)', () => {
   });
 
   test('feeding keeps the demo deterministic', () => {
-    const a = createDemoSimulation({ seed: 42 });
-    const b = createDemoSimulation({ seed: 42 });
+    const a = smallDemo({ seed: 42 });
+    const b = smallDemo({ seed: 42 });
     a.step(400);
     b.step(400);
     assert.deepEqual(captureSimulationState(a).entities, captureSimulationState(b).entities);
