@@ -23,5 +23,8 @@ DO NOT REFERENCE
 - open/closed mode; in open mode, new animals can spawn in based on population size
 - wet/dry season
 - established lion prides, hyena clans, etc. on spawn
+- injury can cause debilitation e.g. broken leg
+- empty riverbeds become cover in the dryseason
+- a group of hyenas will attack a single old/injured/weak lion (pride members/allies will come to aid if theyre nearby, however)
 
 ### Ideas - UI

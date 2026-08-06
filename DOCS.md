@@ -3071,6 +3071,7 @@ model different things:
 | **Herd label** (`groupId`)    | fission–fusion aggregation: who I happen to be standing with | a label, recomputed every tick by local propagation | `SocialSystem` |
 | **Group record** (`world.groups`) | identity that survives separation: who I belong to | a bounded, saved record with a membership list | `GroupSystem`  |
 | **Association** (`species.association` + `species.associationPull`) | who I am willing to stand with that is *not* my own kind, and how hard I hold to them | none at all — two weights in the species file | `SocialSystem` |
+| **Calf weight** (`config.social.calfWeight`) | that a body which cannot look after itself counts for more than one | none at all — one world-level number, shipped at its identity | `SocialSystem` |
 
 A gazelle in a wildebeest herd is in none of that herd's labels and none of its
 records, and is still standing in it. That is the whole reason the third row
@@ -3383,6 +3384,70 @@ computational. What does cost something is the wildebeest's new association:
 **5.08 against 4.91 ms/tick without it, ~+3.5%**, and that is the phase-12
 mechanism's ordinary per-neighbour price arriving for a numerous species, not
 anything P3 added. Off switch: `config.association.scalesPull`.
+
+#### Calf weight, 2026-08-05 (BEHAVIOR-PLAN.md P4) — and what it did not buy
+
+**A dependent calf can be worth more than one body when a herd's centre of mass is
+worked out**, so the adults converge on the young. `config.social.calfWeight` is the
+switch and the number both; there is no per-species half, because "young cannot
+fend for themselves" does not vary by species and a config default beside a species
+override is two homes for one number (D11). It multiplies in the same slot the
+association weight and the band affinity occupy — but where those two are
+*alternatives* (a body is either my kind or not), this one **multiplies onto
+whichever won**: "in my band" and "cannot look after itself" are independent facts
+about one animal, each spent once. A bandmate's calf is worth `sameBandWeight ×
+calfWeight`.
+
+⚠ **Gated on the *observer* being adult or senescent, and that gate is the phase.**
+A dependent calf runs the identical neighbour loop, so ungated the mechanism
+inverts: calves weight each other up and the adults down, and the crèche drifts off
+the herd under its own pull — the zebra's `herdWeight` of 1.15 already outranks its
+`followWeight` of 0.7. It is a `lifeStage` test, not a species test.
+
+⚠ `guardianId !== null` is the predicate — **dependency, not age**. It is what the
+inspection block already calls `dependent`, and it excludes **the orphan**: weaned
+on the spot, still a juvenile, and no longer weighted up by anybody. A stated
+consequence rather than an oversight (an orphan has no mother keeping station on
+it), and it makes A12's odds slightly worse.
+
+⚠ **Conspecifics only.** An associate's body is already worth exactly what the
+observer's species declared, and that declaration is the one place a heterospecific
+rate may be spent (D34).
+
+⚠⚠ **It ships at the identity — 1 — and that is a measurement, not caution.**
+Three attempts to find a spatial consequence all came back inside seed noise:
+
+| measurement | weight 1 | 2.5 | 4 |
+| --- | ---: | ---: | ---: |
+| demo, unrelated adult → its herd's calf centre (4 seeds × 1200 ticks) | 3.21 | 3.36 | 3.22 |
+| demo, calf-to-herd-centre minus adult-to-herd-centre (same runs) | 0.30 | 0.40 | 0.40 |
+| sandbox, adult → calf centre, `herdWeight` lifted until herding dominates | 2.26 | — | 2.27 |
+
+The per-seed spread *inside* a single arm is 2.8–4.1 on the first row, so none of
+this resolves. **Raising the weight does not help**, which is the shape of the
+answer rather than a tuning failure.
+
+✅ **The reason is structural, and it is worth more than the mechanism was.**
+`herd` is a **dead-band** controller: an animal closes up only once it is more than
+`herdDistance` from the centre, and then it stops. Moving the target point moves
+*where it steers* while leaving the radius it settles at unchanged — and the calves
+sit inside the same blob. So a weighted centroid changes headings tick by tick and
+leaves the equilibrium configuration alone. What would make it bite is not a bigger
+weight but a **smaller dead-band**, or a pull that scales continuously with drift.
+
+So the demo keeps a **byte-identical** world (verified: seeds 1/2/42 × 1500 ticks,
+identical `captureSimulationState` hashes against the tree with the line deleted)
+and the mechanism is asserted directly instead — the exact centroid arithmetic, the
+things it must not touch, and one deterministic single-tick steering claim.
+`test/social.test.js` holds them.
+
+⚠ **And the claim the brief asked for is not the claim that shipped.** "A defensive
+ring falls out of this" is false: a weighted mean of positions makes a blob, and
+nothing in this engine repels. ⚠ Nor is "a calf sits nearer the herd's centre than
+an adult" a *result* — it is **already true at weight 1** (2.51 against 3.04 on the
+demo), because a calf follows its guardian and its guardian is an adult standing in
+the herd. A test asserting that inequality alone would pass against an engine where
+this does nothing, which is why every assertion in the block is an A/B.
 
 ### Persistent groups
 
@@ -5308,7 +5373,7 @@ see §8.
 is the machinery of choosing (global). See §9 Decision.
 
 ⚠ **`social`, `groups`, and `association` are three mechanisms that sound like
-one**, and reading any of them as another will waste an afternoon. `social` is the
+one** (four, counting `social.calfWeight`, which lives inside the first), and reading any of them as another will waste an afternoon. `social` is the
 herd *label* — positional, recomputed every tick, owned by `SocialSystem`.
 `groups` is the persistent group *record* — an identity that survives separation,
 owned by `GroupSystem`. `association` (2026-07-30) is who an animal will stand

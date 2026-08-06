@@ -647,6 +647,32 @@ describe('banding: the band drives the centre of mass (P2)', () => {
     assert.ok(summaryOf(off, mine[0]).centroid.x > 40, 'off, every conspecific is worth one body');
   });
 
+  test('⚠⚠ a bandmate’s calf carries both weights, multiplied — not the calf weight alone', () => {
+    // ⚠ **This test exists because its absence let a mutation through.** P4's calf
+    // weight lands in the same slot as the band affinity, and `worth = calfWeight`
+    // instead of `worth *= calfWeight` is invisible unless a calf is standing there
+    // with a band weight already on it — in every other arrangement the body it
+    // replaces is worth exactly 1. Same hazard `MIXER` exists for, one phase later.
+    //
+    // "In my band" and "cannot look after itself" are two independent facts about
+    // one animal, each spent once inside the centroid, so a bandmate's calf is worth
+    // `sameBandWeight × calfWeight` — 4 × 3 here. That is composition, not the
+    // double charge D34 forbids, which is one fact charged in two places.
+    const engine = socialSandbox({ social: { calfWeight: 3 } });
+    const focus = spawn(engine, BANDED.id, { x: 40, y: 40, groupRecordId: 1 });
+    spawn(engine, BANDED.id, { x: 36, y: 40, groupRecordId: 1, lifeStage: 'juvenile', guardianId: 9_999, age: 300 });
+    spawn(engine, BANDED.id, { x: 44, y: 40, groupRecordId: 2 });
+    engine.step(1);
+
+    const composed = (36 * 4 * 3 + 44 * 0.25) / (4 * 3 + 0.25);
+    const replaced = (36 * 3 + 44 * 0.25) / (3 + 0.25);
+    const { centroid } = summaryOf(engine, focus);
+    assert.ok(
+      Math.abs(centroid.x - composed) < 1e-9,
+      `centroid ${centroid.x.toFixed(4)} vs ${composed.toFixed(4)} — ${replaced.toFixed(4)} would mean the calf weight replaced the band weight`,
+    );
+  });
+
   test('⚠ declaring parity is the identity, not a near-miss', () => {
     // The same proof P1 uses: the weighted path, exercised in full, produces the
     // byte-identical world the unweighted one does.

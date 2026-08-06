@@ -185,12 +185,13 @@ function sandbox({ seed = 5, config = {} } = {}) {
 }
 
 /** Perception + sociality: the minimum the summary needs. */
-function socialSandbox({ seed = 5, config = {}, association = {} } = {}) {
+function socialSandbox({ seed = 5, config = {}, association = {}, social = {} } = {}) {
   const engine = sandbox({ seed, config });
   engine.registerSystem(new PerceptionSystem(CONFIG.perception));
   engine.registerSystem(
     new SocialSystem({
       ...CONFIG.social,
+      ...social,
       associationEnabled: association.enabled ?? CONFIG.association.enabled,
       associationSharesAlarm: association.sharesAlarm ?? CONFIG.association.sharesAlarm,
       associationScalesPull: association.scalesPull ?? CONFIG.association.scalesPull,
@@ -623,6 +624,28 @@ describe('association: pullScale, the number the pull is published as (P3)', () 
     const summary = summaryOf(engine, holder);
     assert.equal(summary.associates, 1, 'the attraction half is untouched');
     assert.equal(summary.pullScale, 1, 'and the pull half is gone');
+  });
+});
+
+describe('association: a calf of another species is company, not a calf (P4)', () => {
+  test('⚠ the calf weight never reaches an associate, however dependent it is', () => {
+    // P4 weights a **conspecific** dependent calf up in the centroid. An associate's
+    // body is already worth exactly what this species declared it to be worth, and
+    // that declaration is the one place a heterospecific rate may be spent (D34) —
+    // multiplying a world-level calf bonus onto it would put a second, undeclared
+    // heterospecific rate in the same product. It has to be tested *here* rather
+    // than in `social.test.js`, because a species with no declared association
+    // drops the other kind on the species comparison before any weight could reach
+    // it: only a genuine associate can catch the leak. Same shape as `MIXER`.
+    const engine = socialSandbox({ social: { calfWeight: 4 } });
+    const follower = spawn(engine, FOLLOWER.id, { x: 30, y: 30 });
+    spawn(engine, GIANT.id, { x: 33, y: 30, lifeStage: 'juvenile', guardianId: 9_999, age: 300 });
+    spawn(engine, GIANT.id, { x: 35, y: 30 });
+    engine.step(1);
+    // Both giants at weight 0.5 and neither of them multiplied: the plain midpoint.
+    const summary = summaryOf(engine, follower);
+    assert.equal(summary.associates, 2);
+    assert.ok(Math.abs(summary.centroid.x - 34) < 1e-9, `centroid ${summary.centroid.x} — 4× would drag it to 33.4`);
   });
 });
 

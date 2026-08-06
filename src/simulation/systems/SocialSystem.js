@@ -72,8 +72,11 @@
  * different questions about the same slot.** The neighbour loop asks "how much of
  * a body is this animal worth when my centre of mass is worked out", and the
  * answer is composed of: `association.js` — is it my *species*; `banding.js` — is
- * it in my *band* (P2, the group record's first mover); and nothing else. Each is
- * spent inside the centroid exactly once, which is the line A61 was written to
+ * it in my *band* (P2, the group record's first mover); and `calves.js` — can it
+ * *look after itself* (P4). The first two are alternatives, since a body is either
+ * my kind or not; the third **multiplies onto whichever won**, because dependency
+ * is an independent fact about the same animal. Each is spent inside the centroid
+ * exactly once, which is the line A61 was written to
  * defend: a weight that is also charged against the pull is charged twice.
  * `groupmates`, `adults` and `nearestDistance` are headcounts and stay headcounts,
  * because collective vigilance and `mobbing.minMobbers` read them and a cohesion
@@ -108,6 +111,7 @@ import {
 } from '../social/association.js';
 import { herdRadiiIn } from '../social/herding.js';
 import { bandAffinitiesIn, bandWorthFor } from '../social/banding.js';
+import { calfWeightOf, isDependentCalf, keepsStationOnCalves } from '../social/calves.js';
 
 export class SocialSystem extends SimulationSystem {
   /**
@@ -152,6 +156,7 @@ export class SocialSystem extends SimulationSystem {
    * @param {boolean} [options.associationEnabled] heterospecific association at all (§3.16)
    * @param {boolean} [options.associationSharesAlarm] whether an associate's warning carries
    * @param {boolean} [options.associationScalesPull] whether a declared pull reaches the herd distance (P3)
+   * @param {number} [options.calfWeight] what a dependent calf's body is worth in the centroid (P4)
    * @param {number} [options.updateInterval]
    */
   constructor({
@@ -188,6 +193,13 @@ export class SocialSystem extends SimulationSystem {
     // exactly one body again — byte-identical to the pre-P2 world, because the
     // weights multiply into the sums as `× 1`.
     bandAffinity = true,
+    // Calf weight (BEHAVIOR-PLAN P4). ⚠ Unlike the three above this is the switch
+    // *and* the number — there is no per-species half, because "young cannot fend
+    // for themselves" is not a fact that varies by species, and a config default
+    // beside a species override would be two homes for one number (D11). 1 is the
+    // identity and the reproducible control: `x * 1` is `x` for every finite
+    // double, so the off arm is byte-identical rather than merely close.
+    calfWeight = 1,
     updateInterval = 1,
   } = {}) {
     super({ id: 'social', phase: 'decision', priority: -10, updateInterval });
@@ -203,6 +215,10 @@ export class SocialSystem extends SimulationSystem {
     this.associationScalesPull = associationScalesPull;
     this.perSpeciesRadius = perSpeciesRadius;
     this.bandAffinity = bandAffinity;
+    // Resolved once, here rather than per tick: a nonsense or parity declaration
+    // becomes the identity and the loop below never asks again. See
+    // `social/calves.js` for why anything at or below zero is refused.
+    this.calfWeight = calfWeightOf(calfWeight);
   }
 
   update(world, context) {
@@ -252,6 +268,11 @@ export class SocialSystem extends SimulationSystem {
     // arm byte-identical rather than merely equal to within a rounding error.
     const associationPulls = this.#associationPullsFor(world);
     const scalingPull = associationPulls.size > 0;
+    // Calf weight (BEHAVIOR-PLAN P4), on the same one-comparison early-out as the
+    // three maps above — one comparison per *world*, since there is no per-species
+    // map here to be empty. At the identity every `worth` below is untouched.
+    const calfWeight = this.calfWeight;
+    const weightingCalves = calfWeight !== CONSPECIFIC_WEIGHT;
 
     for (const entity of world.entities.all()) {
       if (entity.kind !== 'animal' || !entity.alive) continue;
@@ -310,6 +331,16 @@ export class SocialSystem extends SimulationSystem {
       // neighbour. Directional exactly as an association is: a zebra prefers its
       // own band without any other zebra having an opinion about that.
       const bandAffinity = banding ? (bandAffinities.get(entity.speciesId) ?? null) : null;
+      // ⚠⚠ **The observer half of the calf weight (P4), hoisted here on purpose.**
+      // An animal's own life stage cannot change while it counts its neighbours, so
+      // this is one test per animal rather than one per neighbour (D28's warning
+      // about per-neighbour cost, and the same hoisting the two lines above do).
+      //
+      // ⚠⚠ **And it is the gate without which the mechanism inverts.** A dependent
+      // calf runs this identical loop: ungated, calves would weight each other up
+      // and the adults down, and a crèche would drift off the herd under its own
+      // pull. See `social/calves.js`.
+      const keepsStationOnYoung = weightingCalves && keepsStationOnCalves(entity);
       // Every animal can always found a herd on its own id, at zero hops from
       // itself. Seeding from the *id* rather than from the label it happens to
       // be carrying is what lets an orphaned half of a split herd escape the
@@ -359,6 +390,18 @@ export class SocialSystem extends SimulationSystem {
           // `groupRecordId` at priority −8 and this runs at −10.
           worth = bandWorthFor(bandAffinity, entity.groupRecordId, other.groupRecordId);
         }
+        // ⚠⚠ **The calf weight (P4), and it *multiplies* rather than replacing.**
+        // Every branch above answers "who is this animal to me" — my species, my
+        // band — and this answers something independent of all of them: "can it
+        // look after itself". Two facts about one body, each spent once inside the
+        // centroid, so a bandmate's calf is worth `sameBandWeight × calfWeight`.
+        // That is composition, not the double charge D34 forbids, which is one
+        // fact charged in two places.
+        //
+        // ⚠ Conspecifics only: an associate's body is already worth exactly what
+        // this species declared it to be worth, and that declaration is the one
+        // place a heterospecific rate may be spent (`social/association.js`).
+        if (conspecific && keepsStationOnYoung && isDependentCalf(other)) worth *= calfWeight;
         const distance = neighbours[i + 1];
 
         // Social avoidance of illness (Step 25), done *without* a new movement

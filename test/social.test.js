@@ -8,6 +8,7 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { MovementSystem } from '../src/simulation/systems/MovementSystem.js';
 import { HuntingSystem } from '../src/simulation/systems/HuntingSystem.js';
 import { FightInjuryKinds, dominanceOf, isKin, resolveContest } from '../src/simulation/social/dominance.js';
+import { calfWeightOf, isDependentCalf, keepsStationOnCalves } from '../src/simulation/social/calves.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
 import { computeMetrics } from '../src/simulation/metrics/metrics.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
@@ -554,6 +555,235 @@ describe('social: defending young', () => {
     spawn(engine2, { x: 23.5, y: 20, speciesId: STALKER.id });
     engine2.step(1);
     assert.notEqual(engine2.world.entities.get(adult).action, 'defend', 'somebody else’s calf is not defended');
+  });
+});
+
+/**
+ * BEHAVIOR-PLAN P4 — the herd's centre of mass is pulled toward the animals that
+ * cannot look after themselves.
+ *
+ * ⚠⚠ **The claim is not the one the brief asked for, and the difference is
+ * load-bearing.** "A defensive ring falls out of this" is false: a weighted mean of
+ * positions makes a *blob*, and nothing anywhere in this engine repels, so no force
+ * exists that could hold adults at a radius. What is assertable is that a calf sits
+ * **nearer the herd's centre** than an adult does.
+ *
+ * ⚠⚠ **And that inequality is already true at the identity**, which is why almost
+ * every test below is an A/B rather than a bare assertion. A calf follows its
+ * guardian, and a guardian is an adult standing in the herd, so calves are near the
+ * middle before anything weights them. Measured on the demo at weight 1: calves sit
+ * 2.51 from their herd's centre against the adults' 3.04. A test that asserted the
+ * inequality alone would have passed against an engine where P4 did nothing at all.
+ *
+ * The mechanism is therefore pinned three ways: the exact arithmetic of the
+ * centroid, the things it must **not** touch (headcounts, a calf's own view, and
+ * the world switch), and one movement A/B.
+ */
+describe('social: the herd closes around its calves (P4)', () => {
+  const CALF = { lifeStage: 'juvenile', bodyMass: 8, guardianId: 9_999, age: 300 };
+
+  /**
+   * ⚠ `guardianId` points at an animal that does not exist, and that is deliberate
+   * rather than lazy. It makes the entity a *dependent* by the only test this
+   * mechanism makes (`ParentingSystem` is not registered here, so nothing ends the
+   * bond) while leaving `followParent` with nothing to perceive — otherwise every
+   * measurement below would be reporting the parent bond that already existed, which
+   * is exactly the confound the demo reading fell into. `age` clears the gazelle's
+   * `aging.hiddenUntil` of 120, or the calf would lie still and steer at nothing.
+   */
+  const calfEngine = (calfWeight) => socialEngine({ social: { calfWeight } });
+
+  test('what counts as a calf, and who is allowed to notice', () => {
+    assert.equal(isDependentCalf({ guardianId: 4 }), true);
+    assert.equal(isDependentCalf({ guardianId: null }), false, 'an orphan is not a calf here');
+    assert.equal(isDependentCalf({}), false);
+    assert.equal(isDependentCalf(undefined), false);
+    // ⚠ The observer half. A juvenile must never apply the bonus — see calves.js
+    // for the crèche it would otherwise build.
+    assert.equal(keepsStationOnCalves({ lifeStage: 'adult' }), true);
+    assert.equal(keepsStationOnCalves({ lifeStage: 'senescent' }), true);
+    assert.equal(keepsStationOnCalves({ lifeStage: 'juvenile' }), false);
+    assert.equal(keepsStationOnCalves({ lifeStage: 'subadult' }), false);
+    assert.equal(keepsStationOnCalves(undefined), false);
+  });
+
+  test('a nonsense weight is the identity, not a crash and not a clamp', () => {
+    assert.equal(calfWeightOf(2.5), 2.5);
+    assert.equal(calfWeightOf(1), 1);
+    // ⚠ Zero is refused where `otherBandWeight` accepts it: "adults ignore calves"
+    // is a different mechanism, and it can empty the centroid of an adult whose
+    // only neighbours are calves. Negative is banding.js's NaN landmine.
+    assert.equal(calfWeightOf(0), 1);
+    assert.equal(calfWeightOf(-2), 1);
+    assert.equal(calfWeightOf(Infinity), 1);
+    assert.equal(calfWeightOf(NaN), 1);
+    assert.equal(calfWeightOf('lots'), 1);
+    assert.equal(calfWeightOf(undefined), 1);
+  });
+
+  test('an adult’s centre of mass moves toward the calf, by exactly the weight', () => {
+    const engine = calfEngine(3);
+    const adult = spawn(engine, { x: 20, y: 20 });
+    spawn(engine, { x: 22, y: 20 });
+    spawn(engine, { x: 24, y: 20, ...CALF });
+    engine.step(1);
+    const summary = engine.world.social.get(adult);
+    // (1×22 + 3×24) / (1 + 3) — the calf is three bodies, and the denominator
+    // carries the same three or this is not a mean at all.
+    assert.ok(Math.abs(summary.centroid.x - 23.5) < 1e-9, `centroid ${summary.centroid.x}`);
+
+    const control = calfEngine(1);
+    const same = spawn(control, { x: 20, y: 20 });
+    spawn(control, { x: 22, y: 20 });
+    spawn(control, { x: 24, y: 20, ...CALF });
+    control.step(1);
+    assert.equal(control.world.social.get(same).centroid.x, 23, 'and at the identity it is the plain midpoint');
+  });
+
+  test('⚠ the centre still lands on the herd when the bodies are weighted unequally', () => {
+    // The denominator regression P1, P2 and P3 each nearly died on, in P4's clothes:
+    // a weighted numerator over a headcount denominator is a point scaled away from
+    // the origin. Every body at one place ⇒ the centre is that place, whatever
+    // anything is worth.
+    const engine = calfEngine(4);
+    const adult = spawn(engine, { x: 20, y: 20 });
+    spawn(engine, { x: 24, y: 24 });
+    spawn(engine, { x: 24, y: 24, ...CALF });
+    spawn(engine, { x: 24, y: 24, ...CALF });
+    engine.step(1);
+    const { centroid } = engine.world.social.get(adult);
+    assert.ok(Math.abs(centroid.x - 24) < 1e-9, `x ${centroid.x} — every body is at 24`);
+    assert.ok(Math.abs(centroid.y - 24) < 1e-9, `y ${centroid.y}`);
+  });
+
+  test('⚠ the headcounts stay headcounts', () => {
+    // Third phase running. `adults` is what collective vigilance and
+    // `mobbing.minMobbers` count, so weighting it would turn a cohesion knob into a
+    // predation knob.
+    const engine = calfEngine(4);
+    const adult = spawn(engine, { x: 20, y: 20 });
+    spawn(engine, { x: 21, y: 20 });
+    spawn(engine, { x: 22, y: 20, ...CALF });
+    spawn(engine, { x: 23, y: 20, ...CALF });
+    engine.step(1);
+    const summary = engine.world.social.get(adult);
+    assert.equal(summary.groupmates, 3, 'three bodies, whatever they are worth');
+    assert.equal(summary.adults, 1, 'one of them grown');
+    assert.ok(Math.abs(summary.nearestDistance - 1) < 1e-9, 'nearest is a distance, not a weight');
+  });
+
+  test('⚠⚠ a calf does not weight other calves — the gate that stops a crèche forming', () => {
+    // Without the observer gate a juvenile weights other juveniles up and the adults
+    // down, and the ball drifts off the herd under its own pull (zebra `herdWeight`
+    // 1.15 already outranks `followWeight` 0.7). The calf's own centre must be the
+    // unweighted one.
+    const engine = calfEngine(4);
+    const calf = spawn(engine, { x: 20, y: 20, ...CALF });
+    spawn(engine, { x: 22, y: 20 });
+    spawn(engine, { x: 24, y: 20, ...CALF });
+    engine.step(1);
+    assert.equal(engine.world.social.get(calf).centroid.x, 23, 'the plain midpoint of an adult and a calf');
+  });
+
+  test('a calf-only group is unaffected', () => {
+    const weighted = calfEngine(4);
+    const first = spawn(weighted, { x: 20, y: 20, ...CALF });
+    spawn(weighted, { x: 22, y: 20, ...CALF });
+    spawn(weighted, { x: 26, y: 20, ...CALF });
+    weighted.step(1);
+
+    const control = calfEngine(1);
+    const same = spawn(control, { x: 20, y: 20, ...CALF });
+    spawn(control, { x: 22, y: 20, ...CALF });
+    spawn(control, { x: 26, y: 20, ...CALF });
+    control.step(1);
+
+    assert.deepEqual(
+      weighted.world.social.get(first).centroid,
+      control.world.social.get(same).centroid,
+      'nobody in it is old enough to apply the bonus',
+    );
+  });
+
+  test('⚠ declaring the identity is the identity, and so is declaring nonsense', () => {
+    // The proof P1, P2 and P3 each ship: the weighted path, exercised in full,
+    // produces the byte-identical world the unweighted one does.
+    const run = (calfWeight) => {
+      const engine = sandbox({
+        seed: 9,
+        config: { vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 } },
+      });
+      engine.registerSystem(new PerceptionSystem(CONFIG.perception));
+      engine.registerSystem(new SocialSystem({ ...CONFIG.social, calfWeight }));
+      engine.registerSystem(new DecisionSystem({ ...CONFIG.decision, ...CONFIG.behavior, foodMinLevel: CONFIG.perception.foodMinLevel }));
+      engine.registerSystem(new MovementSystem(CONFIG.locomotion));
+      for (let i = 0; i < 4; i += 1) spawn(engine, { x: 20 + i, y: 20 });
+      for (let i = 0; i < 2; i += 1) spawn(engine, { x: 21 + i, y: 21, ...CALF });
+      engine.step(120);
+      return JSON.stringify(captureSimulationState(engine));
+    };
+    const identity = run(1);
+    assert.equal(run(0), identity, 'zero is refused, not obeyed');
+    assert.equal(run(-3), identity, 'and so is a negative');
+    assert.notEqual(run(4), identity, '⚠ while a real weight genuinely moves the world');
+  });
+
+  test('⚠ an adult that closes up steers toward the calf, and this is the movement claim', () => {
+    // ⚠⚠ **The claim is about the *heading*, not about where anybody ends up, and
+    // that is a finding rather than a weaker test.** Three attempts to measure a
+    // spatial reorganisation — on the demo, and in this sandbox with `herdWeight`
+    // lifted until herding dominates — all came back inside seed noise (see the
+    // block header and DOCS §9). The reason is structural: `herd` is a **dead-band**
+    // controller. An animal closes up only past `herdDistance` and then stops, so
+    // moving the target point moves *where it steers* while leaving the radius it
+    // settles at unchanged — and the calves sit inside the same blob. A test that
+    // averaged final positions would be asserting the seed.
+    //
+    // What is exact, single-tick and seed-free is the steer itself. One adult east
+    // of the focus, one calf north of it: unweighted the centre is the midpoint of
+    // the two, weighted it is dragged up toward the calf, and the intent follows.
+    const heading = (calfWeight) => {
+      const engine = sandbox({
+        seed: 6,
+        config: {
+          vegetation: { ...CONFIG.vegetation, initialFraction: 0, growthRate: 0, seedFloor: 0 },
+          // Lifted so `herd` actually wins — the same lift on both arms. At the
+          // shipped 0.6 this animal would wander instead, which is herding being
+          // the weakest utility in the table rather than anything about P4.
+          behavior: { ...CONFIG.behavior, herdWeight: 3 },
+        },
+      });
+      engine.registerSystem(new PerceptionSystem(CONFIG.perception));
+      engine.registerSystem(new SocialSystem({ ...CONFIG.social, calfWeight }));
+      engine.registerSystem(
+        new DecisionSystem({ ...engine.config.decision, ...engine.config.behavior, foodMinLevel: CONFIG.perception.foodMinLevel }),
+      );
+      const focus = spawn(engine, { x: 20, y: 20 });
+      spawn(engine, { x: 24, y: 20 });
+      spawn(engine, { x: 20, y: 24, ...CALF });
+      engine.step(1);
+      const me = engine.world.entities.get(focus);
+      assert.equal(me.action, 'herd', 'the arm is only meaningful if it is herding');
+      return me.moveIntent.heading;
+    };
+    const weighted = heading(4);
+    const control = heading(1);
+    // North is +y here, so a larger heading is a steer further toward the calf.
+    assert.ok(
+      weighted > control + 0.3,
+      `steers toward the calf (${weighted.toFixed(3)} rad against ${control.toFixed(3)} at the identity)`,
+    );
+  });
+
+  test('⚠⚠ the demo ships at the identity, and the reason is a measurement', () => {
+    // 2.5 and 4 were both tried on the demo first: an unrelated adult stands 3.21
+    // units from the centre of its herd's calves at weight 1, 3.36 at 2.5 and 3.22
+    // at 4, against a per-seed spread of 2.8–4.1 *inside* one arm. Below the noise
+    // floor of four seeds, and raising the weight does not help — a calf is ~15% of
+    // a mixed herd, so the centre moves a fraction of a unit against a
+    // `herdDistance` of 2. So the demo keeps a byte-identical world and the
+    // mechanism is asserted directly, above. See DOCS §9.
+    assert.equal(CONFIG.social.calfWeight, 1);
   });
 });
 

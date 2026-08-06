@@ -1,11 +1,11 @@
-# Handoff — BEHAVIOR-PLAN P0–P3 done, start on P4
+# Handoff — BEHAVIOR-PLAN P0–P4 done, start on P5
 
-**Date:** 2026-08-05 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `a5ea452 add handoff` (P3 uncommitted at the time of writing)
+**Date:** 2026-08-05 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `b413449 P3` (P4 uncommitted at the time of writing)
 
-Read [`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) first — it is the spec, it is still
-accurate, and P4 is a short self-contained section in it. This file is only what a
-fresh session cannot get from the plan: what the code looks like *now* that P0–P3
-have landed on it, and which of my mistakes are worth not repeating.
+Read [`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) first — it is the spec and it is still
+accurate. ⚠ P5 is the **largest** phase left: three sub-parts, a save-format bump,
+and the first one (A56 hysteresis) is a prerequisite for P7 rather than a nicety.
+This file is only what a fresh session cannot get from the plan.
 
 ## Where things stand
 
@@ -14,105 +14,115 @@ have landed on it, and which of my mistakes are worth not repeating.
 | **P0** perception restructure | ✅ committed `ae3b4e9` |
 | **P1** per-species herd radius | ✅ committed `ae3b4e9` |
 | **P2** affinity-weighted centroid | ✅ committed `49fa9f5` |
-| **P3** association pull (A61) | ✅ **this session** |
-| **P4** calf-centred centroid | ⬜ **next** |
-| P5–P10 | ⬜ untouched |
+| **P3** association pull (A61) | ✅ committed `b413449` |
+| **P4** calf-centred centroid | ✅ this session — **shipped at its identity, on purpose** (below) |
+| **P5** A56 hysteresis, registry capacity, buffalo cow–calf core | ⬜ **next** |
+| P6–P10 | ⬜ untouched |
 
-Full suite: **1236 tests, 1231 pass, 0 fail, 5 cancelled**. The cancelled ones are
-`presets.test.js`'s HTTP tests, which the command sandbox blocks from binding a port
-(`listen EPERM`) — pre-existing, unrelated, ignore them.
+Full suite: **1248 tests, 1243 pass, 0 fail, 5 cancelled**. The cancelled
+ones are `presets.test.js`'s HTTP tests, which the command sandbox blocks from
+binding a port (`listen EPERM`) — pre-existing, unrelated, ignore them.
 
-⚠ Renderer fixtures are **stale** for the demo's behaviour (P1, P2 and P3 all moved
-it). That regen is deliberately deferred to P10 per DOCS §12 — "regenerate after the
-last behavioural change, not after the protocol change." Do not do it now.
+⚠ Renderer fixtures are **stale** for the demo's behaviour (P1, P2 and P3 moved it;
+P4 did not). That regen is deliberately deferred to P10 per DOCS §12 — "regenerate
+after the last behavioural change, not after the protocol change."
 
-## What P3 changed about the code P4 touches
+## ⚠⚠ Read this before P5: what P4 found out about steering
 
-P4 lands in the same neighbour loop as P2 and P3, so read `SocialSystem.js` before
-the plan's P4 text.
+**P4 works and does nothing, and the second half is the useful part.** The calf
+weight moves the centroid exactly as specified, and three separate attempts to find
+a *spatial* consequence — on the demo at weights 2.5 and 4, and in a sandbox with
+`herdWeight` lifted until herding dominated — all came back inside seed noise.
 
-**There are now four per-world resolved maps, and they all hang off one registry
-check** inside `#associationsFor`
-([SocialSystem.js:568](src/simulation/systems/SocialSystem.js#L568)), with thin
-`#xFor(world)` readers beside it: associations, herd radii, band affinities,
-association pulls. Follow that exactly — one registry check, one rebuild, so the
-maps can never describe different rosters. Each has a `size === 0` early-out.
+The reason is structural and it applies to **P7's rally drift and P8's consensus as
+much as to P4**: `herd` is a **dead-band** controller. An animal closes up only once
+it is more than `herdDistance` from the centre, then stops. Move the target point
+and it re-settles at the same radius around the new one. So a mechanism that only
+*moves the centroid* changes headings tick by tick and leaves the equilibrium
+configuration alone.
 
-⚠ **P4 probably needs no fifth map.** `config.social.calfWeight` is a world-level
-number and `guardianId !== null` is on the entity, so the whole mechanism is a
-constant plus two field reads. Resist adding a species field it does not need.
+Consequences worth carrying into P5–P8:
 
-**`worth` is composed, not constant, and there are now two different kinds of
-number in that loop.** Per neighbour, `worth` is either the heterospecific
-association weight *or* the band affinity (P2) — mutually exclusive branches on
-`conspecific`. **P4's calf bonus belongs in that same slot** and multiplies into
-`worth` (a calf really is worth more bodies when the centre is worked out).
-⚠ **`pullScale` (P3) is the opposite case and must not be imitated**: it is a
-*separate accumulator* because it is spent outside the centroid, on the herd
-distance. Two rates in one product is what A61 charges twice for; a rate and a
-distance are not.
+- **Do not measure a centroid mechanism by where animals end up.** Measure the
+  heading, the utility, or the centroid itself. P4's shipped movement test is a
+  deterministic single-tick heading claim for exactly this reason; the averaged
+  position test I wrote first passed on seed 6 and reversed on seeds 1 and 3.
+- **P7 is not subject to this** — a rally drift bends `wander`, which has no
+  dead-band — which is a reason to expect it to be the phase that actually moves
+  animals, and a reason to measure it the same careful way anyway.
+- ⚠ **A weight is not the lever; the dead-band is.** Raising the calf weight from
+  2.5 to 4 changed nothing. If a later phase wants a herd to genuinely reorganize,
+  the number to look at is `behavior.herdDistance`, not another multiplier.
 
-**The centroid's denominator is `conspecificWeight + associateWeight`**, not a
-headcount, and P4's bonus must land in **both** or the centroid is scaled away from
-the origin. P1, P2 and P3 all nearly died on that; there is a regression block for
-it in [`test/herding.test.js`](test/herding.test.js).
+**So P4 ships at `config.social.calfWeight: 1`** — the identity — with the demo
+verified byte-identical (seeds 1/2/42 × 1500 ticks, hashes of
+`captureSimulationState`). The mechanism is real, tested, off, and one `--set` away.
+Do not "finish" it by raising the number without re-reading DOCS §9 first.
 
-**Where `world.social` is published:**
-[SocialSystem.js:525](src/simulation/systems/SocialSystem.js#L525). It now carries
-`pullScale`. Adding fields there still costs **no protocol bump** — the summary is
-transient and `SimulationEngine`'s inspection block enumerates `social.nearby`
-field by field, so nothing leaks until you add it to *that* literal. `pullScale` is
-deliberately **not** in it yet; P10 adds it.
+## What P3 and P4 changed about the code P5 touches
 
-## P4 specifics the plan gets right but understates
+P5 lands mostly in `GroupSystem` / `GroupRegistry`, which P3 and P4 did not touch —
+so the plan's P5 text reads true against the current files. Two things carried over:
 
-**The observer gate is the whole phase.** The plan says gate the bonus on the
-*observer* being adult or senescent, and it is right: a dependent juvenile runs the
-identical loop, so an ungated bonus makes foals weight foals 3× and adults 1× —
-a self-reinforcing calf ball that drifts off the herd. It is a `lifeStage` test on
-`entity`, not on `other`, and it mirrors the existing `adults` tally.
+**`SocialSystem`'s neighbour loop now composes four numbers**, and the distinction
+that matters is *how* they compose: the association weight and the band affinity
+are **alternatives** (a body is either my kind or not), the calf weight
+**multiplies onto whichever won** (dependency is an independent fact), and
+`pullScale` is a **separate accumulator** that is never multiplied into `worth` at
+all, because it is spent outside the centroid. Getting a new weight's category
+wrong is the A61/D34 failure.
 
-**⚠ There are two juvenile-ish predicates and they are not the same question.**
-`guardianId !== null` is *dependency* (the plan's choice — it is what makes a calf a
-calf), while `lifeStage === 'juvenile'` is *age*. An orphan is weaned on the spot
-and keeps its lifeStage, so the two disagree exactly where it matters. Pick the
-plan's and say so in the file header.
+**There are four per-world resolved maps on one registry guard** inside
+`#associationsFor` ([SocialSystem.js:611](src/simulation/systems/SocialSystem.js#L611)).
+P4 needed no fifth — it is a world-level number resolved once in the constructor —
+and P5 needs none either.
 
-**`groupmates` and `adults` stay headcounts**, for the third phase running:
-`adults` feeds collective vigilance and `mobbing.minMobbers`, so weighting it turns
-a cohesion knob into a predation knob. `test/herding.test.js` has the pin.
+## P5 specifics the plan gets right but understates
 
-**Claim what is measurable.** "A defensive ring falls out" is false — a weighted
-mean produces a blob and nothing in this engine repels. The assertable claim is
-mean calf-to-centroid < mean adult-to-centroid.
+- **5a's `belowMinSince` is persisted state**, so it is a `SAVE_FORMAT_VERSION` bump
+  with a numbered entry in `SimulationSerializer.js`'s version-history docblock, and
+  a round-trip assertion (`groups.test.js:214` is the existing shape). Entities and
+  records serialize *whole*, so a missing field fails **silently**.
+- **5b's saturation is invisible today.** At the cap `found()` returns `null`,
+  `#joinOrFound` returns, and there is **no event, no metric, no log** — the feature
+  just stops working, seed-dependently. Assert `world.groups.size <
+  world.groups.maxGroups` as the plan says, and consider whether the silence itself
+  deserves fixing while you are in there.
+- **5c rewrites a header that currently says the opposite.**
+  [herbivoreBuffalo.js:33-37](src/simulation/config/species/herbivoreBuffalo.js#L33)
+  says persistent groups are "Not stated, deliberately". Rewrite it rather than
+  contradicting it — `GroupRegistry.js:5` is the precedent for how this codebase
+  overrides its own documented decisions.
+- ⚠ **5c changes the demo**, unlike P4. Expect the trajectory-dependent tests below
+  to move again.
 
-## Landmines, all of which cost me time today
+## Landmines, all of which cost me time this session
 
-- **Demo-trajectory-dependent tests break on every behaviour change, and they are
-  the same two tests each time.** P1 moved seed 42's first carcass theft out of a
-  fixed window and both tests moved to seed 2; **P3 moved seed 2 out and pulled 42
-  back in**, so both moved back. Re-measured 2026-08-05 with P3 landed, first theft
-  by seed: 42→971, 1→1297, 2→1901, 3→311, 7→392, 13→1355 — every seed steals, 8–16
-  times inside 3000 ticks. **The failure mode is *late*, never absent.** When one
-  fails, re-measure that row before concluding anything is broken. The two files are
-  [`test/groups.test.js`](test/groups.test.js) and
-  [`test/protocol-v29.test.js`](test/protocol-v29.test.js); the measurement lives
-  beside each.
-- **Mutation-test every new assertion, and make the numbers in a fixture
-  *different*.** Ten deliberate breakages were run against P3's tests and all ten
-  fail at least one. ⚠ One of them — reading the association *weight* where the code
-  should read the *pull* — is undetectable unless the test species declares two
-  **different** values, because the two live in the same loop over the same species
-  ids. `HOLDER` in `association.test.js` declares weight 0.5 and pull 0.4 for
-  exactly that reason; it is the same hazard `MIXER` exists for in P2.
-- **A 0/0 is not a crash here, it is a silent behaviour deletion.** `NaN` in a
-  utility loses every `argmaxUtility` comparison (`NaN > x` is false), so the action
-  is never chosen again, nothing throws, and the inspector shows `null`. P4 has no
-  division, but P7's `clamp01(undefined)` is the same shape and worse.
-- **Measure with entity counts matched.** 450 demo ticks, five interleaved rounds,
-  and discard round 1 (JIT). P3's own machinery came out *negative* (the on arm
-  faster) — a behaviour difference, not a cost difference — while the wildebeest's
-  new association is a real ~+3.5%.
+- **Two tests fish for a rare emergent event in a fixed window, and they break on
+  every behaviour change.** P1 pushed seed 42's first carcass theft out and they
+  moved to seed 2; P3 pushed seed 2 out and they moved back to 42. Re-measured
+  2026-08-05 with P3 landed: 42→971, 1→1297, 2→1901, 3→311, 7→392, 13→1355 — every
+  seed steals, 8–16 times inside 3000 ticks. **The failure mode is *late*, never
+  absent.** Files: [`test/groups.test.js`](test/groups.test.js) and
+  [`test/protocol-v29.test.js`](test/protocol-v29.test.js); the row is recorded
+  beside each. ⚠ An audit of the whole suite found **13** tests of this shape out of
+  ~1236; these two are the worst case (a rare event in a short window) and the rest
+  have margin. `carcass.slow` and `mate-choice` are the next closest to the edge.
+- **Mutation-test every new assertion, and make the fixture's numbers *different*.**
+  P3 ran ten deliberate breakages, P4 seven. ⚠ **One of P4's survived the first
+  pass**: `worth = calfWeight` instead of `worth *= calfWeight` is invisible unless a
+  calf is standing there with a band weight *already* on it — in every other
+  arrangement the body it replaces is worth exactly 1. The fix is the new test in
+  `herding.test.js`; it is the same hazard `MIXER` and P3's `HOLDER` exist for, three
+  phases running. **Assume your new weight has this hole until you have shown it
+  does not.**
+- **A test that measures an equilibrium is measuring the seed** unless you have
+  shown otherwise. Run it on five seeds before you believe it.
+- **A 0/0 is not a crash here, it is a silent behaviour deletion.** `NaN` loses every
+  `argmaxUtility` comparison (`NaN > x` is false), so the action is never chosen
+  again and nothing throws. P7's `clamp01(undefined)` is the same shape and worse.
+- **Measure with entity counts matched**, 450 ticks, five interleaved rounds,
+  discard round 1 (JIT).
 - ⚠ `perl -0pi -e 's/…/…/'` without `/g` replaces **only the first match**.
 - ⚠ `git checkout <file>` cannot restore an **untracked** file. Use a copy.
 
@@ -134,22 +144,20 @@ ecological ones, where the demo *is* the claim.
 
 ## Open threads
 
-- **The wildebeest now associates with the zebra**, which is a real change to the
-  demo's trajectory and the reason the theft seeds moved. It declares **no**
-  `associationPull`, deliberately: it is P3's in-roster control arm, and the pair of
-  species either side of that field is what says the two are separable. Do not
-  "finish the job" by giving it one without measuring.
-- **P3 only bites where an animal is actually standing in mixed company**, exactly
-  as P2 only bites where bandmates are in sight. Neither brings anybody back; that
-  is P7's rally drift.
-- **A61 is answered** (DOCS §1 and §9, ACTION-ITEMS). **A56** is P5a, **A43** is
-  partly answered by P2's two-bands test and is scheduled to close at P10.
+- **The wildebeest associates with the zebra as of P3** and declares no
+  `associationPull`, deliberately — it is the in-roster control arm that says the two
+  fields are separable. Do not give it one without measuring.
+- **P3 and P4 both only bite where the animals are already together.** Neither
+  brings a scattered group back; that is P7.
+- **A61 is answered** (DOCS §1 and §9, ACTION-ITEMS). **A56** is P5a. **A43** is
+  partly answered by P2's two-bands test and closes at P10. ⚠ **A12** got very
+  slightly worse at P4: an orphan has `guardianId === null`, so it is not weighted up
+  by anybody — stated in `social/calves.js` rather than hidden.
 - **Two tests were deleted at the user's instruction** and their coverage is gone:
   determinism through the **age-death** path, and the **no-timer** tripwire
   (invariant 9 is now stated but unenforced). Notes sit where each test was.
-- **Nine determinism guards are byte-for-byte the same test** in nine files. Kept
-  because each names its own system in the failure message, but they add nothing
-  over `determinism.test.js`'s baseline. First place to cut if the suite needs it.
-- `src/simulation/social/banding.js` and `herding.js` are the two new social
-  modules; `association.js` is the third, now holds P3's `associationPull` readers,
-  and is the one to imitate.
+- **Nine determinism guards are byte-for-byte the same test** in nine files. First
+  place to cut if the suite needs it.
+- `src/simulation/social/` now holds four modules beside `dominance.js`:
+  `association.js` (weights + P3's pulls), `herding.js` (P1), `banding.js` (P2),
+  `calves.js` (P4). Any fifth weight goes in its own file on the same pattern.

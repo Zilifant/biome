@@ -583,6 +583,41 @@ export const defaultSimulationConfig = Object.freeze({
     // `false` restores that for a species that does declare, which is what makes it
     // the reproducible control (`--set=social.bandAffinity=false`).
     bandAffinity: true,
+    // ⚠⚠ **What a dependent calf's body is worth when a herd's centre of mass is
+    // worked out** (BEHAVIOR-PLAN P4). Above 1 the adults converge on the young,
+    // which is the whole mechanism: no new action, no new state, no second grid
+    // walk — one multiplication in the slot the association weight and the band
+    // affinity already share.
+    //
+    // ⚠ **The switch and the number are the same field, and there is no
+    // per-species half.** Unlike a herd radius or a band affinity this says nothing
+    // species-specific — every species with young has young that cannot fend for
+    // themselves — and a config default beside a species override would be two
+    // homes for one number (D11). **1 is the identity and the reproducible
+    // control** (`--set=social.calfWeight=1`), byte-identical because `x * 1` is `x`
+    // for every finite double.
+    //
+    // ⚠ It is gated on the **observer** being adult or senescent, in
+    // `social/calves.js`, and that gate is what stops it inverting: a calf runs the
+    // same loop, so ungated it would build crèches that drift off the herd.
+    //
+    // ⚠⚠ **It ships at the identity, and that decision was made by measurement
+    // rather than by caution.** 2.5 and 4 were both tried on the demo first, over
+    // four seeds × 1200 ticks with populations matched: the distance from an
+    // unrelated adult to the centre of mass of its herd's calves reads **3.21 at 1,
+    // 3.36 at 2.5, and 3.22 at 4**, while the per-seed spread inside a single arm is
+    // 2.8–4.1. The effect is below the noise floor of four seeds — not small, *not
+    // resolvable* — and raising the weight does not help, which is the shape of the
+    // answer rather than a tuning failure. See DOCS §9 for why: a calf is ~15% of a
+    // mixed herd, so 2.5 moves the centre by a fraction of a unit against a
+    // `herdDistance` of 2, and herding is the weakest utility in the table.
+    //
+    // So the demo keeps a **byte-identical** world and the mechanism is asserted
+    // directly instead (§20 step 4, and BEHAVIOR-PLAN's own verification rule:
+    // assert the mechanism, never the population). A world that wants it turns it
+    // on — `--set=social.calfWeight=2.5`, or a preset — and `test/social.test.js`
+    // pins what it then does.
+    calfWeight: 1,
     // ⚠⚠ **24 since 2026-07-30 (phase 13), and the decision took a measurement
     // that reframed the question.** PLAN-SPECIES §7 asked "is 12 the wrong cap for
     // wildebeest?" and deferred it to batch 3. Measured there, `maxGroupSize` 12

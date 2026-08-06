@@ -692,6 +692,29 @@ against P1's: P1 cost the two herd-radius species animals, and P3 gives some bac
 The 3-seed exploratory sweep BEHAVIOR-PLAN schedules after P5 is where this gets
 characterized.
 
+### The calf weight (2026-08-05, BEHAVIOR-PLAN.md P4)
+
+**Free, and this is the cleanest cost measurement in the project** — because for
+once the two arms are not two worlds. P4 ships at its identity
+(`config.social.calfWeight: 1`, see DOCS §9 for the measurement behind that), and
+the demo is verified **byte-identical** to the tree without the mechanism: seeds
+1/2/42 × 1500 ticks, identical `captureSimulationState` hashes. So a timing
+comparison is comparing *only the code*, with no population difference, no
+divergence, and nothing to control for — the confound that cost the P1 section
+above two rewrites cannot arise.
+
+Four rounds each, 450 demo ticks on seed 42 (50-tick warmup then 400 timed):
+
+| arm | ms/tick (round 1 discarded as JIT) |
+| --- | --- |
+| P4 tree, calf line present | 4.647 · 4.616 · 4.649 |
+| the same line deleted | 4.865 · 4.904 · 4.657 |
+
+**Not resolvable, and the *with* arm reads faster** — which at the identity is what
+one short-circuited boolean per neighbour ought to look like. `weightingCalves` is
+false, so `keepsStationOnYoung` is false for every animal, and the per-neighbour
+test never reaches its second term.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.
