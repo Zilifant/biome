@@ -1,13 +1,16 @@
 # Handoff — BEHAVIOR-PLAN P0–P5 and P7–P9 done, P6 skipped, start on P10
 
-**Date:** 2026-08-06 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `56925c9 P8` — P9 uncommitted at the time of writing
+**Date:** 2026-08-06 · **Branch:** `update/improved-herbivore-behavior` · **Last commit:** `fa3a34e P9` — this file's P10 preparation is the only thing after it
 
 Read [`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) first — it is the spec and it is still
-accurate. ⚠ **P10 is the last phase and it is the one that touches the renderer**: an
-inspection bump, a metrics aggregate, `PROTOCOL_VERSION` 34 matched by the renderer's
-`SUPPORTED_PROTOCOL_VERSION`, and `npm run fixtures:renderer` — which has been
-deliberately deferred through five behavioural phases and must be run **last**. This
-file is only what a fresh session cannot get from the plan.
+accurate. ⚠ **P10 is the last phase and it is the only one that reaches the
+renderer**: inspection fields, a metrics aggregate, `PROTOCOL_VERSION` 33 → 34
+matched by the renderer's `SUPPORTED_PROTOCOL_VERSION`, and a fixture regeneration
+that has been deliberately deferred through **six** behavioural phases and must be
+run **last of all**. Everything it has to do is enumerated below under *What P10 has
+to do* — including the three items the plan lists that are already done, and the two
+pieces of state the plan predates. This file is only what a fresh session cannot get
+from the plan.
 
 ## Where things stand
 
@@ -22,7 +25,7 @@ file is only what a fresh session cannot get from the plan.
 | **P6** bachelor bulls | ⛔ **skipped by decision** (2026-08-05) |
 | **P7** band rally drift | ✅ committed `65d3474` |
 | **P8** herd consensus + leadership | ✅ committed `56925c9` — **save format v33**, and the herd *label* finally has a behavioural consumer |
-| **P9** coordinated charge and pursuit | ✅ this session — **save format v34** |
+| **P9** coordinated charge and pursuit | ✅ committed `fa3a34e` — **save format v34** |
 | P10 observability and closing the loop | ⬜ **next** |
 
 ## What P8 shipped
@@ -59,6 +62,123 @@ Shipped **on** for the **buffalo only**: `chargeWeight: 0.9`, `pursuitTicks: 20`
 New file: [`src/simulation/predation/charge.js`](src/simulation/predation/charge.js);
 14 new tests in [`test/cooperation.test.js`](test/cooperation.test.js).
 
+## ⚠⚠ What P10 has to do, and the order it has to happen in
+
+The plan's P10 list is accurate but it was written before P8 and P9 existed, so three
+of its doc items are **already done** and two pieces of state it does not mention now
+exist. This is the current state of each, verified against a running engine on
+2026-08-06 rather than read off the source.
+
+### 1. Inspection — `SimulationEngine.js#getEntityDetails`, the `group` (551) and `social` (563) blocks
+
+**What is there today**, dumped from a live demo buffalo at tick 200 rather than read
+off the source, so a P10 session knows exactly what it is adding to:
+
+```
+group  : id, speciesId, size, memberIds, founderId, foundedTick
+social : groupId, dominance, alarmed, alarmedUntil, alarmSource, defendingId,
+         lastContestTick, nearby
+nearby : groupmates, adults, associates, nearestDistance, drift
+```
+
+⚠ The method is `getEntityDetails(entityId)` (line **368**); 551/563 are the two
+object literals inside it.
+
+| what the plan asks for | state |
+| --- | --- |
+| `social.nearby` gains `pullScale` | ⬜ to do. The value is already on the summary (`world.social.get(id).pullScale`), so this is one line |
+| new `social.consensus` `{ heading, strength, until }` | ⬜ to do. ⚠ P8 stores a **fourth** field, `herdCommitLabel` — the label the commitment was made in. Project it or state why not; `groupId` is projected two lines above, so a commitment held over from a herd the animal has left is otherwise invisible |
+| `group` gains a derived `centre` and `leaderId` | ⬜ to do, and ⚠⚠ **see the trap below** |
+
+⚠⚠ **Do not read `group.centre` out of `world.groupCentres`.** That map is rebuilt by
+`GroupSystem#rally`, which runs **only when `config.groups.rallyEnabled`** — so an
+inspection block that read it would report `null` for every group the moment somebody
+switched the rally off, which is a control arm the suite uses. **Measured, not
+inferred**: on the demo at tick 200, `groupCentres.size` is **28 with the rally on and
+0 with it off, against 28 live records in both**. Derive the centre on read from
+`memberIds`, the same way `leaderId` has to be derived (`leadershipOf` with
+`leadAgeWeightOf(species)`); it is bounded by `maxMembers` and it is the rule
+`GroupRegistry` already states — **standing is derived, never stored**.
+
+⚠ **P9 added state the plan's list predates**: `defendUntil` / `defendThreatX` /
+`defendThreatY`. `social.defendingId` is projected already, but a *pursuit* is
+precisely a commitment that outlives the visible cue, so there is currently no way to
+see one at all. A `social.charge` block (`{ until, threat: { x, y } }`) is the obvious
+addition and it is a **decision to make out loud**, not an omission to make quietly.
+
+### 2. Metrics — `metrics.js:260`, the `groups` aggregate
+
+⬜ Mean band spread, so cohesion is a number rather than an impression. Aggregates
+only — a membership list here would be the per-organism record §11 rules out.
+
+⚠ **Fold in the open thread while you are there**: the group store's saturation is
+still *silent* (at the cap `found()` returns null with no event, metric or log). This
+aggregate is the place, and P10 is the phase — see Open threads below.
+
+### 3. Protocol — bump to 34, and it is asserted rather than remembered
+
+⬜ `PROTOCOL_VERSION` 33 → **34**, matched by `SUPPORTED_PROTOCOL_VERSION`
+(`RendererStore.js:20`), plus a new `test/protocol-v34.test.js` copied from
+`protocol-v33.test.js:32`. ✅ All three are currently **33** and agree — protocol,
+renderer, and the committed fixture's `protocolVersion` — so the starting state is
+clean and any disagreement after the bump is yours. ⚠ **Assert against the live constants, never literals** —
+the v29 bump shipped that comparison written against itself and three stale fixtures
+passed (D31).
+
+### 4. ⚠⚠ Fixtures — LAST, after every behavioural change, and expect a UI spec to move
+
+⬜ `npm run fixtures:renderer`, then `npm test`, then `npm run test:ui`.
+
+This is the ordering constraint the whole phase turns on. DOCS §12: *"a change to
+behaviour is a roster change for this purpose too — regenerate after the last
+behavioural change, not after the protocol change"*, learned the cheap way at F1
+when fixtures were regenerated at the bump and then five actions were reclassified
+underneath them. **Six behavioural phases have landed since the last regeneration**
+(P1, P2, P3, P7, P8, P9), so the committed recording describes a world that no longer
+exists.
+
+⚠ **The fixtures are a 10-tick warm-up plus one step** (`generateRendererFixtures.js`,
+`WARMUP_TICKS = 10`), which decides which of those six actually show. P1/P2/P3 move
+animals from tick 1 and certainly show; P7 moves them inside the first hundred ticks;
+**P8 and P9 almost certainly do not** — a consensus needs a herd label and a settled
+migration drift, and P9 does not bite until tick 2300+. ⚠ Do not let that tempt you
+into skipping the regen: the fixture is a recording of *a world*, and the roster,
+config and save format have all moved under it.
+
+⚠ **A UI spec is likely to move with it.** `tests-ui/event-filters.spec.js` assumed
+the fixtures contain no births or deaths, which stopped being true the last time the
+world changed underneath them. ⚠ `npm run test:ui` is Playwright and is **not** part
+of `npm test`; it has to be run separately, and this sandbox may not be able to.
+
+### 5. Docs — three of the four are already done
+
+| plan item | state |
+| --- | --- |
+| DOCS §9 retract "the label has no behavioural consumer at all" | ✅ **done at P8** — retracted in place, with the original paragraph kept because the measurement in it is what made the consensus worth building |
+| §19 the configuration map | ✅ **done** — `consensus` and `charge` are both listed |
+| close or annotate **A61** (P3) and **A56** (P5a) | ✅ both already carry `✅ … CLOSED` in `ACTION-ITEMS.md` |
+| **A43** — population fragmentation is enabled, not asserted | ⬜ **the one still open.** The plan's claim is that P2's two-bands test is the fragmentation assertion A43 says nobody has written. ⚠ Read A43 before agreeing: it asks for a *population* fragmentation outcome, and P2's test asserts a **centroid** — decide whether that closes it or merely narrows it, and say which |
+
+### What P10 is *not*
+
+⚠ It is not renderer work. The renderer is a separate subsystem with its own roadmap
+(`src/renderer/DOCS-RENDERER.md`); making it *display* any of the new inspection
+fields is its item, not this plan's. P10 owes the protocol version, the fixtures and
+the passing UI suite — nothing beyond that.
+
+## ✅ The plan's line numbers for P10 are all still exact — verified 2026-08-06
+
+Every phase since P3 has drifted BEHAVIOR-PLAN's references into `DecisionSystem.js`
+(P8 alone added ~25 lines to the `wander` branch, P9 another ~60). **P10 follows none
+of them**, and the four it does follow were re-checked after P9 landed:
+
+| BEHAVIOR-PLAN says | actually at | what it is |
+| --- | --- | --- |
+| `SimulationEngine.js:563-585` | **563** | the `social` inspection block; the sibling `group` block is at **551** |
+| `metrics.js:260` | **260** | the `groups` aggregate |
+| `RendererStore.js:20` | **20** | `SUPPORTED_PROTOCOL_VERSION`, currently **33** |
+| `test/protocol-v33.test.js:32` | **32** | the assertion shape `protocol-v34.test.js` copies |
+
 ## ⚠⚠ Read this before P10: the four things P9 learned
 
 ### 1. ⚠⚠ A ttl on an intent commits to nothing, and the plan was right about it
@@ -85,7 +205,7 @@ did. It is 0.9 now.
 > *in the situation the mechanism fires in*, not in general.** A weight sized against
 > `fleeWeight` was sized against the wrong number.
 
-### 3. ⚠⚠ A guard tested on the wrong species is not tested — the fifth instance
+### 3. ⚠⚠ A guard tested on the wrong species is not tested — the sixth instance
 
 The rule that stops a pursuit suppressing `flee` is "any perceived threat cancels it
 outright". On a species with the config's `fleeWeight: 2.0`, flee beats any sane
@@ -275,25 +395,6 @@ and large-5k 165.73 against 2026-08-04's 5.52 and 133.73; **that is machine drif
 P8** — nothing changed by 24% — and it is recorded in `BENCHMARK.md` so nobody reads
 it as a regression.
 
-## The plan's line numbers into `DecisionSystem.js` are stale — again
-
-P8 added ~25 lines in the `wander` branch on top of P3/P4/P7's edits. The references
-BEHAVIOR-PLAN makes into that file are now **50–70 lines low**. The one P9 follows:
-
-| BEHAVIOR-PLAN says | actually at | what it is |
-| --- | --- | --- |
-| `SimulationEngine.js:563-585` | **563** | the inspection block P10 extends — ✅ still exact |
-| `metrics.js:260` | **260** | the `groups` aggregate — ✅ still exact |
-| `RendererStore.js:20` | **20** | `SUPPORTED_PROTOCOL_VERSION` — ✅ still exact |
-| `test/protocol-v33.test.js:32` | **32** | the shape `test/protocol-v34.test.js` copies |
-
-⚠ Only its references into `DecisionSystem.js` ever drifted, and P10 does not follow
-any of them.
-
-✅ Its references into **other** files are still exact — `dominance.js:61` (the
-`maturity` term, now joined by `leadershipOf` directly below it), `metrics.js:260`,
-`SimulationEngine.js:563`, `cooperation.test.js`.
-
 ## What the `decision` phase looks like now
 
 | priority | system | writes |
@@ -317,9 +418,12 @@ touch this channel at all (it is a utility and an intent, not a drift).
 - **Two tests fish for a rare emergent event in a fixed window** and break on every
   behaviour change: [`test/groups.test.js`](test/groups.test.js) and
   [`test/protocol-v29.test.js`](test/protocol-v29.test.js), first-carcass-theft.
-  ⚠ **P8 did not move them** — they still pass on the seeds recorded beside each —
-  but the failure mode is *late*, never absent. An audit found 13 tests of this shape;
-  `carcass.slow` and `mate-choice` are next closest to the edge.
+  ⚠ **Neither P8 nor P9 moved them** — both still pass on the seeds recorded beside
+  each — but the failure mode is *late*, never absent. ⚠⚠ **A third test of this shape
+  did fire at P9**: `cooperation.test.js`'s batch-2 `soloMobbed` cell, now widened to
+  six seeds (above). An audit found 13 tests of this shape; `carcass.slow` and
+  `mate-choice` are next closest to the edge, and the mobbing cell has now gone first
+  four times running.
 - **A 0/0 is not a crash here, it is a silent behaviour deletion.** `NaN` loses every
   `argmaxUtility` comparison. ⚠ **P8's `atan2(0, 0)` is the third of the family and
   the nastiest**: it does not look like an error, it looks like a whole wildebeest
@@ -349,6 +453,15 @@ npm test            # ~14 min, everything — before committing
 ⚠ `--test-skip-pattern` is **silently ignored if it comes after the file arguments**;
 the npm script has the order right, don't reshuffle it.
 
+⚠ **`npm run test:ui` (Playwright) is separate and is not in `npm test`.** P10 is the
+first phase in this plan that needs it, because it regenerates the fixtures the
+offline renderer runs against.
+
+⚠ `test/cooperation.test.js` got **~50% slower at P9** (its batch-2 block runs six
+6000-tick demo worlds instead of four). It is now one of the slowest files in the
+suite; `--test-name-pattern` does *not* help, because that block builds its sample in
+an IIFE at describe time and runs whatever you select.
+
 New size-independent guards should use
 [`test/helpers/smallDemo.js`](test/helpers/smallDemo.js) (~3.9× faster) — but read
 its header: legitimate for determinism and round-trip claims, **never** for
@@ -356,9 +469,11 @@ ecological ones.
 
 ## Open threads
 
-- ⚠ **Renderer fixtures are stale** for the demo's behaviour. P1, P2, P3, P7 and now
-  **P8** all move it. The regen is deliberately deferred to P10 per DOCS §12 —
-  "regenerate after the last behavioural change, not after the protocol change."
+- ⚠ **Renderer fixtures are stale** for the demo's behaviour — six phases' worth. The
+  regen is deliberately deferred to P10 per DOCS §12: "regenerate after the last
+  behavioural change, not after the protocol change." **P10 is that moment**, and the
+  detail (which phases actually show in a 10-tick fixture, and why you should regen
+  anyway) is under *What P10 has to do* → §4.
 - ⚠ **`behavior.leadAgeWeight` is inert in short runs, by construction.** Seniority is
   `senescent` or nothing, and buffalo reach `adultUntil: 11000` — so a 1500-tick demo
   contains no matriarch at all. What `leadWeight` moves in a short run is plain
@@ -379,8 +494,11 @@ ecological ones.
   two-bands test and closes at P10. ⚠ **A12** got slightly worse at P4: an orphan has
   `guardianId === null`, so nobody weights it up.
 - ⚠ **Saturation of the group store is still silent** — at the cap `found()` returns
-  null with no event, metric or log. P5b raised the cap to 192 against a measured peak
-  of 35, so nothing binds today; making it *visible* is P10's.
+  null with no event, metric or log, so a cap that binds looks like the feature
+  intermittently not working. P5b raised the cap to 192 against a measured peak of 35
+  (37 after P8), so nothing binds today. **Making it visible is P10's**, and the
+  `groups` aggregate in `metrics.js` is the place — it is already being edited there
+  for mean band spread.
 - ⚠ **The demo's buffalo are collapsing** — 93 alive at t3000, 18 at t9000 on seed 42.
   **Pre-existing and not P5's or P8's**: an identical run with `forms: false` gives
   identical numbers, and `BENCHMARK.md` records buffalo going 116 → 74 when P1 landed.
