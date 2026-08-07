@@ -1486,6 +1486,37 @@ export const defaultSimulationConfig = Object.freeze({
   predation: Object.freeze({
     maxPreyMassRatio: null, // heaviest prey, as a multiple of the hunter's own mass
     minPreyMassRatio: null, // lightest prey worth the sprint
+    // ⚠⚠ **The cooperative ceiling** (PREDATOR-PLAN P3, 2026-08-07) — the fix
+    // **A59** named and priced as not worth paying. A59 said this world "can say
+    // *a pride is better at it* but not *only a pride will try it*", because
+    // eligibility is resolved per animal in perception where it cannot know
+    // whether help is at hand, and the fix would mean "teaching the perception hot
+    // loop about company (D28) or resolving eligibility twice".
+    //
+    // Neither turned out to be necessary. `SocialSystem` has published a
+    // `bandmates` count for **every** animal since P7's rally — how many of its own
+    // group record are inside its herd radius — and nothing was reading it for
+    // this. So the second ceiling resolves in the hoist that already existed, one
+    // property read per animal, and the in-loop test is still one compare.
+    //
+    // A hunter with at least `backingForLargePrey` band-mates at hand may commit
+    // to prey up to `groupPreyMassRatio` of its own mass instead of
+    // `maxPreyMassRatio`. ⚠ **Both `null` is exactly the identity** — the branch
+    // is never taken and the old ceiling is returned unchanged (D16).
+    //
+    // ⚠⚠ **`backingForLargePrey` counts *others*, not the group**, which is the
+    // one thing about it worth reading twice: `bandmates` is how many *other*
+    // record-mates are in range, so 2 means a trio. It was called
+    // `groupSizeForLargePrey` for about an hour and the first test written against
+    // it built a pair and failed, which is precisely the trap `social.minGroupSize`
+    // is stuck in and documents ("the name reads the other way"). That one cannot
+    // be renamed now; this one could be, so it was.
+    //
+    // ⚠ The **solo** ceiling deliberately does not move. What a group buys is prey
+    // it would never have started on; a hunter that commits alone stays committed
+    // alone, which is the guard against A58's mid-stalk evaporation.
+    groupPreyMassRatio: null,
+    backingForLargePrey: null,
     // ⚠ How dangerous heavy prey is allowed to get. `HuntingSystem` already
     // scales the hunter's injury chance by `defenderMass / attackerMass`; this
     // is the cap on that term, which was a bare `2` in the code until

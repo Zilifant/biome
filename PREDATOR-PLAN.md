@@ -1,6 +1,6 @@
 # Social predators — lions and hyenas
 
-**Status: P1 and P2 shipped 2026-08-07. P3–P8 not started.** Eight phases.
+**Status: P1, P2 and P3 shipped 2026-08-07. P4–P8 not started.** Eight phases.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -272,7 +272,7 @@ the separation path is never reached, so the off arm is still byte-identical.
 
 ---
 
-## P3 — A cooperative prey ceiling (closes A59)
+## P3 — A cooperative prey ceiling (closes A59) — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Hyenas 3, and the "collectively decide" half of Lions 2._
 
@@ -325,6 +325,86 @@ abandoned stalks, not only captures.
 **Test** (`test/predation.test.js`, sandbox, ~10 ticks): one hyena beside a
 250 kg zebra does not perceive it as prey; four hyenas of one record do. Plus the
 identity test with the field absent.
+
+### ✅ As built — 2026-08-07
+
+**A59 is closed**, and the reason it stayed open for a year is the part worth
+keeping: the item priced the fix at *"teaching the perception hot loop about
+company (D28) or resolving eligibility a second time — neither is worth it for one
+species."* **Both costs had already stopped existing.** `SocialSystem` has
+published `bandmates` for *every* animal since P7's rally, and eligibility was
+already hoisted once per animal, so the second ceiling resolves in the same place
+for one property read. The item was priced against a world that had moved, and
+re-read several phases later without re-checking what was now free.
+
+⚠ **The field is `backingForLargePrey`, not `groupSizeForLargePrey`** — it counts
+*others*, so 2 is a trio. It carried the misleading name for about an hour and the
+first integration test written against it built a pair and failed, which is
+precisely the trap `social.minGroupSize` is stuck in and documents. That one cannot
+be renamed now; this one could be, so it was.
+
+⚠⚠ **The threshold the plan specified would have been dead code.** It said 4
+band-mates. Measured over 2 seeds × 1500 ticks at a mature world, the share of
+adult ticks with at least *n* band-mates in range:
+
+| | ≥1 | ≥2 | ≥3 | ≥4 |
+| --- | ---: | ---: | ---: | ---: |
+| lion | 94% | 40% | 6% | **5%** |
+| hyena | 67% | 28% | 9% | **1%** |
+
+A hyena has four clanmates at hand in one tick in a hundred, so a threshold of 4
+would have shipped a number that never fires — **D43 exactly**, the lesson six
+consecutive BEHAVIOR-PLAN phases were caught by. 2 is the only threshold that both
+species clear often enough to matter and that a lone animal never clears.
+
+⚠⚠ **I introduced a hot-loop regression and caught it by reading, not by test.**
+The threat branch needed `world.species.get(other.speciesId)` plus a `world.social`
+read, and the first draft hoisted both onto a `const` above the `if` — moving them
+out from behind `hunts()`, so **every neighbour of every animal paid two map
+lookups per tick** instead of only the rare true case. That is D28's cost in the
+loop D28 is about. Both are now inside a `threatens()` call the `&&` chain reaches
+last, with a comment saying not to lift them out again for readability.
+
+#### The measurement, and why the lion's ceiling is 1.7 rather than 1.2
+
+Six seeds × 6000 demo ticks, three arms, mean final population:
+
+| arm | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **OFF** (pre-P3) | 7.7 | 19.0 | 53.7 | 69.5 | 138.8 | 25.7 | 4.0 | 10.7 |
+| ON, lion solo **1.2** | 6.0 | 15.7 | 55.3 | 68.5 | 135.7 | 25.3 | 3.3 | 10.3 |
+| ON, lion solo **1.7** (shipped) | 7.0 | 16.7 | 53.3 | 70.7 | 139.8 | 26.7 | 3.0 | 7.5 |
+
+Per-seed against the control (D41 — a mean over six seeds is a coin flip, the
+pairs are the reading):
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1.2 vs OFF | **0up/4dn** | 1up/5dn | 4up/1dn | 5up/1dn | 1up/3dn | 3up/3dn | 3up/3dn | 2up/4dn |
+| 1.7 vs OFF | 1up/2dn | 2up/4dn | 3up/3dn | 3up/3dn | 3up/3dn | 3up/3dn | 2up/4dn | **1up/4dn** |
+
+⚠ **1.2 cost the lion a fifth of its population, down on 4 seeds and up on none** —
+a direction rather than noise, and the lion is the species this whole plan is
+about. At 216 kg a lone lion refused adult zebra as well as buffalo, which is more
+than the brief asked for. **1.7 (306 kg) keeps the claim that matters — a lone lion
+refuses an adult *buffalo* and a pride does not — and gives the zebra back.** The
+lion recovers to 7.0 against 7.7, and the grazers come back to flat or better.
+
+⚠ **The vulture is what 1.7 costs: 10.7 → 7.5, down on 4 seeds of 6.** It lives on
+carrion, and a lion that starts fewer buffalo hunts leaves fewer large bodies. That
+is the *mechanism* working rather than a defect, but it is a real cost and it lands
+on the guild **A73** and **A76** already record as having had its carrion
+reshuffled by three consecutive phases. **Watch the vulture in P5's sweep.**
+
+✅ **Every species survives on 6/6 seeds** except the leopard at 5/6 — and the
+control is also 5/6 (it loses a different seed), so that is a wash rather than a
+regression.
+
+⚠ **Six seeds is exploratory, not a gate.** The §20 procedure is ten seeds ×
+15 000 ticks; this is a 6 × 6000 reading taken to choose between two numbers, and
+it is recorded as that.
+
+**Cost.** No new state, no save-format change, no protocol change.
 
 ---
 

@@ -231,16 +231,16 @@ they are not re-opened by accident.
   sharper reason: `patrol`'s target is a *place* rather than a *purpose*, so
   giving it a den means giving it something at the den to want.
 
-- **⚠ A59 — A pride cannot take prey a lone lion would refuse** (from
-  2026-07-30, phase 10; narrowed by phase 11). Cooperative hunting works and is
-  measured — a lion's mean capture chance goes 0.454 alone to 0.534 with a
-  pride-mate on the same quarry. What it cannot do is change **eligibility**:
-  `predation.maxPreyMassRatio` is resolved per animal in perception, which cannot
-  know whether help is at hand, so the lion needs a ceiling that lets it commit to
-  a buffalo **alone** and does. This world can say "a pride is better at it" but
-  not "only a pride will try it". The fix is a second cooperative ceiling, which
-  means either teaching the perception hot loop about company (D28) or resolving
-  eligibility twice; not worth it for one species.
+- **✅ A59 — A pride cannot take prey a lone lion would refuse. CLOSED
+  2026-08-07** (opened 2026-07-30, phase 10; closed by PREDATOR-PLAN P3). The
+  second cooperative ceiling is built, and it needed neither of the two costs this
+  item priced it at: `bandmates` — the count `SocialSystem` has published for every
+  animal since P7's rally — answers "is help at hand" for free, and eligibility was
+  already hoisted once per animal, so the group ceiling resolves in the same place.
+  ⚠ **The item was priced against a cost that had stopped existing.** A lone lion
+  now refuses an adult buffalo (solo ceiling 3.5 → 1.7) and a pride does not
+  (`groupPreyMassRatio: 3.5`); a hyena clan takes an adult wildebeest a single
+  hyena cannot. See DOCS §1.1 A59 and PREDATOR-PLAN P3.
 
 - **⚠ A60 — Territory is an individual claim, so a social species cannot hold
   ground** (from 2026-07-30, phase 11). `TerritorySystem` marks cells by entity

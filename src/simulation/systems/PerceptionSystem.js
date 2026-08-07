@@ -38,7 +38,7 @@
  */
 import { SimulationSystem } from './SimulationSystem.js';
 import { TerrainType, isPassableCode, SHELTERING_BY_CODE } from '../world/TerrainGrid.js';
-import { isEligiblePrey, isReachablePrey, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
+import { groupBackingFor, isReachablePrey, maxPreyMassFor, minPreyMassFor, threatens } from '../predation/predation.js';
 import { isConcealed } from '../parenting/hiding.js';
 import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
 import { flightVisionMultiplier } from '../locomotion/flight.js';
@@ -229,7 +229,12 @@ export class PerceptionSystem extends SimulationSystem {
     // comparison still happens but can never change an answer, so a roster that
     // states no ratios behaves exactly as it did.
     const predation = species?.predation;
-    const maxPreyMass = maxPreyMassFor(entity, predation);
+    // ⚠⚠ **The cooperative ceiling (A59, PREDATOR-PLAN P3) resolves right here**,
+    // in the hoist that already existed, which is why it costs a property read
+    // rather than the neighbour-loop change A59 priced it at. `bandmates` is a
+    // number `SocialSystem` already publishes for every animal, and it is *last
+    // tick's* — this phase runs before that one. See `predation/predation.js`.
+    const maxPreyMass = maxPreyMassFor(entity, predation, groupBackingFor(world, entity.id, predation));
     const minPreyMass = minPreyMassFor(entity, predation);
 
     // --- Animals: sub-quadratic via the spatial grid (already radius-filtered).
@@ -383,10 +388,22 @@ export class PerceptionSystem extends SimulationSystem {
       // here belong to *whichever species is looking at me*, so unlike the prey
       // side they cannot be hoisted — hence a resolve per threatening neighbour,
       // paid only on the rare true case of the reverse relation.
+      // ⚠⚠ **The cooperative ceiling applies here too, and leaving it out would be
+      // a real defect rather than an omission** (PREDATOR-PLAN P3). If a clan can
+      // commit to a wildebeest but the wildebeest cannot see the clan as one, it is
+      // hunted by something it never flees from — the exact asymmetry this branch's
+      // comment above exists to refuse, pointed the other way. The backing read is
+      // the **threatening animal's**, not this one's.
+      //
+      // ⚠⚠ **`threatens` wraps the species lookup and the backing read so both stay
+      // behind `hunts()`.** The first draft hoisted them onto a `const` above this
+      // `if`, which made every neighbour of every animal pay two map lookups per
+      // tick rather than only the rare true case — D28's cost, in the loop D28 is
+      // about. Do not lift them back out for readability.
       if (
         world.species.hunts(other.speciesId, entity.speciesId) &&
         (nearestThreat === null || distance < nearestThreat.distance) &&
-        isEligiblePrey(other, entity, world.species.get(other.speciesId)?.predation)
+        threatens(world, other, entity)
       ) {
         nearestThreat = { id: otherId, distance, speciesId: other.speciesId, x: other.x, y: other.y };
       }

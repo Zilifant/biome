@@ -21,12 +21,15 @@
  *   pride" until 2026-08-07.** PREDATOR-PLAN P1 overrides it to `'none'` so that
  *   the whole species is one pride, which gives the female-cored half up on
  *   purpose and temporarily. See the `groups` block below.
- * - `predation.maxPreyMassRatio: 3.5` — high enough to commit to an adult buffalo
- *   **alone**, which is the A59 decision made concrete. Prey eligibility is
- *   resolved per animal in perception, where it cannot know whether help is at
- *   hand, so a cooperative species needs a ceiling that lets it start the hunt
- *   and cooperation then supplies the *odds* rather than the eligibility. A lone
- *   lion therefore does try, and usually fails, and `riskyMassRatio` is what it
+ * - ⚠⚠ **`predation.groupPreyMassRatio: 3.5` over a solo ceiling of 1.7** — the
+ *   two numbers that make a pride mean something, and they were **one** number
+ *   until 2026-08-07. This bullet read "`maxPreyMassRatio: 3.5` — high enough to
+ *   commit to an adult buffalo **alone**, which is the A59 decision made
+ *   concrete": eligibility resolved per animal in perception could not know
+ *   whether help was at hand, so the ceiling had to admit prey a lone lion would
+ *   lose against, and cooperation supplied only the *odds*. PREDATOR-PLAN P3
+ *   closes A59, so the ceiling now says what it means — **a lone lion refuses an
+ *   adult buffalo and a pride does not.** `riskyMassRatio` is still what a pride
  *   pays for trying.
  * - ⚠ **It hunts buffalo and nothing else**, which is a measurement rather than a
  *   taste (see `preySpeciesIds` below): perception reports the *nearest eligible*
@@ -219,9 +222,43 @@ export const predatorLion = Object.freeze({
     cooperationWeight: 0.35,
   }),
   predation: Object.freeze({
-    // See the header: high enough to commit to an adult buffalo alone, because
-    // eligibility cannot know whether help is coming (A59).
-    maxPreyMassRatio: 3.5,
+    // ⚠⚠ **3.5 → 1.7 on 2026-08-07, and this is the line A59 was waiting for.**
+    // It read "high enough to commit to an adult buffalo **alone**, because
+    // eligibility cannot know whether help is coming" — a ceiling chosen to work
+    // around a limitation rather than to describe the animal, and A59's own words
+    // were that this world "can say *a pride is better at it* but not *only a
+    // pride will try it*".
+    //
+    // PREDATOR-PLAN P3 removes the limitation, so the ceiling can say what it
+    // means. 1.7 × 180 kg = **306 kg**: a lone lion takes a grown wildebeest (200)
+    // and an adult zebra (300), and refuses an adult **buffalo** (600). The
+    // buffalo is what a pride is for — it is the animal the whole cooperative
+    // batch was built around — and `groupPreyMassRatio` below is what puts it
+    // back in reach.
+    //
+    // ⚠⚠ **1.2 was measured first and cost the lion a fifth of its population.**
+    // At 216 kg a lone lion refused adult zebra as well, and over 6 seeds × 6000
+    // ticks against the pre-P3 control the lion came out **6.0 against 7.7 mean,
+    // down on 4 seeds and up on none** — a consistent direction, so a real effect
+    // rather than seed noise. This file's own note named raising this number as
+    // the first lever if that happened, and it was pulled. See PREDATOR-PLAN P3's
+    // "As built" for both readings side by side.
+    maxPreyMassRatio: 1.7,
+    // ⚠⚠ **What a pride will take on that a lone lion refuses** (P3, closing
+    // **A59**). 3.5 is the old solo ceiling exactly — 630 kg, above a 600 kg
+    // buffalo — so nothing about what a *pride* eats has changed; what changed is
+    // that it now has to be a pride.
+    //
+    // ⚠ **Two, measured rather than chosen.** `bandmates` counts pride-mates
+    // inside `social.groupRadius` (6): over 2 seeds × 1500 ticks at a mature
+    // world an adult lion has **≥1 in 94% of its ticks, ≥2 in 40%, ≥3 in 6%**. So
+    // 2 is a real gate that a hunting pride clears and a lone lion does not, and
+    // 3 would have been most of the way to dead code (D43). It is a lower bar
+    // than the hyena's world needs from its clan because a pride is a tighter
+    // animal — `behavior.herdDistance: 2.0`, the tightest social pull in the
+    // world, exists to put pride-mates inside one perception of the same buffalo.
+    groupPreyMassRatio: 3.5,
+    backingForLargePrey: 2,
     // ⚠⚠ **0.2 → 0.05 on 2026-08-07 (PREDATOR-PLAN), and it stopped being inert
     // in the same edit.** At 0.2 the floor was 36 kg, which is above a newborn
     // wildebeest (18 kg) and a zebra foal (30 kg) — so a lion walked past the

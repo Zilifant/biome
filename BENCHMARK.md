@@ -911,6 +911,64 @@ buffer. The first draft of the grown buffer did not copy the ids already gathere
 and padded the result with zeros — silently, with the count still correct. It was
 caught by the test written for that path, not by any world.
 
+### The cooperative prey ceiling (2026-08-07, PREDATOR-PLAN.md P3, closing A59)
+
+⚠ **Not `npm run benchmark`.** These are demo per-tick readings taken the way
+CLAUDE.md requires for a hot-path change: **step 3000 first, then time 1000 ticks**,
+interleaved in one session, three alternating pairs. A cold 1000-tick measurement
+misses cost that only appears once groups form, and P3's cost is entirely inside a
+group mechanism.
+
+P3 adds one property read per animal in `PerceptionSystem`'s per-animal hoist, and
+one `world.social` map lookup gated on the species declaring a group ceiling. Two
+arms, because they answer different questions.
+
+**Arm 1 — what the data costs.** Same code both sides; the two species' group
+ceilings nulled in the off arm, so `groupBackingFor` returns after one property
+read and the ceiling branch is never taken.
+
+| arm | demo, mature | animals |
+| --- | --- | ---: |
+| ceilings on (shipped) | 3.850 / 3.857 / 3.874 ms/tick | 303 |
+| ceilings null (off) | 3.954 / 4.017 / 4.007 ms/tick | 308 |
+
+The ranges do not overlap and they point **the wrong way for a regression** — the
+on arm is 3.3% *faster*, against an off arm carrying 1.6% more animals. Per animal
+it is 0.01274 against 0.01296 ms. **No cost.**
+
+**Arm 2 — what the code costs**, against committed HEAD (P1 and P2 are already in
+it, so both arms found the identical world).
+
+| arm | demo, mature | animals |
+| --- | --- | ---: |
+| P3 tree | 4.470 / 3.953 / 3.958 ms/tick | 303 |
+| HEAD | 4.053 / 3.880 / 3.947 ms/tick | 328 |
+
+⚠⚠ **This arm cannot resolve the question, and saying so is the result.** Round 1
+is a cold-process outlier on both sides; rounds 2–3 give 3.953–3.958 against
+3.880–3.947, which **overlaps** and is ~1% apart — under the noise floor DOCS §13
+names ("a ~1% whole-simulation timing difference is noise, not a result").
+
+⚠ And it cannot be cleaned up by more rounds, which is the part worth recording:
+**P3 changes what animals do, so by tick 3000 the two arms hold different
+populations** — 303 against 328, an 8% gap. A whole-simulation timing at a mature
+world is therefore comparing two different worlds, and the direction of the
+confound is unfavourable to the tree (fewer animals, marginally slower). Arm 1
+exists precisely because it holds the code fixed and moves only the data, which is
+the isolating row the phase-4 possession measurement above needed for the same
+reason.
+
+**Conclusion: no measurable per-tick cost**, which is what one property read and a
+map lookup behind a `hunts()` short-circuit predict.
+
+⚠⚠ **The first draft was not free and the benchmark would not have caught it.** It
+hoisted `world.species.get(other.speciesId)` and the `world.social` read onto a
+`const` above the threat branch's `if`, moving both out from behind `hunts()` — so
+every neighbour of every animal paid two map lookups per tick instead of the rare
+true case. That is D28's shape in D28's loop. It was caught by reading the diff,
+not by a timing; at demo scale it would have hidden under exactly the ~1% noise
+floor this section is about. `threatens()` now keeps both inside the `&&` chain.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

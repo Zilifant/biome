@@ -18,6 +18,7 @@ import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
 import { FeedingSystem } from '../src/simulation/systems/FeedingSystem.js';
 import { HuntingSystem } from '../src/simulation/systems/HuntingSystem.js';
 import { GroupSystem } from '../src/simulation/systems/GroupSystem.js';
+import { SocialSystem } from '../src/simulation/systems/SocialSystem.js';
 import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/species/index.js';
 import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../src/simulation/predation/predation.js';
@@ -126,14 +127,17 @@ describe('predation: prey eligibility by mass', () => {
       assert.ok(floor < prey.aging.birthMass, `a hyena's floor (${floor} kg) refuses a newborn ${preyId}`);
     }
     assert.ok(floor > engine.species.require('scavenger.hyena').aging.birthMass * 0.9, 'and is not zero in disguise');
-    // ⚠ The lion (phase 11) is the second, and its ceiling is the load-bearing
-    // one: 3.5 × 180 kg is above a 600 kg buffalo, which is what lets a lion
-    // *start* a hunt cooperation then improves the odds of. Eligibility is
-    // resolved per animal in perception and cannot know whether help is coming
-    // (DOCS A59), so a pride's ceiling has to admit prey it will usually fail
-    // against alone.
+    // ⚠⚠ **This asserted the opposite until 2026-08-07, and the reversal is the
+    // point of PREDATOR-PLAN P3.** It read "3.5 × 180 kg is above a 600 kg buffalo,
+    // which is what lets a lion *start* a hunt cooperation then improves the odds
+    // of" — a ceiling shaped around **A59**, the limitation that eligibility is
+    // resolved per animal in perception and cannot know whether help is at hand.
+    // P3 closes A59, so the solo ceiling now says what it means: a **lone** lion
+    // refuses an adult buffalo, and its `groupPreyMassRatio` is what admits one.
     const lion = engine.species.require('predator.lion');
-    assert.ok(lion.predation.maxPreyMassRatio * lion.bodyMass > engine.species.require('herbivore.buffalo').bodyMass);
+    const buffalo = engine.species.require('herbivore.buffalo');
+    assert.ok(lion.predation.maxPreyMassRatio * lion.bodyMass < buffalo.bodyMass, 'a lone lion refuses an adult buffalo');
+    assert.ok(lion.predation.groupPreyMassRatio * lion.bodyMass > buffalo.bodyMass, 'and a pride does not');
     assert.equal(lion.predation.riskyMassRatio, 3, 'and it accepts more risk than the default 2 for doing it');
 
     // The claim that survives a growing roster: a bound is either **stated** by
@@ -599,5 +603,140 @@ describe('predation: the demo', () => {
     const saved = JSON.parse(JSON.stringify(engine.world.entities.serialize()));
     const restored = saved.entities.filter((e) => e.kind === 'carcass').map((e) => [e.id, e.possessorId]);
     assert.deepEqual(restored, before, 'the possessor rides in the entity record');
+  });
+});
+
+describe('predation: the cooperative prey ceiling (PREDATOR-PLAN P3, closing A59)', () => {
+  // ⚠⚠ **A59 has been open since 2026-07-30 with the words "this world can say
+  // *a pride is better at it* but not *only a pride will try it*".** These are the
+  // assertions that make the second sentence sayable. The mechanism is a second,
+  // higher ceiling that applies when the hunter has band-mates at hand, and the
+  // count it reads is one `SocialSystem` already published for every animal.
+  //
+  // ⚠⚠ **`backingForLargePrey` counts *others***, so 2 is a trio. Written out
+  // because the field was called `groupSizeForLargePrey` for its first hour and
+  // the integration test below built a pair and failed on it — the same trap
+  // `social.minGroupSize` documents and cannot be renamed out of.
+  const HUNTER = { bodyMass: 100 };
+  const SOLO = { maxPreyMassRatio: 1.0, minPreyMassRatio: null, groupPreyMassRatio: 3.0, backingForLargePrey: 2 };
+
+  test('both fields absent is exactly the old ceiling, not approximately', () => {
+    // D16, the rule every mechanism here ships under: "off" must be the identity
+    // rather than a near-identity, so the arm that measures the feature is a
+    // proof and not an argument. Any backing at all, with nothing declared.
+    for (const backing of [0, 1, 5, 99]) {
+      assert.equal(maxPreyMassFor(HUNTER, { maxPreyMassRatio: 1.0 }, backing), 100);
+      assert.equal(maxPreyMassFor(HUNTER, null, backing), Infinity);
+      assert.equal(isEligiblePrey(HUNTER, { bodyMass: 250 }, { maxPreyMassRatio: 1.0 }, backing), false);
+    }
+  });
+
+  test('the ceiling lifts at the declared backing and not before it', () => {
+    assert.equal(maxPreyMassFor(HUNTER, SOLO, 0), 100);
+    assert.equal(maxPreyMassFor(HUNTER, SOLO, 1), 100, 'one other animal is not enough');
+    assert.equal(maxPreyMassFor(HUNTER, SOLO, 2), 300);
+    assert.equal(maxPreyMassFor(HUNTER, SOLO, 9), 300, 'and it does not keep climbing');
+    // The whole point, stated as the sentence A59 said could not be said.
+    const quarry = { bodyMass: 250 };
+    assert.equal(isEligiblePrey(HUNTER, quarry, SOLO, 1), false, 'a hunter short of backing refuses it');
+    assert.equal(isEligiblePrey(HUNTER, quarry, SOLO, 2), true, 'a trio commits to it');
+  });
+
+  test('⚠ the floor does not move with the ceiling', () => {
+    // A group makes a hunter willing to take on something *bigger*, never
+    // something more trivial: `minPreyMassRatio` is about what is worth a sprint,
+    // and company does not change that. Asserted because one function now takes a
+    // `backing` argument and the other does not, which is easy to "tidy" later.
+    const withFloor = { ...SOLO, minPreyMassRatio: 0.2 };
+    assert.equal(minPreyMassFor(HUNTER, withFloor), 20);
+    assert.equal(isEligiblePrey(HUNTER, { bodyMass: 10 }, withFloor, 5), false);
+  });
+
+  test('the shipped species state a group ceiling above their solo one', () => {
+    // ⚠ Derived, never literal (D1): the *relation* is the claim. A group ceiling
+    // at or below the solo one would be a field that can never change an answer,
+    // which is D43 — the failure mode this phase was most at risk of, and was
+    // caught by on its first draft.
+    const engine = createDemoSimulation({ seed: 42 });
+    const declaring = engine.species.all().filter((s) => s.predation?.groupPreyMassRatio !== null);
+    assert.deepEqual(declaring.map((s) => s.id).sort(), ['predator.lion', 'scavenger.hyena']);
+    for (const species of declaring) {
+      const { groupPreyMassRatio, maxPreyMassRatio, backingForLargePrey } = species.predation;
+      assert.ok(groupPreyMassRatio > maxPreyMassRatio, `${species.id}: a group ceiling that is not higher does nothing`);
+      assert.ok(backingForLargePrey >= 2, `${species.id}: one animal is not a group`);
+      // ⚠ And it must admit something that exists. A ceiling above the heaviest
+      // animal in the world is the same dead field by another route — which is
+      // exactly what the lion's first draft was, at 4.5 against a 600 kg buffalo.
+      const reachable = engine.species
+        .all()
+        .filter((prey) => species.preySpeciesIds.includes(prey.id))
+        .filter((prey) => prey.bodyMass > species.bodyMass * maxPreyMassRatio && prey.bodyMass <= species.bodyMass * groupPreyMassRatio);
+      assert.ok(reachable.length > 0, `${species.id}: no prey lies between its solo and group ceilings`);
+    }
+  });
+
+  test('⚠⚠ perception lifts the ceiling from the social summary, one tick late', () => {
+    // ⚠ **The integration claim, and the ordering is the reason it needs two
+    // ticks.** `PerceptionSystem` is in the `perception` phase and `SocialSystem`
+    // at priority −10 of `decision`, which is *later in the same tick* — so the
+    // `bandmates` count perception reads was written on the previous tick. That is
+    // stated in `predation/predation.js` rather than discovered here, and this
+    // test is what would fail if the ordering silently changed.
+    //
+    // ~4 ticks, sandbox. The species is the real hyena so the numbers are the
+    // shipped ones rather than an invented pair.
+    // ⚠ All three systems, and each is load-bearing: perception applies the
+    // ceiling, `GroupSystem` makes the pair a *record*, and `SocialSystem` is what
+    // counts the record-mates into `bandmates`. Without the third the count is
+    // simply absent and the ceiling never lifts — which is what this test caught
+    // on its first run, and is worth knowing before wiring it anywhere else.
+    const engine = sandbox({ seed: 3 });
+    engine.registerSystem(new PerceptionSystem(engine.config.perception));
+    engine.registerSystem(new SocialSystem(engine.config.social));
+    engine.registerSystem(new GroupSystem(engine.config.groups));
+    const hyena = engine.species.require('scavenger.hyena');
+    const solo = hyena.bodyMass * hyena.predation.maxPreyMassRatio;
+    const grouped = hyena.bodyMass * hyena.predation.groupPreyMassRatio;
+    const wildebeest = engine.species.require('herbivore.wildebeest');
+    assert.ok(wildebeest.bodyMass > solo && wildebeest.bodyMass <= grouped, 'an adult wildebeest is the case');
+    // One hyena and one grown wildebeest: out of reach.
+    const lone = spawnOf(engine, 'scavenger.hyena', { x: 20, y: 20 });
+    spawnOf(engine, 'herbivore.wildebeest', { x: 22, y: 20 });
+    engine.step(2);
+    assert.equal(engine.world.perception.get(lone).nearestPrey, null, 'a lone hyena sees no prey in a grown wildebeest');
+    // Clanmates arrive. ⚠ **Two of them, because `backingForLargePrey` counts
+    // others** — the hyena's 2 is a trio, and the first draft of this test built a
+    // pair and failed. ⚠ And several ticks: one for `GroupSystem` to enrol them
+    // into a record, one for `SocialSystem` to count it, one for perception to
+    // read that count.
+    spawnOf(engine, 'scavenger.hyena', { x: 21, y: 20 });
+    spawnOf(engine, 'scavenger.hyena', { x: 20, y: 21 });
+    engine.step(4);
+    assert.ok(
+      engine.world.social.get(lone).bandmates >= hyena.predation.backingForLargePrey,
+      'the trio is a clan the social summary can see',
+    );
+    assert.ok(engine.world.perception.get(lone).nearestPrey !== null, 'and the clan commits to the wildebeest');
+  });
+
+  test('⚠ prey fears a group it would not fear alone, which is the other half', () => {
+    // ⚠⚠ **Leaving this out would have been a real defect rather than an
+    // omission.** Eligibility is read in both directions in one loop: a hunter
+    // asking "what can I take" and a prey animal asking "what hunts me". If only
+    // the first read the group ceiling, a wildebeest would be hunted by a clan it
+    // never flees from — the exact asymmetry the threat branch's own comment in
+    // `PerceptionSystem` exists to refuse, pointed the other way.
+    const engine = sandbox({ seed: 3 });
+    engine.registerSystem(new PerceptionSystem(engine.config.perception));
+    engine.registerSystem(new SocialSystem(engine.config.social));
+    engine.registerSystem(new GroupSystem(engine.config.groups));
+    const grazer = spawnOf(engine, 'herbivore.wildebeest', { x: 22, y: 20 });
+    spawnOf(engine, 'scavenger.hyena', { x: 20, y: 20 });
+    engine.step(2);
+    assert.equal(engine.world.perception.get(grazer).nearestThreat, null, 'a grown wildebeest ignores a lone hyena');
+    spawnOf(engine, 'scavenger.hyena', { x: 21, y: 20 });
+    spawnOf(engine, 'scavenger.hyena', { x: 20, y: 21 });
+    engine.step(4);
+    assert.ok(engine.world.perception.get(grazer).nearestThreat !== null, 'and fears the clan');
   });
 });

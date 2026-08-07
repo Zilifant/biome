@@ -222,6 +222,35 @@ export const scavengerHyena = Object.freeze({
     // biting the moment batch 2 puts a 600 kg buffalo in front of it, without
     // anyone having to remember to come back and add it.
     maxPreyMassRatio: 1.0,
+    // ⚠⚠ **What a clan will take on that a single hyena will not** (PREDATOR-PLAN
+    // P3, closing **A59**). Four clanmates inside the herd radius raise the
+    // ceiling from 60 kg to 300 kg — an adult zebra, a subadult buffalo, a grown
+    // wildebeest — which is the brief's "larger groups of hyenas should be more
+    // willing to hunt larger prey" stated as the two numbers it actually is.
+    //
+    // ⚠⚠ **Two, and the plan said four — which measurement showed would have been
+    // dead code.** `bandmates` counts clanmates inside `social.groupRadius` (6),
+    // and a clan of ten does not stand within six units of itself: measured over
+    // 2 seeds × 1500 ticks at a mature world, an adult hyena has **≥1 clanmate in
+    // 67% of its ticks, ≥2 in 28%, ≥3 in 9%, and ≥4 in 1%**. A threshold of 4
+    // would have shipped a number that never fires, which is D43 exactly — six
+    // consecutive phases shipping a weight that could have been deleted with the
+    // suite still green.
+    //
+    // ⚠ **The honest cost of 2: this is "a pair or more", not "a clan".** The
+    // brief asks that *larger* groups take larger prey, and what the engine can
+    // currently see is company within one social radius. The lever if that is too
+    // weak is `behavior.herdRadius` — the wildebeest and buffalo declare 11
+    // against the config's 6 — but widening it also moves the herd centroid this
+    // animal steers at, which is a movement change and not this phase's.
+    //
+    // ⚠ 5.0 = 300 kg, and it is **not** inert against today's prey list: the solo
+    // ceiling of 60 kg admits only wildebeest *calves*, so this is what puts a
+    // grown 200 kg wildebeest in reach of a pair — the brief's own example. It
+    // stops short of a 600 kg buffalo on purpose; what a clan will *commit* to is
+    // this, and the odds it then gets are `hunting.cooperationWeight`'s business.
+    groupPreyMassRatio: 5.0,
+    backingForLargePrey: 2,
     // Below this a chase costs more than the meal returns.
     //
     // ⚠⚠ **0.08 → 0.03 on 2026-08-07 (PREDATOR-PLAN).** This line used to argue

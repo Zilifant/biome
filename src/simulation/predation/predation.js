@@ -50,6 +50,44 @@ export function predationOf(species) {
 }
 
 /**
+ * How many of this animal's own band are standing with it, for the purpose of
+ * the cooperative ceiling below — or 0 for a species that has no such ceiling.
+ *
+ * ⚠⚠ **The count is not measured here, and that is the whole reason A59 turned
+ * out to be affordable.** `SocialSystem` already publishes `bandmates` — how many
+ * of this animal's own group record are inside its herd radius — for **every**
+ * animal, whatever its species declares, because P7's rally needed it. So the
+ * question "is help at hand" was already answered every tick and nobody was
+ * reading the answer. A second count here would be two rules for one question
+ * (D11) and a second grid walk besides.
+ *
+ * ⚠⚠ **It is *last tick's* count when perception asks, and that is stated rather
+ * than discovered.** `PerceptionSystem` runs in the `perception` phase and
+ * `SocialSystem` at priority −10 of `decision`, which is later in the same tick —
+ * so the summary perception reads was written on the previous tick. Harmless in
+ * steady state and precedented (the band affinity reads last tick's
+ * `groupRecordId` for exactly the same reason, DOCS §9), but **any test that
+ * assembles a group and asserts on eligibility must step ≥ 2 ticks**. Resolving
+ * it in the decision system instead would be no better: perception is what
+ * *filters* `nearestPrey`, so a ceiling applied later would be a ceiling on an
+ * animal already discarded.
+ *
+ * ⚠ **Gated on the species declaring a group ceiling**, so a roster with none
+ * pays one property read and never touches the map — the D16 identity rule that
+ * every mechanism here ships with.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {number} hunterId
+ * @param {object|null} predation the hunter's resolved block
+ * @returns {number}
+ */
+export function groupBackingFor(world, hunterId, predation) {
+  const ratio = predation?.groupPreyMassRatio;
+  if (ratio === null || ratio === undefined) return 0;
+  return world.social.get(hunterId)?.bandmates ?? 0;
+}
+
+/**
  * The heaviest prey this animal will commit to, as an absolute mass.
  *
  * Hoisted out of the neighbour loop on purpose: resolving the ratio once per
@@ -58,10 +96,33 @@ export function predationOf(species) {
  * loop is the hottest neighbour walk in the engine and D28 is what a small
  * change there can cost, so the cheap form is the one that ships.
  *
+ * ⚠⚠ **A second, higher ceiling applies when the hunter has company** — closing
+ * **A59**, which has been open since 2026-07-30 with the words "this world can say
+ * *a pride is better at it* but not *only a pride will try it*". `backing`
+ * band-mates within the herd radius lift the ceiling from `maxPreyMassRatio` to
+ * `groupPreyMassRatio` once it reaches `backingForLargePrey`. Both absent is
+ * exactly the old function.
+ *
+ * ⚠ **A59's own note proposed "teaching the perception hot loop about company"
+ * and called it not worth it for one species.** It costs nothing here because the
+ * count already existed (see `groupBackingFor`) and because eligibility was
+ * *already* hoisted per animal — the group ceiling is resolved in the same place,
+ * so the in-loop test is still one compare against one number.
+ *
+ * ⚠ **A ceiling that moves is a target that can stop being eligible mid-stalk**,
+ * which is A58's failure shape: a clan that scatters drops its quarry. The guard
+ * is the *solo* ceiling staying where it is, so a hunter that commits alone stays
+ * committed alone; what the group buys is prey it would never have started on.
+ *
  * @param {object} hunter @param {object|null} predation resolved block
+ * @param {number} [backing] band-mates at hand (`groupBackingFor`)
  * @returns {number}
  */
-export function maxPreyMassFor(hunter, predation) {
+export function maxPreyMassFor(hunter, predation, backing = 0) {
+  const group = predation?.groupPreyMassRatio;
+  if (group !== null && group !== undefined && backing >= (predation.backingForLargePrey ?? Infinity)) {
+    return hunter.bodyMass * group;
+  }
   const ratio = predation?.maxPreyMassRatio;
   return ratio === null || ratio === undefined ? Infinity : hunter.bodyMass * ratio;
 }
@@ -90,16 +151,47 @@ export function minPreyMassFor(hunter, predation) {
  * different block per neighbour. Only reached on the rare true case of the
  * species relation, so the lookup is paid at most a handful of times per animal.
  *
+ * ⚠ **`backing` belongs to the *hunter*, not to the caller**, which matters most
+ * on the threat side: an animal asking "does that thing hunt me?" has to read the
+ * company *it* has, not the company the asker has. A zebra that could not see a
+ * clan as a clan would be hunted by one and never flee from it — the asymmetry
+ * this parameter exists to prevent, and the mirror the block comment beside the
+ * threat branch in `PerceptionSystem` has always made.
+ *
  * @param {object} hunter @param {object} prey
  * @param {object|null} predation the **hunter's** resolved predation block
+ * @param {number} [backing] the **hunter's** band-mates at hand
  * @returns {boolean}
  */
-export function isEligiblePrey(hunter, prey, predation) {
+export function isEligiblePrey(hunter, prey, predation, backing = 0) {
   return (
     isReachablePrey(hunter, prey) &&
-    prey.bodyMass <= maxPreyMassFor(hunter, predation) &&
+    prey.bodyMass <= maxPreyMassFor(hunter, predation, backing) &&
     prey.bodyMass >= minPreyMassFor(hunter, predation)
   );
+}
+
+/**
+ * Whether `hunter` would take `prey`, resolving the hunter's block **and** its
+ * band-mates on the spot — the threat side's one call.
+ *
+ * ⚠⚠ **This exists to keep a species lookup inside a short-circuit** (D28). The
+ * threat branch in `PerceptionSystem` reads `world.species.get(other.speciesId)`,
+ * and the cooperative ceiling needs a second read of `world.social` beside it. The
+ * first draft of P3 hoisted both onto a `const` above the `if` — which moved them
+ * out from behind `hunts()`, so **every neighbour of every animal paid a map
+ * lookup every tick** instead of only the rare true case of the reverse predator
+ * relation. That is exactly the arity-and-laziness cost D28 records, in exactly the
+ * loop it records it about. Wrapping both in one call that the `&&` chain reaches
+ * last restores the laziness and keeps the branch readable.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} hunter the animal that might hunt @param {object} prey
+ * @returns {boolean}
+ */
+export function threatens(world, hunter, prey) {
+  const predation = world.species.get(hunter.speciesId)?.predation;
+  return isEligiblePrey(hunter, prey, predation, groupBackingFor(world, hunter.id, predation));
 }
 
 /**

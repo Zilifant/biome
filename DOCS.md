@@ -586,24 +586,49 @@ only clan-forming species in the world would fit it to a case the mechanism is
 about to outgrow. ✅ **Taken 2026-08-05 against four forming species** — hyena,
 lion, zebra and now buffalo — which is the roster this note was waiting for.
 
-**⚠ A59 — A pride cannot take prey a lone lion would refuse** _(from 2026-07-30,
-PLAN-SPECIES.md §3.7; narrowed by phase 11)_
+**✅ A59 — A pride cannot take prey a lone lion would refuse. CLOSED 2026-08-07
+(PREDATOR-PLAN P3)** _(opened 2026-07-30, PLAN-SPECIES.md §3.7; narrowed by phase 11)_
 
-Cooperative hunting works and is measured (§9 Hunting). What it cannot do is
-change **eligibility**: `predation.maxPreyMassRatio` is resolved per animal in
-perception, where it cannot know whether help is at hand, so somebody has to be
-willing to start the hunt alone. The lion therefore ships with a ceiling of 3.5 —
-above a 600 kg buffalo — and a lone lion does commit to one, taking it 39.6% of
-the time against 55.2% with a pride-mate.
+The item as it stood, kept because the reason it was wrong is the useful part:
 
-⚠ That is a modelling limit rather than a bug, and the honest reading is that this
-world can express *"a pride is better at it"* but not *"only a pride will try
-it"*. The named fix is a second, cooperative ceiling consulted when co-attackers
-are present — which means teaching the perception hot loop about company (D28) or
-resolving eligibility a second time in the decision system. Neither is worth it
-for one species; revisit when a second cooperative hunter exists, or when
-something arrives that a lone hunter genuinely must not attack (an adult rhino,
-batch 5).
+> Cooperative hunting works and is measured (§9 Hunting). What it cannot do is
+> change **eligibility**: `predation.maxPreyMassRatio` is resolved per animal in
+> perception, where it cannot know whether help is at hand, so somebody has to be
+> willing to start the hunt alone. The lion therefore ships with a ceiling of 3.5 —
+> above a 600 kg buffalo — and a lone lion does commit to one, taking it 39.6% of
+> the time against 55.2% with a pride-mate. […] The named fix is a second,
+> cooperative ceiling consulted when co-attackers are present — which means
+> teaching the perception hot loop about company (D28) or resolving eligibility a
+> second time in the decision system. **Neither is worth it for one species.**
+
+✅ **The second ceiling is built and it cost neither of those things.**
+`predation.groupPreyMassRatio` / `backingForLargePrey` lift the ceiling when the
+hunter has band-mates at hand, and the count comes from `world.social`'s
+**`bandmates`** — a number `SocialSystem` has published for *every* animal since
+P7's rally and which nothing was reading for this. Eligibility was already hoisted
+once per animal in perception, so the group ceiling resolves in the same place: one
+property read, and the in-loop test is still a single compare. ⚠⚠ **The item was
+priced against a cost that had stopped existing**, which is the lesson worth
+keeping — it was opened before the rally published that count, and re-read a year
+of phases later without re-checking what the world now offered for free.
+
+⚠ **It is last tick's count.** Perception runs a phase before sociality, so the
+summary it reads was written on the previous tick — stated in
+`predation/predation.js`, harmless in steady state, and precedented by the band
+affinity reading last tick's `groupRecordId`. Any test that assembles a group and
+asserts on eligibility must step ≥ 2 ticks.
+
+⚠ **Both directions, or it would have been a defect.** A prey animal asks the same
+predicate in reverse ("does that hunt me?"), so the ceiling applies to the threat
+side too — otherwise a wildebeest would be hunted by a clan it never fled from.
+
+Two species declare it: the **lion** (solo 1.7, group 3.5 at 2 band-mates — a lone
+lion refuses an adult buffalo, a pride does not) and the **hyena** (solo 1.0, group
+5.0 at 2 — a clan takes an adult wildebeest a single hyena cannot). ⚠ The lion's
+solo ceiling *fell* from 3.5, which is what makes the item closed rather than
+merely extended: the workaround ceiling existed only because eligibility could not
+see company. See PREDATOR-PLAN P3 for the six-seed reading, including the 1.2 draft
+that cost the lion a fifth of its population.
 
 **⚠ A60 — Territory is an individual claim, so a social species cannot hold
 ground** _(from 2026-07-30, phase 11)_
@@ -2732,15 +2757,31 @@ grazer (up to ~34 kg), which is a large ecological change bought for a roster wi
 nothing to spend it on. `null` skips the comparison, which is exactly the identity
 (D16), and the species that need ratios declare them when they arrive.
 
-✅ **Three now do**, each stating only what it needs: hyena `max 1.0` (gazelle and
-wildebeest calves, nothing grown), leopard `max 1.0 / min 0.08`, and lion
-`max 3.5 / min 0.2` — a ceiling deliberately above a 600 kg buffalo, because
-eligibility is resolved per animal in perception and somebody has to be willing to
-start the hunt alone (**A59**). The `minPreyMassRatio` half is what stops a large
-predator bothering with something it cannot profit from; ⚠ **the lion's prey
-partition is a species list rather than that ratio**, because at the demo's six
-gazelle per buffalo a ratio boundary would never have fired — see A58 for the
-measurement that forced it.
+✅ **Three now do**, each stating only what it needs. ⚠⚠ **Every floor was lowered
+and the lion's ceiling was cut on 2026-08-07** (PREDATOR-PLAN), so the numbers below
+are not the ones this paragraph carried for a week:
+
+| species | solo ceiling | floor | group ceiling |
+| --- | ---: | ---: | ---: |
+| hyena | `max 1.0` (60 kg) | `min 0.03` (1.8 kg) | `5.0` at 2 band-mates (300 kg) |
+| leopard | `max 1.0` (60 kg) | `min 0.03` (1.8 kg) | — |
+| lion | `max 1.7` (306 kg) | `min 0.05` (9 kg) | `3.5` at 2 band-mates (630 kg) |
+
+The **floors** came down because they were refusing animals a predator should
+plainly take: at `min 0.2` a lion's floor was 36 kg, above a newborn wildebeest
+(18) and a zebra foal (30), so it walked past the calves of two of the three
+species on its own prey list. Every floor still refuses a newborn hyena (1.5 kg).
+⚠ The hyena's old 4.8 kg floor was argued in its own file as "a real protection for
+the gazelle's recruitment"; that protection is deliberately given up, and the
+gazelle is a species to watch in the next sweep.
+
+The lion's **ceiling** read `max 3.5` — deliberately above a 600 kg buffalo,
+because eligibility was resolved per animal in perception and somebody had to be
+willing to start the hunt alone (**A59**). With A59 closed the ceiling says what it
+means instead: a lone lion refuses an adult buffalo and a pride does not. ⚠ **The
+lion's prey partition is still a species list rather than a ratio**, because at the
+demo's six gazelle per buffalo a ratio boundary would never have fired — see A58
+for the measurement that forced it.
 
 Two bugs found by measuring rather than by tests:
 
@@ -2812,7 +2853,9 @@ was a resolution problem: cooperation counts hunters committed to one quarry, an
 mobbing counts adults within six units of the animal under attack, so a pride that
 forages four units apart and a herd thin enough to graze alone produce **zero** of
 either. Tightening `herdDistance` for both species is what turned a shared record
-into a shared hunt. See A33 and A59 for what remains open.
+into a shared hunt. See A33 for what remains open; **A59 closed on 2026-08-07**
+(§1.1), so "only a pride will try it" is now sayable as well as "a pride is better
+at it".
 
 #### ✅ The charge, and the pursuit after it — 2026-08-06 (BEHAVIOR-PLAN P9)
 
