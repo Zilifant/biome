@@ -984,23 +984,31 @@ describe('cooperative action: inert wherever the declaring species is not', () =
   // `hunting.cooperationWeight` and the buffalo `behavior.mobWeight`, so the demo
   // is now *supposed* to differ.
   //
-  // What survives is the claim that still means something: a world without those
-  // two species is untouched by either mechanism, down to the byte. That is what
-  // makes the four incumbent species' numbers still comparable across the phase
-  // boundary, and it is the property that would break silently if a future
-  // species picked up a weight without anyone noticing.
-  const BATCH1 = [
+  // What survives is the claim that still means something: a world without the
+  // declaring species is untouched by either mechanism, down to the byte. That is
+  // what makes the incumbent species' numbers still comparable across a phase
+  // boundary, and it is the property that would break silently if a future species
+  // picked up a weight without anyone noticing.
+  //
+  // ⚠⚠ **The hyena left this world on 2026-08-07 (PREDATOR-PLAN P5), which is the
+  // second time this block has had to give ground and for the same reason.** It
+  // now declares `hunting.cooperationWeight` — the phase's whole point, since the
+  // brief asks hyenas to hunt cooperatively — so a world containing one is no
+  // longer a world the mechanism cannot touch. ⚠ It passed for one run anyway,
+  // because six hyenas over 400 ticks happened not to join a hunt; the sibling
+  // roster test below is what actually caught the change, exactly as its own
+  // comment predicted it would.
+  const NO_COOPERATORS = [
     { speciesId: 'herbivore.gazelle', count: 120 },
     { speciesId: 'predator.leopard', count: 8 },
     { speciesId: 'scavenger.vulture', count: 10 },
-    { speciesId: 'scavenger.hyena', count: 6 },
   ];
 
-  test('⚠ a world with no lion and no buffalo is byte-identical with both mechanisms off', () => {
-    const on = createDemoSimulation({ seed: 42, config: { demo: { founding: BATCH1 } } });
+  test('⚠ a world holding no declaring species is byte-identical with both mechanisms off', () => {
+    const on = createDemoSimulation({ seed: 42, config: { demo: { founding: NO_COOPERATORS } } });
     const off = createDemoSimulation({
       seed: 42,
-      config: { demo: { founding: BATCH1 }, cooperation: { enabled: false }, mobbing: { enabled: false } },
+      config: { demo: { founding: NO_COOPERATORS }, cooperation: { enabled: false }, mobbing: { enabled: false } },
     });
     on.step(400);
     off.step(400);
@@ -1015,7 +1023,13 @@ describe('cooperative action: inert wherever the declaring species is not', () =
     const registry = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
     const cooperates = registry.all().filter((s) => s.hunting.cooperationWeight > 0).map((s) => s.id);
     const mobs = registry.all().filter((s) => s.behavior.mobWeight > 0).map((s) => s.id);
-    assert.deepEqual(cooperates, ['predator.lion'], 'a pride, and nothing else');
+    // ⚠ **The hyena joined on 2026-08-07 (PREDATOR-PLAN P5)** — the brief asks that
+    // hyenas hunt cooperatively within their clan, and "this can share logic with
+    // lions" turned out to be one field. ⚠⚠ This test did exactly what its comment
+    // above says it exists for: it failed on the roster change rather than letting
+    // the sibling byte-identity claim above fail later and read as a determinism
+    // bug. Keep it derived from the registry, and keep updating it here.
+    assert.deepEqual(cooperates, ['predator.lion', 'scavenger.hyena'], 'a pride and a clan');
     assert.deepEqual(mobs, ['herbivore.buffalo'], 'a buffalo herd, and nothing else');
     // And the mobbing species must want to stand more than it wants to run, or
     // the mechanism can never win the decision it competes in.

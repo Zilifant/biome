@@ -1032,8 +1032,33 @@ describe('social: the shared neighbour walk (Step 30)', () => {
    * perception system leaves behind, and forces the social system down its own
    * grid walk.
    */
+  /**
+   * ⚠⚠ **`cooperation.enabled: false` in *both* arms, and this is A87 made
+   * explicit rather than a weakening** (2026-08-07, forced by PREDATOR-PLAN P5).
+   *
+   * The claim under test is that reusing perception's neighbour walk instead of
+   * re-walking the grid is a **speed** change. Every consumer of the shared list
+   * falls back to its own `queryRadius` when the stamp does not match — except
+   * one: `DecisionSystem#joinedHunt` returns **null** outright, so sabotaging the
+   * stamp does not make `adoptedPrey` walk the grid again, it switches cooperative
+   * joining **off**. The "fallback" arm was therefore never comparing two walks
+   * for that consumer; it was comparing joining against no joining.
+   *
+   * That is **A87** exactly, which named `adoptedPrey` as the only consumer that
+   * could do this and recorded the test as "passing for the wrong reason". It
+   * passed while one species with 5–8 animals declared `cooperationWeight`; P5
+   * gave it to the hyena as well (~17 animals) and the divergence became certain
+   * within 400 ticks on seed 42.
+   *
+   * So the confound is removed rather than tolerated: with cooperation off in both
+   * arms the test states the thing it can actually prove — that **the walk reuse**
+   * changes nothing — and stops implying it has checked a consumer that has no
+   * fallback to check. ⚠ What is given up is stated: this no longer covers
+   * `adoptedPrey` at all, and nothing else does either. Closing A87 means giving
+   * `#joinedHunt` a real fallback, not re-enabling it here.
+   */
   function demo({ fallback }) {
-    const engine = createDemoSimulation({ seed: 42 });
+    const engine = createDemoSimulation({ seed: 42, config: { cooperation: { enabled: false } } });
     if (!fallback) return engine;
     let stamp = engine.world.neighbourhoodTick;
     Object.defineProperty(engine.world, 'neighbourhoodTick', {

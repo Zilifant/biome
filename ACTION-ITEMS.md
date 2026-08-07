@@ -467,7 +467,20 @@ they are not re-opened by accident.
 
 - **⚠⚠ A87 — The two neighbour walks are not equivalent, and the test that says
   they are has been passing for the wrong reason** _(opened 2026-08-06, found by
-  A84)_. `social.test.js` asserts that reusing perception's walk gives a
+  A84; **became deterministic 2026-08-07**, PREDATOR-PLAN P5)_. ⚠⚠ **The seed luck
+  has run out.** P5 gave `hunting.cooperationWeight` to the hyena, so ~17 animals
+  now reach `adoptedPrey` where 5–8 lions did before, and the byte-identity test
+  fails on seed 42 within 400 ticks rather than only at `herdPackingSlack: 1.5`.
+  ✅ **The cause is confirmed to be exactly what this item predicted**, and it is
+  sharper than "the walks differ": `DecisionSystem#joinedHunt` returns **null** when
+  the neighbourhood stamp does not match, so the test's fallback arm never re-walks
+  the grid for this consumer — it runs with cooperative joining **switched off**.
+  The test was comparing joining against no joining. It now sets
+  `cooperation.enabled: false` in **both** arms, so it states what it can prove
+  (the walk reuse is a speed change) and no longer implies it has checked
+  `adoptedPrey`. ⚠ **Nothing covers `adoptedPrey`'s two walks now**, and closing
+  this item means giving `#joinedHunt` a real fallback rather than re-enabling it
+  in that test. `social.test.js` asserts that reusing perception's walk gives a
   byte-identical world to re-walking the grid. ⚠ **It passes at the shipped
   `herdPackingSlack: 2` and fails at 1.5**, which is the whole point: the worlds are
   identical through tick 106 and at 107 lion 484 has **`chase: 0.771` in one arm and
