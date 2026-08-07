@@ -1038,16 +1038,39 @@ they are not re-opened by accident.
   so water, obstacles and cover are fixed at generation; only food changes. Hit
   rates at tick 1500 (seed 42): food **85.0%**, water **53.1%**, obstacle
   **19.2%**, cover **0.0%** — cover is searched for exhaustively and never found.
-  The fix is a precomputed distance field per static cue (an O(1) lookup), or at
-  minimum a conservative early-out that skips the per-cell `terrain.codeAt` read
-  when the field proves the cue is out of range. ⚠ **Not a drop-in**: the scan
-  measures from the animal's exact float position to each cell centre and breaks
-  ties by scan order, so a field measuring centre-to-centre picks a different cell
-  near boundaries and silently changes behaviour. Accept it the way A2 was
-  accepted — on byte-identical demo state, not on a green suite. ⚠ The dynamic
-  half (nearest food, and the only cue with a high hit rate) is the genuinely hard
-  part and needs an incrementally maintained field; the static early-out is worth
-  doing on its own first. Profiled 2026-08-07; see DOCS §13.
+  The fix is a precomputed distance field per static cue (an O(1) lookup). ⚠ **Not
+  a drop-in**: the scan measures from the animal's exact float position to each
+  cell centre and breaks ties by scan order, so a field measuring centre-to-centre
+  picks a different cell near boundaries and silently changes behaviour. Accept it
+  the way A2 was accepted — on byte-identical demo state, not on a green suite.
+  Profiled 2026-08-07; see DOCS §13.
+
+  ⛔ **The cheap half of this was built on 2026-08-07 and measured flat. Do not
+  build it again.** The conservative form — three static chebyshev distance fields
+  (water, obstacle, cover), used only to switch off a cue's per-cell test when the
+  field proves it is out of reach — works exactly as designed and is provably
+  answer-preserving (byte-identical demo state on seeds 42, 7, 1). It is also
+  **worth nothing**: seven interleaved pairs at tick 3000 came back three up, three
+  down, mean **−0.4%**. Two reasons, and the second is the general one:
+
+  - ⚠ **The world it was designed against no longer exists.** The `cover 0.0%`
+    reading that motivated it was taken on the 332×280 ngorongoro demo. The current
+    default world is 230×180 with ~3140 sheltering cells, and the flags measure
+    **water 52.2% / obstacle 68.3% / cover 90.8%** possible, with all three out of
+    range for only **3.2%** of animals. There is almost nothing to skip.
+  - ⚠⚠ **The loop already had a dynamic version of the same guard**, and it is
+    strictly better: `if (!wantWater && !wantObstacle && !wantCover) continue`
+    stops reading terrain as soon as all three cues are *resolved*, which in a
+    cue-rich world happens within the first few cells of the scan. A static
+    "could this ever be in range" flag can only fire where the dynamic one already
+    fires sooner. **Prefer the guard that learns during the loop to the one that is
+    decided before it.**
+
+  What is left of A90 is the expensive half: answering nearest-water/obstacle/cover
+  *from* the field instead of searching, which removes the cell visits rather than
+  the terrain read — and which has to reproduce the float-position distance and the
+  scan-order tie-break exactly, or it is a behaviour change wearing an optimization's
+  clothes.
 
 - **C3 — Per-tick event volume.** One `entity.moved` per animal per tick, plus
   one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in

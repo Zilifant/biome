@@ -5661,11 +5661,26 @@ no mutators, so water, obstacles and cover cannot move once generated. Measured
 hit rates at tick 1500 (seed 42): food in range **85.0%**, water **53.1%**,
 obstacle **19.2%**, cover **0.0%** — the scan looks for cover across every cell of
 every animal's radius and essentially never finds any. A precomputed distance
-field per static cue turns those three into an O(1) lookup, or at minimum a
-conservative early-out that skips the terrain read entirely. ⚠ It is *not* a
+field per static cue turns those three into an O(1) lookup. ⚠ It is *not* a
 drop-in: the scan measures from the animal's exact float position to each cell
 centre and breaks ties by scan order, so a naive field picks a different cell and
 changes behaviour. See `ACTION-ITEMS.md`.
+
+⛔ **The conservative half of that was built on 2026-08-07 and measured flat —
+`ACTION-ITEMS.md` A90 records it so it is not built twice.** Three static
+chebyshev fields used only to switch off a cue's per-cell test when it cannot
+possibly be in range: correct, byte-identical, and worth **−0.4%** across seven
+interleaved pairs. ⚠⚠ **The lesson generalizes past this optimization.** The loop
+already contained a *dynamic* form of the same guard — it stops reading terrain
+once all three cues are **resolved**, not merely once they are known to be
+unreachable — and a static precondition can only fire where the dynamic one has
+already fired sooner. Before precomputing an answer to "could this ever be
+worth doing", check whether the loop is already learning it. ⚠ The measurement
+that justified the work (`cover in range 0.0%`) had also been taken on the
+**previous** demo world; the current one is 230×180 with ~3140 sheltering cells
+and reads 90.8%. A hit rate is a property of a world, and this file's own rule —
+measurements are readings, not standing claims — applies to the numbers that
+motivate an optimization just as much as to the ones that report it.
 
 ### Targets
 
