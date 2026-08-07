@@ -22,9 +22,13 @@ DO NOT REFERENCE
 - paths aren't very path-y
 - open/closed mode; in open mode, new animals can spawn in based on population size
 - wet/dry season
-- established lion prides, hyena clans, etc. on spawn
 - injury can cause debilitation e.g. broken leg
 - empty riverbeds become cover in the dryseason
 - a group of hyenas will attack a single old/injured/weak lion (pride members/allies will come to aid if theyre nearby, however)
+- lions mark territory
+- shrub-layer areas with taller/coarser vegetation
 
 ### Ideas - UI
+
+- ability to take control of an animal
+- territory layer
