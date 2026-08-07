@@ -78,7 +78,7 @@ import { DEFAULT_BREEDING } from '../mating/breeding.js';
 import { DEFAULT_CONCEALMENT, concealedApproach, stalksFromCover } from '../perception/concealment.js';
 import { isKin } from '../social/dominance.js';
 import { CONSPECIFIC_PULL } from '../social/association.js';
-import { territoryOf } from './TerritorySystem.js';
+import { holdsClaim, territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
 import { canClimb, isAloft } from '../locomotion/climbing.js';
@@ -803,9 +803,16 @@ export class DecisionSystem extends SimulationSystem {
           ? behavior.patrolWeight * clamp01((rangeDrift - rangeLimit) / patrolSpan)
           : 0;
       const claimOwner = territory ? world.scent.ownerAt(entity.x, entity.y) : 0;
+      // ⚠⚠ **A pride-mate's ground is not somebody else's** (A60, PREDATOR-PLAN P6).
+      // This read `claimOwner !== entity.id`, which is what made a social species
+      // unable to hold ground at all: `retreat` moved a lion off any marked cell,
+      // pride-mate included, so a pride with `defends: true` scattered itself and
+      // cooperative hunting measured **zero shared-quarry ticks in 8 000**. The
+      // predicate is shared with `TerritorySystem` rather than spelled out twice —
+      // the decision system asking "should I leave" and the territory system asking
+      // "should I fight" must not be able to disagree (D11).
       const intruding =
-        claimOwner !== 0 &&
-        claimOwner !== entity.id &&
+        !holdsClaim(world, entity, claimOwner) &&
         world.scent.strengthAt(entity.x, entity.y) >= this.intrusionThreshold;
       // Retreating needs somewhere to retreat *to*. An animal too young to have
       // settled a range has nowhere, so it simply tolerates the ground it is

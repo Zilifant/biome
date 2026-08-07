@@ -162,21 +162,36 @@ export const predatorLion = Object.freeze({
   // its size, and a subsidised population that also breeds fast is a population
   // nothing limits.
   reproduction: Object.freeze({ gestationTicks: 1400, cooldownTicks: 3000 }),
-  // ⚠⚠ **`defends: false`, and the first draft had it true — which quietly made a
-  // pride impossible.** A lion pride does hold ground in life, but this engine's
-  // territory is an **individual** claim: `TerritorySystem` marks cells by entity
-  // id, and `retreat` moves an animal off ground *anyone else* has marked,
-  // pride-mate included. So two lions that met immediately pushed each other
-  // apart, and cooperative hunting — which needs two hunters on one quarry —
-  // measured **0 shared-quarry ticks in 8000** across two seeds. A social species
-  // cannot use a mechanism whose unit is the individual.
+  // ⚠⚠ **`defends: true` since 2026-08-07 (PREDATOR-PLAN P6, closing A60), and it
+  // was `false` for a year because a pride could not hold ground at all.** The
+  // note it replaces, kept because it is the reason the fix is shaped as it is:
   //
-  // What it keeps is the home range (descriptive, and what `patrol` would use),
-  // without exclusivity — the gazelle's and buffalo's answer. ⚠ Shared *pride*
-  // territory would need the claim layer to key on `groupRecordId` rather than on
-  // an entity id, which is a real extension of §3.8 and is not in this batch's
-  // scope; recorded as a limitation rather than half-built.
-  territory: Object.freeze({ defends: false, rangeRadius: 30, settleTicks: 1600 }),
+  // > A lion pride does hold ground in life, but this engine's territory is an
+  // > **individual** claim: `TerritorySystem` marks cells by entity id, and
+  // > `retreat` moves an animal off ground *anyone else* has marked, pride-mate
+  // > included. So two lions that met immediately pushed each other apart, and
+  // > cooperative hunting — which needs two hunters on one quarry — measured
+  // > **0 shared-quarry ticks in 8000** across two seeds. […] Shared *pride*
+  // > territory would need the claim layer to key on `groupRecordId` rather than
+  // > on an entity id.
+  //
+  // The claim layer still keys on an entity id. What changed is that both readers
+  // ask `holdsClaim` — "is this my *side's* ground" — instead of comparing to one
+  // id, so a pride-mate's mark is the pride's ground and neither `retreat` nor a
+  // dispute fires between members. Nothing is stored and no save format moved.
+  //
+  // ⚠ **The thing to watch is `patrol`, not the disputes.** `defends: true` also
+  // switches on site fidelity, and DOCS §9 Decision records that giving that to
+  // grazers collapsed the demo from 5/5 seeds to 2/5 — patrolling competes with
+  // wandering, and wandering is how an animal finds the next patch. A lion is not
+  // a grazer and `rangeRadius: 30` is wide, but this is the fifth time a movement
+  // behaviour has competed with foraging here and the previous four all cost seeds.
+  // Watch lion energy and starvation deaths first.
+  //
+  // ⚠ **A stated limit**: a lost dispute still transfers the ground *one animal*
+  // marked, so a pride loses a lioness's cells rather than the pride's. See
+  // `holdsClaim` for why that is left alone rather than half-built.
+  territory: Object.freeze({ defends: true, rangeRadius: 30, settleTicks: 1600 }),
   // ⚠ A **pride**: an identity that survives separation, which is what the group
   // registry models and what a herd label cannot (§3.8). Everything about
   // founding, joining, guardian inheritance, and departure at dispersal is

@@ -630,8 +630,29 @@ merely extended: the workaround ceiling existed only because eligibility could n
 see company. See PREDATOR-PLAN P3 for the six-seed reading, including the 1.2 draft
 that cost the lion a fifth of its population.
 
-**⚠ A60 — Territory is an individual claim, so a social species cannot hold
-ground** _(from 2026-07-30, phase 11)_
+**✅ A60 — Territory is an individual claim, so a social species cannot hold
+ground. CLOSED 2026-08-07 (PREDATOR-PLAN P6)** _(opened 2026-07-30, phase 11)_
+
+✅ **A pride holds ground.** Both readers of the claim layer — `DecisionSystem`'s
+`retreat` and `TerritorySystem`'s dispute — now ask `holdsClaim(world, entity,
+ownerId)`, "is this my *side's* ground", instead of comparing against one entity
+id. A pride-mate's mark is the pride's, so members neither retreat from nor contest
+each other. The metric this item was opened by — shared-quarry ticks, **zero in
+8 000** — reads **170** over 2 seeds × 2000 ticks, and `patrol` costs 0.0% of
+lion-ticks, so the site fidelity `defends: true` also switches on never competes
+with foraging.
+
+⚠⚠ **The claim layer still keys on an entity id, and the version this item asked
+for was built and discarded.** A `groupRecordId` stored in `ScentGrid` is a second
+copy of membership: it outlives a dissolved record, must be rewritten on every join
+and leave, and is persisted state a save can restore into a world whose groups have
+moved on. Deriving the answer costs one id lookup on a path that is already an O(1)
+grid read and cannot go stale — the judgement that keeps possession held by
+presence and dominance derived. ⚠ **Stated limit**: `#dispute` still transfers the
+ground one *animal* marked, so a pride loses a lioness's cells rather than the
+pride's; collective loss needs the claim layer walked by record.
+
+The item as it stood:
 
 `TerritorySystem` marks cells by **entity id**, and `retreat` moves an animal off
 ground *anyone else* has marked — pride-mate included. So a lion pride with

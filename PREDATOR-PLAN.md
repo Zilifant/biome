@@ -1,6 +1,9 @@
 # Social predators — lions and hyenas
 
-**Status: P1–P5 shipped 2026-08-07. P6–P8 not started.** Eight phases.
+**Status: P1–P6 shipped 2026-08-07. P7–P8 not started.** Eight phases.
+
+⚠⚠ **Read "The guild across the plan" under P6 before shipping anything else.**
+The vulture is down **58%** since P1 and no single phase's arm shows it.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -690,7 +693,7 @@ changes have now landed on this guild without a gate between them.
 
 ---
 
-## P6 — Pride territory (closes A60)
+## P6 — Pride territory (closes A60) — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Lions 3._
 
@@ -730,6 +733,74 @@ watch lion energy and starvation deaths specifically.
 another's marks neither retreat nor dispute; a lion from a second record does
 both. Plus the P4 test re-run with `defends: true` — shared-quarry ticks must
 stay > 0, which is the assertion A60 was opened by.
+
+### ✅ As built — 2026-08-07
+
+✅ **A60 closes on its own metric.** It was opened by "cooperative hunting measured
+**zero shared-quarry ticks in 8 000**"; with `defends: true` and the shared claim,
+the same count reads **170** over 2 seeds × 2000 ticks.
+
+Shipped read-side, as planned: `holdsClaim(world, entity, ownerId)` in
+`TerritorySystem`, called by both `#claim` and `DecisionSystem`'s `intruding`. The
+claim layer still keys on an entity id.
+
+⚠ **The stored-`groupRecordId` version A60 names was built first and discarded**,
+and the reason is worth keeping: a group id inside `ScentGrid` is a **second copy
+of membership** — it outlives a dissolved record, it must be rewritten on every
+join and leave, and it is persisted state a save can restore into a world whose
+groups have moved on. Deriving it costs one id lookup on a path that is already an
+O(1) grid read, needs no save-format bump, and cannot go stale.
+
+⚠ **One predicate, two readers.** The decision system asking "should I leave" and
+the territory system asking "should I fight" must not be able to disagree — the
+D11 shape `drinkRange` and `carcassRange` were both fixed for.
+
+⚠ **Stated limit:** a lost dispute still transfers the ground *one animal* marked,
+so a pride loses a lioness's cells rather than the pride's. Collective loss needs
+the claim layer walked by record, which is larger than A60 names.
+
+✅ **The feared cost did not appear.** `defends: true` also switches on `patrol`,
+and DOCS records site fidelity collapsing the demo 5/5 → 2/5 seeds when grazers got
+it. Measured: **`patrol` is 0.0% of 21 804 lion-ticks and `retreat` 0.1%.** A lion's
+`rangeRadius: 30` is wide enough that it rarely drifts outside, so the pull never
+fires. Fifth time this project has feared that competition; first time it cost
+nothing.
+
+**Populations**, 6 seeds × 6000 ticks against the P5 arm: lion 5.8 → **7.2**
+(3u/1d), hyena 13.8 → 16.3 (**4u/0d**), buffalo 54.3 → 65.7. Down: wildebeest
+148.7 → 132.0 (1u/5d), gazelle 22.3 → 18.7 (2u/4d), **vulture 7.7 → 4.5 (1u/5d)**.
+⚠ The leopard is 5/6 seeds (0 on seed 3); everything else is 6/6.
+
+### ⚠⚠ The guild across the plan — read this before P7
+
+Each row is that phase's own ON arm, 6 seeds × 6000 ticks on the same seeds, so the
+chain is comparable end to end:
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| pre-P3 baseline | 7.7 | 19.0 | 53.7 | 69.5 | 138.8 | 25.7 | 4.0 | 10.7 |
+| P3 ceilings | 7.0 | 16.7 | 53.3 | 70.7 | 139.8 | 26.7 | 3.0 | 7.5 |
+| P4 stalking | 7.0 | 16.8 | 62.2 | 74.0 | 139.3 | 29.8 | 2.5 | 7.8 |
+| P5 prey lists | 5.8 | 13.8 | 54.3 | 75.5 | 148.7 | 22.3 | 3.0 | 7.7 |
+| P6 pride ground | 7.2 | 16.3 | 65.7 | 72.3 | 132.0 | 18.7 | 3.5 | 4.5 |
+| **net** | −6% | −14% | +22% | +4% | −5% | **−27%** | −12% | **−58%** |
+
+⚠⚠ **The vulture has lost 58% of its population and no single phase's arm shows
+it.** Every phase passed its own check — all eight species alive on 6/6 seeds at
+every step — and the decline accumulated underneath. This is the failure mode
+`A73` and `A76` name, where they record this guild's carrion being reshuffled by
+*three* consecutive phases; it is now **eight**, counting the prey floor and P1–P6.
+
+⚠ The gazelle's −27% has a named cause (P5: the hyena's new `cooperationWeight`,
+and hyenas spend 62–82% of their hunts on gazelle). **The vulture's does not.** It
+is an obligate scavenger, so the candidates are all carrion-side: lions that hold
+ground and hunt better leave fewer unattended bodies, P3's ceilings changed which
+animals die, and P7 is about to change who wins a carcass. **Do not ship P7 without
+measuring the vulture specifically** — it is the species P7 most directly threatens
+and the one already furthest down.
+
+⚠ **The ten-seed × 15 000-tick sweep is now overdue rather than owed.** Six seeds
+cannot resolve a 3-animal population, and the vulture is at 4.5.
 
 ---
 

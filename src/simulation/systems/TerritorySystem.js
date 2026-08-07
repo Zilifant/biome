@@ -50,6 +50,54 @@ export function territoryOf(species) {
   return species?.territory ?? null;
 }
 
+/**
+ * Whether this animal is standing on ground **its own side** holds — closing
+ * **A60** (PREDATOR-PLAN P6, 2026-08-07).
+ *
+ * ⚠⚠ **The claim layer still keys on an entity id; only the *reading* of it
+ * changed.** A60's named fix was "keying the claim layer on `groupRecordId`", and
+ * that was built as a second owner array first and discarded, so the reasoning is
+ * worth keeping: a stored group id in `ScentGrid` is a **second copy of
+ * membership** that can disagree with the registry — it outlives a dissolved
+ * record, it has to be rewritten when an animal joins or leaves, and it is
+ * persisted state that a save can restore into a world whose groups have moved on.
+ * Deriving the answer on read costs one id lookup on a path that is already an
+ * O(1) grid read, needs no save-format bump, and cannot go stale. It is the same
+ * judgement that keeps possession held by presence and dominance derived.
+ *
+ * **What it fixes.** `TerritorySystem` marks cells by entity id and `retreat`
+ * moves an animal off ground *anyone else* has marked, pride-mate included — so a
+ * pride with `territory.defends: true` pushed its own members apart, and
+ * cooperative hunting measured **zero shared-quarry ticks in 8 000** until the lion
+ * was given `defends: false`. A social species could not use a mechanism whose
+ * unit is the individual. Now it can: a pride-mate's mark is the pride's ground.
+ *
+ * ⚠ **A stated limit, deliberately not half-built.** `#dispute` still transfers
+ * the ground *one animal* marked (`scent.transfer(loser.id, winner.id)`), so a
+ * pride that loses a fight loses that lioness's cells rather than the pride's.
+ * Making loss collective means walking the claim layer by record, which is a
+ * bigger change than A60 names — and a transfer that meant something different
+ * from the claim would be worse than either.
+ *
+ * ⚠ The owner must be **alive** for the shared claim to stand, which is the same
+ * rule carcass possession uses: a dead pride-mate's mark fades like anyone else's
+ * and the next animal through writes its own.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} entity the animal standing on the ground
+ * @param {number} ownerId `scent.ownerAt(...)`; 0 means unclaimed
+ * @returns {boolean} true when the ground is unclaimed, this animal's, or its group's
+ */
+export function holdsClaim(world, entity, ownerId) {
+  if (ownerId === 0 || ownerId === entity.id) return true;
+  if (entity.groupRecordId === null) return false;
+  const owner = world.entities.get(ownerId);
+  // ⚠ Read off the **live** owner rather than a stored copy, exactly as carcass
+  // possession reads the holder's membership: there is no second record of who
+  // belonged to what, so there is nothing to go stale.
+  return owner !== null && owner !== undefined && owner.alive && owner.groupRecordId === entity.groupRecordId;
+}
+
 export class TerritorySystem extends SimulationSystem {
   /**
    * @param {object} [options]
@@ -144,7 +192,9 @@ export class TerritorySystem extends SimulationSystem {
   /** Mark the ground underfoot, disputing it first if somebody else holds it. */
   #claim(world, entity, context) {
     const holder = world.scent.ownerAt(entity.x, entity.y);
-    if (holder !== 0 && holder !== entity.id) {
+    // ⚠ `holdsClaim` rather than `holder !== entity.id` (A60, P6): a pride-mate's
+    // mark is the pride's ground, so two lions that meet do not dispute it.
+    if (!holdsClaim(world, entity, holder)) {
       // Somebody else's ground. Whether that costs anything depends entirely on
       // whether they are here to say so.
       const owner = world.entities.get(holder);

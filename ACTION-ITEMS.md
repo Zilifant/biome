@@ -242,14 +242,21 @@ they are not re-opened by accident.
   (`groupPreyMassRatio: 3.5`); a hyena clan takes an adult wildebeest a single
   hyena cannot. See DOCS §1.1 A59 and PREDATOR-PLAN P3.
 
-- **⚠ A60 — Territory is an individual claim, so a social species cannot hold
-  ground** (from 2026-07-30, phase 11). `TerritorySystem` marks cells by entity
-  id and `retreat` moves an animal off ground *anyone* has marked, pride-mate
-  included — so a pride with `territory.defends: true` scatters itself, and
-  cooperative hunting measured **zero shared-quarry ticks in 8 000** until the lion
-  was given `defends: false`. Shared pride territory is therefore not expressible;
-  the fix is keying the claim layer on `groupRecordId`. ⚠ It sharpens **A35**:
-  territory is not predator-only, it is *solitary*-only.
+- **✅ A60 — Territory is an individual claim, so a social species cannot hold
+  ground. CLOSED 2026-08-07** (opened 2026-07-30, phase 11; closed by
+  PREDATOR-PLAN P6). It was opened by cooperative hunting measuring **zero
+  shared-quarry ticks in 8 000** with the lion at `defends: true`; the same count
+  now reads **170** over 2 seeds × 2000 ticks, and the lion holds ground again.
+  ⚠ **The claim layer still keys on an entity id** — this item named "keying the
+  claim layer on `groupRecordId`" as the fix and that version was built and
+  discarded, because a group id stored in `ScentGrid` is a second copy of
+  membership that outlives a dissolved record, needs rewriting on every join and
+  leave, and is persisted state a save can restore into a world whose groups have
+  moved on. What shipped is one derived predicate, `holdsClaim`, shared by the two
+  readers so they cannot disagree (D11). ⚠ **Stated limit**: a lost dispute still
+  transfers the ground *one animal* marked, so a pride loses a lioness's cells
+  rather than the pride's. ⚠ It also un-sharpens **A35**: territory is no longer
+  *solitary*-only.
 
 - **⚠ A63 — A perception gate is not a predation gate** (from 2026-07-30, phase
   14). Everything an animal knows about another animal comes through **one** test

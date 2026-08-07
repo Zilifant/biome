@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { ScentGrid } from '../src/simulation/world/ScentGrid.js';
-import { TerritorySystem, territoryOf } from '../src/simulation/systems/TerritorySystem.js';
+import { TerritorySystem, holdsClaim, territoryOf } from '../src/simulation/systems/TerritorySystem.js';
 import { PerceptionSystem } from '../src/simulation/systems/PerceptionSystem.js';
 import { SocialSystem } from '../src/simulation/systems/SocialSystem.js';
 import { DecisionSystem } from '../src/simulation/systems/DecisionSystem.js';
@@ -658,5 +658,99 @@ describe('territory: the residency sandbox', () => {
     }
     assert.ok(trials > 0, 'the neighbour was actually placed on the claim');
     assert.equal(left, trials, `it left the resident's ground every time (${left}/${trials})`);
+  });
+});
+
+describe('territory: a group holds ground together (PREDATOR-PLAN P6, closing A60)', () => {
+  // ⚠⚠ **A60 was open from 2026-07-30 to 2026-08-07 and its symptom was a
+  // *population* number**, which is why these assertions are on the two predicates
+  // rather than on an outcome: `retreat` moved an animal off ground anyone else
+  // had marked, pride-mate included, so a social species with `defends: true`
+  // scattered itself and cooperative hunting measured **zero shared-quarry ticks
+  // in 8 000**. The fix is read-side — the claim layer still keys on an entity id
+  // and only the reading of it changed — so what has to be true is that both
+  // readers agree about whose ground this is.
+
+  /** Two animals of one species, in one group record or in none. */
+  function pair({ grouped }) {
+    const engine = territoryEngine();
+    const a = spawn(engine, { speciesId: STALKER.id, x: 20, y: 20 });
+    const b = spawn(engine, { speciesId: STALKER.id, x: 21, y: 20 });
+    if (grouped) {
+      engine.world.entities.get(a).groupRecordId = 7;
+      engine.world.entities.get(b).groupRecordId = 7;
+    }
+    return { engine, a: engine.world.entities.get(a), b: engine.world.entities.get(b) };
+  }
+
+  test('a groupmate’s mark is the group’s ground, and a stranger’s is not', () => {
+    const { engine, a, b } = pair({ grouped: true });
+    engine.world.scent.mark(a.x, a.y, a.id, 1);
+    const owner = engine.world.scent.ownerAt(a.x, a.y);
+    assert.equal(owner, a.id, 'the mark really is the first animal’s');
+    assert.equal(holdsClaim(engine.world, b, owner), true, 'a pride-mate is not an intruder');
+    // The same animal, taken out of the record, is an intruder again — so the
+    // predicate is reading membership rather than species or proximity.
+    b.groupRecordId = null;
+    assert.equal(holdsClaim(engine.world, b, owner), false, 'an unattached animal is');
+  });
+
+  test('⚠ unattached animals are exactly as territorial as they were', () => {
+    // The identity that matters for every other species in the roster: the
+    // leopard declares no groups, so nothing about its ground can have moved.
+    const { engine, a, b } = pair({ grouped: false });
+    engine.world.scent.mark(a.x, a.y, a.id, 1);
+    const owner = engine.world.scent.ownerAt(a.x, a.y);
+    assert.equal(holdsClaim(engine.world, a, owner), true, 'its own ground');
+    assert.equal(holdsClaim(engine.world, b, owner), false, 'somebody else’s');
+    assert.equal(holdsClaim(engine.world, b, 0), true, 'unclaimed ground is anybody’s');
+  });
+
+  test('⚠ a dead groupmate’s claim does not shelter the living', () => {
+    // Same rule carcass possession uses: the membership is read off the **live**
+    // owner, so there is no second copy to go stale. A dead animal's mark fades
+    // like anyone else's and the next animal through writes its own.
+    const { engine, a, b } = pair({ grouped: true });
+    engine.world.scent.mark(a.x, a.y, a.id, 1);
+    const owner = engine.world.scent.ownerAt(a.x, a.y);
+    a.alive = false;
+    assert.equal(holdsClaim(engine.world, b, owner), false);
+  });
+
+  test('groupmates standing on one another’s ground never dispute it', () => {
+    // ⚠ The behavioural half, and the one A60's zero-shared-quarry-ticks reading
+    // was actually about. Two grouped residents, one piece of ground, 200 ticks:
+    // no `entity.disputed` event may be emitted between them.
+    const engine = territoryEngine();
+    const a = engine.world.entities.get(spawn(engine, { speciesId: STALKER.id, x: 20, y: 20 }));
+    const b = engine.world.entities.get(spawn(engine, { speciesId: STALKER.id, x: 20.5, y: 20 }));
+    a.groupRecordId = 7;
+    b.groupRecordId = 7;
+    engine.step(200);
+    const disputes = engine.eventsSince(0).filter((e) => e.type === 'entity.disputed');
+    assert.equal(disputes.length, 0, `pride-mates disputed ${disputes.length} times`);
+    // And the control: the same two animals in different records do contest.
+    const rival = territoryEngine();
+    const c = rival.world.entities.get(spawn(rival, { speciesId: STALKER.id, x: 20, y: 20 }));
+    const d = rival.world.entities.get(spawn(rival, { speciesId: STALKER.id, x: 20.5, y: 20 }));
+    c.groupRecordId = 7;
+    d.groupRecordId = 9;
+    rival.step(200);
+    assert.ok(
+      rival.eventsSince(0).some((e) => e.type === 'entity.disputed'),
+      'two records over one piece of ground still contest it',
+    );
+  });
+
+  test('the lion holds ground again, and it is the only social species that does', () => {
+    // ⚠ Derived from the roster, not a literal list (D1): what is asserted is the
+    // *combination* A60 said was impossible — a species that both forms persistent
+    // groups and defends ground.
+    const engine = createDemoSimulation({ seed: 42 });
+    const both = engine.species
+      .all()
+      .filter((s) => s.groups?.forms && s.territory?.defends)
+      .map((s) => s.id);
+    assert.deepEqual(both, ['predator.lion'], 'a pride that holds ground — the combination A60 forbade');
   });
 });
