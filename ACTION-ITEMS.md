@@ -1030,6 +1030,25 @@ they are not re-opened by accident.
   and has not been run. The next gain is structural — visiting fewer cells per
   animal, or staggering perception — not another cleanup pass.
 
+- **A90 — The perception cell scan searches every tick for three things that
+  cannot move.** `PerceptionSystem`'s `(2r+1)²` scan finds nearest food, water,
+  obstacle and cover per animal per tick — ~127 000 cell visits per tick on the
+  pre-2026-08-07 demo roster, against a world of 92 960 cells, so it visits more
+  cells per tick than the world contains. `TerrainGrid` exposes **no mutators**,
+  so water, obstacles and cover are fixed at generation; only food changes. Hit
+  rates at tick 1500 (seed 42): food **85.0%**, water **53.1%**, obstacle
+  **19.2%**, cover **0.0%** — cover is searched for exhaustively and never found.
+  The fix is a precomputed distance field per static cue (an O(1) lookup), or at
+  minimum a conservative early-out that skips the per-cell `terrain.codeAt` read
+  when the field proves the cue is out of range. ⚠ **Not a drop-in**: the scan
+  measures from the animal's exact float position to each cell centre and breaks
+  ties by scan order, so a field measuring centre-to-centre picks a different cell
+  near boundaries and silently changes behaviour. Accept it the way A2 was
+  accepted — on byte-identical demo state, not on a green suite. ⚠ The dynamic
+  half (nearest food, and the only cue with a high hit rate) is the genuinely hard
+  part and needs an incrementally maintained field; the static early-out is worth
+  doing on its own first. Profiled 2026-08-07; see DOCS §13.
+
 - **C3 — Per-tick event volume.** One `entity.moved` per animal per tick, plus
   one `entity.fed` per eater and one `entity.provisioned` per nursing juvenile in
   range. Bounded by the buffer, and in the renderer both off by default and

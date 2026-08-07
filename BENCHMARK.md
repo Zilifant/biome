@@ -856,6 +856,61 @@ day): the machine drifted ~15% between the two sessions with no code change in
 between, which is the whole reason both tables are interleaved pairs rather than
 single readings.
 
+### The spatial grid's query sort (2026-08-07, A2)
+
+**~1.09× on the whole engine, for a change to one function and no behavioural
+difference at all.** Three interleaved pairs, demo seed 42, stepped to 3000 and
+then timed over 1000 ticks (a cold measurement understates this — see the note
+in `CLAUDE.md`):
+
+| arm | ms / 1000 ticks at tick 3000 |
+| --- | --- |
+| HEAD (`origin/main`, b53ba4a) | 6711 · 7251 · 6814 — **range 6.71–7.25 s** |
+| **tree (A2)** | 6373 · 6251 · 6362 — **range 6.25–6.37 s** |
+
+The ranges do not overlap, which is this file's own standard for a result.
+
+⚠ **The finding is where the cost was, not the size of the win.** A CPU profile
+of the demo at tick 2000+ put `SpatialGrid.queryRadius` at **14.3%** of engine
+time — and a micro-benchmark replaying a captured tick of real neighbour queries
+(249 queries, mean 30 ids, p90 68) showed **68% of that was the sort**, not the
+cell walk and not the distance tests:
+
+| variant | ms per tick-equivalent |
+| --- | ---: |
+| gather only, no sort, no result array | 0.276 |
+| push + `Array#sort(ascending)` (was) | 1.166 |
+| scratch + `TypedArray#sort` (is) | 0.545–0.570 |
+
+`Array.prototype.sort` with a comparator re-enters JS once per comparison; a
+`TypedArray`'s parameterless `sort()` is native and numeric. Same order, ~2.0×
+on the query.
+
+⚠ **Two cleverer variants were measured and rejected.** Insertion sort was
+*slower* (0.636) despite the small n, and skipping the sort when the gather came
+back already ascending won only 9% (0.523) for an extra pass and a branch — 52 of
+249 queries were already in order, which does not pay for it. `Float64Array`
+instead of `Int32Array` cost 0.635–0.662 against 0.545–0.570.
+
+⚠ **`Int32Array` buys that speed with a wrap hazard, so `insert` now refuses ids
+above 2³¹−1** rather than letting the query reorder itself silently. Entity ids
+are a monotonic counter that rides through save/load, so nothing structurally
+bounds them; reaching it would take ~2×10⁹ spawns. The check is one comparison on
+a cold path.
+
+⚠⚠ **Verified byte-identical, which is the only acceptance test that means
+anything here.** Order is the contract this function exists to provide, and a
+changed tie-break would drift behaviour in ways the suite would only catch much
+later as a flaky ecological assertion. Demo state hashed after 1200 ticks on
+seeds 42, 7 and 1 is unchanged from `origin/main` — so "the tests still pass" was
+never the bar.
+
+⚠ **The growth path is sandbox-tested because nothing else reaches it.** The
+widest neighbour query measured on the demo returns ~80 ids against a 256-entry
+buffer. The first draft of the grown buffer did not copy the ids already gathered
+and padded the result with zeros — silently, with the count still correct. It was
+caught by the test written for that path, not by any world.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

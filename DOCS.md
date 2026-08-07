@@ -5636,6 +5636,37 @@ time. Every system other than the four above is under 1 ms/tick and always has
 been — "everything added since perception is O(1) per animal" held up under
 measurement.
 
+⚠ **Re-profiled 2026-08-07 on the demo at tick 2000+, and the ordering still
+holds**: `PerceptionSystem.#perceive` 24.2%, `SpatialGrid.queryRadius` 14.3%,
+`SocialSystem.update` 7.8%, GC 7.1%, `DecisionSystem.update` 6.8%,
+`hasLineOfSight` 6.2%. **Perception, neighbour queries and line-of-sight are
+~48% of the engine between them** — the cost is in *finding what is nearby*,
+not in deciding what to do about it.
+
+⚠ **`queryRadius`'s share turned out to be mostly its _sort_** — 68% of the
+function, measured by replaying a captured tick of real queries. It sorted with
+`Array#sort(ascending)`, which calls back into JS per comparison. Gathering into
+a reused `Int32Array` scratch and sorting natively is ~2.0× on the query and
+**~1.09× on the whole engine** (A2, 2026-08-07; interleaved pairs and the
+rejected alternatives are in `BENCHMARK.md`). ⚠ Order is this function's whole
+contract, so it was accepted on **byte-identical demo state across three seeds**
+rather than on a green suite.
+
+⬜ **The next structural item is the `(2r+1)²` cell scan, and it is a different
+shape of fix.** It runs per animal per tick to find nearest food, water,
+obstacle and cover — ~127 000 cell visits per tick on the pre-2026-08-07 demo
+roster against a world of 92 960 cells, i.e. **more cell visits per tick than the
+world has cells**. Three of those four cues are **static**: `TerrainGrid` exposes
+no mutators, so water, obstacles and cover cannot move once generated. Measured
+hit rates at tick 1500 (seed 42): food in range **85.0%**, water **53.1%**,
+obstacle **19.2%**, cover **0.0%** — the scan looks for cover across every cell of
+every animal's radius and essentially never finds any. A precomputed distance
+field per static cue turns those three into an O(1) lookup, or at minimum a
+conservative early-out that skips the terrain read entirely. ⚠ It is *not* a
+drop-in: the scan measures from the animal's exact float position to each cell
+centre and breaks ties by scan order, so a naive field picks a different cell and
+changes behaviour. See `ACTION-ITEMS.md`.
+
 ### Targets
 
 - **Early (Milestones A–B):** 10–100 animals, tick well under 1 s. **Met.**

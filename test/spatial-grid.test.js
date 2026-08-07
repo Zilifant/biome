@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { SpatialGrid } from '../src/simulation/world/SpatialGrid.js';
+import { SpatialGrid, MAX_INDEXABLE_ID } from '../src/simulation/world/SpatialGrid.js';
 
 describe('spatial grid', () => {
   test('insert and queryCell', () => {
@@ -66,5 +66,36 @@ describe('spatial grid', () => {
     assert.throws(() => grid.insert(1, 5, 5), /already in the spatial grid/);
     assert.throws(() => grid.move(99, 0, 0, 1, 1), /not in the spatial grid/);
     assert.throws(() => new SpatialGrid(0), /positive/);
+  });
+
+  // ⚠ The two guards below cover the query's `Int32Array` scratch, which nothing
+  // in a demo world exercises: the biggest neighbour query measured on the demo
+  // returns ~80 ids against a 256-entry starting buffer, and ids never approach
+  // 2³¹. Both are sandbox tests — 0 simulation ticks.
+  test('an id too large for the query scratch is refused at insert, not silently wrapped', () => {
+    const grid = new SpatialGrid(10);
+    assert.throws(() => grid.insert(MAX_INDEXABLE_ID + 1, 0, 0), /must be an integer in/);
+    assert.throws(() => grid.insert(1.5, 0, 0), /must be an integer in/);
+    assert.throws(() => grid.insert(-1, 0, 0), /must be an integer in/);
+    // The boundary itself is indexable, and answers a query like any other id.
+    grid.insert(MAX_INDEXABLE_ID, 0, 0);
+    assert.deepEqual(grid.queryRadius(0, 0, 1), [MAX_INDEXABLE_ID]);
+  });
+
+  test('a query wider than the scratch buffer still returns every id, in order', () => {
+    // 900 co-located entities against a 256-entry starting buffer, so the gather
+    // grows it twice. Inserted in descending id so a returned-in-insertion-order
+    // bug cannot pass by luck.
+    const grid = new SpatialGrid(10);
+    const expected = [];
+    for (let id = 900; id >= 1; id -= 1) {
+      grid.insert(id, 5 + (id % 7) * 0.01, 5);
+      expected.push(id);
+    }
+    expected.sort((a, b) => a - b);
+    assert.deepEqual(grid.queryRadius(5, 5, 5), expected);
+    // And the grown buffer is reusable: a later, smaller query is unaffected by
+    // the stale ids sitting past its own length.
+    assert.deepEqual(grid.queryRadius(500, 500, 5), []);
   });
 });
