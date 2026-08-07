@@ -1,0 +1,48 @@
+{
+  "formatVersion": 1,
+  "name": "default-small",
+  "savedAt": "2026-08-07T17:12:17.792Z",
+  "world": {
+    "seed": 4,
+    "width": 230,
+    "height": 180,
+    "rocks": 7,
+    "thickets": 7,
+    "trees": 6,
+    "roundness": 4,
+    "founding": [
+      {
+        "speciesId": "herbivore.gazelle",
+        "count": 30
+      },
+      {
+        "speciesId": "herbivore.wildebeest",
+        "count": 100
+      },
+      {
+        "speciesId": "herbivore.zebra",
+        "count": 50
+      },
+      {
+        "speciesId": "herbivore.buffalo",
+        "count": 50
+      },
+      {
+        "speciesId": "predator.leopard",
+        "count": 3
+      },
+      {
+        "speciesId": "predator.lion",
+        "count": 5
+      },
+      {
+        "speciesId": "scavenger.vulture",
+        "count": 5
+      },
+      {
+        "speciesId": "scavenger.hyena",
+        "count": 20
+      }
+    ]
+  }
+}
