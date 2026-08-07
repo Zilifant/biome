@@ -1,6 +1,6 @@
 # Social predators — lions and hyenas
 
-**Status: P1, P2 and P3 shipped 2026-08-07. P4–P8 not started.** Eight phases.
+**Status: P1–P4 shipped 2026-08-07. P5–P8 not started.** Eight phases.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -408,7 +408,7 @@ it is recorded as that.
 
 ---
 
-## P4 — Coordinated stalking
+## P4 — Coordinated stalking — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Lions 2 (the "before a member has entered `chase`" half)._
 
@@ -445,6 +445,91 @@ capture rate to move and budget a `cooperationWeight` re-tune in P5.
 one buffalo, none yet chasing — all three end on the same `huntTargetId`; their
 bearings to the quarry are separated by ≥ some floor. Cost: ~100 ticks total, no
 demo world.
+
+### ✅ As built — 2026-08-07
+
+Both halves shipped as planned: `cooperation.joinStalks` (true) and
+`cooperation.approachSpread` (1.2 rad) / `approachRadius` (3), all world-level, so
+**both arms are expressible in config and no file swapping is needed to measure
+them** — the contrast with P3 is the whole argument for the rule that puts a
+mechanism's switch outside a species block.
+
+✅ **The mechanism fires, measured by the thing the brief actually asks for.**
+2 seeds × 2000 ticks at a mature world, counting ticks on which two or more hunters
+of one species are committed to the same quarry:
+
+| | shared-quarry ticks | of which **nobody yet sprinting** | total stalk-ticks |
+| --- | ---: | ---: | ---: |
+| ON | 266 | **63** | 418 |
+| OFF | 208 | **41** | 355 |
+
+The middle column is "collectively decide to attack a prey **before a member has
+entered `chase`**" made countable, and P4 raises it by **54%**. ⚠ It is not zero in
+the off arm and the honest claim is therefore *commoner*, not *possible*: two
+hunters can independently pick the same nearest quarry without either joining the
+other. ⚠ Small absolute numbers over two seeds — directional, not a gate.
+
+**The geometry**, verified directly: three hunters bunched within 0.06 rad of each
+other come out at bearings **−0.600 / 0.040 / 0.561** — a spread of 1.161 against
+the declared 1.2 — each aiming at exactly the 3-unit radius.
+
+#### The ecological reading: the behaviour moved, the world did not
+
+Six seeds × 6000 demo ticks, both arms in config (no file swapping — P4's switches
+are world-level, which is what makes this measurable at all):
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ON mean | 7.0 | 16.8 | 62.2 | 74.0 | 139.3 | 29.8 | 2.5 | 7.8 |
+| OFF mean | 7.0 | 16.7 | 53.3 | 70.7 | 139.8 | 26.7 | 3.0 | 7.5 |
+| per-seed | 2up/3dn | 2up/4dn | 3up/3dn | 2up/2dn | 3up/3dn | **4up/1dn** | 2up/3dn | 2up/4dn |
+
+✅ **Every species alive on 6/6 seeds**, against the off arm's 5/6 for the leopard.
+
+⚠⚠ **Every column but one is a coin flip in its per-seed ordering (D41), and the
+buffalo is the row that shows why the means cannot be read alone**: 53.3 → 62.2
+looks like a large effect and is **3up/3dn**, i.e. two or three seeds moving a long
+way in opposite directions. Only the gazelle has a direction (4up/1dn) and its mean
+moves 3 animals.
+
+**So the honest summary is that P4 changes the hunt without changing the world.**
+That is an acceptable and unsurprising outcome rather than a disappointment: the
+capture-odds term `cooperationBonus` already existed and P4 does not touch it — what
+this phase widens is the *window* in which hunters are co-committed, and the
+measurement above says the resulting odds change is below what six seeds resolve.
+⚠ The plan's own risk note predicted "expect the capture rate to move and budget a
+`cooperationWeight` re-tune in P5"; it did not move measurably, so no re-tune is
+carried forward.
+
+#### ⚠⚠ Three things the tests caught, and one the tests could not have
+
+**A write was silently lost.** The first `joinStalks` edit never reached disk: a
+later script read a stale copy of `cooperation.js` and wrote it back, leaving
+`approachPoint` present and the join rule untouched. Two tests then failed against
+code that was not there, and the first instinct was to debug the tests. ⚠ The
+lesson is procedural and it applies to every remaining phase: **verify an edit by
+running it, not by reading the diff you believe you applied.**
+
+**The observable was wrong twice over.** `entity.actionTarget` keeps only
+`{cellX, cellY}` — the exact flank point is internal to `#intentFor` — so a live
+stalk cannot be measured to better than a cell. And **a stalk does not last**:
+`chasing` is forced the moment the quarry bolts, and a prey animal that can see its
+hunter bolts on the next tick, so any world where the hunter is inside its own
+perception radius yields one tick of stalking and then a sprint. Building a world
+where that is untrue means tuning two perception radii against each other, which
+would make the test about the radii. The geometry is therefore asserted on
+`approachPoint` directly, with both reasons written into the test file.
+
+**A test asserted something false about the mechanism.** The re-ranking test
+dropped the *middle* hunter and expected the last one's bearing to move. It does
+not: offsets normalize to ±spread/2 at the ends whatever `n` is, so removing an
+extreme leaves the other extreme identical. The code was right and the test was
+wrong; it now drops an *end* and watches the middle animal get promoted.
+
+⚠ **The reversed test was updated, not deleted.** `test/cooperation.test.js`'s
+"⚠ only a committed chase is joinable — a stalk is not yet a hunt" was phase 10's
+deliberate rule and is exactly what this phase lifts. It now asserts **both** arms,
+so `joinStalks: false` keeps meaning what it meant.
 
 ---
 

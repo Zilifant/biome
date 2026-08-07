@@ -86,6 +86,26 @@ export const DEFAULT_COOPERATION = Object.freeze({
    * the map.
    */
   joinRange: 12,
+  /**
+   * ⚠⚠ **Whether a committed `stalk` is joinable, or only a `chase`**
+   * (PREDATOR-PLAN P4). `adoptedPrey` below took chases only, on two stated
+   * grounds: a stalk is not yet a hunt, and *a chase bounds the geometry for
+   * free* — a chasing animal is within `chaseRange` of its quarry, so the quarry
+   * is near the joiner too.
+   *
+   * The brief asks for the thing that is only possible once the first ground is
+   * given up: **a pride that has converged on a quarry before any member has
+   * broken into a run.** With chases only, "several lions on one buffalo" can
+   * never precede the first lion's sprint, which is what "collectively decide to
+   * attack before a member has entered `chase`" means.
+   *
+   * The *second* ground is real and is kept: `joinRange` (12) now carries the
+   * geometry, plus the caller's own perception-radius gate. Both were already
+   * there — the chase was doing the bounding a second time.
+   *
+   * ⚠ `false` is exactly the pre-P4 behaviour and is the reproducible control.
+   */
+  joinStalks: false,
 });
 
 /**
@@ -147,6 +167,84 @@ export function cooperationBonus(attackers, params) {
 }
 
 /**
+ * Where this animal should walk while stalking a shared quarry — the quarry
+ * itself, or a point fanned out around it when others are on the same animal
+ * (PREDATOR-PLAN P4).
+ *
+ * ⚠⚠ **This is approach-from-distinct-bearings, and it is not encirclement.**
+ * See `approachSpread` above for why a formation is not expressible here at all.
+ * What is claimed, and what a test should measure, is the *angular separation of
+ * co-stalkers around their quarry*.
+ *
+ * **The geometry.** Each co-stalker keeps its own side of the quarry and the group
+ * fans apart from there: the bearing from the quarry to this animal is rotated by
+ * `spread × (k − (n−1)/2) / (n−1)`, where `k` is this animal's rank among the
+ * co-stalkers in ascending id and `n` is how many there are. So with three on one
+ * buffalo the ranks take −spread/2, 0, +spread/2.
+ *
+ * ⚠ **Rank assigns an offset, never a destination**, which is the difference
+ * between this and the obvious version. Handing each animal an absolute bearing
+ * slot (`2πk/n`) would send whichever lion drew the far side walking the whole way
+ * around a buffalo it was already next to. Rotating each animal's *own* bearing
+ * keeps every one of them approaching from where it already is.
+ *
+ * ⚠ **Nothing is stored and nothing is per-pair** (invariant 17). The rank is
+ * recomputed from ascending id every tick, so it is stable while the set is stable
+ * and re-derived the moment a stalker joins or drops — no assignment to keep in
+ * step with the world, and no state to get stuck in. It is the same judgement that
+ * keeps possession held by presence and dominance derived on read.
+ *
+ * ⚠ **It lands on the action *target*, not on the heading and not on the utility
+ * table.** Bending the heading would make a stalker circle rather than converge;
+ * a new action would have to beat foraging, and this project has recorded four
+ * times what happens then.
+ *
+ * ⚠ **Exactly the identity for a lone stalker**, at `approachSpread: 0`, and for a
+ * species that does not cooperate — the caller gates on `cooperationWeight`, so
+ * the grid is never touched for six of the eight species. `n <= 1` returns the
+ * quarry object itself rather than a copy, so the common case allocates nothing.
+ *
+ * Cost: one radius query per *stalking* animal per tick, on top of the one
+ * `attackersFor` makes at capture time. That is a rare true case — a hungry
+ * cooperative predator that has actually chosen `stalk` — but it is genuinely new
+ * work and is why the species gate is checked first.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} entity the stalker
+ * @param {object} prey its quarry, in perception's `nearestPrey` shape
+ * @param {object} cooperation resolved world-level parameters
+ * @returns {object} `prey`, or a copy with `x`/`y` moved to the flank point
+ */
+export function approachPoint(world, entity, prey, cooperation) {
+  if (!cooperation.enabled || !(cooperation.approachSpread > 0)) return prey;
+  const quarry = world.entities.get(prey.id);
+  if (!quarry) return prey;
+  // ⚠ Ascending id, because `queryRadius` returns ids sorted — which is what makes
+  // the rank deterministic without sorting anything here.
+  let count = 0;
+  let rank = -1;
+  for (const otherId of world.grid.queryRadius(quarry.x, quarry.y, cooperation.range)) {
+    const other = otherId === entity.id ? entity : world.entities.get(otherId);
+    if (!other || other.kind !== 'animal' || !other.alive) continue;
+    if (other.huntTargetId !== prey.id) continue;
+    if (otherId !== entity.id && !huntsTogether(entity, other)) continue;
+    if (otherId === entity.id) rank = count;
+    count += 1;
+  }
+  // Alone on this quarry — or not counted at all, which happens on the tick before
+  // `huntTargetId` is written. Either way there is nothing to fan out from.
+  if (count <= 1 || rank < 0) return prey;
+  const bearing = Math.atan2(entity.y - quarry.y, entity.x - quarry.x);
+  const offset = (cooperation.approachSpread * (rank - (count - 1) / 2)) / (count - 1);
+  const angle = bearing + offset;
+  return {
+    ...prey,
+    x: quarry.x + cooperation.approachRadius * Math.cos(angle),
+    y: quarry.y + cooperation.approachRadius * Math.sin(angle),
+  };
+}
+
+/**
  * The quarry a conspecific is already chasing, for a predator that has found
  * none of its own — or null.
  *
@@ -154,11 +252,18 @@ export function cooperationBonus(attackers, params) {
  * system scores and steers at it through exactly the code path it already has
  * and no caller has to learn a second kind of target.
  *
- * ⚠ **Only a committed `chase` is joinable, never a `stalk`.** Two reasons, and
- * the second is the one that matters: a stalk is not yet a hunt, and a chase
- * bounds the geometry for free — a chasing animal is within `chaseRange` of its
- * quarry (or the quarry has bolted and is in plain sight), so the quarry of a
- * neighbour is near this animal too rather than half a map away.
+ * ⚠⚠ **A committed `chase` is joinable, and since PREDATOR-PLAN P4 a `stalk` is
+ * too when `cooperation.joinStalks` says so.** The original rule was chases only,
+ * for two reasons: a stalk is not yet a hunt, and a chase bounds the geometry for
+ * free — a chasing animal is within `chaseRange` of its quarry (or the quarry has
+ * bolted and is in plain sight), so the quarry of a neighbour is near this animal
+ * too rather than half a map away.
+ *
+ * The first reason is what P4 gives up on purpose, because the brief asks for
+ * exactly what it forbids: a pride converging on a quarry **before** any member
+ * has broken into a run. The second is kept, and is now carried by `joinRange`
+ * and the caller's perception gate — which were always there, so the chase was
+ * bounding the geometry a second time.
  *
  * ⚠ **Only when this animal has no prey of its own.** The conservative half of
  * the mechanism: joining can add a hunter to a hunt, never take one off a hunt it
@@ -189,7 +294,9 @@ export function adoptedPrey(world, entity, neighbours, cooperation, radius = Inf
     if (neighbours[i + 1] > radius) continue;
     const other = world.entities.get(neighbours[i]);
     if (!other || other.kind !== 'animal' || !other.alive) continue;
-    if (other.action !== 'chase' || other.huntTargetId === null) continue;
+    if (other.huntTargetId === null) continue;
+    // ⚠ A stalk counts too when the world says so (P4) — see `joinStalks` above.
+    if (other.action !== 'chase' && !(cooperation.joinStalks && other.action === 'stalk')) continue;
     if (!huntsTogether(entity, other)) continue;
     const quarry = world.entities.get(other.huntTargetId);
     if (!quarry || quarry.kind !== 'animal' || !quarry.alive) continue;

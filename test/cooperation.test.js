@@ -39,6 +39,7 @@ import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import {
   DEFAULT_COOPERATION,
   adoptedPrey,
+  approachPoint,
   attackersFor,
   cooperationBonus,
   huntsTogether,
@@ -208,6 +209,14 @@ function decisionSystems(engine, decision = {}) {
       carcassRange: engine.config.feeding.carcassRange,
       cooperationEnabled: engine.config.cooperation.enabled,
       cooperationJoinRange: engine.config.cooperation.joinRange,
+      // ⚠ Coordinated stalking (P4), wired here for exactly the reason the charge's
+      // three bounds are: the system's own defaults are the *pre-P4* behaviour, so
+      // a test that set these in its config and not here would silently measure the
+      // old mechanism. This helper's own comment below says so about P9 and it was
+      // still the first thing P4 got wrong.
+      cooperationJoinStalks: engine.config.cooperation.joinStalks,
+      cooperationApproachSpread: engine.config.cooperation.approachSpread,
+      cooperationApproachRadius: engine.config.cooperation.approachRadius,
       mobbingEnabled: engine.config.mobbing.enabled,
       mobbingMinMobbers: engine.config.mobbing.minMobbers,
       mobbingRange: engine.config.mobbing.range,
@@ -342,11 +351,27 @@ describe('cooperative hunting: joining a hunt', () => {
     assert.equal(off.joiner.huntTargetId, null, 'and the world switch is a real off switch');
   });
 
-  test('⚠ only a committed chase is joinable — a stalk is not yet a hunt', () => {
-    const { engine, joiner, chaser } = chaseInProgress(PACK_HUNTER.id);
-    chaser.action = 'stalk';
-    engine.step(1);
-    assert.equal(joiner.huntTargetId, null);
+  test('⚠⚠ a stalk is joinable too since P4 — and was deliberately not before', () => {
+    // ⚠⚠ **This test asserted the opposite until 2026-08-07, and the reversal is
+    // the point of PREDATOR-PLAN P4.** It read "only a committed chase is joinable
+    // — a stalk is not yet a hunt", which was phase 10's deliberate rule and is
+    // exactly what the brief now asks to be lifted: a pride cannot converge on a
+    // quarry *before a member has entered `chase`* if a stalk is not joinable.
+    //
+    // Both arms are asserted, because the old rule is still the reproducible
+    // control and `joinStalks: false` has to keep meaning what it meant.
+    const joined = chaseInProgress(PACK_HUNTER.id);
+    joined.chaser.action = 'stalk';
+    joined.engine.step(1);
+    assert.equal(joined.joiner.huntTargetId, joined.quarry.id, 'a stalk is joinable with the flag on');
+
+    // ⚠ The helper's `config` is the **engine** config, and `decisionSystems`
+    // wires the system from it — so the off arm is stated where the world states
+    // it, not as a system option the fixture would not have used.
+    const control = chaseInProgress(PACK_HUNTER.id, { cooperation: { joinStalks: false } });
+    control.chaser.action = 'stalk';
+    control.engine.step(1);
+    assert.equal(control.joiner.huntTargetId, null, 'and is not with it off');
   });
 
   test('joining never takes a hunter off prey of its own', () => {
@@ -1180,5 +1205,163 @@ describe('batch 2: the two mechanisms in the demo world', () => {
     // hunter's injury odds at all — the config's 2 would clip it to the danger of
     // a 360 kg animal. This is "takes buffalo at real risk" as a number.
     assert.ok(observed.lionTrampled > 0, 'the risk term fires in the demo');
+  });
+});
+
+describe('coordinated stalking (PREDATOR-PLAN P4)', () => {
+  // ⚠⚠ **What is claimed here is approach from distinct bearings, and it is not
+  // encirclement.** Encirclement and flanking as the brief asks for them are not
+  // expressible in this engine at all — there is no repulsion anywhere, and a
+  // weighted mean of positions cannot repel (DOCS §1.3). Every assertion below is
+  // about *which quarry* several hunters commit to and *what bearing* each comes
+  // in on. None is about a formation, and none should be added.
+  //
+  // ⚠ **The geometry is tested directly rather than through a live stalk**, and the
+  // two reasons are worth writing down because both were found by trying:
+  //
+  //   1. `entity.actionTarget` keeps only `{cellX, cellY}` — the exact flank point
+  //      is internal to `#intentFor` — so a live stalk cannot be measured to better
+  //      than a cell.
+  //   2. **A stalk does not last.** `chasing` is forced the moment the quarry
+  //      bolts, and a prey animal that can see its hunter bolts on the next tick,
+  //      so any world where a hunter is inside its own perception radius of the
+  //      prey gives one tick of stalking and then a sprint. Building a world where
+  //      that is not true means tuning two perception radii against each other,
+  //      which would make the test about the radii.
+  //
+  // So the fan-out is asserted on `approachPoint` with commitments set by hand —
+  // the cheapest world that states the claim — and the *joining* half, which is
+  // about a decision rather than a geometry, is asserted live.
+
+  /** Commit these hunters to this quarry, as the decision system would. */
+  function commit(hunters, prey) {
+    for (const hunter of hunters) hunter.huntTargetId = prey.id;
+  }
+
+  const bearingOf = (point, prey) => Math.atan2(point.y - prey.y, point.x - prey.x);
+
+  test('a stalk is joinable, which a chase-only rule could never express', () => {
+    // The brief: "a pride should be able to collectively decide to attack a prey
+    // **before a member has entered `chase`**". With the pre-P4 rule the first
+    // hunter had to be sprinting before anyone could join, so a converged pride was
+    // always downstream of somebody's solo commitment.
+    //
+    // ⚠ Distances: the stalker is 5 from the quarry (outside `chaseRange` 4, inside
+    // its own perception 6) so it stalks rather than chases; the joiner is 9 from
+    // the quarry — beyond its own perception, so it cannot have found the prey
+    // itself — and 4 from the stalker, so it can see the stalker.
+    const engine = decisionSystems(sandbox());
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    const stalker = spawn(engine, PACK_HUNTER.id, { x: 35, y: 30, energyFraction: 0.1 });
+    const joiner = spawn(engine, PACK_HUNTER.id, { x: 39, y: 30, energyFraction: 0.1 });
+    engine.step(1);
+    assert.equal(stalker.action, 'stalk', 'the first hunter is stalking, not chasing');
+    assert.equal(engine.world.perception.get(joiner.id).nearestPrey, null, 'the joiner cannot see the prey itself');
+    assert.equal(joiner.huntTargetId, prey.id, 'and joins the stalk anyway');
+  });
+
+  test('⚠ `joinStalks: false` is the pre-P4 rule exactly', () => {
+    // The reproducible control: same world, same tick, one flag.
+    const engine = decisionSystems(sandbox(), { cooperationJoinStalks: false });
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    const stalker = spawn(engine, PACK_HUNTER.id, { x: 35, y: 30, energyFraction: 0.1 });
+    const joiner = spawn(engine, PACK_HUNTER.id, { x: 39, y: 30, energyFraction: 0.1 });
+    engine.step(1);
+    assert.equal(stalker.action, 'stalk');
+    assert.equal(joiner.huntTargetId, null, 'a stalk is not joinable with the flag off');
+  });
+
+  test('co-stalkers aim on bearings spread around the quarry', () => {
+    const engine = sandbox();
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    // Three hunters bunched on one side: with no spread all three would aim at the
+    // same point, which is what makes the separation below attributable to this
+    // mechanism rather than to where they were standing.
+    const pack = [
+      spawn(engine, PACK_HUNTER.id, { x: 35, y: 30 }),
+      spawn(engine, PACK_HUNTER.id, { x: 35, y: 30.2 }),
+      spawn(engine, PACK_HUNTER.id, { x: 35.1, y: 29.8 }),
+    ];
+    commit(pack, prey);
+    const cooperation = { ...CONFIG.cooperation };
+    const bearings = pack.map((h) => bearingOf(approachPoint(engine.world, h, prey, cooperation), prey));
+    const sorted = [...bearings].sort((a, b) => a - b);
+    const spread = sorted[2] - sorted[0];
+    // ⚠ Derived from the declared spread, never a literal: the mechanism fans the
+    // outermost pair by exactly `approachSpread` about their own mean bearing, and
+    // the three animals here start within 0.06 rad of each other.
+    assert.ok(spread > cooperation.approachSpread * 0.9, `three co-stalkers only ${spread.toFixed(3)} rad apart`);
+    for (const h of pack) {
+      const point = approachPoint(engine.world, h, prey, cooperation);
+      const distance = Math.hypot(point.x - prey.x, point.y - prey.y);
+      assert.ok(Math.abs(distance - cooperation.approachRadius) < 1e-9, 'each aims at the approach radius');
+    }
+  });
+
+  test('⚠ a lone stalker gets the quarry itself, unchanged and uncopied', () => {
+    // The identity that makes the mechanism free when it is not being used, and the
+    // one a later "tidy-up" of the geometry would most easily break. Object
+    // identity, not just equal coordinates: the common path must not allocate.
+    const engine = sandbox();
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    const hunter = spawn(engine, PACK_HUNTER.id, { x: 35, y: 30 });
+    commit([hunter], prey);
+    assert.equal(approachPoint(engine.world, hunter, prey, { ...CONFIG.cooperation }), prey);
+  });
+
+  test('⚠ zero spread and a disabled mechanism are both exactly the identity', () => {
+    const engine = sandbox();
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    const pack = [spawn(engine, PACK_HUNTER.id, { x: 35, y: 30 }), spawn(engine, PACK_HUNTER.id, { x: 35, y: 30.2 })];
+    commit(pack, prey);
+    for (const cooperation of [
+      { ...CONFIG.cooperation, approachSpread: 0 },
+      { ...CONFIG.cooperation, enabled: false },
+    ]) {
+      assert.equal(approachPoint(engine.world, pack[0], prey, cooperation), prey);
+    }
+  });
+
+  test('⚠ only animals hunting *together* are counted, so a stranger cannot fan a pride out', () => {
+    // The same test `attackersFor` makes, and it has to be the same or two hunters
+    // of different species on one carcass-to-be would spread each other.
+    const engine = sandbox();
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    const hunter = spawn(engine, PACK_HUNTER.id, { x: 35, y: 30 });
+    const stranger = spawn(engine, LONE_HUNTER.id, { x: 35, y: 30.2 });
+    commit([hunter, stranger], prey);
+    assert.equal(approachPoint(engine.world, hunter, prey, { ...CONFIG.cooperation }), prey, 'a different species is not a co-stalker');
+  });
+
+  test('⚠ the rank is derived every tick, never stored', () => {
+    // Invariant 17 — no per-pair state — and the property that makes a fan-out
+    // survive a stalker joining or dying without anything to keep in step. Removing
+    // the middle hunter re-derives two ranks rather than leaving a hole.
+    const engine = sandbox();
+    const prey = spawn(engine, HERD_ANIMAL.id, { x: 30, y: 30 });
+    const pack = [
+      spawn(engine, PACK_HUNTER.id, { x: 35, y: 30 }),
+      spawn(engine, PACK_HUNTER.id, { x: 35, y: 30.2 }),
+      spawn(engine, PACK_HUNTER.id, { x: 35.1, y: 29.8 }),
+    ];
+    commit(pack, prey);
+    const cooperation = { ...CONFIG.cooperation };
+    // ⚠ **Watch the *middle* animal, not an extreme.** The offsets are normalized
+    // to ±spread/2 at the ends whatever `n` is, so removing one extreme leaves the
+    // other extreme's offset identical — the first version of this test dropped the
+    // middle hunter and asserted the last one moved, which it does not, and the
+    // test was wrong rather than the code. Removing an *extreme* is what promotes
+    // the middle animal from offset 0 to an end.
+    const middleBefore = bearingOf(approachPoint(engine.world, pack[1], prey, cooperation), prey);
+    pack[0].alive = false;
+    const middleAfter = bearingOf(approachPoint(engine.world, pack[1], prey, cooperation), prey);
+    assert.notEqual(middleBefore, middleAfter, 'the middle hunter re-ranks when an end one drops');
+    // And with only two left they are the two ends, symmetric about their own
+    // bearings — nothing is left holding a rank from when there were three.
+    const ends = [pack[1], pack[2]].map((h) => {
+      const point = approachPoint(engine.world, h, prey, cooperation);
+      return bearingOf(point, prey) - Math.atan2(h.y - prey.y, h.x - prey.x);
+    });
+    assert.ok(Math.abs(ends[0] + ends[1]) < 1e-9, `two survivors are not symmetric: ${ends.join(', ')}`);
   });
 });

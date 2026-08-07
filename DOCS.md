@@ -820,6 +820,8 @@ does not need.** Every row is a decision, not a backlog item.
 | Asked for | Blocked by | Nearest legal thing |
 | --- | --- | --- |
 | **Separation between adjacent bands** | a weighted mean of positions cannot repel. Weight 0 means *ignore*, not *avoid*, and a negative weight can drive the denominator toward zero — `sumX / ~0` is ±Infinity, then a NaN heading, then `entity.x = NaN` **permanently** and the animal vanishes from every spatial query | **differential attraction**: each band's centre is dominated by its own members, so two overlapping bands pull apart. Claim that, never separation |
+| **Encirclement / flanking by a hunting group** | there is **no repulsion anywhere in this engine** and no trajectory: steering is a weighted mean of positions, a mean cannot repel, and a negative weight drives the denominator toward zero — `sumX / ~0` is a NaN position that removes the animal from every spatial query permanently. A formation is also per-pair state, which invariant 17 refuses | **approach from distinct bearings** (`cooperation.approachSpread`, PREDATOR-PLAN P4): each co-stalker rotates its own bearing-to-quarry by an offset derived from its rank among them, so a bunched pride comes in spread out. Measure *angular separation of co-stalkers*; never claim a shape |
+| **A pride-level decision taken before any member acts** | there is no group-level actor — every decision here is one animal scoring a utility from what it perceives, and a deliberating pride would be a new kind of entity with stored intent | **a threshold on an individual decision**: a hunter commits to prey it would refuse alone once enough band-mates are beside it (`predation.groupPreyMassRatio`, P3), and joins a pride-mate's *stalk* rather than only its chase (`cooperation.joinStalks`, P4). The pride converges on one quarry without anything deciding on its behalf |
 | **A defensive ring around the calves** | no repulsion force exists anywhere; a weighted centroid produces a *blob*. The only thing producing a shell is `locomotion.maxOccupantsPerCell: 2` refusing entry to a full cell, which is an emergent one-cell crust rather than a formation | calves measurably **nearer the centroid than adults** (`config.social.calfWeight`) — a claim that can actually be measured |
 | **Bachelor bull groups as an identity** | `#joinOrFound` has **no admission test**: it takes the smallest-id record in range with room, so a bull whose dispersal window has closed walks straight back into a cow group | ⛔ **Not built — skipped by decision 2026-08-05.** A dispersed bull stays loosely attached to the local buffalo through the herd *label*, which is what fission–fusion already models. What is given up, stated rather than hidden: bull bands are real and somewhat persistent in the field, and here they are loose local aggregation and nothing more. The unbuilt design was one per-species `groups.joinsAfterDispersal` scoped by the existing `leavingSex` predicate — ⚠ note the name collision with the A64 control `rejoinWhileDispersing`, which is why it was not called the obvious thing |
 | **A stored leader, or a resident stallion** | "standing is derived, never stored" (§9 Persistent groups) — a rank you cannot lose by being hurt is a title | a **leadership-weighted centre** with nothing stored: `leadershipOf` read on demand at `config.groups.leadWeight`. The flicker that would be intolerable for an elected leader a whole band followed is fine for a weight — it moves a centre by a hair |
@@ -2816,8 +2818,28 @@ or a competitor in the utility table.**
   from the other side. A predator with **no prey of its own in sight** also joins a
   conspecific's committed chase, which is what makes several hunters converge on one
   animal; joining can only ever *add* a hunter to a hunt, never take one off a hunt
-  it could have won alone. ⚠ Only a `chase` is joinable, never a `stalk` — a stalk is
-  not yet a hunt, and a chase bounds the geometry for free.
+  it could have won alone. ⚠⚠ **A `stalk` is joinable too since 2026-08-07**
+  (`config.cooperation.joinStalks`, PREDATOR-PLAN P4). This read "only a `chase` is
+  joinable, never a `stalk` — a stalk is not yet a hunt, and a chase bounds the
+  geometry for free", which was phase 10's deliberate rule; the first half is given
+  up because a pride cannot converge on a quarry *before a member has entered
+  `chase`* while it holds, and that is what the brief asks for. The second half is
+  kept and is now carried by `cooperation.joinRange` (12) and the joiner's own
+  perception radius — both of which were already gating it, so the chase was
+  bounding the geometry a second time. `joinStalks: false` is the old rule exactly.
+- **Coordinated approach** (P4). Several hunters closing on one quarry aim at points
+  fanned around it rather than all at the animal: each rotates its own
+  bearing-to-quarry by `cooperation.approachSpread × (k − (n−1)/2)/(n−1)`, where `k`
+  is its rank among the co-stalkers in ascending id. ⚠⚠ **This is approach from
+  distinct bearings and it is *not* encirclement** — see §1.3, where a formation is
+  recorded as not expressible: there is no repulsion anywhere in this engine, a
+  weighted mean of positions cannot repel, and a formation would be per-pair state.
+  Claim and measure *angular separation of co-stalkers*, never a shape. ⚠ Rank
+  assigns an **offset**, never a destination: absolute bearing slots would send
+  whichever hunter drew the far side walking around a buffalo it was already beside.
+  ⚠ Never applied to a `chase` — a sprint goes at the animal, not past it — and
+  exactly the identity for a lone stalker, at spread 0, and for a species declaring
+  no `cooperationWeight`.
 - **Mobbing** (A33) is the groupmate half of `defend`, triggered when a perceived
   predator has **committed to** a groupmate and `minMobbers` adults are standing
   nearby. A mobber is reported through `entity.defended`, which is what that event

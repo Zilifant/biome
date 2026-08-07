@@ -83,7 +83,7 @@ import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
 import { canClimb, isAloft } from '../locomotion/climbing.js';
 import { flyingFor } from '../locomotion/flight.js';
-import { DEFAULT_COOPERATION, adoptedPrey } from '../predation/cooperation.js';
+import { DEFAULT_COOPERATION, adoptedPrey, approachPoint } from '../predation/cooperation.js';
 import { DEFAULT_MOBBING, mobWardFor } from '../predation/mobbing.js';
 import { DEFAULT_CHARGE, chargeWeightOf, pursuitTicksOf } from '../predation/charge.js';
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
@@ -268,6 +268,12 @@ export class DecisionSystem extends SimulationSystem {
     // read and nothing else.
     cooperationEnabled = DEFAULT_COOPERATION.enabled,
     cooperationJoinRange = DEFAULT_COOPERATION.joinRange,
+    // ⚠ Both default to the pre-P4 behaviour, so a system built with no options is
+    // the old system — every test that constructs one directly keeps meaning what
+    // it meant. `config.cooperation` carries what the demo actually runs on.
+    cooperationJoinStalks = DEFAULT_COOPERATION.joinStalks,
+    cooperationApproachSpread = DEFAULT_COOPERATION.approachSpread,
+    cooperationApproachRadius = DEFAULT_COOPERATION.approachRadius,
     mobbingEnabled = DEFAULT_MOBBING.enabled,
     mobbingMinMobbers = DEFAULT_MOBBING.minMobbers,
     mobbingRange = DEFAULT_MOBBING.range,
@@ -406,6 +412,9 @@ export class DecisionSystem extends SimulationSystem {
       ...DEFAULT_COOPERATION,
       enabled: cooperationEnabled,
       joinRange: cooperationJoinRange,
+      joinStalks: cooperationJoinStalks,
+      approachSpread: cooperationApproachSpread,
+      approachRadius: cooperationApproachRadius,
     });
     this.mobbing = Object.freeze({
       ...DEFAULT_MOBBING,
@@ -957,7 +966,27 @@ export class DecisionSystem extends SimulationSystem {
       if (action === 'seekMate') followed = mateCandidate.candidate;
       else if (action === 'tend') followed = hiddenCalf;
       else if (action === 'followParent') followed = guardian;
-      else if (action === 'chase' || action === 'stalk') followed = prey;
+      else if (action === 'chase') followed = prey;
+      // ⚠⚠ **A stalker aims at a flank point when others are on the same quarry**
+      // (PREDATOR-PLAN P4) — the nearest legal thing to flanking, and it is
+      // deliberately on the *target* rather than on the heading: bending the
+      // heading makes a stalker circle instead of converge. See
+      // `predation/approachPoint` for the geometry and for why encirclement is not
+      // expressible here at all.
+      //
+      // ⚠ Never for a `chase`. A committed sprint goes at the animal, not past it;
+      // fanning out at the moment of the strike would be a way of missing.
+      //
+      // ⚠ Gated on the species' own `cooperationWeight` before anything is walked —
+      // the same gate `#joinedHunt` uses — so this is one property read for the six
+      // species that do not cooperate, and `approachPoint` is exactly the identity
+      // for a lone stalker even when they do.
+      else if (action === 'stalk') {
+        followed =
+          carnivore && (species.hunting?.cooperationWeight ?? 0) > 0
+            ? approachPoint(world, entity, prey, this.cooperation)
+            : prey;
+      }
       // ⚠ The threat while it can be seen, and **the place it was last seen** while
       // a pursuit is running (P9) — which is the whole reason the position is
       // remembered rather than only the ttl: by the time the commitment matters the

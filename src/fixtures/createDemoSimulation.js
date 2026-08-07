@@ -219,6 +219,12 @@ export function registerDemoSystems(engine) {
       // reads the halves that change the odds.
       cooperationEnabled: engine.config.cooperation.enabled,
       cooperationJoinRange: engine.config.cooperation.joinRange,
+      // Coordinated stalking (PREDATOR-PLAN P4), from the same global section and
+      // for the same reason: these are the rules of the mechanism, not biology a
+      // species gets to differ on.
+      cooperationJoinStalks: engine.config.cooperation.joinStalks,
+      cooperationApproachSpread: engine.config.cooperation.approachSpread,
+      cooperationApproachRadius: engine.config.cooperation.approachRadius,
       mobbingEnabled: engine.config.mobbing.enabled,
       mobbingMinMobbers: engine.config.mobbing.minMobbers,
       mobbingRange: engine.config.mobbing.range,

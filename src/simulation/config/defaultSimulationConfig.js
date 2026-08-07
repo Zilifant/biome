@@ -1408,6 +1408,39 @@ export const defaultSimulationConfig = Object.freeze({
     // reaching 18 units against a perception radius of 6): an animal that watches
     // a clanmate break into a run knows roughly what it is running at.
     joinRange: 12,
+    // ⚠⚠ **Coordinated stalking** (PREDATOR-PLAN P4, 2026-08-07). The brief asks
+    // for a pride that has converged on a quarry *before* any member has broken
+    // into a run, and until now only a committed `chase` was joinable — so
+    // "several lions on one buffalo" could never precede the first lion's sprint.
+    //
+    // ⚠ The original rule had two stated grounds and only one is given up: "a
+    // stalk is not yet a hunt" (given up — it is what the brief asks for) and "a
+    // chase bounds the geometry for free" (kept, and now carried by `joinRange`
+    // and the joiner's perception radius, which were doing it anyway).
+    //
+    // `false` is the pre-P4 behaviour exactly and is the reproducible control.
+    joinStalks: true,
+    // ⚠⚠ **How widely co-stalkers fan out around a quarry, in radians — and this
+    // is NOT encirclement.** Encirclement and flanking as asked for are **not
+    // expressible in this engine**: there is no repulsion anywhere, steering is a
+    // weighted mean of positions and a mean cannot repel, and a negative weight
+    // drives the denominator toward zero — `sumX / ~0` is a NaN position that
+    // deletes an animal from every spatial query permanently (DOCS §1.3). A
+    // formation is also per-pair state, which invariant 17 refuses.
+    //
+    // What this ships is **approach from distinct bearings**: each co-stalker
+    // rotates its own bearing-to-quarry by an offset derived from its rank among
+    // them. Claim and measure *angular separation of co-stalkers*, never
+    // "encirclement".
+    //
+    // 1.2 rad ≈ 69°, so three lions on a buffalo come in on bearings ~34° apart.
+    // ⚠ **0 is exactly the identity**, and so is a lone stalker whatever this says.
+    approachSpread: 1.2,
+    // How far off the quarry a fanned-out stalker aims. ⚠ Must stay under
+    // `hunting.chaseRange` (4) or the spread becomes a way of never arriving — the
+    // stalk turns into a chase only once the quarry is inside that range, so an aim
+    // point outside it would have a pride circling a buffalo it never closes on.
+    approachRadius: 3,
   }),
   // Mobbing — prey that turns on the predator (see predation/mobbing.js). DOCS
   // A33, PLAN-SPECIES.md §3.7, phase 10.
