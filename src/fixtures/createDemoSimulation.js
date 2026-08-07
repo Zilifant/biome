@@ -429,23 +429,102 @@ function positionNear(engine, random, anchor, spread, attempts) {
 }
 
 /**
+ * An anchor for a cluster, pushed away from this species' earlier anchors
+ * (PREDATOR-PLAN P2).
+ *
+ * ⚠⚠ **One draw when it is off, and that is the whole of why the off arm is
+ * byte-identical rather than merely equivalent.** With no separation asked for,
+ * or with no earlier anchor to be far from, this is exactly the
+ * `passableSpawnPosition` call it replaced and the `worldgen` stream sees the
+ * same sequence.
+ *
+ * ⚠ **The fallback is the furthest candidate, not the first one.** The constraint
+ * can be unsatisfiable — a small map, many clusters, or a separation larger than
+ * the world — and a bounded rejection loop has to end somewhere. Ending on the
+ * *first* draw would throw away the work; ending on the best of `attempts` still
+ * spreads the clusters as far as the map allows and degrades smoothly instead of
+ * falling off a cliff. ⚠ It costs a fixed `attempts` draws once the constraint
+ * starts binding, which is why `cohorts.placementAttempts` bounds it.
+ *
+ * @param {SimulationEngine} engine
+ * @param {import('../simulation/random/SeededRandom.js').SeededRandom} random
+ * @param {{x: number, y: number}[]} previous this species' earlier anchors
+ * @param {number} separation how far apart two of this species' clusters should be
+ * @param {number} attempts rejection budget
+ */
+function separatedAnchor(engine, random, previous, separation, attempts) {
+  const first = passableSpawnPosition(engine, random);
+  if (!(separation > 0) || previous.length === 0) return first;
+  const gapFrom = (point) => {
+    let nearest = Infinity;
+    for (const other of previous) nearest = Math.min(nearest, Math.hypot(point.x - other.x, point.y - other.y));
+    return nearest;
+  };
+  let best = first;
+  let bestGap = gapFrom(first);
+  for (let i = 1; i < attempts && bestGap < separation; i += 1) {
+    const candidate = passableSpawnPosition(engine, random);
+    const gap = gapFrom(candidate);
+    if (gap > bestGap) {
+      best = candidate;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
+/**
  * How this species' founders are arranged on the ground: its own `cohort` block
  * over `config.cohorts`, in the same direction every other per-species field
  * resolves (DOCS §8 — the species value wins, the config is the fallback).
  *
- * ⚠ `clustered` is read from the config only and is never taken from a species,
- * because a species block beats the config and an "off" arm living in one could
- * not switch anything off.
+ * ⚠ `clustered` and `separated` are read from the config only and are never
+ * taken from a species, because a species block beats the config and an "off" arm
+ * living in one could not switch anything off.
+ *
+ * ⚠⚠ **`groupSize` may be *derived from the roster* rather than stated**
+ * (PREDATOR-PLAN P2). A species that declares `preferredGroupSize` and `maxGroups`
+ * gets its cluster size solved for the founder count instead:
+ *
+ *     clusters  = clamp(round(count / preferredGroupSize), 1, maxGroups)
+ *     groupSize = ceil(count / clusters)
+ *
+ * which is the brief's rule exactly — **optimize for group size until the group
+ * cap is reached, then optimize for group count.** At the hyena's 10 / 5 that is
+ * 20 founders ⇒ 2 clans of 10, 30 ⇒ 3 of 10, 60 ⇒ 5 of 12, 100 ⇒ 5 of 20.
+ *
+ * ⚠ **A derived size can exceed the species' `groups.maxMembers`, and the
+ * degradation is deliberate rather than clamped.** At 100 founders the rule asks
+ * for clusters of 20 against a cap of 16; the registry enrols 16 and the surplus
+ * founds records of its own, so the clan *count* rises past `maxGroups` at very
+ * large rosters. Clamping the size instead would silently break the "3–5 clans"
+ * half of the brief, and this way the failure is more clans rather than a crowd
+ * of unattached animals. It binds on no roster this world ships.
  *
  * @param {object} species
  * @param {object} cohorts `config.cohorts`
+ * @param {number} count how many founders of this species there are
  */
-function cohortShapeFor(species, cohorts) {
-  if (!cohorts?.clustered) return { groupSize: 1, spread: 0, attempts: 0 };
+export function cohortShapeFor(species, cohorts, count = 1) {
+  if (!cohorts?.clustered) return { groupSize: 1, spread: 0, attempts: 0, separation: 0 };
+  const cohort = species.cohort ?? null;
+  const preferred = cohort?.preferredGroupSize ?? null;
+  let groupSize;
+  if (preferred > 0) {
+    const cap = Math.max(1, Math.floor(cohort?.maxGroups ?? 1));
+    const clusters = Math.min(cap, Math.max(1, Math.round(count / preferred)));
+    groupSize = Math.ceil(count / clusters);
+  } else {
+    groupSize = cohort?.groupSize ?? cohorts.groupSize ?? 1;
+  }
   return {
-    groupSize: Math.max(1, Math.floor(species.cohort?.groupSize ?? cohorts.groupSize ?? 1)),
-    spread: Math.max(0, species.cohort?.spread ?? cohorts.spread ?? 0),
+    groupSize: Math.max(1, Math.floor(groupSize)),
+    spread: Math.max(0, cohort?.spread ?? cohorts.spread ?? 0),
     attempts: Math.max(1, Math.floor(cohorts.placementAttempts ?? 1)),
+    // ⚠ The switch is checked here rather than at the call site so that "off"
+    // reaches `separatedAnchor` as a 0 and takes its single-draw path — one place
+    // decides, and the off arm cannot drift from the on arm (D11).
+    separation: cohorts.separated ? Math.max(0, cohort?.separation ?? cohorts.minClusterSeparation ?? 0) : 0,
   };
 }
 
@@ -525,17 +604,23 @@ function populateDemoWorld(engine) {
   const ageRandom = engine.randomStream('demogen.age');
   const geneRandom = engine.randomStream('genetics');
 
-  const draw = (species) => {
+  const draw = (species, count) => {
     // Cluster state for *this* cohort, which is why it lives in the closure
     // `spawnCohort` is handed rather than beside the streams: a herd is a run of
     // consecutive founders sharing one anchor, and the run resets per species.
-    const shape = cohortShapeFor(species, engine.config.cohorts);
+    const shape = cohortShapeFor(species, engine.config.cohorts, count);
     let anchor = null;
     let placed = 0;
+    // ⚠ This species' anchors so far, so a new cluster can be pushed away from
+    // them (P2). Per-species by construction — the closure is rebuilt for each
+    // roster entry — which is the "same species only" half of the rule, obtained
+    // from where the state already lived rather than from a filter.
+    const anchors = [];
     return {
       position: () => {
         if (anchor === null || placed >= shape.groupSize) {
-          anchor = passableSpawnPosition(engine, random);
+          anchor = separatedAnchor(engine, random, anchors, shape.separation, shape.attempts);
+          anchors.push(anchor);
           placed = 0;
         }
         placed += 1;
@@ -566,7 +651,7 @@ function populateDemoWorld(engine) {
   for (const { speciesId, count } of engine.config.demo.founding) {
     if (!(count > 0)) continue;
     const species = engine.species.require(speciesId);
-    spawnCohort(engine, species, count, draw(species));
+    spawnCohort(engine, species, count, draw(species, count));
   }
   // Flush so the initial population exists at tick 0, with entity.created events.
   engine.applyDeferredEntityChanges(0);

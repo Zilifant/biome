@@ -1,6 +1,6 @@
 # Social predators — lions and hyenas
 
-**Status: P1 shipped 2026-08-07. P2–P8 not started.** Eight phases.
+**Status: P1 and P2 shipped 2026-08-07. P3–P8 not started.** Eight phases.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -146,7 +146,7 @@ tick cost — `GroupSystem`'s per-record walks are longer for one record of five
 
 ---
 
-## P2 — Hyena clans sized from the roster (fixture only)
+## P2 — Hyena clans sized from the roster (fixture only) — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Hyenas 1._
 
@@ -193,6 +193,82 @@ config number rather than an argument.
 **Test** (`test/cohorts.test.js`, ~1 tick): the resolver's table above, as a unit
 test on the rule; plus a demo assertion that hyena records at tick 1 number 2 and
 that their centres are ≥ `minClusterSeparation` apart.
+
+### ✅ As built — 2026-08-07
+
+Shipped as planned: `cohortShapeFor` resolves the size, a `separatedAnchor` helper
+rejection-samples the anchor, and the hyena declares
+`cohort: { preferredGroupSize: 10, maxGroups: 5, spread: 3, separation: 60 }`.
+The rule holds exactly, measured end-to-end at tick 1:
+
+| founders | records | sizes |
+| ---: | ---: | --- |
+| 4 | 1 | 4 |
+| 8 | 1 | 8 |
+| 20 (`default-small`) | 2 | 10 + 10 |
+| 30 | 3 | 10 × 3 |
+| 60 | 5 | 12 × 5 |
+| 100 | **10** | 16 × 5 + 4 × 5 |
+
+⚠ **The 100 row is the stated degradation, and it is asserted rather than left to
+be found.** The derived size (20) exceeds `groups.maxMembers` (16), so the registry
+enrols the cap and the surplus founds records of its own — the clan *count* runs
+past `maxGroups` at very large rosters. **Nobody is left unattached in any row**,
+which is the property that makes it acceptable. It binds on no roster this world
+ships.
+
+⚠⚠ **`spread` had to come *down*, 4 → 3, and the plan's intuition was backwards —
+the same trap as P1's.** A cluster of ten looks like it needs more ground than one
+of three, so 6 was tried first; a ten-animal cluster must instead stay connected
+within `groups.joinRadius` (6) **transitively**, and at spread 6 the far members
+cannot see the near ones. Measured over ten seeds, hyena records on tick 1 from 20
+founders:
+
+| `cohort.spread` | result |
+| ---: | --- |
+| 2, 3 | **2 clans of 10, on 10/10 seeds** |
+| 4 | 2 on 9 seeds, `8+2+10` on one |
+| 5 | 2 on 5 seeds |
+| 6 | 2 on 2 seeds; `4+4+2+10` at worst |
+
+A split cluster is worse than either outcome it sits between: the splinter is a
+2-member record founded on the `dissolveGraceTicks` clock **standing inside**
+another clan. And it is permanent, because records never merge.
+
+⚠ **`groups.maxMembers: 16` on the hyena was not optional**, and this is where the
+8+2 splits first showed up — before the spread was diagnosed, a cluster of ten was
+enrolling 8 and stranding 2 against the config's cap of 8.
+
+✅ **Separation measured against its own control arm** (D40), ten seeds, nearest
+distance between two clan centres at tick 1:
+
+| | min | mean |
+| --- | ---: | ---: |
+| `separated: true` | **64** | 105 |
+| `separated: false` | 25 | 87 |
+
+It lifts the **worst case** and barely moves the average, which is what a floor
+should do. Both arms found 2 clans of 10 on 10/10 seeds, so this separates clans
+without changing the clan structure. ⚠ Three seeds could not resolve it at all —
+`SEEDS` gave an identical minimum on both arms, and the test uses a ten-seed set
+with that reason written on it (D14).
+
+⚠ **Two more tests were asserting the roster rather than the mechanism**, both
+pre-existing and both found by this change rather than caused by it in spirit:
+
+- `cohorts.test.js` read `cohort.groupSize` off the species in three places, which
+  is now `undefined` for a species that derives it. They call the exported
+  `cohortShapeFor` instead — one authority, no second copy of the arithmetic (D11).
+- `protocol.test.js`'s bounded-query test asserted a literal `0,0 → 64,64` box was
+  non-empty on seed 9. The demo is a 230×180 **ellipse**, so that corner is rim
+  rock: it held 5 animals when written and **0** the first time founding placement
+  moved. It now derives its region from a real entity, which is what "a bounded
+  query returns a strict subset" actually needs.
+
+**Cost.** Fixture only — no new state, no save-format change, no protocol change.
+⚠ **The renderer fixtures were regenerated**, since founding placement moved.
+✅ The pre-clustering digest test still passes unchanged: with `clustered: false`
+the separation path is never reached, so the off arm is still byte-identical.
 
 ---
 

@@ -22,10 +22,18 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { createDemoSimulation, cohortShapeFor } from '../src/fixtures/createDemoSimulation.js';
 import { getSpecies } from '../src/simulation/config/species/index.js';
+import { defaultSimulationConfig as CONFIG } from '../src/simulation/config/defaultSimulationConfig.js';
 
 const SEEDS = [1, 2, 42];
+/**
+ * ⚠ A **wider** seed set, for the statistics that are about a distribution rather
+ * than about a mechanism firing. Three seeds cannot resolve a floor: the P2
+ * separation test read an identical worst case on both arms at `SEEDS` and a
+ * 64-against-25 difference at ten, which is D14's lesson in miniature.
+ */
+const MANY_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 /** The demo world with clustering forced on or off, everything else default. */
 function world(seed, clustered) {
@@ -199,8 +207,14 @@ describe('cohorts: placement', () => {
     // label uses and so the same thing the mechanism will see.
     const engine = world(42, true);
     for (const speciesId of ['herbivore.gazelle', 'herbivore.wildebeest', 'predator.lion']) {
-      const { cohort } = getSpecies(speciesId);
       const animals = cohortOf(engine, speciesId);
+      // ⚠ **Resolved rather than read off the species** (PREDATOR-PLAN P2): a
+      // species may now *derive* its cluster size from the founder count
+      // (`cohort.preferredGroupSize`) instead of stating a `groupSize`, so asking
+      // the block directly reads `undefined` for the hyena. `cohortShapeFor` is
+      // the one authority on the question and this asks it, rather than keeping a
+      // second copy of the arithmetic that could drift from it (D11).
+      const cohort = cohortShapeFor(getSpecies(speciesId), engine.config.cohorts, animals.length);
       const expected = Math.ceil(animals.length / cohort.groupSize);
       const seen = new Set();
       let clusters = 0;
@@ -269,8 +283,9 @@ describe('cohorts: the social mechanisms pick it up unaided', () => {
       engine.step(1);
       const records = engine.world.groups.all();
       for (const speciesId of ['predator.lion', 'scavenger.hyena', 'herbivore.zebra']) {
-        const { cohort } = getSpecies(speciesId);
         const founded = cohortOf(engine, speciesId).length;
+        // Resolved, not read — see the sibling cluster-count test for why.
+        const cohort = cohortShapeFor(getSpecies(speciesId), engine.config.cohorts, founded);
         // Clusters are filled to `groupSize` in order, so the last one holds the
         // remainder; a cluster of one has nobody to pair with and founds nothing.
         const whole = Math.floor(founded / cohort.groupSize);
@@ -352,9 +367,12 @@ describe('cohorts: the social mechanisms pick it up unaided', () => {
     // catch pointed at itself.
     const engine = world(42, true);
     for (const speciesId of ['predator.lion', 'scavenger.hyena', 'herbivore.zebra']) {
-      const { cohort, groups } = getSpecies(speciesId);
+      const { groups } = getSpecies(speciesId);
       const maxMembers = groups?.maxMembers ?? engine.config.groups.maxMembers;
-      assert.ok(cohort.groupSize <= maxMembers, `${speciesId} founds clusters of ${cohort.groupSize} against a cap of ${maxMembers}`);
+      // Resolved against **this roster's** founder count, because a derived size
+      // is a function of it — see the sibling cluster-count test.
+      const { groupSize } = cohortShapeFor(getSpecies(speciesId), engine.config.cohorts, cohortOf(engine, speciesId).length);
+      assert.ok(groupSize <= maxMembers, `${speciesId} founds clusters of ${groupSize} against a cap of ${maxMembers}`);
     }
   });
 });
@@ -380,5 +398,175 @@ describe('cohorts: the switch cannot be overridden by a species', () => {
     const off = meanNearestNeighbour(cohortOf(world(42, false), 'herbivore.gazelle'));
     const on = meanNearestNeighbour(cohortOf(world(42, true), 'herbivore.gazelle'));
     assert.ok(off > on * 3, `the off arm clustered anyway: ${off} against ${on}`);
+  });
+});
+
+describe('cohorts: clan structure solved from the roster (PREDATOR-PLAN P2)', () => {
+  /**
+   * ⚠ **The claim is the rule, not the hyena's numbers.** A species that declares
+   * `cohort.preferredGroupSize` and `cohort.maxGroups` has its cluster size solved
+   * for the founder count instead of stating it:
+   *
+   *     clusters  = clamp(round(count / preferredGroupSize), 1, maxGroups)
+   *     groupSize = ceil(count / clusters)
+   *
+   * — optimize for group size until the group cap binds, then optimize for group
+   * count. The assertions below derive their expectations from the species' own
+   * block, so a re-tuned hyena moves them rather than breaking them (D1).
+   */
+  const HYENA = 'scavenger.hyena';
+
+  /** The demo with one species' founder count replaced. ~1 tick per call. */
+  function withCount(seed, speciesId, count) {
+    const founding = CONFIG.demo.founding
+      .filter((f) => f.speciesId !== speciesId)
+      .concat([{ speciesId, count }]);
+    const engine = createDemoSimulation({ seed, config: { demo: { founding } } });
+    engine.step(1);
+    return engine;
+  }
+
+  const recordsOf = (engine, speciesId) => engine.world.groups.all().filter((r) => r.speciesId === speciesId);
+
+  test('the number of clans and their size are both derived from the founder count', () => {
+    // 5 world builds × 1 tick. The whole point is that this is a *function of the
+    // roster*, so it cannot be asserted from one world.
+    const { cohort, groups } = getSpecies(HYENA);
+    assert.ok(cohort.preferredGroupSize > 0, 'the hyena solves its clan size rather than stating it');
+    for (const count of [4, 8, 20, 30, 60]) {
+      const clusters = Math.min(cohort.maxGroups, Math.max(1, Math.round(count / cohort.preferredGroupSize)));
+      const size = Math.ceil(count / clusters);
+      // Only meaningful while the derived size still fits one record — see the
+      // degradation test below for what happens when it does not.
+      assert.ok(size <= groups.maxMembers, `the ${count}-founder case must fit a record to be assertable here`);
+      const engine = withCount(42, HYENA, count);
+      const records = recordsOf(engine, HYENA);
+      assert.equal(records.length, clusters, `${count} founders should be ${clusters} clan(s)`);
+      for (const record of records) {
+        assert.equal(record.memberIds.length, size, `${count} founders should give clans of ${size}`);
+      }
+      assert.equal(
+        cohortOf(engine, HYENA).filter((h) => h.groupRecordId === null).length,
+        0,
+        `${count} founders: nobody is left out of a clan`,
+      );
+    }
+  });
+
+  test('⚠ a derived size larger than the record cap degrades into more clans, not into strays', () => {
+    // ⚠⚠ **The stated limit, asserted rather than left to be discovered.** At a
+    // large roster the rule asks for clusters bigger than `groups.maxMembers`; the
+    // registry enrols the cap and the surplus founds records of its own, so the
+    // clan *count* runs past `cohort.maxGroups`. That is the deliberate choice —
+    // clamping the size instead would silently break the "3–5 clans" half of the
+    // brief — and the property that makes it acceptable is that **nobody ends up
+    // unattached**. It binds on no roster this world ships.
+    const { cohort, groups } = getSpecies(HYENA);
+    const count = cohort.preferredGroupSize * cohort.maxGroups * 2;
+    assert.ok(Math.ceil(count / cohort.maxGroups) > groups.maxMembers, 'this roster must overflow a record');
+    const engine = withCount(42, HYENA, count);
+    const records = recordsOf(engine, HYENA);
+    assert.ok(records.length > cohort.maxGroups, `${records.length} records against a clan cap of ${cohort.maxGroups}`);
+    for (const record of records) assert.ok(record.memberIds.length <= groups.maxMembers);
+    assert.equal(cohortOf(engine, HYENA).filter((h) => h.groupRecordId === null).length, 0, 'and nobody is stranded');
+  });
+
+  test('a clan is one record, not a record and a splinter', () => {
+    // ⚠ The failure this guards is the one P2 hit while being built, and it is the
+    // lion's spread lesson in a second species: a cluster only founds **one**
+    // record if it is connected within `groups.joinRadius` *transitively*, and a
+    // ten-animal cluster at `spread: 6` was not — it founded `8+2`, a clan with a
+    // stranded pair standing inside it. Records never merge, so that is permanent.
+    // Asserted across seeds because it was seed-dependent when it was wrong.
+    const { cohort } = getSpecies(HYENA);
+    for (const seed of SEEDS) {
+      const engine = createDemoSimulation({ seed });
+      engine.step(1);
+      const sizes = recordsOf(engine, HYENA).map((r) => r.memberIds.length);
+      assert.equal(new Set(sizes).size, 1, `seed ${seed}: clans of ${sizes.join('+')} — a cluster split`);
+      assert.ok(sizes.length <= cohort.maxGroups, `seed ${seed}: ${sizes.length} clans against a cap of ${cohort.maxGroups}`);
+    }
+  });
+});
+
+describe('cohorts: clans start in different places (PREDATOR-PLAN P2)', () => {
+  const HYENA = 'scavenger.hyena';
+
+  /** The nearest distance between two of this species' record centres, or null. */
+  function nearestClanGap(engine, speciesId) {
+    const centres = engine.world.groups
+      .all()
+      .filter((r) => r.speciesId === speciesId)
+      .map((r) => {
+        const members = r.memberIds.map((id) => engine.world.entities.get(id));
+        return {
+          x: members.reduce((total, m) => total + m.x, 0) / members.length,
+          y: members.reduce((total, m) => total + m.y, 0) / members.length,
+        };
+      });
+    let nearest = Infinity;
+    for (let i = 0; i < centres.length; i += 1) {
+      for (let j = i + 1; j < centres.length; j += 1) {
+        nearest = Math.min(nearest, Math.hypot(centres[i].x - centres[j].x, centres[i].y - centres[j].y));
+      }
+    }
+    return nearest === Infinity ? null : nearest;
+  }
+
+  function gaps(separated) {
+    return MANY_SEEDS.map((seed) => {
+      const engine = createDemoSimulation({ seed, config: { cohorts: { separated } } });
+      engine.step(1);
+      return nearestClanGap(engine, HYENA);
+    }).filter((gap) => gap !== null);
+  }
+
+  test('the switch is world-level and the distance is per-species', () => {
+    // DOCS §8, the rule this repo has been caught by before: a species block beats
+    // the config, so an "off" arm living in one could not switch anything off. The
+    // *distance* is biology and may live in a species; the switch may not.
+    assert.equal(CONFIG.cohorts.separated, true);
+    assert.equal(CONFIG.cohorts.minClusterSeparation, 0, 'no species is separated unless it asks');
+    for (const speciesId of ['herbivore.gazelle', 'predator.lion', HYENA, 'herbivore.zebra']) {
+      assert.equal(getSpecies(speciesId).cohort.separated, undefined, `${speciesId} declares the switch, which the config must own`);
+    }
+    assert.ok(getSpecies(HYENA).cohort.separation > 0, 'and the hyena is the species that asks');
+  });
+
+  test('separated clans start further apart, and the floor is what moves', () => {
+    // ⚠ **Stated against its own control arm rather than against a remembered
+    // number** (D40). Measured 2026-08-07 over these seeds: nearest clan gap
+    // 64 min / 105 mean with separation, 25 min / 87 mean without — so it lifts the
+    // *worst case*, which is what a floor should do, and barely moves the average.
+    // The assertion is on the minimum for that reason.
+    const on = gaps(true);
+    const off = gaps(false);
+    assert.ok(on.length === MANY_SEEDS.length && off.length === MANY_SEEDS.length, 'every seed founds at least two clans');
+    assert.ok(
+      Math.min(...on) > Math.min(...off),
+      `separated clans are no further apart in the worst case: ${Math.min(...on)} against ${Math.min(...off)}`,
+    );
+    // The floor is asked for, not guaranteed: the rejection loop is bounded and
+    // falls back to the furthest candidate, so a crowded map takes what it can get.
+    // What is asserted is that it gets *most* of the way, not all of it.
+    assert.ok(Math.min(...on) > getSpecies(HYENA).cohort.separation * 0.75);
+  });
+
+  test('⚠ the off arm changes nothing for a species that does not ask', () => {
+    // ⚠⚠ **Derived from the roster, never from the knowledge that the hyena is
+    // last in it** (D1). Every species founded *before* the first one declaring a
+    // separation draws from an untouched `worldgen` sequence, because the extra
+    // anchor draws happen later in the walk. So their placement must be identical
+    // in both arms, which is the half of "off costs nothing" a digest of the whole
+    // world cannot show once one species genuinely moves.
+    const firstSeparated = CONFIG.demo.founding.findIndex((f) => (getSpecies(f.speciesId).cohort?.separation ?? 0) > 0);
+    assert.ok(firstSeparated > 0, 'some species before the first separated one');
+    const untouched = CONFIG.demo.founding.slice(0, firstSeparated).map((f) => f.speciesId);
+    const place = (separated) =>
+      [...createDemoSimulation({ seed: 42, config: { cohorts: { separated } } }).world.entities.all()]
+        .filter((e) => untouched.includes(e.speciesId))
+        .map((e) => `${e.speciesId}:${e.x},${e.y}`)
+        .join('|');
+    assert.equal(place(true), place(false), 'a species that asks for no separation was moved by the mechanism');
   });
 });

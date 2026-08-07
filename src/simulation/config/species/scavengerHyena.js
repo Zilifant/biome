@@ -116,18 +116,70 @@ export const scavengerHyena = Object.freeze({
   // what the registry was built for. Everything else about founding, joining,
   // guardian inheritance, sex-biased departure, and dissolution is world-level
   // machinery in `config.groups`; a species only says whether it takes part.
-  groups: Object.freeze({ forms: true }),
-  // Founders are packed into clusters of this size in roster order
-  // (`config.cohorts`) — on `default-small`'s 20 hyena, six clans of three and a
-  // pair (2026-08-07; the line read "two clans of three out of six founders" until
-  // then, which described the 222-animal world). Three rather than two
-  // deliberately: `groups.minMembers` is 2, so a founding pair is a clan that
-  // dissolves the moment either animal walks away — the flapping A56 records. A
-  // third member is the cheapest margin against starting the world inside a known
-  // failure mode, and costs nothing if it is spent. ⚠ The remainder pair is
-  // exactly that failure mode, and it is the one cluster in seven that starts on
-  // the `groups.dissolveGraceTicks` clock rather than clear of it.
-  cohort: Object.freeze({ groupSize: 3, spread: 4 }),
+  //
+  // ⚠⚠ **`maxMembers: 16` against the config's 8** (PREDATOR-PLAN P2). The clan
+  // *size* is now solved from the founder count (see `cohort` below) and aims at
+  // 8–12, so a cap of 8 does not hold one: measured before this line existed, a
+  // cluster of ten enrolled **8 + 2** — one clan and a stranded pair standing
+  // inside it, which is worse than either a big clan or two real ones, because
+  // the pair is a record founded on the `groups.dissolveGraceTicks` clock in the
+  // middle of somebody else's clan. 16 holds the whole aimed range with room for
+  // the cubs that inherit it.
+  groups: Object.freeze({ forms: true, maxMembers: 16 }),
+  // ⚠⚠ **The clan structure is solved from the roster rather than stated**
+  // (PREDATOR-PLAN P2, 2026-08-07). `preferredGroupSize` / `maxGroups` replace a
+  // literal `groupSize`, and `cohortShapeFor` resolves
+  // `clusters = clamp(round(count / 10), 1, 5)`, `groupSize = ceil(count / clusters)`:
+  // **optimize for clan size until five clans, then optimize for clan count.**
+  //
+  //   | founders | clans | clan size |
+  //   | -------: | ----: | --------: |
+  //   |       20 |     2 |        10 |  ← `default-small`
+  //   |       30 |     3 |        10 |
+  //   |       60 |     5 |        12 |
+  //   |      100 |     5 |        20 |
+  //
+  // ⚠ This line read "clusters of three — six clans of three and a pair" until
+  // P2, with the argument that three beats two because `groups.minMembers` is 2
+  // and a founding *pair* dissolves the moment either animal walks away (the
+  // flapping A56 records). **That argument is not withdrawn, it is obsoleted**:
+  // the smallest clan this rule can produce is `ceil(count / 1)` for a small
+  // roster or `ceil(count / 5)` for a large one, and neither is a pair unless the
+  // world founds fewer than ten hyena in total. The remainder that used to start
+  // on the dissolve-grace clock is gone because there is no remainder — the size
+  // is derived from the count rather than dividing into it.
+  //
+  // ⚠⚠ **`spread` 4 → 3, and the intuition is backwards here too** — the lion's
+  // `cohort` records the same trap. A cluster of ten looks like it needs *more*
+  // ground than one of three, and 6 was tried on exactly that reasoning; a
+  // ten-animal cluster must instead stay connected within `groups.joinRadius` (6)
+  // **transitively**, and at spread 6 the far members cannot see the near ones, so
+  // the clan founds as two records and they never merge (`GroupSystem` rule 6).
+  // Measured, ten seeds, hyena records on tick 1 from 20 founders:
+  //
+  //   | spread | records |
+  //   | -----: | ------- |
+  //   |   2, 3 | **2 of 10 members, on 10/10 seeds** |
+  //   |      4 | 2 on 9 seeds, `8+2+10` on one |
+  //   |      5 | 2 on 5 seeds, splitting on the rest |
+  //   |      6 | 2 on 2 seeds; `4+4+2+10` at worst |
+  //
+  // A denser cluster is not a crowding problem: a radius-3 disc is ~28 cells at
+  // `locomotion.maxOccupantsPerCell: 2`, so ten animals use a sixth of it.
+  //
+  // ⚠ **`separation` is the "different areas of the map" half**, and it is the
+  // first per-species value for it. Clans are pushed 60 units apart on a 230×180
+  // ellipse — about a third of the long axis, so two clans genuinely start in
+  // different parts of the world instead of in one crowd carrying two records.
+  // Measured over ten seeds, nearest distance between two clan centres on tick 1:
+  // **64 minimum / 105 mean with it, against 25 / 87 without** — so it moves the
+  // worst case rather than the average, which is what a floor should do. Both arms
+  // found 2 clans of 10 on 10/10 seeds, so this separates clans without changing
+  // the clan structure.
+  //
+  // The world-level switch is `config.cohorts.separated`; 0 here (or `separated:
+  // false`) restores independent anchors byte-identically.
+  cohort: Object.freeze({ preferredGroupSize: 10, maxGroups: 5, spread: 3, separation: 60 }),
   // What it *wants*, and where it differs from the solitary stalker (§3.1).
   behavior: Object.freeze({
     // A clan animal stays with its clan. The config default is 0.6 (a gazelle

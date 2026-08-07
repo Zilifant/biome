@@ -1129,6 +1129,33 @@ export const defaultSimulationConfig = Object.freeze({
     // a cluster anchored beside a lake cannot spin, and so the C1 invariant
     // (founders never start inside rock) holds without a second global draw.
     placementAttempts: 12,
+    // ⚠⚠ **Cluster separation** (PREDATOR-PLAN P2, 2026-08-07): how far apart two
+    // clusters *of the same species* are pushed, so a species founded as several
+    // groups begins in several **places** rather than in one crowd that happens to
+    // carry several records. Anchors were drawn independently at uniform random
+    // until then, so two hyena clans could and did land on top of each other,
+    // which is a clan structure the mechanism cannot see.
+    //
+    // ⚠ **Same species only.** Separating a clan from a *herd* would be a
+    // statement about where prey and predators start relative to each other,
+    // which is a much larger claim and not this one.
+    //
+    // Two kinds of field, as everywhere: `separated` is the **world-level**
+    // switch, and `minClusterSeparation` is the fallback distance for a species
+    // that declares no `cohort.separation` of its own.
+    //
+    // ⚠ `false` is the reproducible control and is **byte-identical**: the anchor
+    // draw is one call to `passableSpawnPosition` either way, so the `worldgen`
+    // stream sees the identical sequence. That also holds at
+    // `minClusterSeparation: 0` and for the first cluster of any species, which is
+    // what makes "off" free rather than merely equivalent.
+    separated: true,
+    // ⚠ **0 means every species is placed exactly as it was**, which is why the
+    // fallback is 0 and not a distance: only the hyena asks for this today
+    // (`cohort.separation`), and a world-level default above zero would quietly
+    // scatter every gazelle herd and wildebeest herd in the roster as well —
+    // a large ecological change bought for one species' clan structure.
+    minClusterSeparation: 0,
   }),
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
   // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,

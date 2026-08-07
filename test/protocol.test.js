@@ -158,9 +158,18 @@ describe('snapshots and deltas', () => {
 
   test('bounded snapshot queries return only entities inside the region', () => {
     const engine = createDemoSimulation({ seed: 9 });
-    const bounds = { minX: 0, minY: 0, maxX: 64, maxY: 64 };
-    const bounded = engine.getSnapshotData({ bounds });
     const full = engine.getSnapshotData();
+    // ⚠⚠ **The region is derived from an animal, not written down** (D1). This read
+    // a literal `0,0 → 64,64` box until 2026-08-07 and asserted it was non-empty,
+    // which is a claim about **where seed 9 happens to put its founders** rather
+    // than about bounded queries: the demo is a 230×180 *ellipse*, so that corner
+    // is rim rock with a handful of animals near it, and it held 5 on the day the
+    // test was written and 0 the first time founding placement moved
+    // (PREDATOR-PLAN P1/P2). Anchoring on a real position makes the region
+    // non-empty by construction, which is what the assertion below actually needs.
+    const anchor = full.entities[0];
+    const bounds = { minX: anchor.x - 12, minY: anchor.y - 12, maxX: anchor.x + 12, maxY: anchor.y + 12 };
+    const bounded = engine.getSnapshotData({ bounds });
     assert.ok(bounded.entities.length > 0);
     assert.ok(bounded.entities.length < full.entities.length);
     for (const entity of bounded.entities) {
