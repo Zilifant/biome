@@ -134,7 +134,9 @@ present** (P5).
 ### 1.3 Known limitations
 
 - **P19 — v34's sociality inspection is spoken but not shown** _(added
-  2026-08-06)_. The engine's BEHAVIOR-PLAN P10 bumped the protocol to 34 for six
+  2026-08-06)_. The engine's retired behaviour plan
+  ([`legacy-docs/BEHAVIOR-PLAN.md`](../../legacy-docs/BEHAVIOR-PLAN.md), P10)
+  bumped the protocol to 34 for six
   inspection-only additions — a group's derived `centre` and `leaderId`, the three
   steering commitments (`social.consensus`, `social.rally`, `social.charge`), and
   `social.nearby`'s `pullScale` and `bandmates`. The store handles them

@@ -14,18 +14,30 @@ session-handoff summary) as the place to look things up. Those remain as the
 historical record — every measurement in this document is traceable to a dated
 completion note there — but nothing in this document depends on reading them.
 
-⚠ **Two plans have been retired to `legacy-docs/` on the same terms** — their
+⚠ **Three plans have been retired to `legacy-docs/` on the same terms** — their
 implemented work folded into this file and their open work into §1:
 [`PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) (2026-07-31, phases 0–14 shipped,
-15–17 deferred) and
+15–17 deferred),
 [`TREES-FLIGHT-VULTURE-PLAN.md`](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md)
 (2026-08-04, phases T1–T3/F1/F2/V1 shipped, V2 and V3 unbuilt → **A77** and
-**A78**). Both are worth opening for one thing: each shipped section carries an
+**A78**), and
+[`BEHAVIOR-PLAN.md`](legacy-docs/BEHAVIOR-PLAN.md) (2026-08-06, phases P0–P5 and
+P7–P10 shipped, P6 skipped by decision → **A43** narrowed and **A82** opened), whose
+session handoff is
+[`HANDOFF-2026-08-06.md`](legacy-docs/HANDOFF-2026-08-06.md). All three are worth
+opening for one thing: each shipped section carries an
 **"As built"** block recording where that phase's own prediction turned out wrong,
 and those blocks are provenance this file summarizes rather than reproduces — the
 plans were consistently right about *shape* and wrong about *consequence*. Source
-comments and tests cite both by bare name (`PLAN-SPECIES.md §3.12`,
-`TREES-FLIGHT-VULTURE-PLAN.md phase T1`); the files are in `legacy-docs/`.
+comments and tests cite all three by bare name (`PLAN-SPECIES.md §3.12`,
+`TREES-FLIGHT-VULTURE-PLAN.md phase T1`, `BEHAVIOR-PLAN.md P8`); the files are in
+`legacy-docs/`.
+
+⚠ **The behaviour plan is the one whose *lessons* outweigh its features**, and they
+are folded in rather than left there: §16 **D43–D48**, §15's measurement discipline
+(horizons, dead bands, off-arm proofs), §9 Sociality's decision-phase ordering, and
+§1.3's table of the seven sociality asks that turned out to be structurally
+inexpressible.
 
 **Open work is collected in §1.** Everything not implemented, not optimized, or
 known to be broken is listed there with its evidence, its reasoning, and a
@@ -245,6 +257,32 @@ named, unbuilt, and the reason a flying animal's status mark blinks (renderer P1
 
 Real mechanisms that demonstrably almost never fire in the demo. Recorded
 because "implemented" and "doing visible work" are different claims.
+
+**A82 — Three sociality mechanisms are inert or unmeasurable in the demo by
+construction** _(2026-08-06, from the retired herbivore-behaviour plan)_
+
+Grouped because they share one failure mode: each invites somebody to re-tune it
+against a population number that cannot possibly respond.
+
+- **`behavior.leadAgeWeight` is inert in short runs.** Seniority is `senescent` or
+  nothing (§9 Persistent groups, *Leadership*) and buffalo reach
+  `adultUntil: 11000`, so a 1500-tick demo contains **no matriarch at all**. What
+  `config.groups.leadWeight` moves in a short run is plain `dominanceOf` — mass and
+  condition. Measuring the age half needs a horizon past 11 000 ticks.
+- **The charge and its pursuit fire ~25 ticks in 4000**, against ~1800 ticks in
+  which a buffalo has any predator in view at all. Zero live pursuits exist at tick
+  1500 on seed 42 (§11), and the off arm is byte-identical to the shipped one until
+  tick 3700 on seed 42 and 2300 on seed 1. Mobbing was already the rarest thing in
+  this world (**A33**); the charge changes what happens on those ticks, not how
+  often they come. ⚠ Anyone re-tuning `chargeWeight` must re-read **D44** first.
+- **A consensus replaces the *whole* migration drift, and that drift multiplexes
+  thirst**, so a thirsty animal in a herd that is not thirsty loses its long-range
+  water cue for up to 60 ticks. That hazard is why the buffalo declares 0.6 rather
+  than 1.0, and it is currently benign — wildebeest dehydration deaths measured
+  **655 with the consensus against 708 without**, i.e. down. ⚠ Re-check if anyone
+  raises a `consensusWeight`. The short-range `drink` / `seekWater` / `recallWater`
+  are *actions* and cannot be replaced by any of this; only the "smell of water on
+  the wind" can.
 
 **⚠⚠ A75 — Roosting is inert by construction: this engine can express a *place*,
 not a *rest*** _(opened 2026-08-04, phase V1)_
@@ -744,6 +782,23 @@ reminder.
 | ✅ A67 | **Vertical refuge — trees, climbing, and cached kills** _(from 2026-07-31, retiring PLAN-SPECIES §3.13)_ | **CLOSED 2026-08-03** (phases T1–T3), on its own stated condition: *"revisit only if 'cached out of reach' can be one more possession state rather than a new axis."* It can. A67 predicted this would need "an entity elevation dimension threaded through perception, movement, and predation" plus tree entities (A3) and a protocol change; what it cost was **one integer, four predicates, and four call sites** — because elevation is a **flag, not a coordinate** and the gates are on predation and possession, never on perception (A63). Trees are terrain, so A3 stayed shut; the protocol change was real (v31). The leopard climbs and caches kills, ⚠ with the hyena paying for the mechanism (**A73**). ⚠ What A67 asked for and did **not** get is **ambush from height** — a treed predator reaches nothing below it, which is an honest consequence of the flag and is now **A74**. See §7 Terrain |
 | A68 | **The species roster stops at eight; the rhino and the elephant are deferred** _(decided 2026-07-30)_                                                                        | Open as scope rather than as work. The **black rhino** is config-only but gated on A51 — without a woody layer it is a heavy wildebeest and nothing else. The **elephant may never be built**: it needs A51, matriarchal families on the group registry, a `musthUntil` timed state (defensible, the same shape as `alarmedUntil`, but it must modify *derived* dominance rather than replace it), woody-floor damage, and it has no top-down control on a 128×128 map — a config-only elephant would be physiology without ecology, which is worse than no elephant. ⚠ Note what stopping here costs nothing: §2's capability table ended with **one** unclosed row, and it is A65                                              |
 | A69 | **Stotting — honest signalling by prey**                                                                                                                                      | _Settled_ — deferred indefinitely. It needs a predator's decision to read a per-prey condition signal and decline a chase on it, which is a new input to the hunt gate for an effect a convincing gazelle does not need; `hunting.agility` (§9 Hunting) is the part of the escape model that was worth building. Acceleration and turn radius were declined on a firmer basis: movement stores a heading and a step length with **no trajectory anywhere**, by design                                                                                                                                  |
+
+#### ⚠⚠ Sociality asks that are not expressible, and the nearest legal thing
+
+_From the retired herbivore-behaviour plan (2026-08-06), which reached each of
+these by trying._ Kept as a block because they share one cause: **this engine has
+attraction and no repulsion, and it stores no rank, no trajectory and no roster it
+does not need.** Every row is a decision, not a backlog item.
+
+| Asked for | Blocked by | Nearest legal thing |
+| --- | --- | --- |
+| **Separation between adjacent bands** | a weighted mean of positions cannot repel. Weight 0 means *ignore*, not *avoid*, and a negative weight can drive the denominator toward zero — `sumX / ~0` is ±Infinity, then a NaN heading, then `entity.x = NaN` **permanently** and the animal vanishes from every spatial query | **differential attraction**: each band's centre is dominated by its own members, so two overlapping bands pull apart. Claim that, never separation |
+| **A defensive ring around the calves** | no repulsion force exists anywhere; a weighted centroid produces a *blob*. The only thing producing a shell is `locomotion.maxOccupantsPerCell: 2` refusing entry to a full cell, which is an emergent one-cell crust rather than a formation | calves measurably **nearer the centroid than adults** (`config.social.calfWeight`) — a claim that can actually be measured |
+| **Bachelor bull groups as an identity** | `#joinOrFound` has **no admission test**: it takes the smallest-id record in range with room, so a bull whose dispersal window has closed walks straight back into a cow group | ⛔ **Not built — skipped by decision 2026-08-05.** A dispersed bull stays loosely attached to the local buffalo through the herd *label*, which is what fission–fusion already models. What is given up, stated rather than hidden: bull bands are real and somewhat persistent in the field, and here they are loose local aggregation and nothing more. The unbuilt design was one per-species `groups.joinsAfterDispersal` scoped by the existing `leavingSex` predicate — ⚠ note the name collision with the A64 control `rejoinWhileDispersing`, which is why it was not called the obvious thing |
+| **A stored leader, or a resident stallion** | "standing is derived, never stored" (§9 Persistent groups) — a rank you cannot lose by being hurt is a title | a **leadership-weighted centre** with nothing stored: `leadershipOf` read on demand at `config.groups.leadWeight`. The flicker that would be intolerable for an elected leader a whole band followed is fine for a weight — it moves a centre by a hair |
+| **Wildebeest subherds that persist while spatially separated** | that is literally a group record, but wildebeest is 219 founders and would need ~28–100 records for one species; `forms: false` is a stated design decision | the **consensus commitment**, carried on the entity: a shared heading that outlives separation. ⚠ Do not "fix" this later by flipping `forms` |
+| **Bands merging into a super-herd without losing identity** | `GroupSystem` rule 6 — records never merge, by design | overlapping *labels* over distinct *records*, which is already true and already visible |
+| **A group holding shared ground** | the claim layer is keyed on entity id | out of scope; it is **A60** and needs the layer keyed on `groupRecordId` |
 
 ### 1.4 Structural and configuration debt
 
@@ -3201,6 +3256,40 @@ A gazelle in a wildebeest herd is in none of that herd's labels and none of its
 records, and is still standing in it. That is the whole reason the third row
 exists; it is written up under **Heterospecific association** below.
 
+#### ⚠⚠ The `decision` phase runs five systems in a fixed order, and the order is load-bearing
+
+Four of the five write something the fifth reads, so the priorities are part of the
+mechanism rather than a scheduling detail:
+
+| priority | system | writes |
+| ---: | --- | --- |
+| −10 | `SocialSystem` | herd labels, `world.social` (including `bandmates` and `pullScale`) |
+| −8 | `GroupSystem` | records, `world.groupCentres`, `rallyHeading` / `rallyStrength` |
+| −5 | `MigrationSystem` | `migrationHeading` / `migrationStrength` |
+| −3 | `HerdConsensusSystem` | `herdHeading` / `herdStrength` / `herdCommitUntil` / `herdCommitLabel` |
+| 0 | `DecisionSystem` | reads all of the above; writes `defendUntil` / `defendThreatX` / `defendThreatY` |
+
+⚠⚠ **`DecisionSystem`'s fresh-`wander` commitment blends exactly three drifts —
+forage, rally, trail — and must not gain a fourth.** The herd consensus
+*replaces* the migration drift rather than joining the queue, which is why it is
+one conditional instead of a fourth blend; the charge is a utility and an intent
+and does not touch this channel at all. Each additional blend dilutes every other
+one and makes the resulting heading unattributable.
+
+⚠ **Two consequences of the ordering worth knowing before moving anything.**
+`GroupSystem`'s rally fields are *not persisted* precisely because −8 always
+precedes 0, so they are written-or-defaulted before any read — an invariant that
+breaks the moment somebody adds a reader at priority < −8. And the affinity read
+of a neighbour's `groupRecordId` sees **last tick's** membership, because
+`SocialSystem` runs two priorities ahead of `GroupSystem`; harmless in steady
+state, but any test that founds a band and asserts on its centroid must step ≥ 2
+ticks.
+
+⚠ **P7's rally and P9's charge deliberately added no module and no system.** A
+rally is a system pass and two entity fields, not an exchange rate; a charge is a
+sprint flag on an intent plus a commitment read by the utility, both inside
+`DecisionSystem` — a system would have been a fourth writer of `defendingId`.
+
 The label is not deprecated, weakened, or wrapped. It is what every loosely
 aggregating species keeps using, and the grazer keeps using it exclusively —
 which is also the control that proves it was not disturbed. What it structurally
@@ -5062,6 +5151,23 @@ outlive their own cue, which is exactly what makes them invisible otherwise.**
 | `social.rally` `{ heading, strength }` | the drift back to a band this animal has lost contact with (P7) | null for almost everybody, which *is* the mechanism: it is written only for a member with no bandmate in its centroid, and `nearby.bandmates` is the gate that decided it. Not persisted, so this is always this tick's answer |
 | `social.charge` `{ until, threat }` | the pursuit after a charge (P9) | `social.defendingId` is *who* is being defended and has already gone null by the time a pursuit is what is happening. This is the one state nothing else can show |
 
+⚠ **How common each of these actually is**, measured on the demo at seed 42 — the
+numbers that decide whether a claim about one can be read off a real run or has to
+be sandboxed:
+
+| tick | live consensus | live rally | live pursuit | `bandmates > 0` | `pullScale ≠ 1` |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 315 | 3 | **0** | 206 | 6 |
+| 600 | 309 | 10 | **0** | 182 | 11 |
+| 1500 | 302 | 11 | **0** | 168 | 14 |
+
+⚠⚠ **The pursuit column is zero and stays zero for thousands of ticks**, which is
+the roster rather than the mechanism: a buffalo chooses `defend` about **25 ticks in
+4000**, and the charge does not bite before tick ~2300. So `social.charge` is
+asserted on hand-set fields in `test/protocol-v34.test.js` (that the fields are
+*written* is `cooperation.test.js`'s job), and **no population or survival reading of
+that mechanism means anything** — what it changes is the shape of a rare tick.
+
 ⚠ **`social.nearby` also gains `pullScale` and `bandmates` (v34)**, the two numbers
 on the social summary that decide a behaviour and were unreadable. `pullScale` is
 the exchange rate between company of this animal's own kind and company of
@@ -5561,19 +5667,37 @@ which are a separate run (`npx playwright test`) and are the only thing that
 exercises the renderer's DOM — see D32 for the class of bug the node suite
 structurally cannot see.
 
-⚠⚠ **`npm run test:ui` cannot complete in a sandboxed shell, and the failure mode is
-misleading** _(measured 2026-08-06)_. Chromium launches and the tests **execute**;
-what hangs is fixture **teardown** — `Tearing down "appPage" exceeded the test
-timeout of 30000ms`, and raising it to 120 000 ms does not help, so it is a hang
-rather than a slow close. A full run gives **35 failures of which every single one is
-a teardown timeout and none is an assertion**, spread across `appPage`, the
-mocked-host `live` fixture, and the sprite editor's `editorPage` — the last of which
-loads no simulation fixture at all. Reproduced on clean HEAD against the previous
-fixtures, so it is the environment rather than any change. ⚠ The trap is reading the
-red as a regression, or reading "no assertion failed" as a pass: **neither is true,
-and the suite has to be run somewhere it can tear a browser down**. It is the same
-shape as the 5 cancelled `presets.test.js` HTTP suites, which the sandbox cannot bind
-a port for.
+⚠⚠ **`npm run test:ui` does not pass in a sandboxed shell, and it fails in two
+different ways at once** _(measured 2026-08-06)_. Chromium launches and the tests
+**execute**. A clean full run on the current tree reads **9 failed, 21 flaky, 35
+passed** (65 tests, ~36 min), and the failures split into two causes:
+
+- **Fixture teardown hangs.** `Tearing down "appPage" exceeded the test timeout of
+  30000ms` — raising it to 120 000 ms does not help, so it is a hang rather than a
+  slow close. It affects `appPage`, the mocked-host `live` fixture, and the sprite
+  editor's `editorPage`, the last of which loads no simulation fixture at all. Most
+  of the 21 flaky results are this failing once and passing on retry.
+- **Canvas-pixel assertions genuinely fail.** `status-marks.spec.js` reads rendered
+  bytes over CDP and counts colours; three of its four tests fail on
+  `expect.poll(...).toBeGreaterThan`, which is an assertion, not a teardown.
+
+⚠ **Both are pre-existing, and that was verified rather than assumed** — `git
+stash`ed to clean HEAD with the previous fixtures and the previous protocol
+constants, `status-marks.spec.js` fails all four identically and `layers.spec.js`
+fails at the same teardown.
+
+⚠⚠ **The trap here cost real time and is worth stating as a method failure.** The
+first reading of this was taken by listing `test-results/` directories **while the
+run was still going** and reporting "35 failures, all teardown, zero assertion
+failures". Two things were wrong: a partial run has no tally, and that particular run
+had been polluted by a `git stash` issued mid-flight for an unrelated control — which
+swapped the fixtures underneath a live browser. **Do not read a Playwright run's
+outcome from its artefact directory, and do not touch the working tree while one is
+running.** The suite has to be run somewhere it can tear a browser down before
+`test:ui` can be called green. It is the same class of environment limit as the 5
+cancelled `presets.test.js` HTTP suites, which the sandbox cannot bind a port for —
+but unlike those, this one is **not** safe to ignore, because real assertions are
+inside it.
 
 Layers:
 
@@ -5684,6 +5808,35 @@ nothing. Do not spend time there.
 `--test-skip-pattern` is **silently ignored when it appears after the file
 arguments** (the flag must come first), and skipped tests are dropped from the
 `tests` count rather than reported as `skipped`.
+
+### ⚠⚠ Thirteen tests fish for a rare emergent event in a fixed window
+
+_Audited 2026-08-06._ They pass today and their failure mode is **late, never
+absent**: a behaviour change somewhere else shifts the event's rate, the window
+stops containing enough of them, and a test that never claimed to be about the new
+change goes red. The two long-standing ones are
+[`test/groups.test.js`](test/groups.test.js) and
+[`test/protocol-v29.test.js`](test/protocol-v29.test.js)'s first-carcass-theft;
+`carcass.slow` and `mate-choice` are next closest to the edge.
+
+⚠ **`cooperation.test.js`'s batch-2 `soloMobbed` cell has gone first four times
+running** — the rarest of its 2×2, solo lion attempts that are *also* mobbed. It
+fell to **n=2 against a threshold of 3** when the charge landed. That was not a
+regression: re-measured cumulatively across eight seeds, the mobbed capture chance
+runs 0.204–0.224 against an unmobbed 0.363–0.371 at **every** cumulative total. The
+seed list is now `[42, 2, 3, 5, 1, 7]`, taking the cell to **n=10** — its first real
+margin, at the cost of two more 6000-tick demo runs, which is also why that file is
+now one of the slowest in the suite. ⚠ `--test-name-pattern` does not help there:
+the block builds its sample in an IIFE at describe time and runs whatever you select.
+
+⚠ **This is a standing reason not to close a documentation item with a demo
+assertion.** A count of anything at equilibrium in the demo is measuring the seed
+unless it has been shown otherwise on five of them (**D14**), and adding a
+fourteenth test of this shape to tick off a doc item is the wrong trade — see
+**A43**, which was narrowed rather than closed for exactly this reason.
+
+⚠ **Nine determinism guards are byte-for-byte the same test in nine files.** First
+place to cut if the suite ever needs the time back.
 
 ⚠⚠ **"A featureless sandbox" is one shared constant, and a new generator quantity
 must be zeroed there in the same commit that adds it.** `test/helpers/flatTerrain.js`
@@ -5797,6 +5950,50 @@ the _mechanism_ over the outcome it accumulates into.
 ceiling as requiring a fresh multi-seed sweep** — and record the numbers in the
 config comment so the next person need not re-derive them.
 
+⚠⚠ **Ask what tick the phenomenon starts at, then measure past it.** Three
+separate findings were wrong for this one reason. **A56** was ten times worse than
+four phases of measurement said, because every demo assertion in the suite stopped
+at 1500 ticks and the churn arrives with the first wave of deaths — 212 membership
+events at tick 1000 and **3502** at 5000. The herd consensus read as costing its own
+species a third of its population at three seeds × 3000 ticks, and read **flat** at
+five seeds × 8000, because both arms were still falling steeply at 3000 and
+comparing two curves mid-fall compares their *phase*, not their level. The charge's
+off arm is **byte-identical for 2300–3700 ticks** and then is not.
+`test/groups.slow.test.js` exists because of this and runs to a 5000-tick horizon.
+
+⚠ **A weight is not the lever; the dead band is.** Do not measure a centroid
+mechanism by where animals end up. `herd` is a **dead-band controller** — an animal
+closes up only past `herdDistance` and then stops — so moving the target point
+changes headings tick by tick and leaves the equilibrium alone. Three attempts at a
+spatial consequence for the calf weight all came back inside seed noise. The rally
+and the consensus are on the other side of that line and both moved animals on the
+first measurement, because they bend `wander`, which has no dead band. If a herd
+should genuinely reorganize, the number to change is `behavior.herdDistance`.
+
+**Every mechanism ships an `enabled` switch, so its off arm is a byte-identical
+control** — and ⚠ **the off-arm proof needs *every* switch the change added.** The
+consensus reproduces the pre-change world only with `consensus.enabled: false`
+**and** `groups.leadWeight: 0` together; each alone leaves the other's difference
+in, and both genuinely move the world, which is how you know neither is inert.
+⚠ Entities serialize whole, so a save from a tree with new entity fields can never
+equal one from before them — **strip the new fields before hashing**, because the
+claim is about the world and not about the record format.
+
+**Two systems never write the same entity field**, and **one neighbour grid walk per
+tick, and it is perception's.** Both are ownership rules with a measured cost behind
+them: the second is why `SocialSystem` and `GroupSystem` read the neighbour buffer
+perception publishes instead of walking the grid again (Step 30 took sociality to a
+third of its cost that way).
+
+⚠ **`updateInterval` can be part of a mechanism, not only its cost.** Because a herd
+label re-decides only on a tick `HerdConsensusSystem` actually runs, commitments
+quantize onto multiples of `consensus.updateInterval` (5) — which is what makes
+herds founded ticks apart expire **together**, and therefore what turns n
+independent re-decisions into one collective one. Setting it to 1 makes the front
+*blurrier*, not more exact. The trade is that `commitTicks` becomes a floor rounded
+up to the cadence, so `DecisionSystem` gates on the fields rather than on the clock
+and a commitment can outlast its ttl by up to four ticks.
+
 ---
 
 ## 16. Failure patterns worth remembering
@@ -5846,6 +6043,12 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | ⚠⚠ D41 | **A ten-seed mean is a signal; a three-seed bisection of it is noise — and that cuts both ways.** V1's ten-seed gate moved the vulture 295.4 → 416.0 (+41%). Attributing it to one of the phase's three lines needed per-line arms, and at 3 seeds × the full 15 000 ticks they read off 322.3 / `climbs` 289.3 / `cue` 310.3 / both 385.7, with the per-seed ordering arbitrary and **seed 1 reversing the sign**. The within-arm spread (216–505 for the control alone) dwarfed every between-arm difference | **Match the statistics to the question, not to the budget.** D14 established that five seeds cannot resolve a one-seed survival difference; this is the same arithmetic on a *magnitude* — a quantity with a 2.3× within-arm spread cannot be decomposed at three seeds however long each run is. ⚠ Two practical consequences. **(1)** When a mean is real but its parts are not resolvable, say so and stop, rather than dropping the component that looks most suspicious — that is tuning on noise wearing attribution's clothes. **(2)** The cheap fix for "is the mean real" is **per-seed pairs**, not more arms: `sweep --json` already carries `seedRecords`, so "how many of the ten seeds moved up" is countable at no extra runtime |
 | ⚠⚠ D40 | **An occupancy measurement believed without a null control is trajectory noise wearing a result's clothes.** Phase V1 gave the vulture a `tree: 1.6` habitat preference and measured its share of ticks on tree cells at **2.0% → 2.8%** — +38%, every arm, every seed, exactly the number the phase's plan asked for. Then the three lines were run separately over 5 seeds: the arm with no steering mechanism in it at all (`climbs` alone) read **3.65%** against the actual cue's **2.94%** and the control's 2.83%. **The null arm beat the mechanism**, and the "clean" result had already been written down | **Run the arm that should not be able to change the number.** A control that shares the phase's *perturbation* but not its *mechanism* is the only thing separating an effect from divergence, and it is nearly always one field — far cheaper than the seeds it saves. ⚠ This is A72's finding arriving for the fifth time (three occupancy claims rewritten, two replacements rejected, now this), and A72 had already named the fix: **assert the cue, not the occupancy.** The durable version is a unit test on the real species — the weight resolves, a cue radius exists, and the gradient points at the ground in question — which no sweep can contaminate |
 | ⚠⚠ D39 | **A mechanism that is a *conjunction* of two rare states is inert at the product, and the product is knowable before it is built.** Roosting (phase V1) is "on a tree cell" **and** "doing one of `rest`/`shelter`/`hide`/`flee`". The first is ~2.8% after a habitat cue that works; the second is **0.1%** for the vulture — because two of the four actions are structurally impossible for it (no hidden stage, so no `hide`; nothing hunts it, so no `flee`) and the other two lose to `wander`/`seekMate`/`herd`. Measured time aloft: **0.000–0.022%**, i.e. one animal-tick in ~100 000. The phase's own stated instrument measured only the *first* share, moved as predicted, and therefore could not fail | **Multiply the shares before writing the code.** Two measurements this project already had — `rest` is 0.8–1.6% of animal-ticks, trees are 2.45% of the map — predict the outcome to an order of magnitude, and neither needed a run. ⚠ Two corollaries. **(1) Check whether the conjunction's parts are even reachable for the species in question**: `hide` and `flee` were 0% *by construction*, which no amount of weight fixes and which the roster states plainly (`aging.hiddenUntil`, `preySpeciesIds`). **(2) An instrument aimed at the cue cannot see the outcome** — "share of ticks on tree cells" is a fact about a preference, not about a roost |
+| ⚠⚠ D43 | **A weight tested only at 1, at 0, or at a value that saturates its own cap is not tested — and this happened in six consecutive phases.** `MIXER` (the affinity centroid), `HOLDER` (the association pull), `worth *= calfWeight`, an unreachable dispersal gate on the rally, the consensus's **double charge** (`consensusWeight` spent once where the consensus is computed and again when a joiner adopts one — invisible at weight 1 because `× 1`, and invisible at weight 5 because both arms saturate against `maxStrength`), and the charge's `alarmFlee` collision. Every one was a mechanism that could be **deleted with the whole suite still green**, because the fixture species' *other* numbers made the guard unreachable | **Pick a fixture value that is none of those three, then delete the multiply and watch the test fail.** A mutation you have not run is a test you have not written. ⚠ The related half is that a guard tested on the wrong *species* is not tested either: the rule "any perceived threat cancels a pursuit" is undeletable-looking, but on a species carrying the config's `fleeWeight: 2.0` flee wins on the weights alone and the guard is dead code — so the fixture carries the buffalo's own `fleeWeight: 1.0`, where the weights say keep chasing and only the guard says otherwise |
+| ⚠⚠ D44 | **A weight sized against the wrong competitor ships inert, and the demo cannot tell you.** The buffalo's `chargeWeight` was set to 0.7 by comparing it with `fleeWeight: 2.0` — a comparison that never happens. Its real competitor is `alarmFlee` (`fleeWeight × 0.75`), which fires **exactly when no threat is perceived**, which is exactly the situation a pursuit exists for; and every pursuit begins moments after a predator was standing in the herd, so the whole herd is inside `social.alarmTicks` when it starts. The mechanism formed commitments for an afternoon and **never once acted on one** | **Before setting any weight, list what it will actually be compared against *in the situation the mechanism fires in*, not in general.** A weight below its real competitor is not a conservative setting, it is an off switch that looks like a setting. ⚠ The demo could not have reported this — the mechanism fires ~25 ticks in 4000 — so the thing that caught it was a sandbox assertion on the *decision*, not a population reading |
+| ⚠⚠ D45 | **A ttl on a movement intent commits to nothing.** `DecisionSystem#intentFor` is rebuilt from the winning action **every tick**, and only the `wander` branch reads a prior intent's ttl as a continuation — so a `defend` intent carrying `ttl: 20` is overwritten on the very next tick, the moment its urgency reaches 0. The obvious implementation of "keep doing this for N ticks" therefore does nothing at all, silently | **A commitment has to live in the *utility* — state that keeps the score non-zero — not in the intent the utility produces.** Both mechanisms in this engine that outlive their cue (the herd consensus, the pursuit) are built that way. First thing to check when a behaviour is supposed to persist after its reason has gone |
+| ⚠⚠ D46 | **A derived-on-read projection can be silently coupled to an unrelated mechanism's switch.** The obvious way to report a group's centre for inspection is to read `world.groupCentres`, which `GroupSystem` already maintains — but that map is rebuilt by `#rally` and **only when `config.groups.rallyEnabled`**. An inspection field reading it returns `null` for every group the moment somebody switches the rally off, which is a control arm the suite uses. Measured on the demo at tick 200: `groupCentres.size` is **28 with the rally on and 0 with it off, against 28 live records either way** | **Before reading a cached or transient map, ask which switch populates it.** A cached derivation is only as available as the system that caches it, and an observability field that vanishes on a control arm is worse than no field — it makes the arm look broken. ⚠ Assert **both** arms, because "it works with the mechanism on" is exactly what the wrong version also says |
+| ⚠ D47 | **A plan asserting that an existing test closes an action item is a claim to verify, not an instruction to follow.** The herbivore-behaviour plan stated that P2's two-bands test "is the fragmentation assertion A43 says nobody has written". It is not: that test asserts a **centroid** — one animal's steering input, on one tick, in a sandbox — where A43 asks for a population fragmentation **outcome**. Three of that phase's four documentation items were genuinely already done; the fourth was the one the plan was most confident about | **Read the item before agreeing with the plan about it.** A plan is written before the work and an action item is written from the evidence, so where they disagree the item usually wins. ⚠ The honest resolution is often "narrowed", not "closed" or "open" — say which half moved |
+| ⚠ D48 | **`world.entities.all()` returns an iterator, not an array**, and Node's iterator helpers make the mistake silent: `.find()` works, but `.filter(…).length` is `undefined`, so an assertion reads `undefined > 20` as a plain `false` rather than throwing. A test written that way fails with a message about the world being empty when the world is fine | **A collection accessor that returns an iterator needs spreading before array methods** (`[...world.entities.all()]`). ⚠ Sibling accessors disagree on purpose and it is worth knowing which is which: `world.groups.all()` *does* return a fresh array, so a caller may found or dissolve while walking it |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
 ---

@@ -645,6 +645,29 @@ they are not re-opened by accident.
   carries population per species over time, but nothing computes a minimum or
   flags a crash. Closing it means choosing what counts as a crash.
 
+- **A82 — Three sociality mechanisms are inert or unmeasurable in the demo *by
+  construction*, and each invites the wrong measurement** _(2026-08-06, from the
+  retired herbivore-behaviour plan)_. Grouped because they share a failure mode:
+  somebody re-tunes one against a population number that cannot possibly respond.
+
+  - **`behavior.leadAgeWeight` is inert in short runs.** Seniority is `senescent`
+    or nothing, and buffalo reach `adultUntil: 11000`, so a 1500-tick demo contains
+    **no matriarch at all**. What `config.groups.leadWeight` moves in a short run is
+    plain `dominanceOf` (mass and condition). Measuring the age half needs a horizon
+    past 11 000 ticks — the A56 lesson in a new suit.
+  - **The charge and pursuit fire ~25 ticks in 4000.** Zero live pursuits exist at
+    tick 1500 on seed 42 (DOCS §11), so any survival or population reading of them
+    is noise by construction. ⚠ Anyone re-tuning `chargeWeight` must re-read the
+    `alarmFlee` collision first (**D44**) — that, not `fleeWeight`, is what it
+    competes with.
+  - **A consensus replaces the *whole* migration drift, and that drift multiplexes
+    thirst** — so a thirsty animal in a herd that is not thirsty loses its
+    long-range water cue for up to 60 ticks. This is why the buffalo declares
+    `consensusWeight: 0.6` rather than 1.0. Measured and currently benign:
+    wildebeest dehydration deaths **655 with the consensus against 708 without**.
+    ⚠ Re-check it if anyone raises a `consensusWeight`. The short-range `drink` /
+    `seekWater` / `recallWater` are *actions* and cannot be replaced by any of this.
+
 - **A43 — Population fragmentation is enabled, not asserted.** Herd labels split
   by hop count and separate forage patches pull herds apart, but no test claims a
   fragmentation outcome.

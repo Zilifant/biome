@@ -12,13 +12,8 @@ persistence, performance, and testing. Start there.
 open**, across the engine and the renderer; `DOCS.md` §1 is the same list with
 the evidence and reasoning attached.
 
-**[`BEHAVIOR-PLAN.md`](BEHAVIOR-PLAN.md) is complete** _(2026-08-06)_ — eleven
-phases (P0–P10) taking herbivore sociality from "persistent identity that nothing
-acts on" to identity and group intent that steer movement. **Ten shipped and P6 was
-skipped by decision**; the plan is now a historical record on the same terms as the
-three in `legacy-docs/`, read for the reasoning rather than for current state.
-**[`HANDOFF.md`](HANDOFF.md) is what those ten phases taught** — the landmines they
-turned up, six of which were the same mistake in a new suit, and what is left open.
+**There is no plan in flight.** Everything the four retired plans built is described
+in `DOCS.md`; everything they left open is in `ACTION-ITEMS.md`.
 
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
 produced the engine: a linear, numbered sequence of 30 steps with dated
@@ -32,11 +27,23 @@ is the third and is retired on the same terms (2026-08-04): eight phases that ad
 **trees**, a two-valued **elevation** flag, the leopard's **kill caching**, **flight**
 as a movement mode, and the vulture's flying and woodland preference — six shipped,
 two (the carcass-discovery network and the slow life history) unbuilt and now
-`ACTION-ITEMS.md` **A77** and **A78**. All three plans' "As built" blocks — where each
-phase's own prediction turned out wrong — are the part worth reading; everything they
-built is described in `DOCS.md`.
-[`legacy-docs/HANDOFF-2026-07-30.md`](legacy-docs/HANDOFF-2026-07-30.md) is the
-archived session handoff for species phases 12–14; [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md)
+`ACTION-ITEMS.md` **A77** and **A78**.
+[`legacy-docs/BEHAVIOR-PLAN.md`](legacy-docs/BEHAVIOR-PLAN.md) is the fourth and
+retires on the same terms (2026-08-06): eleven phases (P0–P10) taking herbivore
+sociality from "persistent identity that nothing acts on" to identity and group
+intent that steer movement — **ten shipped, P6 skipped by decision**. It is the one
+plan whose *lessons* outweigh its features: six consecutive phases shipped a weight
+that could have been deleted with the suite still green, and that is now `DOCS.md`
+§16 **D43**. What it built is `DOCS.md` §9 and §11; the seven sociality asks it found
+to be structurally inexpressible are §1.3; what it left open is `ACTION-ITEMS.md`
+**A43** and **A82**.
+
+All four plans' "As built" blocks — where each phase's own prediction turned out
+wrong — are the part worth reading; everything they built is described in `DOCS.md`.
+[`legacy-docs/HANDOFF-2026-08-06.md`](legacy-docs/HANDOFF-2026-08-06.md) is the
+archived session handoff for the behaviour phases and
+[`legacy-docs/HANDOFF-2026-07-30.md`](legacy-docs/HANDOFF-2026-07-30.md) for species
+phases 12–14; [`legacy-docs/HANDOFF.md`](legacy-docs/HANDOFF.md)
 is the superseded original. Current open work lives in `ACTION-ITEMS.md` and
 `DOCS.md` §1.
 

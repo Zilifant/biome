@@ -1,11 +1,24 @@
 # Herbivore social behaviour — next level
 
-✅ **Complete, 2026-08-06.** P0–P5 and P7–P10 shipped; P6 was skipped by decision.
-This file is now a historical record on the same terms as the three plans in
-`legacy-docs/`: read it for the reasoning and for the **As built** notes, where a
-phase's own prediction turned out wrong, not for current state. What it built is
-described in [DOCS.md](DOCS.md) §9; what it taught is in
-[HANDOFF.md](HANDOFF.md); what it left open is in `ACTION-ITEMS.md`.
+⚠⚠ **RETIRED 2026-08-06. Everything in this file that is still true has been folded
+into the living documentation, and this copy is kept for provenance only** — the
+same terms as the three plans beside it. Read it for *why* a decision was made, and
+for the **As built** notes where a phase's own prediction turned out wrong. Do not
+read it for current state: it describes line numbers and a codebase that have moved.
+
+✅ **Complete.** P0–P5 and P7–P10 shipped; P6 was skipped by decision.
+
+**Where its content lives now:**
+
+| what | where |
+| --- | --- |
+| What the ten phases built | [`DOCS.md`](../DOCS.md) §9 (Sociality, Persistent groups) and §11 (the v34 inspection blocks) |
+| The `decision`-phase ordering, and why no fourth drift | [`DOCS.md`](../DOCS.md) §9 Sociality |
+| The seven asks that are **not expressible**, and the nearest legal thing to each | [`DOCS.md`](../DOCS.md) §1.3, *Sociality asks that are not expressible* |
+| The lessons — weights tested at 1/0, sizing against the real competitor, ttl-on-an-intent, the coupled projection, verifying a plan's claim, the iterator | [`DOCS.md`](../DOCS.md) §16, **D43–D48** |
+| The measurement discipline — horizons, dead bands, off-arm proofs, `updateInterval` as mechanism | [`DOCS.md`](../DOCS.md) §15 |
+| What is still open | [`ACTION-ITEMS.md`](../ACTION-ITEMS.md) — **A43** (narrowed) and **A82** |
+| Per-phase cost measurements | [`BENCHMARK.md`](../BENCHMARK.md) |
 
 ⚠ **P6 is skipped** (2026-08-05, by decision): a dispersed bull staying loosely
 associated with the local buffalo is an acceptable model of a bachelor, and the
@@ -21,12 +34,12 @@ and group-level intent do not causally affect movement.
 The codebase already says this about itself, and the evidence decides the design:
 
 - **The herd label has no behavioural consumer at all** — measured 2026-07-30,
-  recorded in [DOCS.md](DOCS.md) §9. `groupId` is read by the metrics, the entity
+  recorded in [DOCS.md](../DOCS.md) §9. `groupId` is read by the metrics, the entity
   projection, and the propagation that writes it. Herding steers at a centroid
   built from *neighbours*.
 - **The group record has no movement consumer either.** `groupRecordId` is read
-  only by carcass possession ([possession.js:176](src/simulation/predation/possession.js#L176))
-  and cooperative hunting ([cooperation.js:125](src/simulation/predation/cooperation.js#L125)).
+  only by carcass possession ([possession.js:176](../src/simulation/predation/possession.js#L176))
+  and cooperative hunting ([cooperation.js:125](../src/simulation/predation/cooperation.js#L125)).
   A zebra band is a roster nobody acts on.
 - **A61** names the association defect *and* its failed fix: scaling the herd
   *pull* by the centroid weight was built and measured **inert**.
@@ -62,7 +75,7 @@ Everything else depends on a neighbour list that can be wider than the perceptio
 radius. Do the restructure *first*, with the widening switched off, so any
 behavioural difference here is a bug rather than a feature.
 
-In [PerceptionSystem.js#perceive](src/simulation/systems/PerceptionSystem.js#L137):
+In [PerceptionSystem.js#perceive](../src/simulation/systems/PerceptionSystem.js#L137):
 
 ```js
 neighbours.push(otherId, distance);
@@ -79,10 +92,10 @@ gate today — the query radius *was* the gate:
 | `animalCount` | line 223, right after the push | move below the new gate |
 | carcasses | lines 200-216 — **no distance test at all** | own `distance <= radius` gate |
 | `nearestAnimal`/`guardian`/`nearestPrey`/`nearestThreat`/`mateCandidates` | 258+ | behind the new gate (A63: this gate feeds **reproduction** too) |
-| `adoptedPrey` — the *second* consumer of `world.neighbourhood` | [cooperation.js:173](src/simulation/predation/cooperation.js#L173), called from `DecisionSystem:963` | gates on distance to the quarry, never to the neighbour — add the gate; it is a no-op today |
+| `adoptedPrey` — the *second* consumer of `world.neighbourhood` | [cooperation.js:173](../src/simulation/predation/cooperation.js#L173), called from `DecisionSystem:963` | gates on distance to the quarry, never to the neighbour — add the gate; it is a no-op today |
 | `SocialSystem`/`GroupSystem` reuse checks | `SocialSystem:389`, `GroupSystem:404` | must compare the **neighbour** radius. Keep both fallbacks — they are what saves you when perception is staggered |
 
-⚠ **Do not add a parameter to `#perceive`.** [D28](src/simulation/systems/PerceptionSystem.js#L107)
+⚠ **Do not add a parameter to `#perceive`.** [D28](../src/simulation/systems/PerceptionSystem.js#L107)
 records one extra argument costing **12% of total engine time** at large-5k. Derive
 the radius inside from the `species` already in hand, exactly as the flight
 multiplier does at line 157.
@@ -90,7 +103,7 @@ multiplier does at line 157.
 ⚠ **Do not put `neighbourRadius` in the perception summary.** That object is
 projected **whole** to inspection, so it would cost a protocol bump. Put it in a
 new `world.neighbourhoodRadius` map beside `world.neighbourhood` — which
-[World.js:84-88](src/simulation/world/World.js#L84) already explains is kept
+[World.js:84-88](../src/simulation/world/World.js#L84) already explains is kept
 outside the summary precisely because the summary is projected.
 
 `neighbourRadius = max(perception.radius, behavior.herdRadius, groups.joinRadius,
@@ -99,8 +112,8 @@ else. `alarmRadius` lives in `config.social`, so the composition root wires it i
 (precedent: `foodMinLevel`, `drinkRange`, `carcassRange` all cross sections in
 `createDemoSimulation.js`).
 
-*Test:* [test/perception.test.js](test/perception.test.js) — copy the `animalCount`
-idiom at `:38` and [line-of-sight.test.js:110](test/line-of-sight.test.js#L110)'s
+*Test:* [test/perception.test.js](../test/perception.test.js) — copy the `animalCount`
+idiom at `:38` and [line-of-sight.test.js:110](../test/line-of-sight.test.js#L110)'s
 "still counted on the shared walk". Plus the §20 inertness proof: seeds 1/2/42 ×
 1500 ticks, comparing `JSON.stringify(captureSimulationState(engine))` — ⚠ never
 `assert.deepEqual`, which exhausts a 4 GB heap on two entity graphs.
@@ -118,11 +131,11 @@ every species would carry a copy and `config.social.groupRadius` would become a
 second home for one number (D11). The world default stays in `config.social`.
 Resolve to a `Map<speciesId, radius>` once per world, cached against
 `world.species`, exactly like
-[`#associationsFor`](src/simulation/systems/SocialSystem.js#L364).
+[`#associationsFor`](../src/simulation/systems/SocialSystem.js#L364).
 
 ⚠⚠ **The radius currently widens three things, and only one of them is wanted.**
 It appears in `#neighboursOf`, in the centroid gate at
-[SocialSystem.js:221](src/simulation/systems/SocialSystem.js#L221), and — inside
+[SocialSystem.js:221](../src/simulation/systems/SocialSystem.js#L221), and — inside
 that same gate — in **label propagation** (253-263) and the **`adults`** tally
 (236). Widening the label means bigger herds and `maxGroupSize: 24` saturating;
 widening `adults` means `HuntingSystem.defendersFor` shields more, which quietly
@@ -136,9 +149,9 @@ numbers stay comparable with their history. Say so in the file header.
 **Switch:** `config.social.perSpeciesRadius` (global section).
 **Species:** wildebeest and buffalo declare `behavior.herdRadius`.
 
-*Test:* [test/social.test.js](test/social.test.js) — copy "two separated herds keep
+*Test:* [test/social.test.js](../test/social.test.js) — copy "two separated herds keep
 separate labels, and merge on contact" with a wide-radius species **invented in
-the test file** (the `CLAN` idiom at [test/groups.test.js:47](test/groups.test.js#L47)).
+the test file** (the `CLAN` idiom at [test/groups.test.js:47](../test/groups.test.js#L47)).
 Add a `defendersFor` assertion so the shielding behaviour is pinned rather than
 discovered later. Re-baseline `npm run benchmark`: `queryRadius` 7 → 12 is ~2.9×
 the candidates, though the expensive per-neighbour work (LOS raycast,
@@ -149,7 +162,7 @@ the candidates, though the expensive per-neighbour work (LOS raycast,
 ## P2 — Affinity-weighted centroid
 
 The highest-leverage change, and it needs no new state, no new action, and no new
-system. At [SocialSystem.js:205-241](src/simulation/systems/SocialSystem.js#L205)
+system. At [SocialSystem.js:205-241](../src/simulation/systems/SocialSystem.js#L205)
 the neighbour's `worth` is `1` for a conspecific. Make it an exchange rate that
 also reads **who this animal belongs to**:
 
@@ -160,7 +173,7 @@ also reads **who this animal belongs to**:
 | either null | `× 1` — unchanged |
 
 ⚠⚠ **The denominator must change with it, and this is the bug that would sink
-the phase.** [SocialSystem.js:328](src/simulation/systems/SocialSystem.js#L328) is
+the phase.** [SocialSystem.js:328](../src/simulation/systems/SocialSystem.js#L328) is
 `const weight = groupmates + associateWeight` — a **headcount**, correct only
 because every conspecific contributes exactly `1` to `sumX`. Weight the numerator
 and leave the denominator a count, and the centroid is scaled away from the
@@ -171,7 +184,7 @@ worth 20–100 units of error. Accumulate `conspecificWeight` and use
 summed n times is exactly the integer n in IEEE-754.
 
 ⚠ **`groupmates`, `adults` and `nearestDistance` stay unweighted.** `adults` is
-read by [HuntingSystem.js:331](src/simulation/systems/HuntingSystem.js#L331) and
+read by [HuntingSystem.js:331](../src/simulation/systems/HuntingSystem.js#L331) and
 `mobbing.minMobbers`; weighting them turns a cohesion knob into a predation knob.
 
 ⚠ **Never a negative or zero affinity.** A weighted mean of positions cannot
@@ -189,12 +202,12 @@ membership. Harmless in steady state; it means any test that founds a band and
 asserts on the centroid must step ≥ 2 ticks.
 
 ⚠ Symptomatic animals are excluded from the centroid *before* any weighting
-([SocialSystem.js:221](src/simulation/systems/SocialSystem.js#L221)) and must stay
+([SocialSystem.js:221](../src/simulation/systems/SocialSystem.js#L221)) and must stay
 excluded — a heavy band weight must not resurrect disease shunning.
 
 ✅ **Alignment comes free.** `worth` also scales `sumSin`/`sumCos`, so
 `social.heading` becomes band-weighted, and the `herd` intent
-([DecisionSystem.js:1122-1139](src/simulation/systems/DecisionSystem.js#L1122))
+([DecisionSystem.js:1122-1139](../src/simulation/systems/DecisionSystem.js#L1122))
 already blends cohesion with alignment. The brief's "align with their persistent
 group" needs no separate work.
 
@@ -202,7 +215,7 @@ group" needs no separate work.
 **Species:** overrides in the `behavior` block. Defaults all `1` ⇒ arithmetically
 identical to today.
 
-*Test:* [test/association.test.js](test/association.test.js) — copy "a mixed group
+*Test:* [test/association.test.js](../test/association.test.js) — copy "a mixed group
 weights the two kinds against each other" (`:247`) into "two bands weight their own
 members"; assert the centroid of a uniform band sits **on** the band (the
 denominator regression test); byte-identity at all-`1` defaults.
@@ -232,7 +245,7 @@ weight — worse than either arm.
 pullScale`. At 0.55 a gazelle tolerates 3.6 units from a wildebeest centre and 2.0
 from its own. Monotone, has no comparison to lose, and is directly measurable as
 mean distance-to-centroid. It lands in the same expression
-([DecisionSystem.js:626-631](src/simulation/systems/DecisionSystem.js#L626)) **and**
+([DecisionSystem.js:626-631](../src/simulation/systems/DecisionSystem.js#L626)) **and**
 in `#intentFor`'s `cohesion` term, which reads the same number — so the two stay
 consistent for free.
 
@@ -286,10 +299,10 @@ at one membership change per ~95 ticks per hyena across three forming species.
 Buffalo makes it four species and +97 animals, and a rally heading (P7) keyed to a
 record that dissolves and re-founds every few ticks jumps between centres —
 jitter that will read as a rally bug. Implement the named fix: `belowMinSince` on
-the record ([GroupRegistry.js](src/simulation/world/GroupRegistry.js)), dissolving
+the record ([GroupRegistry.js](../src/simulation/world/GroupRegistry.js)), dissolving
 only after `config.groups.dissolveGraceTicks` still below `minMembers`. Same shape
 as `alarmedUntil`. The reconcile pass
-([GroupSystem.js:151-168](src/simulation/systems/GroupSystem.js#L151)) is the only
+([GroupSystem.js:151-168](../src/simulation/systems/GroupSystem.js#L151)) is the only
 caller. Persisted ⇒ `SAVE_FORMAT_VERSION` bump.
 
 **5b. Capacity.** DOCS reports **33 peak concurrent groups** today against a cap of
@@ -306,14 +319,14 @@ stops working, intermittently and seed-dependently.
 
 **5c. Buffalo `groups: { forms: true }`.** ✅ Verified against the code: this alone
 gives the cow–calf core. `leavingSex: 'male'` is already the config default;
-`inheritFromGuardian` + [`#inherit`](src/simulation/systems/GroupSystem.js#L278)
+`inheritFromGuardian` + [`#inherit`](../src/simulation/systems/GroupSystem.js#L278)
 puts a calf in its guardian's record, and the guardian is the parent that
 gestated, so descent is matrilineal with no sex conditional anywhere.
 
-⚠ [herbivoreBuffalo.js:33-37](src/simulation/config/species/herbivoreBuffalo.js#L33)
+⚠ [herbivoreBuffalo.js:33-37](../src/simulation/config/species/herbivoreBuffalo.js#L33)
 currently says persistent groups are "**Not stated, deliberately**". Rewrite that
 header rather than quietly contradicting it — the convention this codebase follows
-(see [GroupRegistry.js:5](src/simulation/world/GroupRegistry.js#L5), "⚠ **This
+(see [GroupRegistry.js:5](../src/simulation/world/GroupRegistry.js#L5), "⚠ **This
 overrides a documented design decision, and it is meant to**"). The honest framing:
 the **record** models the cow–calf core, the **label** continues to model the
 fission–fusion herd around it. Both run side by side.
@@ -360,7 +373,7 @@ room. A dispersed bull walks straight back into a cow group, and possibly its ow
 by `beginDispersal` and is **never cleared** anywhere in `src/simulation`, so "has
 completed dispersal" is `dispersalUntil !== null && tick >= dispersalUntil` — free.
 Add one per-species value resolved through
-[`#resolve`](src/simulation/systems/GroupSystem.js#L239):
+[`#resolve`](../src/simulation/systems/GroupSystem.js#L239):
 
 - `groups.joinsAfterDispersal`, config default `true` (= today, identity); buffalo
   sets `false`.
@@ -382,12 +395,12 @@ transitions, never one tick. That is the test shape whose absence *caused* A64.
 ## P7 — Band rally drift (reunion)
 
 A separated animal must deliberately return. Copy the
-[MigrationSystem](src/simulation/systems/MigrationSystem.js) pattern — the
+[MigrationSystem](../src/simulation/systems/MigrationSystem.js) pattern — the
 documented shape for steering without an action.
 
 - `GroupSystem` derives each record's centre into a transient `world.groupCentres`
   map, bounded by `maxGroups × maxMembers`. ⚠ **Never persisted** —
-  [GroupRegistry.js:52](src/simulation/world/GroupRegistry.js#L52) is explicit that
+  [GroupRegistry.js:52](../src/simulation/world/GroupRegistry.js#L52) is explicit that
   a group has no stored centre.
 - Derive it in a **third pass, after the entity pass**, so this tick's joins and
   dissolutions are included. Deriving first gives headings pointing at records that
@@ -397,7 +410,7 @@ documented shape for steering without an action.
 - Write `entity.rallyHeading` / `rallyStrength` for a member with **no bandmate
   contributing to its centroid** — derive that gate from the same `world.social`
   summary, not from a raw distance, or you have two rules for one question (D11).
-- [DecisionSystem.js:1311-1316](src/simulation/systems/DecisionSystem.js#L1311)
+- [DecisionSystem.js:1311-1316](../src/simulation/systems/DecisionSystem.js#L1311)
   blends it into the fresh `wander` commitment, after migration and before trail.
 
 ⚠ **Bound it.** Every other drift cue in the engine is bounded by a sense
@@ -409,7 +422,7 @@ band is genuinely lost, and cap `rallyStrength` well below
 `migration.dispersalWeight: 0.9`.
 
 ⚠ **It will corrupt dispersal if left ungated.** Dispersal "wins outright" at
-strength 0.9 ([MigrationSystem.js:109](src/simulation/systems/MigrationSystem.js#L109));
+strength 0.9 ([MigrationSystem.js:109](../src/simulation/systems/MigrationSystem.js#L109));
 a rally blended onto it drags a dispersing zebra back toward the band it is
 walking out of — undoing A64 at the *movement* layer instead of the membership
 layer. `GroupSystem` already imports `isDispersing`; gate on it.
@@ -425,7 +438,7 @@ in `EntityManager.createEntity`, and null-check in `DecisionSystem` exactly the 
 ⚠ **Clear it on every path.** `GroupSystem` returns early when no species forms
 groups, and `continue`s on the guardian, dispersing and already-attached branches.
 A field not written on some path outlives its tick — the `entity.flying` lesson at
-[DecisionSystem.js:800-806](src/simulation/systems/DecisionSystem.js#L800).
+[DecisionSystem.js:800-806](../src/simulation/systems/DecisionSystem.js#L800).
 
 ✅ **Not persisted, and state why in the header:** `GroupSystem` (−8) precedes
 `DecisionSystem` (0) every tick and non-forming species keep the `createEntity`
@@ -471,7 +484,7 @@ rolling average rather than a front. The rule:
 `Math.atan2(0, 0)` is **0** — a valid heading pointing due east. A whole wildebeest
 herd marching east because its cues cancelled looks exactly like emergent
 behaviour. `blendHeadings` already guards this
-([migration.js:333-335](src/simulation/migration/migration.js#L333)); require a
+([migration.js:333-335](../src/simulation/migration/migration.js#L333)); require a
 resultant length > 1e-12, else no consensus.
 
 ⚠ **Do not add a fourth blend to `wander`.** Publish `herdHeading` / `herdStrength`
@@ -486,7 +499,7 @@ label changed.
 
 **Leadership, without storing rank.** `dominanceOf` is legal and O(1), but it is
 **pointed the wrong way for the species that asked**: `maturity` is 1 for adult and
-**0.85 for senescent** ([dominance.js:61](src/simulation/social/dominance.js#L61)),
+**0.85 for senescent** ([dominance.js:61](../src/simulation/social/dominance.js#L61)),
 so an old cow rates *below* a prime adult, and `condition` moves every tick so the
 "leader" flickers. Add a separate `leadershipOf` in `social/dominance.js` with an
 age term weighted upward, controlled by `behavior.leadAgeWeight` (default 0 =
@@ -520,7 +533,7 @@ world (the positive-feedback check); `consensusWeight: 0` byte-identical.
 ⚠ **A ttl on the `defend` intent does nothing.** `#intentFor` is called fresh from
 the winning action every tick, and only the `wander`/default branch reads a prior
 `moveIntent.ttl` as a continuation
-([DecisionSystem.js:1111-1116](src/simulation/systems/DecisionSystem.js#L1111)).
+([DecisionSystem.js:1111-1116](../src/simulation/systems/DecisionSystem.js#L1111)).
 The moment the threat leaves perception, `defendUrgency` goes 0 and another
 action's intent overwrites it.
 
@@ -544,7 +557,7 @@ the sprint on a stamina fraction.
 but buffalo. ⚠ This shifts the mobbing baseline, so phase-10/11 mobbing numbers
 need re-reading.
 
-*Test:* [test/cooperation.test.js](test/cooperation.test.js) (it holds the 2×2
+*Test:* [test/cooperation.test.js](../test/cooperation.test.js) (it holds the 2×2
 mobbing design) — a mobbing buffalo closes on a retreating predator at
 `chargeWeight > 0` and not at 0; the commitment expires; **flee still wins against
 a second threat**; an exhausted buffalo does not sprint.
@@ -553,19 +566,19 @@ a second threat**; an exhausted buffalo does not sprint.
 
 ## P10 — Observability and closing the loop
 
-- **Inspection** ([SimulationEngine.js:563-585](src/simulation/engine/SimulationEngine.js#L563)):
+- **Inspection** ([SimulationEngine.js:563-585](../src/simulation/engine/SimulationEngine.js#L563)):
   `social.nearby` gains `pullScale`; new `social.consensus`
   (`{ heading, strength, until }`); the sibling `group` block gains a derived
   `centre` and `leaderId` (walked from `memberIds` through `leadershipOf` **on
   read** — never stored).
-- **Metrics** ([metrics.js:260](src/simulation/metrics/metrics.js#L260)): the
+- **Metrics** ([metrics.js:260](../src/simulation/metrics/metrics.js#L260)): the
   `groups` aggregate gains mean band spread, so cohesion is a number rather than an
   impression. Aggregates only.
 - **Protocol:** one `PROTOCOL_VERSION` bump for the inspection additions, matched
-  by `SUPPORTED_PROTOCOL_VERSION` ([RendererStore.js:20](src/renderer/app/state/RendererStore.js#L20))
+  by `SUPPORTED_PROTOCOL_VERSION` ([RendererStore.js:20](../src/renderer/app/state/RendererStore.js#L20))
   plus `npm run fixtures:renderer`. ⚠ Regenerate **after the last behavioural
   change**, not after the version bump. Add `test/protocol-v34.test.js` copying
-  [test/protocol-v33.test.js:32](test/protocol-v33.test.js#L32) — asserted against
+  [test/protocol-v33.test.js:32](../test/protocol-v33.test.js#L32) — asserted against
   the **live constants**, never literals (the v29 bump shipped that comparison
   written against itself and three stale fixtures passed).
 - **Docs:** DOCS §9 can finally retract "the label has no behavioural consumer at
@@ -623,7 +636,7 @@ refused**:
   and the tests execute, but every fixture *teardown* hangs in this sandbox — 35
   failures, **all of them teardown timeouts and none of them assertions**, and a
   120-second timeout does not help. Verified pre-existing by stashing to clean HEAD
-  and reproducing it against the *old* fixtures. See `HANDOFF.md` for the full
+  and reproducing it against the *old* fixtures. See `legacy-docs/HANDOFF-2026-08-06.md` for the full
   reading. The suite was run; it did not pass; nothing in it indicates the fixtures
   are wrong.
 

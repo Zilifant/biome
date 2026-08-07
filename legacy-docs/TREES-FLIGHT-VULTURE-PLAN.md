@@ -75,7 +75,7 @@ Four features, in the order they unblock each other:
    already run at.
 
 This document was written against [`DOCS.md`](../DOCS.md) (the reference),
-[`HANDOFF.md`](../HANDOFF.md) (session state), [`ACTION-ITEMS.md`](../ACTION-ITEMS.md)
+[`legacy-docs/HANDOFF-2026-08-06.md`](HANDOFF-2026-08-06.md) (the last session state), [`ACTION-ITEMS.md`](../ACTION-ITEMS.md)
 (open work), and [`vulture.md`](../vulture.md) (the species brief). It closes
 **A67** (vertical refuge) in the narrow form A67 itself asks for, touches **A3**,
 **A18**, **A49** and **A51**, and adds one new always-per-species field per
