@@ -89,6 +89,7 @@ import { DEFAULT_CHARGE, chargeWeightOf, pursuitTicksOf } from '../predation/cha
 import { isHiding, hiddenUntilFor } from '../parenting/hiding.js';
 import { forageOf, forageQualityAt, NEUTRAL_QUALITY } from '../habitat/forage.js';
 import { normalizeStepRules, stepLength, stepRefused } from '../locomotion/steps.js';
+import { herdPackingFloor } from '../social/herding.js';
 
 
 const TWO_PI = Math.PI * 2;
@@ -176,6 +177,11 @@ export class DecisionSystem extends SimulationSystem {
     fleeWeight = 2.0,
     herdWeight = 0.5,
     herdDistance = 3.0,
+    // ⚠ The geometric floor under the number above, from `config.social`
+    // (2026-08-06). 0 is off and restores the pre-fix arithmetic exactly; see
+    // `social/herding.js` for why the floor is derived from the occupancy cap
+    // rather than being a constant of its own.
+    herdPackingSlack = 0,
     defendWeight = 2.6,
     defendRange = 5.0,
     // A32's last named lever (phase 10): how much further from the predator than
@@ -283,6 +289,12 @@ export class DecisionSystem extends SimulationSystem {
     recallDistanceWeight = 0.15,
     dangerRadius = 6,
     reproduction = { minEnergyFraction: 0.7, cooldownTicks: 800 },
+    // ⚠ **How close is close enough to stop walking** (2026-08-06), wired from
+    // `config.reproduction` — `ReproductionSystem`'s own number, so the distance
+    // this system stops seeking at and the distance that system starts pairing at
+    // cannot drift apart by half an edit (D11, and the same wiring `drinkRange` and
+    // `carcassRange` get for exactly this reason).
+    matingRange = 2.0,
     // Seasonal breeding (phase 12, PLAN-SPECIES.md §3.11). ⚠ From
     // `config.breeding`, the global section that owns the switch — the window
     // itself is per-species and lives in the `reproduction` block, which a species
@@ -297,6 +309,9 @@ export class DecisionSystem extends SimulationSystem {
     minCommitTicks = 8,
     commitTickSpan = 16,
     wanderJitter = 0.5,
+    // ⚠ How much of the migration drift reaches a wander already under way, from
+    // `config.migration` (2026-08-06, A71). 0 is the pre-fix behaviour exactly.
+    holdBiasScale = 0,
     foodMinLevel = 1,
     // Forage guilds (phase 9, PLAN-SPECIES.md §3.3). ⚠ Both wired from
     // `config.forage`, which is *not* a species block — an off switch inside one
@@ -353,6 +368,7 @@ export class DecisionSystem extends SimulationSystem {
     this.fleeWeight = fleeWeight;
     this.herdWeight = herdWeight;
     this.herdDistance = herdDistance;
+    this.herdPackingSlack = herdPackingSlack;
     this.defendWeight = defendWeight;
     this.defendRange = defendRange;
     this.interposeSlack = interposeSlack;
@@ -412,11 +428,13 @@ export class DecisionSystem extends SimulationSystem {
     this.recallDistanceWeight = recallDistanceWeight;
     this.dangerRadius = dangerRadius;
     this.reproduction = reproduction;
+    this.matingRange = matingRange;
     this.breedingEnabled = breedingEnabled;
     this.coverConcealment = coverConcealment;
     this.minCommitTicks = minCommitTicks;
     this.commitTickSpan = commitTickSpan;
     this.wanderJitter = wanderJitter;
+    this.holdBiasScale = holdBiasScale;
     this.foodMinLevel = foodMinLevel;
     this.foragePreference = foragePreference;
     this.forageQualityFloor = forageQualityFloor;
@@ -660,7 +678,26 @@ export class DecisionSystem extends SimulationSystem {
       // ⚠ `pullScale` is exactly 1 for every species that declares no pull and for
       // every animal standing alone, and `x / 1` is `x` for every finite double, so
       // this line is bit-for-bit what it was for all but the declaring species.
-      const herdDistance = behavior.herdDistance / (social?.pullScale ?? CONSPECIFIC_PULL);
+      // ⚠⚠ **And then it is floored by what the herd can physically do**
+      // (2026-08-06). The declared distance is biology — how close this animal
+      // *wants* to stand — and the floor is geometry: a herd of this many bodies
+      // cannot stand closer than the occupancy cap allows, so asking it to is a
+      // request the movement system refuses every tick for the rest of the
+      // animal's life. `max` rather than a replacement, because a species that
+      // declares a **wider** distance than the floor means it, and a small herd
+      // (where the floor is under 2.0) keeps exactly the arithmetic it had.
+      //
+      // ⚠ The pull scale divides the *declared* number only. A gazelle holding
+      // loosely to a wildebeest herd tolerates more drift than it would from its
+      // own kind — that is a preference — but it is standing in the same crowd as
+      // everyone else, and the crowd's geometry is not a matter of preference.
+      // Flooring the scaled number instead would silently let the association
+      // weight buy its way under a bound it has nothing to do with (A61's shape:
+      // one declaration, spent in exactly one place).
+      const herdDistance = Math.max(
+        behavior.herdDistance / (social?.pullScale ?? CONSPECIFIC_PULL),
+        herdPackingFloor(social?.centroidWeight ?? 0, this.stepRules.maxOccupantsPerCell, this.herdPackingSlack),
+      );
       const herdPull =
         social?.centroid && drift > herdDistance
           ? behavior.herdWeight * (2 - entity.traits.boldness) * clamp01((drift - herdDistance) / Math.max(herdDistance, 1e-6))
@@ -850,7 +887,30 @@ export class DecisionSystem extends SimulationSystem {
         // not declare a hidden stage.
         hide: hiding ? behavior.hideWeight : 0,
         tend: tendPull,
-        seekMate: mateCandidate ? behavior.mateWeight : 0,
+        // ⚠⚠ **Nothing to seek once you have arrived** (2026-08-06). `seekMate`
+        // used to score its full weight whenever a candidate was perceived, at any
+        // distance including zero — so an animal standing **on** a mate it will
+        // never be accepted by kept "seeking" it forever. The ethologist's shape
+        // for this is unmistakable and it appeared in every world:
+        // `seekMate for 120 ticks with no progress (dist 0.6→0.0), 193 refused
+        // steps` — an animal that arrived, could get no closer, and never
+        // re-targeted.
+        //
+        // ⚠ **The seeker cannot observe why it was refused, and that is the point.**
+        // Pairing is `ReproductionSystem`'s decision and it can decline for reasons
+        // that are invisible from here — the partner is not `#eligible`, is inside
+        // `contestCooldownTicks`, or simply lost the quality comparison. So the
+        // honest gate is not "did it work" (unknowable) but "is walking closer still
+        // capable of helping" (pure geometry). Inside `matingRange` it is not: the
+        // reproduction system already sees this pair every tick.
+        //
+        // ⚠ Suppressing the *action* leaves the animal in place rather than driving
+        // it away — it falls through to whatever it would otherwise do, mostly
+        // grazing and wandering within a cell or two, and `ReproductionSystem` pairs
+        // them the moment its own gates open. It also frees the ~120 ticks that a
+        // stalled seeker spent walking into an occupied cell, which is where those
+        // refused steps were coming from.
+        seekMate: mateCandidate && mateCandidate.distance > this.matingRange ? behavior.mateWeight : 0,
         leaveThicket: thicketExit ? this.leaveThicketWeight : 0,
         rest: nearDanger ? 0 : behavior.restBias * (1 - Math.max(hunger, thirst)) * (2 - boldness),
         wander: behavior.wanderBias * boldness,
@@ -1366,6 +1426,37 @@ export class DecisionSystem extends SimulationSystem {
               heading = deflected;
               detour = action;
               ttl = this.detourCommitTicks;
+            } else if (crowdLocked(world, entity, heading, this.stepRules)) {
+              // ⚠⚠ **Blocked by bodies, with nowhere to deflect to** (2026-08-06).
+              // `detourHeading` is a wall-follow, and a wall-follow is the right
+              // model for rock: the obstacle is static, so sliding along it gets
+              // you past it. A **crowd** is not static and is not only in front of
+              // you — an animal in the middle of a packed herd has bodies on every
+              // side, every ladder offset is refused, and the null return then
+              // leaves it re-committing to its direct bearing and being refused
+              // again, every tick, for as long as the crowd holds. Measured at
+              // **9.3%** of wildebeest animal-ticks before the packing floor above.
+              //
+              // Standing still for the tick is the honest intent: there is no
+              // heading that can be taken, so claiming one is a lie the movement
+              // system has to catch. It also *helps* — a non-moving animal is not
+              // pushing inward, so a jam loosens from the inside instead of every
+              // member re-committing into it together.
+              //
+              // ⚠ It reports `moving: false` rather than a refusal, which is the
+              // distinction `MovementSystem` already draws for an animal in a tree:
+              // a refusal means "an obstacle to deflect around" and the deflection
+              // is exactly what has just been established not to exist.
+              //
+              // ⚠⚠ **`crowdLocked` is on the intent because the metric cannot see
+              // this any other way.** A refused step is visible as `refused` on the
+              // intent the movement system turned around; an animal that never
+              // committed one is indistinguishable from an animal that chose to
+              // stand and eat. Without this flag the *fix* would have hidden the
+              // symptom from the instrument added to watch for it — a jam would
+              // read as a **fall** in the refusal rate. Same shape as A83's clean
+              // report from a detector that could not see the mechanism.
+              return { heading: normalizeAngle(heading), ttl: 1, moving: false, sprint: false, crowdLocked: true };
             }
           } else if (prior?.detour === action && prior.ttl > 0 && prior.moving === true) {
             heading = prior.heading;
@@ -1509,8 +1600,32 @@ export class DecisionSystem extends SimulationSystem {
             sprint: false,
           };
         }
+        // ⚠⚠ **The drift reaches a wander already under way too** (2026-08-06,
+        // A71). This branch — a *held* commitment, jittered — is where a wandering
+        // animal spends 7 to 23 ticks out of every 8 to 24, and until now it was
+        // the one path in the system that never looked at `migrationHeading` at
+        // all. So a cue documented as "0.5 × thirst, harder the thirstier" was
+        // applied **once per commitment** and ignored in between, which against a
+        // lake covering ~1.5% of the map is not enough to cross one. That is A65's
+        // shape — the recovery written where nobody reads it — and it is why
+        // "died of thirst having NEVER perceived water" was the largest class in
+        // the ethologist's report while the mechanism meant to prevent it was
+        // switched on and apparently working.
+        //
+        // ⚠ Scaled well below the fresh-commitment blend, because the commitment is
+        // doing real work: an animal migrates by *drifting* toward a cue rather than
+        // routing to it (A34 — migration is not an action, and this is the edit that
+        // could quietly make it one). At `holdBiasScale` 0 this is exactly the
+        // expression it has been since Step 26, which is what makes the control arm
+        // reproducible rather than merely close.
+        const held = normalizeAngle(
+          intent.heading + (roll - 0.5) * this.wanderJitter * (roaming ? this.rangingJitterScale : 1),
+        );
         return {
-          heading: normalizeAngle(intent.heading + (roll - 0.5) * this.wanderJitter * (roaming ? this.rangingJitterScale : 1)),
+          heading:
+            drift === null || this.holdBiasScale <= 0
+              ? held
+              : blendHeadings(held, drift, driftStrength * this.holdBiasScale),
           ttl: intent.ttl - 1,
           moving: true,
           sprint: false,
@@ -1728,6 +1843,50 @@ export function detourHeading(world, entity, direct, lookahead, stepRules) {
     }
   }
   return best === null ? null : normalizeAngle(best);
+}
+
+/**
+ * Whether the thing that just refused every way out was **other animals** rather
+ * than the ground (2026-08-06).
+ *
+ * Asked only on the path where `detourHeading` has already returned `null` — every
+ * offset on the ladder refused — so it answers one question: would any of them
+ * have been takeable if the occupancy cap were lifted? Yes means the animal is
+ * boxed in by bodies and the right intent is to stand still; no means it is in a
+ * genuine terrain pocket, which is `escapeHeading`'s documented wide-concave-pocket
+ * limit (A66) and is deliberately left exactly as it was.
+ *
+ * ⚠ **The same ladder, the same predicate, the same order.** It re-probes
+ * `DETOUR_OFFSETS` through `stepRefused` with the cap passed as `null`, so the
+ * comparison is against the *identical* question the deflection just asked minus
+ * one term. Re-deriving "is this crowding?" from a fresh cell count would be a
+ * second opinion about a rule that already has one home (D11, and the reason
+ * `steps.js` exists at all).
+ *
+ * ⚠ It costs at most `DETOUR_OFFSETS.length` grid-free predicate calls — no
+ * `roomAhead` walk, no `cellFull` query, since the cap is what is being removed —
+ * and only on a tick that was blocked *and* undeflectable, which is well under 1%
+ * of animal-ticks in a healthy world. Pure geometry and terrain reads, no draws.
+ *
+ * @param {object} world
+ * @param {object} entity the blocked animal, at its current position
+ * @param {number} direct bearing straight at the target
+ * @param {import('../locomotion/steps.js').DEFAULT_STEP_RULES} stepRules
+ * @returns {boolean}
+ */
+export function crowdLocked(world, entity, direct, stepRules) {
+  // Nothing to be locked by: with no cap, occupancy never refused anything, so a
+  // universal refusal was terrain and this is the identity.
+  if (stepRules.maxOccupantsPerCell === null) return false;
+  const step = stepLength(world, entity, false, stepRules);
+  for (const offset of DETOUR_OFFSETS) {
+    const h = direct + offset;
+    const tx = entity.x + Math.cos(h) * step;
+    const ty = entity.y + Math.sin(h) * step;
+    if (tx < 0 || tx > world.width || ty < 0 || ty > world.height) continue;
+    if (!stepRefused(world, entity, tx, ty, false, null)) return true;
+  }
+  return false;
 }
 
 /**

@@ -49,6 +49,39 @@ they are not re-opened by accident.
   one.
 
 - **⚠ A71 — An animal that has never seen water has almost no way to find it.**
+  ⚠⚠ **Improved on 2026-08-06, and explicitly _not_ closed.** The second of the
+  three levers is in: the drift now reaches a wander **already under way**
+  (`migration.holdBiasScale`, 0 = reproducible control). This was A65's shape and
+  it is why the lever was named above raising `waterBiasWeight` — the cue was never
+  weak, it was *unread*. A wander commitment lasts 8–24 ticks and the drift was
+  blended on exactly one of them, so a cue documented as "0.5 × thirst,
+  continuously" was applied **once per commitment**. Against a lake covering ~1.5%
+  of the map, that is not a cue.
+
+  ✅ Measured, 3 seeds × 6000 ticks: the "NEVER perceived water" class falls
+  **25 → 20** and the close-water class **3 → 1**; total living across the three
+  seeds 1988 → 2027.
+
+  ⬜ **It is a 20% dent, not a fix, and the reason it cannot become one is now
+  measured.** A working water cue *concentrates* thirsty animals on the lake, and a
+  lake whose shore `locomotion.maxOccupantsPerCell` cannot admit kills more than
+  the cue saves. Dehydration deaths / final population by seed, where seed 1's lake
+  is **65 cells** and seeds 2–3 are 1824 and 2364:
+
+  | `holdBiasScale` | seed 1 | seed 2 | seed 3 |
+  | --- | --- | --- | --- |
+  | 0 | 136 / 535 | 11 / 723 | 7 / 730 |
+  | 0.15 | 150 / 519 | 6 / 743 | 2 / 765 |
+  | 0.35 | 171 / 450 | 2 / 770 | 4 / 802 |
+
+  Monotone in **both directions at once**: the harder the cue pulls, the better the
+  big-lake worlds do and the worse the puddle world does. 0.15 ships because it
+  takes nearly all the gain for a third of the cost. ⚠⚠ **This bounds lever 1 as
+  well** — `waterBiasWeight` buys the same trade — so the remaining levers are the
+  third one (a directed thirst action driven by `world.nearestWater`, which costs
+  an entry in the utility table) or making the shore itself admit more animals.
+  Past some point, more cue stops meaning "find the water" and starts meaning
+  "queue for it".
   With A65 and A67 closed this is the single largest finding in the ethologist's
   sweep: "died of thirst having NEVER perceived water", roaming the whole map,
   dying on the arithmetic clock (~3057 ticks for a gazelle). Dehydration is still
@@ -319,6 +352,178 @@ they are not re-opened by accident.
   `test/groups.test.js` rather than inferred from a survival number.)_
 
 ## Engine — behaviour and modelling
+
+- **✅ A84 — A cohesion radius moved without its geometric partner, and it cost two
+  species** _(found and closed 2026-08-06)_. `perSpeciesRadius` (P1) widened
+  `behavior.herdRadius` 6 → 11 for the wildebeest and the buffalo, which changed
+  *who* contributes to the centre of mass. What an animal **does** with that centre
+  is `behavior.herdDistance`, and it stayed at the **2.0** chosen for a six-cell
+  herd. A disc of radius 2.0 is ~12.6 cells and holds ~25 animals at
+  `locomotion.maxOccupantsPerCell: 2`; an aggregation of a hundred inside an
+  11-cell radius all steering at one point asks for ~8 bodies per cell.
+
+  **Measured against `main` on the same three seeds × 6000 ticks.** Wildebeest step
+  refusals **4.7% → 37.5%**, with **9.3%** of their ticks holding no legal step in
+  any direction; buffalo 4.3% → 16.2%; lion 1.5% → 10.5%. Gazelle (3.1 → 3.7) and
+  zebra (4.0 → 4.9) were flat — the two species that declare no `herdRadius`, which
+  is the dose–response that identified the cause. Mean energy fraction fell 0.77 →
+  0.35 (wildebeest) and 0.75 → 0.37 (buffalo); they spent 34.6% and 43.0% of their
+  ticks in `seekFood` and starved standing on forage. Populations: wildebeest
+  288.7 → 125.0 (**−57%**), buffalo 126.3 → **21.3** (**−83%**), buffalo starvation
+  deaths 11 → 168.
+
+  ✅ **The fix is a floor derived from the occupancy cap** —
+  `social/herding.js#herdPackingFloor`, `max(declared, slack × sqrt(n / (π c)))`,
+  wired through `config.social.herdPackingSlack` (0 is the reproducible control and
+  is bit-identical to the pre-fix arithmetic). ⚠ It is derived from
+  `maxOccupantsPerCell` rather than being a constant of its own, because a number
+  tuned against today's herd sizes is how the original 2.0 broke.
+  After: wildebeest refusals **4.0%**, buffalo **3.5%**, lion 1.5%, nobody boxed in; wildebeest
+  296.3 and buffalo 94.7.
+
+  ⚠⚠ **The slack is 2, and 1.5 was measured and rejected — do not re-derive it from
+  one seed.** Lowering it keeps the herd consensus tidier (below), and on seed 2
+  alone it looked free. On three seeds it is plainly worse: buffalo mean **77.3
+  against 94.7**, and the **leopard goes extinct on seed 1** (2/3 seeds) where slack
+  2 holds it 3/3. D14 again — a herd-size effect measured on one seed is a
+  measurement of that seed.
+
+  ⬜ **What stays open, including three failing tests left failing on purpose.**
+
+  1. ✅ **The buffalo residual is explained, and it is not this fix** _(2026-08-06,
+     the A82 null arm re-run after the floor landed)_. The buffalo recovers to 94.7
+     against `main`'s 126.3 — and with `consensus.enabled=false` it reads **121.0**,
+     with starvation deaths falling **52 → 5**. The whole remaining gap is the herd
+     consensus (P8), not the packing floor. See **A82**.
+  2. The secondary half of the fix — a crowd-locked animal stands still rather than
+     re-committing to a heading it cannot take (`DecisionSystem#crowdLocked`) —
+     fires on only **0–1%** of blocked ticks even on the broken arm. A correct guard
+     whose contribution to the recovery is **not established**; the floor does the
+     work. ⚠ Bisected: it is not the cause of any failure below.
+  3. ✅ **The three tests this fix broke all pass again, and not because anything
+     was weakened** _(2026-08-06, after **A71**)_. They were left failing on purpose
+     and were fixed by an unrelated change one item later, which is the part worth
+     keeping:
+     - `consensus.test.js` "most labels hold one heading" fell to **8 of 22** (36%,
+       against a packed-world baseline of 54%) because `HerdConsensusSystem`
+       re-decides **per animal** as each commitment lapses, so members spread over
+       more ground pooled different cues. That read as a standing cost of the
+       slack. It was not: with the A71 drift reaching **held** wander commitments,
+       every member feels the same cue between re-decisions instead of holding its
+       own stale heading, and coherence is **20 of 27 (74%)** — above the packed
+       world it was measured in.
+     - `groups.slow.test.js` "the grace period removes most of the membership
+       churn" passes for the same reason.
+     - `hunting.test.js` "the demo sustains both species" keeps the leopard on
+       seed 42 again. ⚠ Still a 2–4 animal population in a species **A81** records
+       as persisting on 1/10 seeds, so it remains a single-seed assertion about a
+       fragile species (D1/D2/D7) — it is passing, not robust.
+
+     ⚠⚠ **Two mechanisms looked like a trade-off against each other and were both
+     downstream of a third that was quietly unread.** The tell, in hindsight: the
+     "cost" appeared the moment herds started moving normally. ⚠ **The same horizon
+     is what makes the fix urgent** — at t8000 on seed 1 the *pre-fix* arm has
+     **buffalo 0 and wildebeest 3**, an extinction the 6000-tick gate never sees.
+
+- **✅ A88 — `circling-in-need` counted `wander` as a search, which is why it never
+  became a shortlist** _(found and closed 2026-08-06)_. The detector flagged
+  **53–100% of every predator and scavenger in every world** — leopard 3/3, lion
+  11/13, hyena 10/13, vulture 10/11 — while flagging ~1% of zebra. The
+  2026-07-31 recalibration had added a search-fraction term precisely to stop it
+  reading "doing its job in a home range" as "stuck", and then put in that term the
+  one action that means an animal has *no* job to do. Share of ticks spent
+  wandering: **leopard 94.5%, hyena 73.8%, vulture 64.8%, lion 55.9%** against
+  11–14% for the grazers, who are eating, herding and seeking instead.
+
+  ⚠⚠ **The obvious fix was measured first and was wrong**, which is the part worth
+  keeping. The hypothesis was that predators are chronically hungrier between
+  kills, so `circleNeed` should become a per-species bound rather than a flat 0.4.
+  The distribution says otherwise: animal-ticks at need ≥ 0.4 are **vulture 33%,
+  lion 39%, hyena 47%** against **buffalo 43%, gazelle 40%** — the guilds are not
+  meaningfully different and only the leopard (69%) stands out. A species-relative
+  threshold would have discriminated nothing while looking principled. The action
+  mix was the whole of it.
+
+  ✅ **Calibrated on both arms**, which is the thing this detector has never had:
+  **0 firings across three healthy worlds**, and it still fires on a genuinely
+  stuck one (the `herdPackingSlack: 0` arm, where animals really are jammed).
+  ⚠ Firing rarely is now acceptable in a way it would not have been before A85 —
+  `movement-denied` covers the stuck case directly (154 and 51 firings on that same
+  arm), so this detector no longer has to be the only instrument.
+
+- **✅ A89 — `seekMate` did not resolve on arrival** _(found and closed
+  2026-08-06)_. The utility scored its full weight whenever a candidate was
+  perceived, **at any distance including zero**, so an animal standing on a mate it
+  would never be accepted by kept seeking it for life: `seekMate for 120 ticks with
+  no progress (dist 0.6→0.0), 193 refused steps`, in every world. ⚠ The seeker
+  cannot observe *why* pairing declined — `#eligible`, `contestCooldownTicks` and
+  the quality comparison are all invisible from `DecisionSystem` — so the gate is
+  the one thing it can observe: whether walking closer is still capable of helping.
+  Inside `reproduction.matingRange` it is not, because `ReproductionSystem` already
+  sees the pair every tick. Suppressing the *action* leaves the animal in place
+  rather than driving it off, so pairing still happens the moment its own gates
+  open. `matingRange` is wired from `config.reproduction` rather than restated
+  (D11). **0 stalls across three worlds afterwards.**
+
+- **⚠⚠ A87 — The two neighbour walks are not equivalent, and the test that says
+  they are has been passing for the wrong reason** _(opened 2026-08-06, found by
+  A84)_. `social.test.js` asserts that reusing perception's walk gives a
+  byte-identical world to re-walking the grid. ⚠ **It passes at the shipped
+  `herdPackingSlack: 2` and fails at 1.5**, which is the whole point: the worlds are
+  identical through tick 106 and at 107 lion 484 has **`chase: 0.771` in one arm and
+  `chase: 0` in the other**, with its perception summary, its social summary and
+  every position byte-identical. Nothing about the walk changed between those two
+  configurations — only which states the world visits.
+
+  ⚠ **`adoptedPrey` is the only consumer that can do that** — it is the third reader
+  of the *raw* neighbour list, it reads `other.action` (mid-tick mutable state
+  written by the same decision pass), and its tie-break documents an assumption it
+  does not check: "the neighbour walk is in ascending id order", which is true of
+  perception's shared list and unverified for a fresh `queryRadius`.
+
+  ⚠⚠ **A84 did not cause this and cannot be blamed for it**: with the floor off, the
+  chase utility differs between the arms on **0 of ~400 ticks × ~500 animals**, and
+  it is 0 again at the shipped slack. A tuning change to an unrelated utility is
+  enough to walk the world into a configuration the latent sensitivity fires on.
+  **A determinism guarantee that survives only until somebody re-tunes a weight is
+  not a guarantee, and a green test is not evidence that it holds** — D40's null arm
+  in a third costume. ⚠ This is currently **latent, not failing**, which is exactly
+  why it is written down: the next tuning pass is as likely to surface it as this
+  one was. Fix belongs in `predation/cooperation.js` — either sort the raw list by
+  id at the consumer, or stop reading mid-tick `action` — not in the floor.
+
+- **✅ A85 — Nothing in the engine had ever reported a refused step** _(2026-08-06,
+  from A84)_. An 8× regression in the fraction of steps an animal could not take
+  produced no metric, no event and no failing test; the sweep gate passed it,
+  because every species was alive at the final checkpoint. Two instruments closed
+  it. `metrics.species[].locomotion` now carries `committed` / `refused` /
+  `crowdLocked` / `refusedFraction` (protocol **v35**). The ethologist gains
+  detector **4e `movement-denied`**, a *rate* rather than an invariant — the only
+  one in family 4 that is.
+
+  ⚠⚠ **`crowdLocked` is counted separately because the fix would otherwise have
+  hidden the symptom from the instrument.** A crowd-locked tick reports
+  `moving: false`, so the naive reading drops it from numerator *and* denominator
+  and a world jamming harder reports a **falling** refusal rate. Asserted directly.
+
+  ✅ **Calibrated against both arms rather than shipped on a threshold.** Healthy is
+  3–5% for all eight species (including at `rocks=6 thickets=8`, where terrain does
+  the blocking); the trigger is 0.25. On the broken arm it fires **261 times**
+  (193 wildebeest, 68 buffalo) naming rates of 41–46%; on the fixed arm, **0 times
+  across six worlds**. ⚠ It fires on the *mechanism*, not on crowding, so it also
+  covers A66's terrain pinning and cannot be fixed into silence by removing one
+  cause. 13 tests in [`test/ethologist.test.js`](test/ethologist.test.js).
+
+- **A86 — "Died of thirst with water a few cells away" is back in the report, and it
+  is pre-existing rather than new** _(opened 2026-08-06)_. With A84 closed, the
+  ethologist's top deaths are no longer starvation-on-forage but the
+  thicket-walled-lake shape this tool was calibrated on: 7 across six worlds, worst
+  **12.7** — `died of thirst with water ~0.3c away (sees 7c); action=wander, had
+  drunk before`. ⚠ **Checked against `main` before being blamed on the fix**: the
+  same class appears there (4 over two seeds), so A84 *revealed* it rather than
+  caused it — those animals previously died of the jam first. The oddity worth
+  drilling into is the action: an animal at 0.3 cells from water, dying of thirst,
+  that has drunk before and is **wandering** rather than drinking.
 
 - **A18 — Prey have no spatial refuge from predators.** Cover slows both
   equally. Part of why the founding counts are a knife edge. The static `thicket`
@@ -668,6 +873,23 @@ they are not re-opened by accident.
     ⚠ Re-check it if anyone raises a `consensusWeight`. The short-range `drink` /
     `seekWater` / `recallWater` are *actions* and cannot be replaced by any of this.
 
+    ✅ **Re-measured after A84, and the thirst hazard is still benign** _(2026-08-06,
+    3 seeds × 6000 ticks)_: wildebeest dehydration **131 with the consensus against
+    165 without** — same direction as the original reading, on a world where herds
+    now stand at a realistic density rather than packed. The multiplexing worry can
+    be closed.
+
+    ⚠⚠ **But the same null arm found what that reading was hiding, and it is a
+    different species and a different cause.** With the consensus off the **buffalo
+    mean is 121.0 against 94.7 on**, and its **starvation deaths fall 52 → 5**;
+    the gazelle reads 109.0 against 95.3 and the wildebeest 312.0 against 296.3.
+    So P8 costs the buffalo ~26 animals — the entire residual **A84** could not
+    explain — while the leopard goes the other way (3/3 seeds with it, 2/3 without).
+    ⚠ **Nobody had run this arm against a population**: A82 measured the consensus
+    against the *thirst* hazard it was predicted to have, found it clean, and the
+    cost it actually carries is a foraging one in the largest grazer. Checking the
+    predicted failure mode is not checking the mechanism.
+
 - **A43 — Population fragmentation is enabled, not asserted.** Herd labels split
   by hop count and separate forage patches pull herds apart, but no test claims a
   fragmentation outcome.
@@ -752,6 +974,24 @@ they are not re-opened by accident.
   and `circling-in-need`'s 146-flags-per-healthy-world history is the precedent.
   Two of the four new kinds have **never fired** on the demo (7000 ticks, seed 42),
   which is the correct result and not a reason to loosen them.
+
+  ⚠⚠ **This item's own generalisation came true one phase later, and the shape is
+  worth reading twice** _(2026-08-06, **A85**)_. Family 4 was built for the four
+  risks the behaviour plan *named*, and all four are clean. The risk nobody named —
+  a cohesion target asking for a density the movement system forbids — cost the
+  wildebeest 57% of its population and the buffalo 83%, and **the lead was in this
+  tool's own output the whole time**: it reported the deaths as `starved with 122
+  biomass within 2c` and one buffalo as `unresolved-intent … 294 refused steps`.
+  Nothing triggered on the refusal count, so the report read as an ecology problem.
+  **Extending the tool to the risks a plan lists is necessary and is not
+  sufficient** — the question to ask alongside it is which *existing* field in the
+  output nothing is thresholded on. `movement-denied` is that field, promoted.
+
+  ⚠ It is also the first detector here that is a **rate rather than an invariant**,
+  which cost it a real calibration pass (3–5% healthy against 41–46% broken, both
+  arms measured) rather than the "has never fired, which is correct" that the four
+  invariants get. `circling-in-need` is the standing warning about shipping one of
+  these uncalibrated.
 
 - **A22 — Tombstones are bounded at 256**, so ancestry cannot be walked further
   back than that. Only bites a query that walks ancestry; lineage _depth_ is

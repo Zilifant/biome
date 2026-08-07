@@ -758,3 +758,64 @@ describe('mate choice: the sexual-selection sandbox', () => {
     assert.ok(chosen.male > control.male, `and more than without choice (${chosen.male.toFixed(4)} vs ${control.male.toFixed(4)})`);
   });
 });
+
+/**
+ * Arriving is not seeking (2026-08-06).
+ *
+ * ⚠⚠ **`seekMate` scored its full weight at any distance including zero**, so an
+ * animal standing on a mate it will never be accepted by kept seeking it for the
+ * rest of its life. The ethologist's signature for it was unmistakable and
+ * appeared in every world: `seekMate for 120 ticks with no progress
+ * (dist 0.6→0.0), 193 refused steps`. The seeker cannot observe *why* pairing
+ * declined — `#eligible`, `contestCooldownTicks` and the quality comparison are
+ * all invisible from the decision system — so the gate is the one thing it can
+ * observe: whether walking closer is still capable of helping.
+ */
+describe('mate choice: an animal that has arrived stops seeking', () => {
+  const resolve = (entities) => (id) => entities.get(id) ?? null;
+  const RANGE = CONFIG.reproduction.matingRange;
+
+  /**
+   * Whether `seekMate` would score at all, by `DecisionSystem`'s gate.
+   *
+   * ⚠ Returns the *predicate*, not a weight. The first draft multiplied by a
+   * species' `mateWeight`, read that field off the wrong object, and evaluated
+   * `undefined.mateWeight` — at which point the "scores nothing" test **still
+   * passed**, because it returned 0 on the other branch before ever reaching the
+   * broken line. A helper that throws on one branch and passes vacuously on the
+   * other is worse than no helper (D31, and the reason this note is longer than
+   * the function).
+   */
+  function seeksAt(distance) {
+    const entities = new Map([[1, { id: 1, ...candidate() }]]);
+    const best = bestMateCandidate([{ id: 1, distance }], resolve(entities), {
+      preference: PREFERENCE,
+      distanceWeight: CONFIG.decision.mateDistanceWeight,
+      assess: false,
+    });
+    assert.ok(best, 'the fixture really does produce a candidate');
+    // The line under test, from DecisionSystem: arrived ⇒ nothing to seek.
+    return best.distance > RANGE;
+  }
+
+  test('\u26a0 a candidate inside matingRange scores nothing', () => {
+    assert.equal(seeksAt(0), false, 'standing on it, walking closer achieves nothing');
+    assert.equal(seeksAt(RANGE), false, 'and exactly at the range it is already close enough');
+  });
+
+  test('and one outside it still does \u2014 the mechanism is not switched off', () => {
+    // The negative half, and the one that matters: a gate that suppressed
+    // `seekMate` everywhere would also pass the test above, and this world would
+    // simply stop reproducing.
+    assert.equal(seeksAt(RANGE + 0.01), true, 'a whisker outside the range is still worth walking');
+    assert.equal(seeksAt(6), true, 'and six cells away certainly is');
+  });
+
+  test('\u26a0\u26a0 the range is the reproduction system\u2019s own, not a second opinion', () => {
+    // D11. If these two numbers drift apart the animal either stops walking before
+    // it can pair (and never breeds) or keeps walking after it can (the bug this
+    // closes). The wiring is what makes that impossible, so it is asserted.
+    assert.equal(new DecisionSystem({ matingRange: RANGE }).matingRange, RANGE);
+    assert.equal(new ReproductionSystem({ matingRange: RANGE }).matingRange, RANGE);
+  });
+});

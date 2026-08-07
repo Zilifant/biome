@@ -3,4 +3,4 @@
  * the protocol layer carries this number. Bump it on any breaking change to
  * command, snapshot, delta, event, or query shapes.
  */
-export const PROTOCOL_VERSION = 34;
+export const PROTOCOL_VERSION = 35;

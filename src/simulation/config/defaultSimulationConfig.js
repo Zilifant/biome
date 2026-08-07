@@ -467,6 +467,50 @@ export const defaultSimulationConfig = Object.freeze({
     // there (the movement system refuses impassable cells, so the residual
     // randomness is what lets it get around one).
     dispersalWeight: 0.9,
+    // ⚠⚠ **How much of the drift reaches a wander that is already under way**
+    // (2026-08-06, closing the largest half of **A71**). Until now the drift was
+    // blended in at exactly one moment — the tick a wander commitment was *freshly
+    // taken* — and a commitment lasts `commitTicks` 8–24. So a cue that reads as
+    // "0.5 × thirst, continuously" was in fact applied **once every 8–24 ticks**,
+    // and in between the animal jittered along its old arbitrary heading. Against
+    // a lake covering ~1.5% of a 128×128 map that is not a cue, it is a rumour:
+    // "died of thirst having NEVER perceived water, roaming the whole map" was the
+    // single largest class in the ethologist's report.
+    //
+    // ⚠ This is A65's shape exactly — **the recovery was written where nobody
+    // reads it** — and it is why A71 named this lever above raising
+    // `waterBiasWeight`: the cue was never weak, it was mostly *unread*. Raising
+    // the weight would have made the once-per-commitment nudge harder without
+    // making it more frequent.
+    //
+    // ⚠ Well below 1 and below the fresh-commitment strength on purpose. A held
+    // heading is a *commitment* — it is what turns a shallow local cue into real
+    // distance instead of a routed walk (§1.4 A34: migration is not an action, and
+    // must not become one by the back door). A thirsty animal's heading converges
+    // on the lake over a handful of ticks rather than instantly, so it still
+    // arrives by drifting. **0 restores the pre-fix behaviour bit-for-bit** and is
+    // the reproducible control (`--set=migration.holdBiasScale=0`).
+    //
+    // ⚠⚠ **0.15 rather than 0.35, and the reason is a bottleneck rather than a
+    // taste.** A working water cue concentrates thirsty animals on the lake, and a
+    // lake whose shore `locomotion.maxOccupantsPerCell` cannot admit kills more
+    // than the cue saves. Measured over 3 seeds × 6000 ticks — dehydration deaths /
+    // final population, where seed 1's lake is **65 cells** and seeds 2–3 are 1824
+    // and 2364:
+    //
+    //     0     seed1 136/535   seed2 11/723   seed3  7/730
+    //     0.15  seed1 150/519   seed2  6/743   seed3  2/765
+    //     0.35  seed1 171/450   seed2  2/770   seed3  4/802
+    //
+    // Monotone in both directions at once: the harder the cue pulls, the better the
+    // big-lake worlds do and the worse the puddle world does. 0.15 takes nearly all
+    // the gain (seed 2 and 3 dehydration 11 → 6 and 7 → 2) for a third of the cost
+    // on seed 1, and totals 2027 animals against 1988 at 0 and 2022 at 0.35.
+    // ⚠ **This bounds how far this lever and `waterBiasWeight` can ever go**: past
+    // some point they stop meaning "find the water" and start meaning "queue for
+    // it". It is the argument for A71's third lever — a directed thirst action —
+    // being the real answer rather than more cue. See **A71** and **A86**.
+    holdBiasScale: 0.15,
     // Habitat evaluation is staggered: 16 O(1) vegetation reads per animal per
     // evaluation, so at 10 this is under two grid reads per animal per tick and
     // no spatial query at all.
@@ -568,6 +612,34 @@ export const defaultSimulationConfig = Object.freeze({
     // list is transient, never serialized, and gated by distance at every consumer
     // — so a longer one costs time and cannot change an answer.
     perSpeciesRadius: true,
+    // ⚠⚠ **The geometric floor under `behavior.herdDistance`** (2026-08-06), and it
+    // exists because `perSpeciesRadius` above shipped half a change. Widening
+    // `herdRadius` 6 → 11 moved *who* makes the centre of mass; the distance an
+    // animal insists on standing within of that centre stayed at the 2.0 chosen for
+    // a six-cell herd, and the two are geometric partners. A hundred wildebeest all
+    // closing to within 2.0 of one point is ~8 bodies per cell against
+    // `locomotion.maxOccupantsPerCell: 2`, so the movement system refuses the
+    // difference — **37.5%** of their steps, against 4.7% without it, with 9.3% of
+    // ticks boxed in with no legal step at all. They starved on top of forage.
+    //
+    // This is the multiple of the *packed-solid* radius a herd is asked to stand
+    // within. Area goes as the square, so 2 targets a quarter of the occupancy
+    // cap's capacity — validated in `social/herding.js` against A83's measured
+    // table of how tightly real bands actually stand, which it reproduces to within
+    // ~10–20% from eight members up and sits below (inert) beneath that.
+    //
+    // ⚠⚠ **1.5 was measured and rejected — do not re-derive it from one seed.** On
+    // a single seed it costs nothing; across three it is plainly worse, with buffalo
+    // at 77.3 against 94.7 and the leopard extinct on seed 1. ⚠ It was also briefly
+    // argued for on herd-consensus grounds, and that argument has since dissolved —
+    // the coherence loss was A71, not this number. See `social/herding.js`.
+    //
+    // ⚠ **0 is the reproducible control** (`--set=social.herdPackingSlack=0`) and
+    // restores the pre-fix arithmetic bit-for-bit — `max(declared, 0)` is the
+    // declared number for every finite double. It is a world-level switch rather
+    // than a species field by the phase-8 rule, and because the thing it is derived
+    // from (`maxOccupantsPerCell`) is world-level too.
+    herdPackingSlack: 2,
     // ⚠⚠ **Whether a bandmate is worth more than a stranger** (BEHAVIOR-PLAN P2),
     // and it is the persistent group record's first consumer that moves an animal.
     // A species declares `behavior.sameBandWeight` / `behavior.otherBandWeight`;

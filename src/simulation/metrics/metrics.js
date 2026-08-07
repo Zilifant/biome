@@ -115,6 +115,26 @@ export function computeMetrics(world, { tick, windowTicks }) {
         // Home ranges (Step 24): the radii of animals that have settled one.
         rangeRadii: [],
         settled: 0,
+        // ⚠⚠ **Whether animals can actually take the steps they commit to**
+        // (2026-08-06), and this block exists because its absence cost a species.
+        // A cohesion change packed wildebeest tighter than
+        // `locomotion.maxOccupantsPerCell` permits; **37.5%** of their steps were
+        // refused against 4.7% before it, they starved standing on forage, and the
+        // population fell 57% — with no metric, no event and no failing test
+        // anywhere in the engine, because nothing had ever reported a refusal. The
+        // sweep gate passed it: every species was alive at the final checkpoint.
+        //
+        // Three counters, because they answer three different questions and the
+        // third is the one that is easy to lose. `committed` is how many animals
+        // asked to move at all; `refused` is how many were turned around by
+        // terrain, a thicket edge or a full cell; `crowdLocked` is how many were so
+        // hemmed in by other animals that the decision system did not commit a step
+        // in the first place — those never reach `committed`, so a jam that the
+        // crowd-lock branch handles would otherwise show up as the refusal rate
+        // going *down*.
+        committed: 0,
+        refused: 0,
+        crowdLocked: 0,
         // Disease (Step 25): the compartment counts, which *are* the outbreak
         // curve. Kept per species because the two carry it independently.
         diseaseStates: Object.fromEntries(Object.values(DiseaseStates).map((state) => [state, 0])),
@@ -161,6 +181,15 @@ export function computeMetrics(world, { tick, windowTicks }) {
       bucket.grouped += 1;
       bucket.groupCounts.set(entity.groupId, (bucket.groupCounts.get(entity.groupId) ?? 0) + 1);
     }
+    // ⚠ Read from the intent the movement system has already resolved this tick —
+    // this system runs in the `observation` phase and movement in `movement`, so
+    // `refused` is this tick's answer rather than last tick's. ⚠ A refused intent
+    // is still a committed one (`moving` stays true through the turn-around), so
+    // `refused` is a subset of `committed` and the fraction below is well formed.
+    const intent = entity.moveIntent;
+    if (intent?.moving === true) bucket.committed += 1;
+    if (intent?.refused === true) bucket.refused += 1;
+    if (intent?.crowdLocked === true) bucket.crowdLocked += 1;
     bucket.generations.push(entity.generation);
     bucket.offspringCounts.push(entity.offspring.length);
     // Young enough to have been born inside the window.
@@ -204,6 +233,24 @@ export function computeMetrics(world, { tick, windowTicks }) {
       // observation roadmap rules out, and the inspector already serves the
       // one-animal question.
       homeRange: { settled: bucket.settled, radius: describe(bucket.rangeRadii) },
+      // ⚠ **A rate at this sample tick, not a total over the run** — the same
+      // instantaneous reading `living` and `grouped` beside it are, and for the
+      // same reason: nothing here holds per-animal history. `refusedFraction` is
+      // null rather than 0 when nothing committed a step, because "no animal tried
+      // to move" and "every animal moved freely" are opposite facts and a zero
+      // would report the first as the second.
+      //
+      // ⚠ **What healthy looks like, measured on the demo (seed 2, t2000–4200):**
+      // 3–5% refused for every species. The regression this block was added for ran
+      // wildebeest at **37.5%**, so the signal is nearly an order of magnitude clear
+      // of the noise — unlike the two detectors A83 measured and declined to build,
+      // where the headroom was 0.017.
+      locomotion: {
+        committed: bucket.committed,
+        refused: bucket.refused,
+        crowdLocked: bucket.crowdLocked,
+        refusedFraction: bucket.committed > 0 ? bucket.refused / bucket.committed : null,
+      },
       disease: {
         ...bucket.diseaseStates,
         // Infectious ≠ symptomatic, and reporting only the visible count would

@@ -48,6 +48,18 @@
  *      the tool — and two of them have never fired, which is the correct result
  *      rather than a reason to loosen them.
  *
+ *      ⚠⚠ **`movement-denied` joined them on 2026-08-06 and it is the odd one out
+ *      — a rate rather than an invariant.** It asks whether the world is still
+ *      somewhere an animal can walk: how many of the steps an animal committed to
+ *      left it exactly where it was. It exists because a cohesion change packed the
+ *      two largest grazers tighter than `locomotion.maxOccupantsPerCell` permits,
+ *      **37.5%** of wildebeest steps were refused against 4.7% before it, they
+ *      starved standing on forage, and the population fell 57% — while this tool
+ *      reported the deaths as `starved with 122 biomass within 2c` and one animal
+ *      as `unresolved-intent … 294 refused steps`. **The lead was in the output and
+ *      nothing was triggering on it.** It fires on the mechanism rather than on a
+ *      cause, so it covers A66's terrain pinning as well; the detail says which.
+ *
  * ⚠⚠ **Family 4 exists because this tool was run twice as reassurance that it
  * could not provide.** The herbivore-behaviour plan named four risks for it —
  * "an animal locked on one bearing, a band collapsed to a point, a buffalo
@@ -212,6 +224,27 @@ const D = Object.freeze({
   // scoped to the **episode**: exhausted-sprint ticks *inside the long hold
   // itself*, which is what "sprinting until it drops" actually means.
   exhaustedHoldFraction: 0.5, // this much of the over-ceiling hold spent on an empty tank
+  // --- Movement denied (2026-08-06, detector 4e), and it exists because this tool
+  // watched a species lose 57% of its population without saying anything useful
+  // about why. A cohesion change packed wildebeest tighter than
+  // `locomotion.maxOccupantsPerCell` allows, 37.5% of their steps were refused,
+  // and they starved standing on forage. The tool *did* flag the deaths — as
+  // `starved with 122 biomass within 2c`, which names the symptom — and one buffalo
+  // as `unresolved-intent … 294 refused steps`, which names the cause in a field
+  // nothing triggered on. **The lead was in the output and no detector was looking
+  // at it.** A83's generalisation, arriving one phase after A83.
+  //
+  // ⚠⚠ **Calibrated against a healthy arm before being trusted, which is the
+  // standing requirement here and the thing `circling-in-need` was shipped
+  // without.** Measured on the demo (seed 2, t2000–4200, every species): the
+  // refusal rate is **3–5%** for all eight, including at `rocks=6 thickets=8`
+  // where terrain does the blocking. The regression ran wildebeest at **37.5%**.
+  // 0.25 sits 5–8× above healthy and 1.5× below the failure — real headroom, not
+  // the 0.017 that made A83 decline to build two detectors.
+  blockedFraction: 0.25, //   this much of an animal's committed steps going nowhere
+  // ...over at least this many committed steps, so a juvenile that spent forty
+  // ticks wedged behind a rock is not evidence about anything.
+  blockedMinCommitted: 300,
 });
 
 // ⚠ `hide` belongs here: lying still *is* the behaviour of a concealed neonate
@@ -221,13 +254,35 @@ const D = Object.freeze({
 const STATIONARY = new Set(['eat', 'drink', 'rest', 'hide']);
 
 /**
- * Actions that mean "I am looking for something and have not found it". The
- * circling detector fires only inside a window dominated by these — everything
- * else in the table (`patrol`, `herd`, `stalk`, `tend`, `defend`, `rest`…) is an
- * animal staying put on purpose, which the pre-roster detector could not tell
- * apart from being stuck.
+ * Actions that mean "I am walking to something I can see and have not reached
+ * it". The circling detector fires only inside a window dominated by these —
+ * everything else in the table (`patrol`, `herd`, `stalk`, `tend`, `defend`,
+ * `rest`…) is an animal staying put on purpose, which the pre-roster detector
+ * could not tell apart from being stuck.
+ *
+ * ⚠⚠ **`wander` was in this set until 2026-08-06 and it is what kept
+ * `circling-in-need` from ever becoming a shortlist for predators and
+ * scavengers.** The 2026-07-31 recalibration added the search-fraction term to
+ * stop the detector reading "doing its job in a home range" as "stuck", and then
+ * put in it the one action that *is* an animal with no job to do: `wander` is the
+ * absence of any other drive, not a search. Measured on the demo, share of ticks
+ * spent wandering: **leopard 94.5%, hyena 73.8%, vulture 64.8%, lion 55.9%**
+ * against 11–14% for the grazers, who are eating, herding and seeking instead. So
+ * `searchFraction >= 0.6` was satisfied by the predators' and scavengers' resting
+ * state and by nothing a herbivore normally does — and the detector flagged
+ * **53–100% of every predator and scavenger in every world**, which is not a
+ * shortlist, while flagging ~1% of zebra.
+ *
+ * ⚠ **The obvious fix was measured first and was wrong.** The suspicion was that
+ * predators are chronically hungrier between kills, so `circleNeed` should become
+ * a per-species bound rather than a flat 0.4. The distribution says otherwise:
+ * the fraction of animal-ticks at need ≥ 0.4 is **vulture 33%, lion 39%,
+ * hyena 47%** against **buffalo 43%, gazelle 40%** — the guilds are not
+ * meaningfully different and only the leopard (69%) stands out. A species-relative
+ * need threshold would have discriminated nothing and would have looked
+ * principled. The action mix was the whole of it.
  */
-const SEARCH_ACTIONS = new Set(['wander', 'seekFood', 'seekWater', 'recallFood', 'recallWater']);
+export const SEARCH_ACTIONS = new Set(['seekFood', 'seekWater', 'recallFood', 'recallWater']);
 
 /**
  * Directed actions whose target is a **fixed cell**: it does not move, so
@@ -646,6 +701,17 @@ function newTracker(tick, entity) {
     // animal-ticks in a healthy world are sprints on an empty tank, so a lifetime
     // count discriminates nothing (see `D.exhaustedHoldFraction`).
     sprintExhaustedTicks: 0,
+    // --- Movement denied (2026-08-06, detector 4e). `committedTicks` is the
+    // denominator the whole detector is a rate over — ticks this animal actually
+    // asked to move — and `blockedTicks` is how many of them left it where it was.
+    // ⚠ `crowdLockedTicks` is counted **separately and added in**, because the
+    // engine's crowd-lock branch reports `moving: false`: those ticks never reach
+    // the denominator, so a jam it handles would otherwise make the rate go *down*.
+    committedTicks: 0,
+    blockedTicks: 0,
+    blockedRun: 0, //        consecutive blocked ticks right now
+    blockedRunMax: 0, //     the longest such run in this life
+    crowdLockedTicks: 0, //  ...of which the engine named bodies as the cause
     // P7's premise, counted: how long this animal has belonged to a record, and
     // how much of that it spent with any of its own band in the centre it steers
     // at. A member of a band it never once meets is a rally that never worked.
@@ -908,6 +974,55 @@ export function accumulateBand(tracker, entity, summary) {
 }
 
 /**
+ * Accumulate one tick of "did this animal get anywhere" onto a tracker, for
+ * detector 4e (`movement-denied`).
+ *
+ * ⚠ **Extracted rather than left inline for the third time**, on the evidence the
+ * two accumulators above record: the detector's own tests drive hand-built
+ * trackers, so an increment that never fires is invisible from them. Here the
+ * silent direction is the dangerous one — a denominator that keeps counting while
+ * the numerator does not makes the rate go to zero, and a detector reporting "the
+ * world is fine" is what this whole family exists because of (A83).
+ *
+ * **The three states one tick can be in**, and the middle one is why this is not a
+ * one-liner:
+ *
+ *   1. **Committed and moved.** Ordinary; only the denominator moves.
+ *   2. **Committed and went nowhere.** A refused step: the movement system turned
+ *      it around and it is standing where it started.
+ *   3. **Crowd-locked.** The decision system could not name *any* heading this
+ *      animal was allowed to take, so it committed nothing at all — `moving` is
+ *      false. ⚠⚠ That tick must still reach **both** counters. It is the strongest
+ *      possible instance of the thing being measured, and because it carries no
+ *      moving intent, the naive reading drops it from the denominator *and* the
+ *      numerator — so a world jamming harder would report a *falling* refusal rate.
+ *      The engine's fix hiding the engine's symptom from the engine's instrument.
+ *
+ * ⚠ `moved` is derived from the positions this observer can see, never from
+ * `entity.lastMoveDistance` — that field is zeroed by metabolism before a tick
+ * boundary is reached. See the note at its call site; it is a bug this tool has
+ * already shipped once.
+ *
+ * @param {object} tracker mutated in place
+ * @param {object} entity
+ * @param {number} moved world units actually travelled since the last tick
+ * @param {boolean} stationaryAction whether the action is one that stands still
+ */
+export function accumulateBlocked(tracker, entity, moved, stationaryAction) {
+  const locked = entity.moveIntent?.crowdLocked === true;
+  const blocked = (entity.moveIntent?.moving === true && moved < D.refusedEps && !stationaryAction) || locked;
+  if (locked) tracker.crowdLockedTicks += 1;
+  if (entity.moveIntent?.moving === true || locked) tracker.committedTicks += 1;
+  if (blocked) {
+    tracker.blockedTicks += 1;
+    tracker.blockedRun += 1;
+    if (tracker.blockedRun > tracker.blockedRunMax) tracker.blockedRunMax = tracker.blockedRun;
+  } else {
+    tracker.blockedRun = 0;
+  }
+}
+
+/**
  * Findings that can only be made about a *whole life*, run once per animal — at
  * its death, or at the end of the run for a survivor.
  *
@@ -1014,6 +1129,49 @@ function lifeReview(entity, tracker, tick, ctx) {
         `held a persistent-group membership for ${tracker.inRecordTicks} ticks and never once had a bandmate ` +
         `in the centre it steers at — the rally's own gate (P7) never cleared, so this animal belongs to a ` +
         `band it has never been with, roamed ${tracker.bbox()}`,
+    });
+  }
+
+  // ⚠⚠ **Detector 4e — an animal that keeps asking to move and keeps not moving**
+  // (2026-08-06). The other four in this family are invariants; this one is a rate,
+  // and it is the family's answer to the question the other four could not be asked:
+  // *is the world still somewhere an animal can walk?*
+  //
+  // It fires on the **mechanism**, not on a cause. A refused step is a refused step
+  // whether the thing in the way is rock, a thicket edge, or two hundred wildebeest
+  // all steering at the same point — so this catches the cohesion regression it was
+  // written for **and** A66's terrain residual, and the detail below is what tells
+  // them apart. That separation is deliberate: a detector keyed on crowding would
+  // have gone quiet the moment somebody fixed crowding and left the next cause
+  // unwatched, which is the shape of every stale threshold this file warns about.
+  //
+  // ⚠ `crowdLockedTicks` is reported rather than gated on for the same reason. It is
+  // the engine naming bodies as the cause, and it is only ever set when the decision
+  // system's own deflection has already failed — so it is a strong attribution and a
+  // weak trigger, and gating on it would make this detector blind on any arm where
+  // `decision.detourEnabled` is off.
+  if (tracker.committedTicks >= D.blockedMinCommitted && tracker.blockedTicks / tracker.committedTicks >= D.blockedFraction) {
+    const rate = tracker.blockedTicks / tracker.committedTicks;
+    const crowdShare = tracker.blockedTicks > 0 ? tracker.crowdLockedTicks / tracker.blockedTicks : 0;
+    found.push({
+      ...base,
+      kind: 'movement-denied',
+      severity: saturate(4, 12, rate / D.blockedFraction - 1),
+      detail:
+        `asked to move on ${tracker.committedTicks} ticks and went nowhere on ${tracker.blockedTicks} of them ` +
+        `(${(rate * 100).toFixed(0)}%, against 3–5% in a healthy world), longest unbroken run ` +
+        `${tracker.blockedRunMax} ticks` +
+        (tracker.crowdLockedTicks > 0
+          ? ` — ⚠⚠ **other animals were involved**: on ${tracker.crowdLockedTicks} of those ticks ` +
+            `(${(crowdShare * 100).toFixed(1)}% of the blockage) this animal was hemmed in on every side and could ` +
+            `not commit a step at all. ⚠ That share is a **floor on the crowding, not a measure of it** — being ` +
+            `boxed in on all sides is the extreme case, and ordinary "the way I wanted to go was occupied" ` +
+            `refusals are invisible to it, so a low percentage here is still proof that bodies are in the way. ` +
+            `Check whether a cohesion target is asking for a density locomotion.maxOccupantsPerCell forbids ` +
+            `(config.social.herdPackingSlack is the floor that bounds it)`
+          : ' — no crowd-lock was recorded, so nothing here attributes this to other animals; the obstacle is ' +
+            'likely terrain (A66)') +
+        `, roamed ${tracker.bbox()}`,
     });
   }
 
@@ -1139,6 +1297,10 @@ function analyzeRun({ seed, composition, ticks, onProgress }) {
         tr.minX = Math.min(tr.minX, e.x); tr.maxX = Math.max(tr.maxX, e.x);
         tr.minY = Math.min(tr.minY, e.y); tr.maxY = Math.max(tr.maxY, e.y);
         if (e.moveIntent?.moving && moved < D.refusedEps && !STATIONARY.has(e.action)) tr.refusedSteps += 1;
+        // Detector 4e's counters, in their own accumulator for the reason the two
+        // beside it are: a hand-built tracker in a test cannot exercise anything
+        // that lives inside this loop.
+        accumulateBlocked(tr, e, moved, STATIONARY.has(e.action));
 
         // Detectors 4a/4b — corruption, and a commitment past its own ceiling.
         // Both are one-shot per animal and both are *invariants* rather than

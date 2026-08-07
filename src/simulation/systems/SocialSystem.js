@@ -600,6 +600,17 @@ export class SocialSystem extends SimulationSystem {
         // a lone gazelle standing in a wildebeest herd something to steer at.
         centroid: weight > 0 ? { x: sumX / weight, y: sumY / weight } : null,
         heading: weight > 0 ? Math.atan2(sumSin / weight, sumCos / weight) : null,
+        // ⚠⚠ **How many bodies are behind that centre** (2026-08-06), and the one
+        // number the herd's *packing floor* needs. `herdPackingFloor` turns it into
+        // the closest a herd this size may be asked to stand, because a cohesion
+        // target tighter than the occupancy cap allows is a request the movement
+        // system refuses every tick forever — see `social/herding.js`.
+        //
+        // ⚠ It is the same `weight` the centroid is divided by, published rather
+        // than recomputed: a headcount here and a weighted sum there would be two
+        // answers to one question, which is the mistake the accumulator's own note
+        // above records P1 making. A lone animal's is 0, matching `centroid: null`.
+        centroidWeight: weight,
         nearestDistance: groupmates > 0 ? nearestMate : null,
         // How many of this animal's own **band** are in the centre it steers at
         // (P7). 0 for every animal that belongs to no record, which is most of

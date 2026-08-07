@@ -757,3 +757,96 @@ describe('migration: protocol, persistence, and the demo', () => {
     assert.deepEqual(captureSimulationState(b), captureSimulationState(a));
   });
 });
+
+/**
+ * The drift reaches a wander already under way (2026-08-06, A71).
+ *
+ * ⚠⚠ **The mechanism above was measured, documented and switched on, and for
+ * seven ticks out of every eight it was not being read.** A wander commitment
+ * lasts `minCommitTicks + commitTickSpan` ticks and the drift was blended in on
+ * exactly one of them — the tick it was freshly taken. So "0.5 × thirst, harder
+ * the thirstier" meant *once per commitment*, and "died of thirst having NEVER
+ * perceived water, roaming the whole map" was the largest class in the
+ * ethologist's report while the cue meant to prevent it looked healthy in every
+ * unit test. A65's shape: the recovery written where nobody reads it.
+ */
+describe('migration: the drift reaches a held commitment too (A71)', () => {
+  function heldEngine(holdBiasScale) {
+    const engine = sandbox({ seed: 3 });
+    engine.registerSystem(new PerceptionSystem(CONFIG.perception));
+    engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
+    engine.registerSystem(
+      new DecisionSystem({ ...CONFIG.decision, foodMinLevel: CONFIG.perception.foodMinLevel, holdBiasScale }),
+    );
+    return engine;
+  }
+
+  /** How far a wanderer's heading sits from the drift it is supposed to feel. */
+  function driftError(engine, id, ticks) {
+    engine.step(ticks);
+    const e = engine.world.entities.get(id);
+    return e.migrationHeading === null ? null : angleBetween(e.moveIntent.heading, e.migrationHeading);
+  }
+
+  test('⚠ a held commitment converges on the drift instead of ignoring it', () => {
+    // The same world twice, differing only in whether the held branch reads the
+    // drift. Run well past one commitment so both have re-committed several times
+    // and the *only* systematic difference is the ticks in between.
+    const on = heldEngine(0.15);
+    const off = heldEngine(0);
+    for (const engine of [on, off]) {
+      clearVegetation(engine);
+      // ⚠ Outside perception (5) and inside `cueRadius` (20) on purpose: this is a
+      // test of the long-range *cue*, and grass the animal can see makes it
+      // `seekFood`, whose heading points at the food by construction — both arms
+      // then read 0 error and the test passes for a reason that has nothing to do
+      // with the drift.
+      paintVegetation(engine, { minX: 48, minY: 20, maxX: 66, maxY: 44 });
+    }
+    const onId = spawn(on, { x: 32.5, y: 32.5, energy: 10 });
+    const offId = spawn(off, { x: 32.5, y: 32.5, energy: 10 });
+    assert.equal(on.world.entities.get(onId).action ?? 'wander', 'wander', 'the animal is wandering, not seeking');
+
+    const onError = driftError(on, onId, 40);
+    const offError = driftError(off, offId, 40);
+    assert.ok(onError !== null && offError !== null, 'both animals have a drift to feel');
+    assert.ok(onError < offError, `a read drift is a closer heading (${onError.toFixed(3)} vs ${offError.toFixed(3)})`);
+  });
+
+  test('⚠⚠ 0 is the control arm and is the pre-fix world exactly, not merely close', () => {
+    // The whole value of the switch. A control arm that is *nearly* the old
+    // behaviour cannot tell you what the mechanism did (D40).
+    const a = heldEngine(0);
+    const b = sandbox({ seed: 3 });
+    b.registerSystem(new PerceptionSystem(CONFIG.perception));
+    b.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
+    // No `holdBiasScale` at all — the constructor default, which must be 0.
+    b.registerSystem(new DecisionSystem({ ...CONFIG.decision, foodMinLevel: CONFIG.perception.foodMinLevel }));
+    for (const engine of [a, b]) {
+      clearVegetation(engine);
+      paintVegetation(engine, { minX: 48, minY: 20, maxX: 66, maxY: 44 });
+      spawn(engine, { x: 32.5, y: 32.5, energy: 10 });
+    }
+    a.step(60);
+    b.step(60);
+    assert.equal(
+      JSON.stringify(captureSimulationState(a)),
+      JSON.stringify(captureSimulationState(b)),
+      'an explicit 0 and an absent setting are the same world',
+    );
+  });
+
+  test('it still bends rather than aims — the A34 line, at the magnitude', () => {
+    // ⚠ Pinned deliberately, exactly as "the drift is a bias, not a beeline" above
+    // pins the fresh blend. This edit is the one that could quietly turn migration
+    // into a directed action, and the guard belongs here rather than five seeds
+    // into a sweep. A wanderer under a full-strength drift must still be visibly
+    // off it, because the jitter and the commitment are what make it a drift.
+    const engine = heldEngine(0.15);
+    clearVegetation(engine);
+    paintVegetation(engine, { minX: 48, minY: 20, maxX: 66, maxY: 44 });
+    const id = spawn(engine, { x: 32.5, y: 32.5, energy: 1 });
+    const error = driftError(engine, id, 30);
+    assert.ok(error > 1e-6, 'a drifting animal is not simply pointed at the cue');
+  });
+});

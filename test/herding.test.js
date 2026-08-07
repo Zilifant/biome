@@ -51,7 +51,7 @@ import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
-import { herdRadiiIn, herdRadiusOf } from '../src/simulation/social/herding.js';
+import { herdPackingFloor, herdRadiiIn, herdRadiusOf } from '../src/simulation/social/herding.js';
 import { bandAffinitiesIn, bandAffinityOf, bandWorthFor } from '../src/simulation/social/banding.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
@@ -685,5 +685,120 @@ describe('banding: the band drives the centre of mass (P2)', () => {
       return JSON.stringify(captureSimulationState(engine)).split(speciesId).join('test.species');
     };
     assert.equal(run(UNBANDED.id), run(PLAIN.id), 'parity weights are the pre-P2 arithmetic');
+  });
+});
+
+/**
+ * The packing floor (2026-08-06) — the number P1 left behind.
+ *
+ * ⚠⚠ **These tests exist because the mechanism above shipped half a change.**
+ * `herdRadius` widened *who* makes the centre of mass and nothing widened the
+ * distance an animal insists on standing within of it, so two hundred wildebeest
+ * closed on one point until `locomotion.maxOccupantsPerCell` refused 37.5% of
+ * their steps and they starved standing on forage. Every assertion here is about
+ * the arithmetic rather than about a population: the floor is pure, and a
+ * population reading of it would be measuring the seed (D14).
+ */
+describe('herding: a herd may not be asked to stand closer than it can fit (2026-08-06)', () => {
+  test('the floor is the radius that holds the herd at the occupancy cap, times the slack', () => {
+    // Hand-checked against the closed form rather than against the function: n
+    // bodies at c per cell need n/c cells, and a disc of that area has radius
+    // sqrt(n / (π c)). At slack 2 a herd of 100 at a cap of 2 wants ~7.98 units.
+    const closedForm = (n, c, slack) => slack * Math.sqrt(n / (Math.PI * c));
+    for (const [n, c, slack] of [
+      [100, 2, 2],
+      [16, 2, 2],
+      [8, 2, 2],
+      [50, 4, 1],
+      [12, 1, 3],
+    ]) {
+      assert.ok(
+        Math.abs(herdPackingFloor(n, c, slack) - closedForm(n, c, slack)) < 1e-12,
+        `floor(${n}, ${c}, ${slack}) is the closed form`,
+      );
+    }
+  });
+
+  test('⚠ at slack 2 it reproduces A83’s measured table of how tightly real bands stand', () => {
+    // The geometric calibration. A83 measured the *minimum* mean distance from
+    // centre a healthy record reaches, by member count, over 7000 ticks; a uniform
+    // disc of radius R has a mean radius of (2/3)R, so each is a disc of 1.5× it.
+    //
+    // ⚠ This pins the *geometry* at the shipped slack of 2. It is what says the
+    // number is calibrated rather than chosen — and it is the assertion that would
+    // fail first if somebody lowered the slack to quiet the herd consensus, which
+    // was measured, tempting on one seed, and worse on three. See
+    // `social/herding.js`.
+    //
+    // ⚠ The claim is deliberately weak — within 25% from eight members up — because
+    // the measurement is of real animals on a grid and the formula is of a disc.
+    // A tighter bound here would be overfitting to six numbers.
+    const measuredMeanDistance = [[8, 1.39], [12, 1.49], [16, 2.01]];
+    for (const [members, mean] of measuredMeanDistance) {
+      const observedRadius = 1.5 * mean;
+      const floor = herdPackingFloor(members, 2, 2);
+      assert.ok(
+        Math.abs(floor - observedRadius) / observedRadius < 0.25,
+        `at ${members} members the floor (${floor.toFixed(2)}) is near what real bands do (${observedRadius.toFixed(2)})`,
+      );
+    }
+  });
+
+  test('⚠⚠ slack 0 is the control arm and returns exactly zero', () => {
+    // The whole point of the switch: `max(declared, 0)` is the declared number for
+    // every finite double, so an arm with the floor off is the pre-fix arithmetic
+    // bit-for-bit rather than merely close to it.
+    assert.equal(herdPackingFloor(500, 2, 0), 0);
+    assert.equal(herdPackingFloor(500, 2, -1), 0, 'and a negative slack is off, not inverted');
+  });
+
+  test('no crowding cap means nothing to derive a floor from', () => {
+    // `maxOccupantsPerCell: null` *is* the cap being switched off, and a floor
+    // derived from a bound that does not exist would be a number invented here.
+    assert.equal(herdPackingFloor(500, null, 2), 0);
+    assert.equal(herdPackingFloor(500, 0, 2), 0);
+  });
+
+  test('a lone animal has no packing problem', () => {
+    // Guarded at `<= 1` rather than `< 2` because the input is a *weight*, not a
+    // headcount: a gazelle holding to a wildebeest herd contributes a fraction.
+    assert.equal(herdPackingFloor(0, 2, 2), 0);
+    assert.equal(herdPackingFloor(1, 2, 2), 0);
+    assert.ok(herdPackingFloor(1.5, 2, 2) > 0, 'and a fractional herd above the unit does');
+  });
+
+  test('it rises with the herd and falls with the cap, monotonically', () => {
+    // Monotone in both arguments is the property that makes it safe to tune: there
+    // is no herd size at which asking for more room gives you less.
+    let previous = 0;
+    for (const n of [2, 4, 8, 16, 32, 64, 128, 256]) {
+      const floor = herdPackingFloor(n, 2, 2);
+      assert.ok(floor > previous, `a herd of ${n} needs more room than one of half that`);
+      previous = floor;
+    }
+    assert.ok(herdPackingFloor(64, 4, 2) < herdPackingFloor(64, 2, 2), 'a looser cap needs less room');
+  });
+
+  test('⚠ the social summary publishes the weight the floor is a function of', () => {
+    // The floor is only as good as its input, and the input has to be the *same*
+    // number the centroid is divided by — a headcount here and a weighted sum there
+    // is the mistake P1's own accumulator note records making.
+    const engine = socialSandbox();
+    spawn(engine, WIDE.id, { x: 40, y: 40 });
+    spawn(engine, WIDE.id, { x: 44, y: 40 });
+    const focus = spawn(engine, WIDE.id, { x: 48, y: 40 });
+    engine.step(1);
+    const summary = summaryOf(engine, focus);
+    assert.equal(summary.centroidWeight, 2, 'two conspecifics inside the herd radius');
+    assert.ok(summary.centroid, 'and they are the centre it steers at');
+  });
+
+  test('an animal standing alone reports a weight of zero, matching its null centroid', () => {
+    const engine = socialSandbox();
+    const alone = spawn(engine, WIDE.id, { x: 40, y: 40 });
+    engine.step(1);
+    const summary = summaryOf(engine, alone);
+    assert.equal(summary.centroidWeight, 0);
+    assert.equal(summary.centroid, null, 'the two agree — there is nobody to be held by');
   });
 });

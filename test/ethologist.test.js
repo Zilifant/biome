@@ -33,9 +33,11 @@ import {
   commitmentCeilingsOf,
   accumulateHold,
   accumulateBand,
+  accumulateBlocked,
   lifeReview,
   D,
   HOLD_ACTIONS,
+  SEARCH_ACTIONS,
 } from '../src/scripts/ethologist.js';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 
@@ -151,6 +153,14 @@ function tracker(overrides = {}) {
     everSawMate: true,
     groupChanges: 0,
     bbox: () => 'x[0..1] y[0..1]',
+    // Detector 4e's counters. ⚠ Present here for exactly the reason the two above
+    // are: a tracker missing a counter makes every arithmetic detector fire on
+    // `NaN`-flavoured nonsense or, worse, pass vacuously.
+    committedTicks: 0,
+    blockedTicks: 0,
+    blockedRun: 0,
+    blockedRunMax: 0,
+    crowdLockedTicks: 0,
     ...overrides,
   };
 }
@@ -555,5 +565,194 @@ describe('ethologist: sprinting on a budget nobody is keeping', () => {
       CTX,
     );
     assert.deepEqual(found, []);
+  });
+});
+
+/**
+ * Detector 4e — `movement-denied` (2026-08-06).
+ *
+ * ⚠⚠ **The detector this tool needed one phase before it had it.** A cohesion
+ * change packed the two largest grazers tighter than
+ * `locomotion.maxOccupantsPerCell` allows; 37.5% of wildebeest steps were refused
+ * against 4.7% before it, they starved standing on forage, and the population fell
+ * 57%. This tool reported the deaths (`starved with 122 biomass within 2c`) and one
+ * buffalo with `294 refused steps` — the lead was in the output and no detector was
+ * triggering on it. Same shape as A83, arriving immediately after A83.
+ */
+describe('ethologist: an animal that keeps asking to move and keeps not moving', () => {
+  test('⚠ a healthy refusal rate is not a finding — the calibration, as an assertion', () => {
+    // 3–5% is what every species on the demo measures (seed 2, t2000–4200),
+    // including at rocks=6 thickets=8 where terrain does the blocking. A detector
+    // that fires here is the `circling-in-need` history repeating.
+    const found = lifeReview(animal(), tracker({ committedTicks: 4000, blockedTicks: 200 }), 5000, CTX);
+    assert.equal(found.find((f) => f.kind === 'movement-denied'), undefined, '5% is a working world');
+  });
+
+  test('the regression that caused it fires, and says the rate out loud', () => {
+    const hit = lifeReview(
+      animal(),
+      // The measured wildebeest numbers: 37.5% of committed steps going nowhere.
+      tracker({ committedTicks: 4000, blockedTicks: 1500, blockedRunMax: 88, crowdLockedTicks: 900 }),
+      5000,
+      CTX,
+    ).find((f) => f.kind === 'movement-denied');
+    assert.ok(hit, 'a world an animal cannot walk in is reported');
+    assert.match(hit.detail, /38%/, 'the rate is in the detail, not just the severity');
+    assert.match(hit.detail, /against 3–5% in a healthy world/, 'and so is what healthy looks like');
+  });
+
+  test('⚠⚠ it names bodies or terrain, because the fix for each is a different file', () => {
+    const crowd = lifeReview(
+      animal(),
+      tracker({ committedTicks: 1000, blockedTicks: 500, crowdLockedTicks: 400 }),
+      5000,
+      CTX,
+    ).find((f) => f.kind === 'movement-denied');
+    assert.match(crowd.detail, /other animals/, 'crowding points at the cohesion target');
+    assert.match(crowd.detail, /herdPackingSlack/, 'and names the bound that governs it');
+
+    const terrain = lifeReview(
+      animal(),
+      tracker({ committedTicks: 1000, blockedTicks: 500, crowdLockedTicks: 0 }),
+      5000,
+      CTX,
+    ).find((f) => f.kind === 'movement-denied');
+    assert.match(terrain.detail, /terrain \(A66\)/, 'and with no crowd-lock it is the known terrain residual');
+  });
+
+  test('⚠ it fires on the mechanism rather than on crowding, so it cannot be fixed into silence', () => {
+    // Deliberate: a detector keyed on crowding would go quiet the moment somebody
+    // fixed crowding, leaving the next cause of the same failure unwatched.
+    const hit = lifeReview(
+      animal(),
+      tracker({ committedTicks: 1000, blockedTicks: 500, crowdLockedTicks: 0 }),
+      5000,
+      CTX,
+    ).find((f) => f.kind === 'movement-denied');
+    assert.ok(hit, 'no crowd-lock at all still fires on the rate');
+  });
+
+  test('a short life is not evidence', () => {
+    const found = lifeReview(
+      animal(),
+      tracker({ committedTicks: D.blockedMinCommitted - 1, blockedTicks: D.blockedMinCommitted - 1 }),
+      5000,
+      CTX,
+    );
+    assert.equal(found.find((f) => f.kind === 'movement-denied'), undefined, 'forty ticks behind a rock is not a finding');
+  });
+
+  test('an animal that never asked to move cannot be denied', () => {
+    // The zero denominator, and it must not be a divide-by-zero or a 0/0 severity.
+    const found = lifeReview(animal(), tracker({ committedTicks: 0, blockedTicks: 0 }), 5000, CTX);
+    assert.equal(found.find((f) => f.kind === 'movement-denied'), undefined);
+  });
+
+  test('severity rises with the rate and saturates, so it cannot take over the shortlist', () => {
+    const at = (blocked) =>
+      lifeReview(animal(), tracker({ committedTicks: 1000, blockedTicks: blocked }), 5000, CTX)
+        .find((f) => f.kind === 'movement-denied').severity;
+    assert.ok(at(300) < at(600), 'a worse rate is a worse finding');
+    assert.ok(at(600) < at(1000));
+    assert.ok(at(1000) <= 12, 'and the ceiling holds at total denial — the lesson of the 152-point lion');
+  });
+
+  describe('the accumulator that feeds it', () => {
+    const moving = (extra = {}) => animal({ moveIntent: { moving: true, ...extra } });
+
+    test('a step that went nowhere is blocked; one that moved is not', () => {
+      const tr = tracker();
+      accumulateBlocked(tr, moving(), 0, false);
+      assert.deepEqual(
+        [tr.committedTicks, tr.blockedTicks, tr.blockedRunMax],
+        [1, 1, 1],
+        'committed and went nowhere',
+      );
+      accumulateBlocked(tr, moving(), 5, false);
+      assert.deepEqual([tr.committedTicks, tr.blockedTicks, tr.blockedRun], [2, 1, 0], 'and the run resets on travel');
+    });
+
+    test('⚠ a stationary action is not a refusal — eating is not being stuck', () => {
+      const tr = tracker();
+      accumulateBlocked(tr, moving(), 0, true);
+      assert.equal(tr.blockedTicks, 0, 'standing still on purpose is not being denied');
+      assert.equal(tr.committedTicks, 1, 'though it did hold an intent');
+    });
+
+    test('an animal with no intent at all touches neither counter', () => {
+      const tr = tracker();
+      accumulateBlocked(tr, animal({ moveIntent: null }), 0, false);
+      assert.deepEqual([tr.committedTicks, tr.blockedTicks], [0, 0]);
+    });
+
+    test('⚠⚠ a crowd-locked tick reaches BOTH counters, or the fix hides the symptom', () => {
+      // The single most important assertion in this block. The engine's crowd-lock
+      // branch reports `moving: false`, so the naive reading drops the tick from
+      // the denominator *and* the numerator — and a world jamming harder would
+      // report a **falling** refusal rate. The fix hiding the symptom from the
+      // instrument added to watch for it.
+      const tr = tracker();
+      accumulateBlocked(tr, animal({ moveIntent: { moving: false, crowdLocked: true } }), 0, false);
+      assert.equal(tr.committedTicks, 1, 'it asked to go somewhere');
+      assert.equal(tr.blockedTicks, 1, 'and it did not get there');
+      assert.equal(tr.crowdLockedTicks, 1, 'and the cause is attributed');
+      assert.equal(tr.blockedRunMax, 1);
+    });
+
+    test('⚠ a crowd-locked tick counts even though the action is stationary', () => {
+      // The stationary exemption is about *choosing* to stand still. A crowd-locked
+      // animal did not choose it, and the two must not be confused — this is the
+      // one path where the exemption would silently swallow the finding.
+      const tr = tracker();
+      accumulateBlocked(tr, animal({ moveIntent: { moving: false, crowdLocked: true } }), 0, true);
+      assert.equal(tr.blockedTicks, 1, 'being hemmed in is not resting');
+    });
+
+    test('the longest run is the longest run, not the last one', () => {
+      const tr = tracker();
+      for (let i = 0; i < 5; i += 1) accumulateBlocked(tr, moving(), 0, false);
+      accumulateBlocked(tr, moving(), 9, false); // breaks it
+      for (let i = 0; i < 2; i += 1) accumulateBlocked(tr, moving(), 0, false);
+      assert.equal(tr.blockedRunMax, 5, 'a later shorter run does not overwrite it');
+      assert.equal(tr.blockedRun, 2, 'while the live run is the live one');
+      assert.equal(tr.blockedTicks, 7, 'and the total is every blocked tick');
+    });
+  });
+});
+
+/**
+ * `circling-in-need` and the action it should never have counted (2026-08-06).
+ *
+ * The detector's whole job is to tell "stuck" apart from "doing its job in a home
+ * range", and the 2026-07-31 recalibration added the search-fraction term to do
+ * it. That term then included `wander` \u2014 the action an animal takes when it has
+ * no other drive at all \u2014 so it was satisfied by the resting state of every
+ * predator and scavenger in the world and by almost nothing a grazer does.
+ */
+describe('ethologist: what counts as searching', () => {
+  test('\u26a0\u26a0 wander is not a search \u2014 it is the absence of one', () => {
+    // The one-line change, asserted directly because the whole regression was a
+    // single set membership. Measured share of ticks spent wandering: leopard
+    // 94.5%, hyena 73.8%, vulture 64.8%, lion 55.9% \u2014 so with `wander` in this
+    // set, `searchFraction >= 0.6` was those species' baseline and the detector
+    // flagged 53\u2013100% of every one of them in every world.
+    assert.equal(SEARCH_ACTIONS.has('wander'), false, 'an animal with nothing to do is not searching');
+  });
+
+  test('a directed search for food or water still counts', () => {
+    // The negative half: emptying the set would also silence the detector, and
+    // would look identical from a clean report.
+    for (const action of ['seekFood', 'seekWater', 'recallFood', 'recallWater']) {
+      assert.equal(SEARCH_ACTIONS.has(action), true, `${action} is an animal looking for something`);
+    }
+  });
+
+  test('\u26a0 and the actions that mean "staying put on purpose" are still excluded', () => {
+    // `patrol`, `herd` and `tend` are an animal in its home range; `stalk`,
+    // `chase` and `defend` have targets that move evasively, which is why A83
+    // records them as deliberately outside every seek and circling detector.
+    for (const action of ['patrol', 'herd', 'tend', 'rest', 'stalk', 'chase', 'defend', 'eat', 'drink']) {
+      assert.equal(SEARCH_ACTIONS.has(action), false, `${action} is not a search`);
+    }
   });
 });

@@ -169,6 +169,15 @@ export function registerDemoSystems(engine) {
       // decision time. Wired from their real home so there is no second copy to
       // drift (D11) — the system's copy is only the unknown-species fallback.
       foodMinLevel: engine.config.perception.foodMinLevel,
+      // ⚠⚠ **The herd's packing floor** (2026-08-06), from `config.social` — the
+      // section that owns the cohesion radius whose partner it is — and from
+      // `config.locomotion`, which owns the cap it is derived from. Two sections,
+      // one number, wired from both real homes rather than restated (D11): the
+      // floor is meaningless without the cap, and the cap is not this system's to
+      // define. ⚠ It is already spread in as part of `config.decision`'s
+      // `maxOccupantsPerCell` below; this line is the *slack*, which is the half
+      // that can be switched off for a control arm.
+      herdPackingSlack: engine.config.social.herdPackingSlack,
       // Forage guilds (PLAN-SPECIES.md §3.3): whether `eat` and `seekFood` are
       // discounted by how well a cell's grass maturity suits the species, and how
       // little the worst-matched grass is worth. From `config.forage`, which is
@@ -185,6 +194,15 @@ export function registerDemoSystems(engine) {
       // `false` every tick for every animal and every reader is the identity.
       flight: engine.config.flight.enabled,
       drinkRange: engine.config.hydration.drinkRange,
+      // ⚠ The distance `seekMate` stops at, from `config.reproduction` — the same
+      // number `ReproductionSystem` pairs within, wired rather than restated (D11).
+      matingRange: engine.config.reproduction.matingRange,
+      // ⚠ **From `config.migration`, not `config.decision`** (2026-08-06, A71),
+      // even though the line it acts on lives in this system: it is a property of
+      // the migration cue — how much of the drift is read — and it belongs beside
+      // `biasWeight` and `waterBiasWeight`, which bound the same drift at the other
+      // end. One mechanism, one config section, one place to switch it off.
+      holdBiasScale: engine.config.migration.holdBiasScale,
       carcassRange: engine.config.feeding.carcassRange,
       // Carcass possession lives in `config.carcass` and is read by two systems
       // — this one asks whether a body is worth walking to, the feeding system
