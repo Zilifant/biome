@@ -80,10 +80,13 @@ export const herbivoreZebra = Object.freeze({
   // `maxMembers`, `leavingSex: 'male'`) lives in `config.groups`; a species only
   // says whether it takes part.
   groups: Object.freeze({ forms: true }),
-  // Two bands of eight (`config.cohorts`), and the size is `config.groups.maxMembers`
-  // on purpose: a founding cluster larger than the cap would place animals
-  // together that the registry then refuses to enrol, which reads as a bug in
-  // the registry rather than as the arithmetic it is.
+  // Founders are packed into clusters of this size in roster order
+  // (`config.cohorts`) — on `default-small`'s 50 zebra, six bands of eight and a
+  // pair (2026-08-07; the line read "two bands of eight" until then, which
+  // described the 222-animal world). The size is `config.groups.maxMembers` on
+  // purpose: a founding cluster larger than the cap would place animals together
+  // that the registry then refuses to enrol, which reads as a bug in the registry
+  // rather than as the arithmetic it is.
   // ⚠ The spread is tighter than any herbivore that only aggregates, because a
   // *record* is founded from two animals within `groups.joinRadius` (6) with no
   // hop chaining — unlike the herd label, which crosses a loose group in hops.

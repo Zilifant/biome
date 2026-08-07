@@ -849,9 +849,35 @@ describe('consensus: persistence and the off arm', () => {
       if (['herbivore.wildebeest', 'herbivore.buffalo'].includes(entity.speciesId)) declaring += 1;
     }
     assert.ok(committed > declaring * 0.5, `most of the declaring roster is committed (${committed} of ${declaring})`);
-    // A front, not a smear: a label whose members hold many different headings is a
-    // rolling average, which is exactly what the re-decision rule exists to refuse.
-    const shared = [...byLabel.values()].filter((headings) => headings.size === 1).length;
-    assert.ok(shared > byLabel.size * 0.5, `most labels hold one heading (${shared} of ${byLabel.size})`);
+
+    // A front, not a smear: if every animal averaged its own neighbours every
+    // tick, each would hold its own heading and there would be one distinct
+    // heading per committed animal. Sharing is the claim, so the ratio of
+    // distinct headings to committed animals is what gets measured — 1.0 is the
+    // smear this mechanism exists to refuse.
+    //
+    // ⚠⚠ **This counted *labels holding exactly one heading* until 2026-08-07,
+    // and that metric could not survive a change of world.** It weighted a label
+    // of 1 the same as a label of 24, and — because members re-decide on
+    // staggered clocks — a single animal one tick into a fresh commitment gave a
+    // 24-strong label two distinct headings and scored it a failure. So the
+    // number it produced was really "how many labels are small", and it fell as
+    // soon as `default-small`'s higher density made labels bigger. It was already
+    // on a knife edge before that: measured 2026-08-07 on the crater world it
+    // reads 74% on seed 42 (the only seed asserted) but **exactly 50% on seed 1**,
+    // which this `> 0.5` bar fails. It was one seed away from a red build.
+    //
+    // The ratio below is stable across both worlds and five seeds, measured
+    // 2026-08-07 at 600 ticks — `default-small` 0.226 / 0.308 / 0.207 / 0.338 /
+    // 0.225 on seeds 42/1/2/3/7, and the crater 0.166 / 0.235 / 0.273 / 0.247 /
+    // 0.176 on the same seeds. The bar is 0.5, which every reading clears by at
+    // least 1.5× while a per-animal rolling average sits at 1.0.
+    let distinctHeadings = 0;
+    for (const headings of byLabel.values()) distinctHeadings += headings.size;
+    const perAnimal = distinctHeadings / committed;
+    assert.ok(
+      perAnimal < 0.5,
+      `a label's members share headings (${distinctHeadings} distinct across ${committed} committed animals = ${perAnimal.toFixed(3)} each; 1.0 is a per-animal smear)`,
+    );
   });
 });

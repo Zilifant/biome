@@ -91,16 +91,17 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 |                       |                                                        |
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
-| Tests                 | **1327 passing / 0 failing, 326 suites** _(2026-08-06, after BEHAVIOR-PLAN P10: +17 in the new `test/protocol-v34.test.js` — the version/renderer/fixture agreement, a hand-checked plain-mean group centre, that centre surviving `rallyEnabled: false` **in both arms**, a dead-but-listed member excluded while a merely separated one still counts, `leaderId` flipping to the senescent animal at `leadAgeWeight: 0.5` and to the prime adult at 0, inspecting every animal leaving the save byte-identical, the four consensus fields against 25 live commitments, a commitment whose label disagrees with its herd, a projected pursuit, the `pullScale` unit guard, band spread hand-checked and distinguishing a packed band from a strung-out one, a record of one contributing no spread, and `saturated` in both arms)_. ⚠ The run is `npm test`, TAP: 1332 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1310 passing / 0 failing, 321 suites** _(2026-08-06, after BEHAVIOR-PLAN P9: +14 in `test/cooperation.test.js` — the charge and its walking control, the self-ward refusal, the stamina reserve, a commitment outliving its ward and expiring on schedule, the world's ceiling on `pursuitTicks`, flee winning against a second threat, and a save round-trip that then runs on identically)_. ⚠ The run is `npm test`, TAP: 1315 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. ⚠ P9 also **widened `test/cooperation.test.js`'s batch-2 seed list from four to six**, which costs two more 6000-tick demo runs and takes its thinnest cell from a 3-against-3 coin flip to n=10. Was **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
+| Tests                 | **1386 passing / 0 failing, 336 suites** _(2026-08-07, after the demo became `default-small`: +1 in `test/cohorts.test.js` for the stranded fifth lion this roster produces)_. ⚠ The run is `npm test`, TAP: 1391 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for; they pass **20/20** run alone. ⚠⚠ **Three suites were recalibrated in that change and two of them were asserting something false**, each documented in place. (1) `test/groups.test.js` asserted a record can never hold one member — which contradicts `groups.dissolveGraceTicks: 300` (A56/P5a, 2026-08-05), whose entire purpose is to let a record survive below `minMembers`. It had passed for two days by luck, because no record on seed 42 happened to be inside its grace window at tick 1500. It now asserts the grace clock rather than its absence. (2) `test/consensus.test.js` counted *labels holding exactly one heading*, which weighted a label of 1 the same as a label of 24 and scored a 24-strong band a failure when one member was a tick into a fresh commitment — it measured "how many labels are small". It was already one seed from red: on the crater world it reads 74% on seed 42 (the only seed asserted) and **exactly 50% on seed 1**, which its own `> 0.5` bar fails. Replaced by distinct headings per committed animal, which reads 0.21–0.34 on `default-small` and 0.17–0.27 on the crater across five seeds against 1.0 for a true smear. (3) `test/cohorts.test.js` required `>= 2` records per forming species, which was a claim about the crater's founder counts rather than about the mechanism; the bar is now derived from the roster and the cohort size. Was **1327 passing / 0 failing, 326 suites** _(2026-08-06, after BEHAVIOR-PLAN P10: +17 in the new `test/protocol-v34.test.js` — the version/renderer/fixture agreement, a hand-checked plain-mean group centre, that centre surviving `rallyEnabled: false` **in both arms**, a dead-but-listed member excluded while a merely separated one still counts, `leaderId` flipping to the senescent animal at `leadAgeWeight: 0.5` and to the prime adult at 0, inspecting every animal leaving the save byte-identical, the four consensus fields against 25 live commitments, a commitment whose label disagrees with its herd, a projected pursuit, the `pullScale` unit guard, band spread hand-checked and distinguishing a packed band from a strung-out one, a record of one contributing no spread, and `saturated` in both arms)_. ⚠ The run is `npm test`, TAP: 1332 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1310 passing / 0 failing, 321 suites** _(2026-08-06, after BEHAVIOR-PLAN P9: +14 in `test/cooperation.test.js` — the charge and its walking control, the self-ward refusal, the stamina reserve, a commitment outliving its ward and expiring on schedule, the world's ceiling on `pursuitTicks`, flee winning against a second threat, and a save round-trip that then runs on identically)_. ⚠ The run is `npm test`, TAP: 1315 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. ⚠ P9 also **widened `test/cooperation.test.js`'s batch-2 seed list from four to six**, which costs two more 6000-tick demo runs and takes its thinnest cell from a 3-against-3 coin flip to n=10. Was **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
 | `PROTOCOL_VERSION`    | **34** _(2026-08-06)_ — the social mechanisms BEHAVIOR-PLAN built become **inspectable** (P10): a group's derived `centre` and `leaderId`, the three steering commitments (`social.consensus`, `social.rally`, `social.charge`), and `social.nearby`'s `pullScale` and `bandmates`. ⚠ **Nothing new rides in a bulk snapshot** — every addition is inspection-only, which is the same standing test as v33 answered the other way: these are one-animal questions, and three of the four blocks are null for most of the world. ⚠ It is the version bump the **fixtures** were waiting for: six behavioural phases (P1, P2, P3, P7, P8, P9) had landed since the last regeneration, and DOCS §12's rule is to regenerate after the last behavioural change rather than at the bump. v33 was `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
 | `SAVE_FORMAT_VERSION` | **34** _(2026-08-06)_ — the charge and the pursuit after it (BEHAVIOR-PLAN P9): three per-entity fields (`defendUntil`, `defendThreatX`, `defendThreatY`), a new `config.charge` section, and two new `config.behavior` weights. ⚠ **No system descriptor changed** — a charge is two lines inside `DecisionSystem`, not a system — so unlike v33 the only things invalidating a v33 save are the fields and the config, which is exactly the case §12 says to bump for. v33 was the herd movement consensus (BEHAVIOR-PLAN P8): four per-entity fields (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the `HerdConsensusSystem` descriptor, the new `config.consensus` section, and `config.groups.leadWeight`. ⚠ This is the first per-entity *drift* here that genuinely must be saved, and the contrast with P7's deliberately-transient `rallyHeading` is the reason: a commitment exists precisely to outlive its cue, so a restore that dropped it would put a marching herd back on its individual noses. v32 was A56's `belowMinSince` (P5a), where a v31 record would have restored as `undefined` and never dissolved. v31 was `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
-| Benchmark (large-5k)  | **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
-| Demo world            | **`ngorongoro-500-10x`** _(2026-08-04)_ — 332×280, `terrain.roundness: 4` (the crater's rim), terrain formation counts doubled, and a **~500-animal roster at the real caldera's herbivore ratios** (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9). Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15). ⚠⚠ **The provenance changed with it**: the old counts were a swept knife edge, these are an observed census scaled. Swept 2026-08-04 (10 seeds × 15 000 ticks): the four grazers and the lion are alive on **10/10** seeds, the hyena on 7/10, and the **leopard and vulture on 1/10** — accepted rather than re-tuned, because as of this date **the demo is no longer maintained as a knife edge** (§1.4 **A81**). Survival readings elsewhere in this document that predate it describe the old world. ⚠ The server boots it (`SIM_SEED` default 42 → **2**, the seed the preset names); the tests, the benchmark and the committed renderer fixtures still build on seed 42 and are unaffected. Booting the demo and loading `presets/ngorongoro-500-10x.json` are byte-identical at 50 ticks |
+| Benchmark (large-5k)  | **167.51 ms/tick** _(2026-08-07, `default-small`, 9649→11122 at 2000 ticks)_ against 133.73 on 2026-08-04 — ⚠⚠ **drift, not a regression, and measured rather than assumed.** The only thing in that change reaching the scale scenarios is `config.terrain`, which they inherit, so the formation counts going 10/10/16/120 → 18/18/24/180 was A/B'd interleaved on large-5k (three alternating pairs, 500 ticks each): **142.94 new against 149.62 old** — the new counts measure *faster*, while the old arm alone swings 132.50–169.43 on a byte-identical config. No effect to measure, which is what absolute formation counts on a 1M-cell map predict. ⚠ The run's real finding is that this machine is drifting nearer **±25%** than the ±10% §13 records, so cross-day large-5k readings are unusable without a same-session baseline. `demo-default` reads **3.0726** on 230×180 holding 263 (was 5.5224 on the crater) — that row follows the demo and is meant to move. Earlier: **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
+| Demo world            | **`default-small`** _(2026-08-07)_ — 230×180, `terrain.roundness: 4`, terrain formation counts 18/18/24/180, and a **263-animal roster** (gazelle 30, wildebeest 100, zebra 50, buffalo 50, leopard 3, lion 5, vulture 5, hyena 20). ⚠ **One world for everything**: the server boots it, `npm run benchmark`'s `demo-default` scenario measures it, `npm run ethologist` sweeps it, and every test calling `createDemoSimulation()` gets it. The server's `SIM_SEED` default is **4** (the seed the preset names); everything else still builds on seed 42, sharing the *composition* and deliberately not the seed. Booting the demo and loading `presets/default-small.json` are byte-identical at 50 ticks. Terrain mix, 5 seeds: ground 66.3%, rock 23.9%, tree 2.61%, cover 2.57%, thicket 2.20%, water 1.59%, deep water 0.77%. ⚠⚠ **It has NOT been through the §20 ten-seed gate and the crater's readings do not transfer** — the map is 0.37× the area against 0.53× the headcount (density up ~1.4×), the terrain is denser again, and three counts moved *against* the trend (hyena 9 → 20, vulture held at 5 while every grazer fell). The crater sweep's headline was that the leopard and vulture were effectively gone; every input to it has moved. `npm run sweep` on ten seeds is the reading to take, and A81's doctrine still holds — it is a reading to record, not a bar to pass. ⚠ Two structural facts of this roster, both asserted in `test/cohorts.test.js`: **5 lions at `cohort.groupSize: 4` found one pride and strand a fifth animal**, and the hyena's 20 leave a remainder pair that starts on the dissolve-grace clock. Was `ngorongoro-500-10x` _(2026-08-04 – 2026-08-07)_ — 332×280 and ~500 animals at the real caldera's herbivore ratios (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9), swept 10 × 15 000 with the four grazers and the lion on **10/10** seeds, the hyena on 7/10 and the **leopard and vulture on 1/10**. Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15), a swept knife edge. Survival readings elsewhere in this document describe one of those two worlds, never this one |
+| Terrain prevalence    | ⚠⚠ **The 0–10 `rocks`/`thickets`/`trees` scale was pinned to fixed formation counts on 2026-08-07** (`FORMATION_COUNT_AT_DEFAULT` in `src/fixtures/createDemoSimulation.js`): level 4 is 10 ridges / 10 thickets / 16 groves / 120 singles, permanently. It used to be *derived* from `defaultSimulationConfig.terrain`, which made "level 4 reproduces the demo's own terrain" true by construction — but that rule and "a stored preset keeps the terrain it was saved with" are only compatible while the demo's four counts move by one uniform factor. They did in 2026-08-04's doubling (and the anchor moved 2 → 4 with them); `default-small` moved rock and thicket ×1.8 and the tree counts ×1.5, so no anchor could absorb both. The demo-equality rule was dropped in favour of the fixed scale, because a scale whose units shift under stored files measures nothing. ⚠ **Consequence**: the demo's own terrain is level **7/7/6**, not the dropdowns' default, so restarting from the renderer with the terrain controls untouched gives a sparser world than the one that booted. `test/runner.test.js` asserts the fixed mapping against literals — deliberately, since the claim is now that these values *do not move* |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
 | Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **fifteen** always-per-species **fields**: `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`, `forage`, `habitat`, `association`, `associationPull` (2026-08-05), `crypsis`, `climbs`, `flight`, `cohort`, and `initialEnergyFraction`. ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all fifteen fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association` / `associationPull`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
 | Flight                | **A pace on the intent, not a simulation of flight** — `entity.flying`, added 2026-08-04 (phase F1). Faster travel with the terrain modifier bypassed, a wider sight radius, cheaper distance, nothing refusing the step, and out of reach of predation and fire. No altitude, no thermals, no takeoff cost. The **vulture** is the only flier (phase F2), and its ground radius dropped 14 → 9 so that flying restores exactly the 14 it had — the world's widest radius does not move. See §9 Movement |
-| Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, shade + light concealment + near-open going. ⚠ **0.98% of the demo map since 2026-08-04**, against 2.45% before it (5 seeds each): the formation counts doubled but the map grew 4.84×, and tree, thicket and rock formations are absolute **counts** rather than densities. Full mix now, old in brackets: ground 71.1 [87.8], rock 22.1 [1.9] — almost all of it the rim — cover 2.60 [3.35], water 1.83 [1.87], tree 0.98 [2.48], deep water 0.78 [0.85], thicket 0.56 [1.69]. `coverPatchDensity` is the one that is per-area, and it is the one that held. ⚠ Proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4). See §7 Terrain |
+| Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, shade + light concealment + near-open going. ⚠⚠ **Tree, thicket and rock formations are absolute counts, not densities**, which is why this row has been rewritten twice: the same counts on a different map are a different world. Measured 2026-08-07 on `default-small` (230×180, counts 18/18/24/180), with the crater (332×280, 10/10/16/120) and the 160×120 world in brackets, 5 seeds each: ground **66.3** [71.1, 87.8], rock **23.9** [22.1, 1.9] — almost all of it the rim — tree **2.61** [0.98, 2.48], cover **2.57** [2.60, 3.35], thicket **2.20** [0.56, 1.69], water **1.59** [1.83, 1.87], deep water **0.77** [0.78, 0.85]. ⚠ Tree and thicket are back to roughly their 160×120 shares after nearly vanishing in the crater — raising the counts 1.8×/1.5× onto a map with 0.37 the cells is a ~4–5× density change, and it is the single largest difference between this world and the one before it. `coverPatchDensity` is the one quantity expressed per-area, and it is the one that has held across all three. ⚠ Trees were proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4) — on the 160×120 world. See §7 Terrain |
 | Crowding cap          | **on** — `locomotion.maxOccupantsPerCell: 2` (§7 Movement) |
 | Git                   | Species phases 0–14 are **committed** — `9fceb4d phase 12` and `83a6dd9 phase 14`, ⚠ the latter carrying phases 13 and 14 together (the user handles git) |
 
@@ -803,13 +804,37 @@ does not need.** Every row is a decision, not a backlog item.
 
 ### 1.4 Structural and configuration debt
 
-**A81 — Three species do not persist in the new demo, and the demo is no longer
-held to a knife edge** _(2026-08-04)_. The demo became the `ngorongoro-500-10x`
-world on that date — 332×280, `roundness: 4`, the four terrain formation counts
-doubled, and ~500 animals at the real crater's herbivore ratios (gazelle 60,
-wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9),
-replacing 222 animals on a 160×120 rectangle. The counts it replaced were a
-**swept knife edge**; these are an **observed census scaled**.
+**A81 — Three species did not persist in the crater demo, and the demo is no
+longer held to a knife edge** _(2026-08-04)_. The demo became the
+`ngorongoro-500-10x` world on that date — 332×280, `roundness: 4`, the four terrain
+formation counts doubled, and ~500 animals at the real crater's herbivore ratios
+(gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5,
+hyena 9), replacing 222 animals on a 160×120 rectangle. The counts it replaced were
+a **swept knife edge**; these are an **observed census scaled**.
+
+⚠⚠ **That world stopped being the demo on 2026-08-07**, when the default became
+`default-small` (230×180, `roundness: 4`, terrain counts 18/18/24/180, 263
+animals). **Everything below is a reading on a world this repo no longer builds by
+default.** It is kept because a reading belongs to the world it was taken in, and
+the open work is to take the equivalent reading on the current one: `npm run
+sweep`, ten seeds. Do not carry these numbers across — the map is 0.37× the area
+against 0.53× the headcount, so density is up ~1.4×; the terrain is denser again;
+and three counts moved *against* the trend (hyena 9 → 20, vulture held at 5 while
+every grazer fell, leopard held at 3 on a much smaller map).
+
+⚠⚠ **And the lever this item recommends has, incidentally, been pulled.** The
+argument below is that terrain density is a likelier cause than founder counts,
+because tree and thicket had nearly vanished as a share of the crater and the two
+collapsed species are the tree-caching ambusher and the tree-roosting scavenger; it
+proposes `npm run sweep -- --rocks=8 --thickets=8` as the one-command test.
+`default-small` runs 18/18 rock and thicket formations and 24/180 trees on a map
+with 0.37 the cells, which puts **tree back to 2.61% of the map and thicket to
+2.20%** — ~2.7× and ~3.9× their crater shares, and roughly their 160×120 shares.
+So the next sweep *is* substantially that experiment. ⚠ It is not a clean one: the
+roster and the map moved in the same change, so a leopard that recovers cannot be
+attributed to the trees alone. A clean arm is still available and still cheap —
+`npm run sweep --set=terrain.ridges=10 --set=terrain.thickets=10` against the
+default — and it is worth running beside the plain sweep rather than instead of it.
 
 ⚠⚠ **Swept 2026-08-04, 10 seeds × 15 000 ticks** (`npm run sweep`), final
 populations as mean across seeds:
@@ -1420,11 +1445,18 @@ every species except the gazelle at 9/10 (lost on seed 1 at t14384, in the last
 +0.9, hyena −0.3, leopard −0.4, zebra −3.8, vulture −30.1 (371 vs 401), and
 ⚠ **gazelle −15.4 (60.7 against 76.1)**.
 
-⚠ **All of the above was measured on the 160×120 demo.** On the ngorongoro world
-(2026-08-04) the same `8/60`-doubled counts come to **0.98% of the map**, because
-they are counts and the map is 4.84× larger — so every share in this section
-roughly halves, and the sheltering-ground figure with it. See §1.4 **A81**, where
-that thinning is the leading suspect for the leopard and the vulture dying out.
+⚠ **All of the above was measured on the 160×120 demo**, and the tree *share* has
+moved twice since, in opposite directions, while the mechanism has not been
+re-measured on either world. On the ngorongoro world (2026-08-04) the same
+`8/60`-doubled counts came to **0.98% of the map**, because they are counts and the
+map was 4.84× larger — every share in this section roughly halved, and the
+sheltering-ground figure with it. See §1.4 **A81**, where that thinning is the
+leading suspect for the leopard and the vulture dying out. On `default-small`
+(2026-08-07) the counts went to `24/180` on a map 0.37× the crater's, which brings
+trees back to **2.61%** — slightly *above* the 2.45% this section's numbers were
+taken at. ⚠ So the readings here are closer to describing the current world than
+they have been since 2026-08-04, and that is a reason to re-run the arm rather
+than to quote them: the roster changed at the same time.
 
 ⚠ **The gazelle number is recorded rather than tuned around, and what is *not*
 established about it matters.** Total gazelle deaths are the same in both arms
@@ -1632,7 +1664,10 @@ not been re-measured there, and this A/B's numbers belong to the 160×120 world.
 
 ⚠ **Only ~26% of leopard kills get cached**, because a tree has to be within
 `cacheHaulDistance` and trees are 2.45% of the map. That is the same ceiling A57
-and the ambush both hit, from a third direction.
+and the ambush both hit, from a third direction. ⚠ Trees are **2.61%** of
+`default-small` (2026-08-07), so this ceiling should be about where it was on the
+world it was measured in — and it fell to 0.98% on the crater in between, which is
+the reading A81 never took.
 
 ⚠⚠ **Two traps this phase re-sprang, both caught only by building the control
 arm.** `cacheWeight` lives in the leopard's `behavior` **block**, so
@@ -5373,16 +5408,32 @@ rules), `GET|PUT|DELETE /api/presets/:slug`. ⚠ On `PUT` the **path** decides w
 a preset is stored and the body supplies only the label, so a request cannot take
 effect somewhere other than where it was addressed.
 
-⚠ **A stored terrain level is read against the anchor, so the anchor moved when
-the demo did** (2026-08-04). `rocks`/`thickets`/`trees` are prevalence levels
-mapped linearly through `DEFAULT_TERRAIN_PREVALENCE` onto the demo's own
-formation counts, which means a preset's terrain is only stable while *both* ends
-move together: the ngorongoro demo doubled the four counts, so the anchor went
-2 → 4 and every preset already saved at level 4 still generates the terrain it
-was saved with. Leaving the anchor at 2 would have silently doubled all of them.
-The one thing that could not be preserved is an **omitted** level — it means "the
-demo's", and the demo's changed — so the five presets that stored no `trees` had
-`"trees": 2` written into them, which is what they had been generating.
+⚠⚠ **A stored terrain level is read against a fixed anchor, and it stopped
+tracking the demo on 2026-08-07.** `rocks`/`thickets`/`trees` are prevalence levels
+mapped linearly through `DEFAULT_TERRAIN_PREVALENCE` onto
+`FORMATION_COUNT_AT_DEFAULT`, which is now the frozen literal
+**10 / 10 / 16 / 120**. It used to be a read of `defaultSimulationConfig.terrain`,
+so a preset's terrain was only stable while *both* ends moved together — which
+worked exactly once. The ngorongoro demo (2026-08-04) doubled all four counts, so
+the anchor went 2 → 4 and every preset saved at level 4 still generated the terrain
+it was saved with; leaving the anchor at 2 would have silently doubled all of them.
+The one thing that could not be preserved then was an **omitted** level — it meant
+"the demo's", and the demo's had changed — so the five presets storing no `trees`
+had `"trees": 2` written into them, which is what they had been generating.
+
+`default-small` (2026-08-07) broke the arrangement for good: it moved rock and
+thicket ×1.8 and the two tree counts ×1.5, and **a single anchor cannot absorb two
+factors**. One of the two promises had to go, and the one that went is the one that
+only ever described the demo. A scale whose units shift under stored files measures
+nothing, so the counts were frozen where they stood and every preset in the
+directory keeps the terrain it was saved with, with no rewrite at all. ⚠ **The
+demo's own terrain is now level 7/7/6, not the anchor** — so loading the demo and
+then restarting with the renderer's terrain dropdowns untouched gives a *sparser*
+world than the one that booted. That is the price, it is paid by one control in one
+panel, and it is stated here because the alternative was paying it silently in
+every stored preset. `test/runner.test.js` asserts the mapping against literals,
+which is the reverse of that test's own 2026-08-02 lesson and right for the
+opposite reason: the claim is now that these numbers do not move.
 
 In the restart panel, Load **fills the fields and builds nothing** — a dropdown
 that destroys a running world the moment you brush it is a control that punishes
@@ -5500,6 +5551,42 @@ protocol's and that every committed fixture carries it — the risk register's
 ## 13. Performance
 
 ### Current baseline (measured 2026-07-21, Node v23.4.0, darwin arm64, seed 42)
+
+Re-baselined **2026-08-07** on the `default-small` demo:
+
+| Scenario     | World     | Start→end entities |    ms/tick | ticks/sec |
+| ------------ | --------- | -----------------: | ---------: | --------: |
+| demo-default | 230×180   |            263→262 |     3.0726 |      ~325 |
+| small-100    | 256×256   |            194→232 |     1.7822 |      ~561 |
+| medium-1k    | 512×512   |          1931→2280 |    23.7084 |       ~42 |
+| large-5k     | 1024×1024 |         9649→11122 | **167.51** |        ~6 |
+
+⚠ **`demo-default` follows the demo and is again not comparable with its own
+history** — 1.008 and 2.3195 (160×120, ~190 animals), 5.5224 (the crater, 332×280
+holding ~500), and 3.0726 here (230×180 holding 263).
+
+⚠⚠ **`large-5k` at 167.51 against 133.73 on 2026-08-04 is machine drift, and the
+A/B is the evidence.** `config.terrain` is the only thing in the change that the
+scale scenarios see (they state their own dimensions and rosters and inherit the
+rest), so the four formation counts were A/B'd interleaved on large-5k, 500 ticks
+per arm, three alternating pairs:
+
+| Pair | new 18/18/24/180 | old 10/10/16/120 |
+| ---: | ---: | ---: |
+| 1 | 149.96 | 146.93 |
+| 2 | 139.20 | 169.43 |
+| 3 | 139.66 | 132.50 |
+| **mean** | **142.94** | **149.62** |
+
+The new counts read 4.5% *faster*, which is not a speedup either — the useful fact
+is that the old arm alone swings 132.50 to 169.43 (28%) on a byte-identical
+configuration, several times the gap between the arms. There is nothing here to
+attribute, which is what the mechanism predicts: these are absolute formation
+counts, so eight extra rock stands on a 1 048 576-cell map is ~0.1% of it.
+⚠ **The transferable finding is about the instrument, not the engine** — this
+machine is currently drifting nearer the ±25% the 2026-08-03 entry measured than
+the ±10% quoted elsewhere in this section, so a cross-day `large-5k` diff means
+nothing without a same-session interleaved baseline.
 
 Re-baselined **2026-08-04** on the ngorongoro demo:
 
@@ -6248,8 +6335,10 @@ Two traps, both caught by tests in `test/roundness.test.js`:
 Level 0 is a **true no-op** (D30) — it skips the carve entirely, so every existing
 seed generates exactly the world it did before, and it remains the control the
 mechanism was proved against. ⚠ It was the default until 2026-08-04; the demo now
-ships at **4**, the ellipse, because the ngorongoro world it became is a caldera
-and the rim is what makes it one. Raising
+ships at **4**, the ellipse. It arrived with the ngorongoro world, because a
+caldera is a bowl and the rim is what makes it one, and `default-small` kept it
+(2026-08-07) on shape rather than provenance — the crater is gone, the ellipse
+stayed. Raising
 it shrinks the playable area without changing `world.width`/`height`: usable
 fraction by level is 1.000, 0.978, 0.927, 0.873, 0.785. Since the founding roster
 is a flat count, a level-4 world is ~27% denser in animals than a level-0 one of
@@ -6403,6 +6492,13 @@ When the demo became the ngorongoro world its sweep came back with the leopard a
 the vulture alive on 1 seed in 10 (§1.4 **A81**), and that was **accepted rather
 than re-tuned**: the demo is no longer maintained as a knife edge, because adding
 mechanism is worth more right now than holding every species alive on every seed.
+
+⚠⚠ **The demo changed again on 2026-08-07 and the sweep has not been re-run.** It
+is now `default-small` (230×180, 263 animals), and the crater's readings do not
+transfer to it — so at the time of writing **nobody knows which species persist in
+the world this repo builds by default**. That is exactly the outcome the paragraph
+below calls the only one worse than a failing reading, and it is open work rather
+than a settled state: run `npm run sweep` on ten seeds and record it in **A81**.
 So read what follows as *how to take the reading and what to report*, with step 3's
 "≥6/10 seeds" as the historical bar every species through batch 4 was held to
 rather than a condition on shipping. **Steps 1, 2 and 4 are untouched** — proving a

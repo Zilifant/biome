@@ -105,8 +105,12 @@ export const herbivoreGazelle = Object.freeze({
   // clan on the record, the gazelle herd on the label — and this species is the
   // control that proves the label half still works untouched.
   groups: Object.freeze({ forms: false }),
-  // How the founders are arranged on the ground (`config.cohorts`). Six herds of
-  // twenty out of a roster of 120, rather than 120 animals scattered singly.
+  // How the founders are arranged on the ground (`config.cohorts`): packed into
+  // clusters of this size in roster order, rather than scattered singly. On
+  // `default-small`'s 30 gazelle that is one herd of twenty and one of ten
+  // (2026-08-07; the line read "six herds of twenty out of a roster of 120" until
+  // then, which described the 222-animal world — the gazelle has since gone from
+  // the demo's dominant herbivore to its smallest cohort).
   // ⚠ This is *placement*, not membership: nothing here writes a group. It puts
   // bodies inside `social.groupRadius` of each other, and the herd label the
   // block above declines to make persistent then falls out on tick 1.

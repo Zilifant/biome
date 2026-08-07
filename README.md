@@ -71,15 +71,31 @@ npm run dev        # Express + WebSocket host with auto-restart (nodemon)
 Environment variables for the server: `PORT` (default 3000), `SIM_SEED`
 (default 2), `SIM_TICK_MS` (default 1000).
 
-⚠ **The hosted world is `ngorongoro-500-10x`** (2026-08-04): 332×280, rounded to
-the crater's rim, founded with ~500 animals at the real caldera's herbivore
-ratios — the composition in `presets/ngorongoro-500-10x.json`, which is why the
-server's seed default is 2 rather than 42. `config.demo`, `config.world` and
-`config.terrain` hold it, so booting the demo and loading that preset produce the
-same world (verified byte-identical at 50 ticks). Everything not run through the
-server — the tests, `npm run benchmark`, and the committed renderer fixtures —
-still builds on seed 42. ⚠ This roster has **not** been through the ten-seed
-§20 gate; the survival numbers quoted below are the tuned 222-animal world's.
+⚠ **The default world is `default-small`** (2026-08-07): 230×180, rounded to an
+ellipse, founded with 263 animals — the composition in
+`presets/default-small.json`, which is why the server's seed default is 4.
+`config.demo`, `config.world` and `config.terrain` hold it, so booting the demo
+and loading that preset produce the same world (verified byte-identical at 50
+ticks). It is **one world for everything**: the server boots it, `npm run
+benchmark`'s `demo-default` scenario measures it, `npm run ethologist` sweeps it,
+and every test calling `createDemoSimulation()` gets it. Everything not run
+through the server still builds on seed **42** — they share the world's
+*composition* and deliberately not its seed.
+
+⚠ It was `ngorongoro-500-10x` (332×280, ~500 animals at the real caldera's
+herbivore ratios) from 2026-08-04, and a tuned 222-animal world on 160×120 before
+that; both remain as presets. ⚠⚠ **This roster has not been through the ten-seed
+§20 gate and the crater's readings do not transfer to it** — the map is 0.37× the
+area against 0.53× the headcount, the terrain is denser again, and the hyena more
+than doubled while every grazer fell. Every survival number quoted below describes
+a world that is no longer the default. `npm run sweep` is the reading to take.
+
+⚠ One consequence worth knowing: the demo's terrain is `default-small`'s
+prevalence **7/7/6**, which is no longer the *anchor* of that 0–10 scale. The
+scale was pinned to fixed formation counts on 2026-08-07 so that a stored preset
+keeps generating the terrain it was saved with; the price is that restarting from
+the renderer's dropdowns at their defaults gives a sparser world than the demo.
+See `FORMATION_COUNT_AT_DEFAULT` in `src/fixtures/createDemoSimulation.js`.
 
 HTTP API: `GET /api/status`, `GET /api/snapshot`
 (`?minX=&minY=&maxX=&maxY=` for a region), `GET /api/terrain`,
@@ -443,8 +459,10 @@ impassable rock, low **cover**, sight-blocking **thicket**, and **tree** — eac
 its own traversal cost and, for rock and thicket, opacity to line of sight), a
 cell-level vegetation biomass field that grows logistically toward a
 terrain-derived capacity, and a turning year — season, temperature, and weather
-spells that modulate both. The demo world is **332×280 rounded to an ellipse**, the
-`ngorongoro-500-10x` composition.
+spells that modulate both. The demo world is **230×180 rounded to an ellipse**, the
+`default-small` composition. Its mix, measured 2026-08-07 over 5 seeds: ground
+66.3%, rock 23.9% (almost all of it the rim), tree 2.61%, cover 2.57%, thicket
+2.20%, water 1.59%, deep water 0.77%.
 
 **Eight species, and a species is data.** ⚠ The passage that follows was written
 when there were **three** — a grazer, the stalker that hunted it, and a corvid that
@@ -522,8 +540,10 @@ complete life cycle: an animal is born, is fed by the parent that bore it, is
 weaned, disperses at maturity, grazes and drinks, grows, breeds in its turn,
 ages, and dies — and each of those milestones is readable in its own bounded
 life history. The demo holds a roughly steady population with births
-balancing age deaths — measured 2026-08-04, ~500 founders reach roughly 600–800
-animals and stay there across ten seeds. Nothing enforces that balance — it emerges from
+balancing age deaths — measured 2026-08-04 on the **crater** world, ~500 founders
+reach roughly 600–800 animals and stay there across ten seeds. ⚠ That is not the
+default world any more; the equivalent reading for `default-small`'s 263 founders
+has not been taken. Nothing enforces that balance — it emerges from
 reproductive cost, parental investment, lifespan, and food availability. The
 demo lifespan is deliberately compressed so growth, stage transitions, and age
 death are observable in a short run.
@@ -550,9 +570,11 @@ The demo holds predator and prey in a genuine oscillation rather than a fixed
 balance. Nothing enforces any of it — it emerges from encounter rates, capture
 odds, lifespan, and competition for carrion.
 
-⚠⚠ **Measured 2026-08-04 over 15k ticks on ten seeds, on the current
-`ngorongoro-500-10x` world** — mean final population, and the number of seeds the
-species is still alive on:
+⚠⚠ **Measured 2026-08-04 over 15k ticks on ten seeds, on the `ngorongoro-500-10x`
+world — which stopped being the default on 2026-08-07.** It is kept because a
+reading belongs to the world it was taken in, but **it does not describe the world
+this repo now builds** and none of it should be quoted as current. Mean final
+population, and the number of seeds the species is still alive on:
 
 | gazelle | wildebeest | zebra | buffalo | lion | hyena | vulture | leopard |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -655,10 +677,12 @@ young grazers end up a median of **~60 units** from where they were born, on a m
 128 across (measured 2026-07-20; the same mechanism read 70 before the species
 schema landed, which is the sort of drift [`DOCS.md`](DOCS.md)'s
 "How to read this document" exists to keep honest). ⚠ That map no longer exists —
-the demo is 332×280 as of 2026-08-04 — and the figure has **not** been re-measured
-there. Dispersal distance is a bounded number of outward ticks rather than a
-fraction of the world, so on a map 2.6× wider it should be much the same distance
-and a far smaller share of the world; nothing has confirmed that.
+the demo went to 332×280 on 2026-08-04 and to **230×180** on 2026-08-07 — and the
+figure has **not** been re-measured on either. Dispersal distance is a bounded
+number of outward ticks rather than a fraction of the world, so it should be much
+the same distance on any of the three and a different share of each; nothing has
+confirmed that. ⚠ On a 230×180 ellipse a ~60-unit dispersal is a large fraction of
+the map, which makes this the world where the claim is most worth re-measuring.
 
 **Sometimes the land turns on them.** A fire, a flood, or a storm arrives as a
 bounded region on a clock — a few numbers saying where it is, how wide, and when
@@ -934,23 +958,30 @@ the same list with each item's evidence and the reasoning behind leaving it.
 
 ## Performance
 
-Re-baselined **2026-08-04** on the ngorongoro demo (`npm run benchmark`; see
+Re-baselined **2026-08-07** on the `default-small` demo (`npm run benchmark`; see
 `BENCHMARK.md` for the full table, the per-system breakdown, and the history):
 
 | Scenario | World | Entities | ms/tick |
 | --- | --- | ---: | ---: |
-| demo-default | 332×280 | 500→516 | 5.52 |
-| small-100 | 256×256 | 194→226 | 1.66 |
-| medium-1k | 512×512 | 1931→2255 | 20.95 |
-| large-5k | 1024×1024 | 9649→11173 | 133.73 |
+| demo-default | 230×180 | 263→262 | 3.07 |
+| small-100 | 256×256 | 194→232 | 1.78 |
+| medium-1k | 512×512 | 1931→2280 | 23.71 |
+| large-5k | 1024×1024 | 9649→11122 | 167.51 |
 
-⚠ **`demo-default` is not comparable with its own history** — it was 1.01 ms/tick
-on 2026-07-21 and 2.32 on 2026-08-01, describing a 160×120 world holding ~190
-animals. It now follows the demo (which is the whole point of that row), so it
-describes 332×280 holding ~500. `large-5k` **is** comparable and is flat: 133.73
-against 134.46 on 2026-08-01, a 0.5% difference on a machine `BENCHMARK.md` records
-drifting ±10% between mornings. The config change cost the hot path nothing, which
-is what you would expect of a change that only moves numbers in `config`.
+⚠ **`demo-default` is not comparable with its own history**, and that row exists
+in order to move: it follows the demo, so it has read 1.01 (160×120, ~190 animals),
+2.32, 5.52 (the crater, 332×280 holding ~500) and now 3.07 on 230×180 holding 263.
+
+⚠⚠ **`large-5k` reads 167.51 against 133.73 on 2026-08-04, and that gap is machine
+drift, not a regression.** The only thing in this change that reaches the scale
+scenarios is `config.terrain`, which they inherit — so the formation counts going
+10/10/16/120 → 18/18/24/180 was A/B'd interleaved, three alternating pairs at 500
+ticks: **142.94 ms/tick for the new counts against 149.62 for the old**, i.e. the
+new ones measure *faster*, while the old arm alone swings 132.50–169.43 on a
+byte-identical configuration. There is no effect to measure, which is what absolute
+formation counts on a 1M-cell map predict. What the run does establish is that this
+machine is currently drifting nearer ±25% than the ±10% `BENCHMARK.md` records, so
+cross-day `large-5k` comparisons are unusable without a same-session baseline.
 
 Every scenario sits far under the one-second authoritative tick budget. Step 30
 took large-5k from 86.59 to 68.75 ms/tick **without changing a single simulated

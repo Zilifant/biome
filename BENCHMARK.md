@@ -369,6 +369,52 @@ Full run on the final tree: demo-default **2.3195**, small-100 **1.3494**, mediu
 0.9% on a machine this file has repeatedly measured drifting ±25%, and the
 interleaved A/B above is the actual measurement.
 
+## Re-baseline: the demo becomes `default-small` (2026-08-07)
+
+`config.demo`, `config.world` and `config.terrain` became the `default-small`
+composition — 230×180, `roundness: 4`, terrain formation counts 18/18/24/180, 263
+founders. Full run, seed 42, 2000 ticks per scenario, determinism check OK:
+
+| Scenario | World | Start→end entities | ms/tick | ticks/sec |
+| --- | --- | ---: | ---: | ---: |
+| demo-default | 230×180 | 263→262 | **3.0726** | ~325 |
+| small-100 | 256×256 | 194→232 | 1.7822 | ~561 |
+| medium-1k | 512×512 | 1931→2280 | 23.7084 | ~42 |
+| large-5k | 1024×1024 | 9649→11122 | **167.5090** | ~6 |
+
+⚠ **`demo-default` follows the demo by construction**, so it is again not
+comparable with its own history: 5.5224 on the crater (332×280, ~500 animals),
+2.3195 and 1.008 on the 160×120 world, and **3.0726** here on 230×180 holding 263.
+Not a regression, a different world — that row exists precisely to move.
+
+⚠⚠ **`large-5k` reads 167.51 against 133.73 on 2026-08-04, and that is machine
+drift rather than a regression — measured, not assumed.** The only thing in this
+change that can reach the three scale scenarios is `config.terrain`, which they
+inherit while stating their own dimensions and rosters, so the four formation
+counts going 10/10/16/120 → 18/18/24/180 is the whole candidate. It was A/B'd
+interleaved on large-5k, 500 ticks per arm, three pairs alternating, per the
+re-baseline procedure above:
+
+| Pair | new 18/18/24/180 | old 10/10/16/120 |
+| ---: | ---: | ---: |
+| 1 | 149.96 | 146.93 |
+| 2 | 139.20 | 169.43 |
+| 3 | 139.66 | 132.50 |
+| **mean** | **142.94** | **149.62** |
+
+The new counts come out **4.5% faster**, which is not a real speedup either — the
+point is that the spread *within* the old arm alone (132.50 to 169.43, a 28%
+swing on a byte-identical configuration) is several times the gap between the
+arms. There is no effect here to measure. Which is what the mechanism predicts:
+these are absolute formation counts, so eight extra rock stands on a 1 048 576-cell
+map is on the order of 0.1% of it.
+
+⚠⚠ **What this run actually establishes is that the machine is drifting far worse
+than the ±10% this file records** — closer to the ±25% the 2026-08-03 entry
+measured. Treat cross-day `large-5k` comparisons as unusable until a same-session
+interleaved baseline is taken; the A/B above is the only trustworthy reading in
+this entry.
+
 ## Re-baseline: the demo becomes the ngorongoro world (2026-08-04)
 
 `config.demo`, `config.world` and `config.terrain` became the

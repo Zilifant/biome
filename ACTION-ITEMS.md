@@ -753,10 +753,26 @@ they are not re-opened by accident.
 
 ## Engine — schema and configuration
 
-- **A81 — Three species do not persist in the new demo, and the demo is no longer
-  held to a knife edge** _(2026-08-04)_. The demo is now the `ngorongoro-500-10x`
-  world (332×280, `roundness: 4`, doubled terrain counts, ~500 animals at the real
-  crater's herbivore ratios) in place of 222 animals on a 160×120 rectangle.
+- **A81 — Three species did not persist in the crater demo, and the demo is no
+  longer held to a knife edge** _(2026-08-04)_. ⚠⚠ **The world this item measures
+  stopped being the demo on 2026-08-07**, when the default became `default-small`
+  (230×180, `roundness: 4`, terrain counts 18/18/24/180, 263 animals). **The sweep
+  below has not been re-run there and its numbers do not transfer** — the map is
+  0.37× the area against 0.53× the headcount, and the hyena went 9 → 20 while every
+  grazer fell. Re-running `npm run sweep` on ten seeds is the open work; the
+  doctrine (a reading to record, not a bar to pass) carries over unchanged.
+  ⚠⚠ **The lever this item recommended has incidentally been pulled.** It named
+  terrain density rather than founder counts, on the grounds that the two collapsed
+  species were the tree-caching ambusher and the tree-roosting scavenger, and it
+  proposed `--rocks=8 --thickets=8`. `default-small` runs 18/18 rock and thicket
+  formations and 24/180 trees on a map with 0.37 the cells, which puts **tree back
+  to 2.61% of the map and thicket to 2.20%** — roughly their 160×120 shares, and
+  ~2.7× and ~3.9× their crater shares. So the new sweep is, among other things, the
+  experiment this item asked for; read it that way. ⚠ It is not a clean test of the
+  hypothesis, because the roster and the map moved at the same time.
+  The reading below describes the `ngorongoro-500-10x` world (332×280, `roundness:
+  4`, doubled terrain counts, ~500 animals at the real crater's herbivore ratios),
+  which itself replaced 222 animals on a 160×120 rectangle.
   ⚠⚠ Swept on ten seeds × 15 000 ticks: the four grazers and the lion are alive on
   **10/10** seeds (gazelle 169.5, wildebeest 168.0, zebra 147.2, buffalo 96.5, lion
   17.1 mean), the hyena on **7/10** (3.4), and the **leopard (1/10) and vulture

@@ -153,28 +153,48 @@ describe('runner: restart', () => {
     assert.equal(counts['scavenger.vulture'] ?? 0, 0, 'a zero count clears the role');
   });
 
-  test('terrain prevalence maps to formation counts, the default level being the demo', () => {
+  test('terrain prevalence is a fixed scale a stored preset can be read against', () => {
     // buildDemoConfig is the bridge from the UI's abstract 0..10 prevalence to
-    // the generator's formation counts. Level 2 (the demo's default) reproduces
-    // the demo's own terrain, 0 clears the type, and higher is denser.
+    // the generator's formation counts. 0 clears the type, higher is denser, and
+    // — the claim this test exists for — **a level means the same thing today as
+    // it did when a preset was saved at it**.
     //
-    // ⚠ Asserted against the config, not against literals. This read
-    // `.ridges, 8` and `.thickets, 14` until 2026-08-02, which could not fail
-    // the way the test name claims: retuning the demo's terrain broke the
-    // "level N == the demo" contract while leaving 8 === 8 true, so the test
-    // went on passing. The relationship is the claim, so the relationship is
-    // what gets compared.
-    // ⚠ The **level** was a literal `2` for the same reason until 2026-08-04,
-    // when the anchor moved to 4 with the ngorongoro demo — so it too now comes
-    // from its one home rather than from a number that used to be right.
-    const { ridges, thickets } = defaultSimulationConfig.terrain;
-    const demoLevel = DEFAULT_TERRAIN_PREVALENCE;
-    assert.equal(buildDemoConfig({ rocks: demoLevel }).terrain.ridges, ridges, 'the default level of rock == demo default');
-    assert.equal(
-      buildDemoConfig({ thickets: demoLevel }).terrain.thickets,
-      thickets,
-      'the default level of thicket == demo default',
+    // ⚠⚠ **This test asserted "the default level reproduces the demo's own
+    // terrain" until 2026-08-07, and that contract is retired.** It held by
+    // construction while `FORMATION_COUNT_AT_DEFAULT` was a read of
+    // `defaultSimulationConfig.terrain`, so the assertion could not fail; what it
+    // could not protect was the *other* promise the scale makes, which is the one
+    // stored preset files depend on. The two are compatible only while the demo's
+    // four counts move by a single uniform factor (they did in 2026-08-04's
+    // doubling, and the anchor moved 2 → 4 with them). `default-small` moved rock
+    // and thicket ×1.8 and the tree counts ×1.5, so no anchor could absorb both
+    // and the demo-equality rule was dropped in favour of the fixed scale. See
+    // `FORMATION_COUNT_AT_DEFAULT` in the demo fixture.
+    //
+    // So the numbers below are deliberately **literals**. That is the reverse of
+    // the 2026-08-02 lesson on this same test — where literals `8` and `14` made
+    // it unfalsifiable — and it is right for the opposite reason: the claim is no
+    // longer a relationship between two live values but a promise that these
+    // values do not move. A literal is exactly how you break a build that moves
+    // one.
+    const anchor = DEFAULT_TERRAIN_PREVALENCE;
+    assert.equal(anchor, 4, 'the anchor level is fixed; moving it re-scales every stored preset');
+    assert.equal(buildDemoConfig({ rocks: anchor }).terrain.ridges, 10, 'level 4 rock is 10 formations');
+    assert.equal(buildDemoConfig({ thickets: anchor }).terrain.thickets, 10, 'level 4 thicket is 10 formations');
+    assert.equal(buildDemoConfig({ trees: anchor }).terrain.treeGroves, 16, 'level 4 trees is 16 groves');
+    assert.equal(buildDemoConfig({ trees: anchor }).terrain.treeSingles, 120, 'level 4 trees is 120 singles');
+
+    // The demo's own terrain is `default-small`'s 7/7/6, which is *not* the anchor
+    // — the price of the units holding still, and worth asserting so that the two
+    // are known to have parted rather than quietly drifted.
+    const { ridges, thickets, treeGroves, treeSingles } = defaultSimulationConfig.terrain;
+    const demo = buildDemoConfig({ rocks: 7, thickets: 7, trees: 6 }).terrain;
+    assert.deepEqual(
+      { ridges: demo.ridges, thickets: demo.thickets, treeGroves: demo.treeGroves, treeSingles: demo.treeSingles },
+      { ridges, thickets, treeGroves, treeSingles },
+      'levels 7/7/6 reproduce the demo — booting it and loading presets/default-small.json agree',
     );
+
     assert.equal(buildDemoConfig({ rocks: 0 }).terrain.ridges, 0, 'level 0 clears rock');
     assert.equal(buildDemoConfig({ thickets: 0 }).terrain.thickets, 0, 'level 0 clears thicket');
     assert.ok(buildDemoConfig({ rocks: 10 }).terrain.ridges > ridges, 'the top of the scale is denser');

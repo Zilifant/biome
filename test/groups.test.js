@@ -614,10 +614,43 @@ describe('persistent groups: the two mechanisms stay apart', () => {
     const forming = new Set(engine.species.all().filter((s) => s.groups?.forms).map((s) => s.id));
     assert.ok(forming.size >= 2, 'the roster has more than one group-forming species to keep apart');
     const clans = engine.world.groups.all();
+    // ⚠⚠ **This read `memberIds.length >= 2` — "a clan of one is not a clan" —
+    // until 2026-08-07, and it was wrong from the day A56 was fixed.**
+    // `groups.dissolveGraceTicks: 300` (BEHAVIOR-PLAN P5a, 2026-08-05) exists
+    // precisely so that a record held below `minMembers` is *not* destroyed on the
+    // spot: without it a pair that drifted apart dissolved on the tick it
+    // separated and re-founded on the tick it met again, and an identity that
+    // "survives separation" survived it for one tick. So a record of one is a
+    // legal, deliberate state for up to 300 ticks, and asserting it can never
+    // happen contradicted the mechanism the same repo had just built.
+    //
+    // It passed for two days by luck — no record on seed 42 happened to be inside
+    // its grace window at tick 1500 in the crater world. On `default-small` one
+    // is: hyena record 21, one member, below min since tick 1261 with 61 ticks
+    // still to run. The claim the test should make is not "never one" but "one
+    // only while the grace clock says so", which is what it now asserts.
+    const grace = engine.config.groups.dissolveGraceTicks;
     for (const record of clans) {
       assert.ok(forming.has(record.speciesId), `${record.speciesId} declares groups.forms`);
-      assert.ok(record.memberIds.length >= 2, 'a clan of one is not a clan');
+      if (record.memberIds.length >= engine.config.groups.minMembers) continue;
+      assert.notEqual(
+        record.belowMinSince,
+        null,
+        `${record.speciesId} record ${record.id} is under strength with no dissolve clock running`,
+      );
+      const held = engine.clock.tick - record.belowMinSince;
+      assert.ok(
+        held <= grace,
+        `${record.speciesId} record ${record.id} has ${record.memberIds.length} member(s) and has been under strength for ${held} ticks, past the ${grace}-tick grace`,
+      );
     }
+    // And the grace is a window, not a licence: an under-strength record is the
+    // rare exception in a healthy world, never the normal state of the registry.
+    const underStrength = clans.filter((r) => r.memberIds.length < engine.config.groups.minMembers).length;
+    assert.ok(
+      underStrength < clans.length / 2,
+      `${underStrength} of ${clans.length} records are under strength — the registry is flapping, not gracing`,
+    );
     // Membership belongs to those species alone: no gazelle, buffalo, stalker, or
     // vulture carries a record, which is the half of §3.8 that keeps the two
     // mechanisms apart.

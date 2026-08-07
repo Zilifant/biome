@@ -251,18 +251,68 @@ describe('cohorts: the social mechanisms pick it up unaided', () => {
     // `GroupSystem` founds a record from two unattached conspecifics within
     // `groups.joinRadius`. These are identities that will survive the animals
     // walking apart — none of which this suite, or the fixture, wrote.
+    //
+    // ⚠⚠ **The bar is derived from the roster rather than a literal `>= 2`,
+    // changed 2026-08-07 when the demo became `default-small`.** The old literal
+    // was not a claim about the mechanism, it was a claim about the crater's
+    // founder counts, and it broke on a roster the mechanism handles perfectly
+    // well: founders are walked in order and packed into clusters of the species'
+    // own `cohort.groupSize`, so **5 lions at `groupSize: 4` is one pride of four
+    // and one animal left over** — a single record is the arithmetic, not a
+    // failure. (That stranded fifth lion is a real property of this roster and is
+    // asserted below rather than glossed over.) Deriving the bar means the test
+    // now fails when the *mechanism* stops founding what the roster allows, which
+    // is what its name says, and it survives the next roster change — the D1
+    // incidental-roster trap this file's own header names.
     for (const seed of SEEDS) {
       const engine = world(seed, true);
       engine.step(1);
       const records = engine.world.groups.all();
       for (const speciesId of ['predator.lion', 'scavenger.hyena', 'herbivore.zebra']) {
+        const { cohort } = getSpecies(speciesId);
+        const founded = cohortOf(engine, speciesId).length;
+        // Clusters are filled to `groupSize` in order, so the last one holds the
+        // remainder; a cluster of one has nobody to pair with and founds nothing.
+        const whole = Math.floor(founded / cohort.groupSize);
+        const expected = whole + (founded % cohort.groupSize >= 2 ? 1 : 0);
         const mine = records.filter((r) => r.speciesId === speciesId);
-        assert.ok(mine.length >= 2, `seed ${seed}: ${speciesId} founded ${mine.length} records on tick 1`);
+        // ⚠ Not an equality, and −1 for the same reason the sibling cluster-count
+        // test allows +1: two anchors can land within `groups.joinRadius` of each
+        // other and merge into one record, and a cluster packed against a lake can
+        // fail to found. Measured 2026-08-07 across these three seeds, actual
+        // against expected: lion 1/1/1 against 1, hyena 7/6/7 against 7, zebra
+        // 6/8/7 against 7, so the slack is exercised rather than theoretical.
+        assert.ok(
+          mine.length >= Math.max(1, expected - 1),
+          `seed ${seed}: ${speciesId} founded ${mine.length} records on tick 1, expected ~${expected} from ${founded} founders in clusters of ${cohort.groupSize}`,
+        );
         for (const record of mine) {
           assert.ok(record.memberIds.length >= 2, `${speciesId} record ${record.id} has ${record.memberIds.length} members`);
         }
       }
+      // ⚠ The "not a fluke" half the old literal was really carrying, moved to
+      // where the roster can always express it: the world as a whole founds a
+      // spread of records on tick 1, not one lucky pair.
+      assert.ok(records.length >= 10, `seed ${seed}: the roster founded only ${records.length} records on tick 1`);
     }
+  });
+
+  test('⚠ a cohort whose remainder is a single animal strands it, and founds nothing for it', () => {
+    // ⚠ **The lion at 5 founders and `cohort.groupSize: 4` is the case**, and it
+    // is asserted rather than left as a surprise: clusters are filled in order, so
+    // the roster leaves one lion alone on the map with no pride to join on tick 1.
+    // It is not a defect — a record needs two animals and there is only one — but
+    // it *is* the kind of quiet arithmetic that reads as a broken registry later,
+    // and it is the thing to look at first if the lion sweeps badly on this world.
+    // The species file's `cohort` comment still describes the crater's ten lions.
+    const engine = world(42, true);
+    engine.step(1);
+    const lions = cohortOf(engine, 'predator.lion');
+    const { cohort } = getSpecies('predator.lion');
+    assert.equal(lions.length % cohort.groupSize, 1, 'this roster leaves exactly one lion over');
+    const enrolled = lions.filter((l) => l.groupRecordId !== null);
+    assert.equal(enrolled.length, lions.length - 1, 'every lion but the leftover is in the pride');
+    assert.equal(engine.world.groups.all().filter((r) => r.speciesId === 'predator.lion').length, 1);
   });
 
   test('clustering founds strictly more groups on tick 1 than scattering does', () => {

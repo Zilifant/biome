@@ -104,8 +104,12 @@ export const herbivoreWildebeest = Object.freeze({
   // ⚠ **The label, not the record**, and the deliberate contrast with the zebra
   // beside it (§3.8). A wildebeest aggregation is who happens to be standing here.
   groups: Object.freeze({ forms: false }),
-  // Two herds of fifteen (`config.cohorts`) — the largest founding group in the
-  // world, and the deliberate contrast with the zebra beside it a second time:
+  // Founders are packed into clusters of this size in roster order
+  // (`config.cohorts`) — on `default-small`'s 100 wildebeest, six herds of fifteen
+  // and a group of ten (2026-08-07; the line read "two herds of fifteen" until
+  // then, which described the 222-animal world).
+  // The largest founding group in the world, and the deliberate contrast with the
+  // zebra beside it a second time:
   // the wildebeest starts in the biggest aggregation and holds none of it, while
   // the zebra starts in small bands that are identities.
   cohort: Object.freeze({ groupSize: 15, spread: 6 }),

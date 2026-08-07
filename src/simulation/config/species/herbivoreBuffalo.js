@@ -148,11 +148,14 @@ export const herbivoreBuffalo = Object.freeze({
   // animal that the label keeps loosely with the local buffalo — which is what a
   // bachelor looks like from a distance, and is all this world claims.
   groups: Object.freeze({ forms: true, maxMembers: 16 }),
-  // Three herds of twelve (`config.cohorts`). ⚠ The count was already a
-  // *density* rather than an appetite — 35 was chosen because `mobbing`
-  // needs `minMobbers` adults within six units of the animal under attack, and
-  // twenty buffalo reached zero mobbed captures. Founding them in herds is the
-  // same argument applied to tick 0: a mob cannot form out of a scatter.
+  // Founders are packed into clusters of this size in roster order
+  // (`config.cohorts`) — on `default-small`'s 50 buffalo, four herds of twelve and
+  // a pair (2026-08-07; the line read "three herds of twelve" until then, which
+  // described the 222-animal world's 35). ⚠ The count was already a *density*
+  // rather than an appetite — 35 was chosen because `mobbing` needs `minMobbers`
+  // adults within six units of the animal under attack, and twenty buffalo reached
+  // zero mobbed captures. Founding them in herds is the same argument applied to
+  // tick 0: a mob cannot form out of a scatter.
   cohort: Object.freeze({ groupSize: 12, spread: 5 }),
   // Follows the grass and, more than anything else in this world, the water.
   migration: Object.freeze({ tracksForage: true, tracksWater: true, cueRadius: 18, dispersalTicks: 500 }),

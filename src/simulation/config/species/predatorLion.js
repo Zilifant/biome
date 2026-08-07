@@ -134,9 +134,21 @@ export const predatorLion = Object.freeze({
   // makes it female-cored is world-level machinery in `config.groups`; a species
   // only says whether it takes part.
   groups: Object.freeze({ forms: true }),
-  // Two prides of four out of the eight founders (`config.cohorts`), tight
-  // enough that each founds a record on the first tick (see the zebra for why
-  // a forming species gets a smaller spread than an aggregating one).
+  // Founders are packed into clusters of this size in roster order
+  // (`config.cohorts`), tight enough that a full cluster founds a record on the
+  // first tick (see the zebra for why a forming species gets a smaller spread
+  // than an aggregating one).
+  // ⚠⚠ **On `default-small`'s 5 lions that is one pride of four and one animal
+  // left over** — a remainder of 1 has nobody to pair with, so the world founds a
+  // single pride and strands the fifth lion (asserted in `test/cohorts.test.js`).
+  // Worth knowing before reading a lion sweep on this world: cooperative capture
+  // is counted from lions committed to the same quarry, and one of the five starts
+  // with no pride at all.
+  // ⚠ This line read "two prides of four out of the eight founders" from
+  // 2026-08-04 to 2026-08-07 — it described the 222-animal world and was never
+  // updated when the crater roster made it ten. Six species files carried the same
+  // rot. Stated as the arithmetic now, with the roster reading dated, so the next
+  // roster change makes it incomplete rather than false.
   // ⚠ Four rather than eight, and `groups.maxMembers` is why: a founding pride
   // at the cap has nowhere to put the daughters that never disperse
   // (`leavingSex: 'male'`), so it would spend its whole life full. Half the cap

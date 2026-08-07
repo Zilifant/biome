@@ -117,11 +117,16 @@ export const scavengerHyena = Object.freeze({
   // guardian inheritance, sex-biased departure, and dissolution is world-level
   // machinery in `config.groups`; a species only says whether it takes part.
   groups: Object.freeze({ forms: true }),
-  // Two clans of three out of six founders (`config.cohorts`). Three rather than
-  // two deliberately: `groups.minMembers` is 2, so a founding pair is a clan
-  // that dissolves the moment either animal walks away — the flapping A56
-  // records. A third member is the cheapest margin against starting the world
-  // inside a known failure mode, and costs nothing if it is spent.
+  // Founders are packed into clusters of this size in roster order
+  // (`config.cohorts`) — on `default-small`'s 20 hyena, six clans of three and a
+  // pair (2026-08-07; the line read "two clans of three out of six founders" until
+  // then, which described the 222-animal world). Three rather than two
+  // deliberately: `groups.minMembers` is 2, so a founding pair is a clan that
+  // dissolves the moment either animal walks away — the flapping A56 records. A
+  // third member is the cheapest margin against starting the world inside a known
+  // failure mode, and costs nothing if it is spent. ⚠ The remainder pair is
+  // exactly that failure mode, and it is the one cluster in seven that starts on
+  // the `groups.dissolveGraceTicks` clock rather than clear of it.
   cohort: Object.freeze({ groupSize: 3, spread: 4 }),
   // What it *wants*, and where it differs from the solitary stalker (§3.1).
   behavior: Object.freeze({

@@ -609,40 +609,63 @@ function populateDemoWorld(engine) {
  * protocol in "how much" while the config stays in "how many formations".
  *
  * The map is linear through the default: level DEFAULT_TERRAIN_PREVALENCE lands
- * on the demo's own formation count, level 0 clears the terrain, and the top of
- * the scale is several times the default — enough discs that, after they
- * overlap, the type dominates open ground.
+ * on the counts below, level 0 clears the terrain, and the top of the scale is
+ * several times the default — enough discs that, after they overlap, the type
+ * dominates open ground.
  *
- * ⚠ **Read from the config, never restated.** These were hardcoded (8 and 14)
- * until 2026-08-02, which made "level 2 == the demo you know" unenforceable: the
- * demo's counts live in `defaultSimulationConfig.terrain`, so retuning them
- * there left this mapping pointing at the old world and the dropdown's default
- * level silently stopped reproducing the demo. Deriving it means the contract
- * holds by construction rather than by anyone remembering to edit both.
- * ⚠ **`trees` is one level over two counts**, and deriving both from the config
- * is what keeps the layer's off state honest: while the demo's tree counts are 0
- * every level maps to 0, so "more trees" in a treeless world correctly yields
- * none. Raising the defaults brings the control alive by construction rather
- * than by anyone remembering to edit a second number here.
+ * ⚠⚠ **These were derived from `defaultSimulationConfig.terrain` until
+ * 2026-08-07, and they are now frozen literals.** The rule they used to serve was
+ * "level 4 reproduces the demo's own terrain", which held by construction because
+ * both ends read the same object. That rule is **retired**, and the reason is the
+ * other promise this scale makes and the one that turned out to matter more: *a
+ * stored preset must keep generating the terrain it was saved with.* Those two are
+ * only compatible while the demo's counts move by a single uniform factor — when
+ * the demo became `ngorongoro-500-10x` they all doubled, so moving the anchor 2 → 4
+ * preserved every stored preset exactly. When the demo became `default-small`
+ * (2026-08-07) rock and thicket went ×1.8 and the tree counts ×1.5, and **no single
+ * anchor can absorb two factors**. Something had to give, and it is the rule that
+ * only ever described the demo — a scale whose units shift under stored files is a
+ * scale that does not measure anything.
+ *
+ * So this is now what its name says: the formation counts at level
+ * DEFAULT_TERRAIN_PREVALENCE, fixed. `presets/ngorongoro-*.json` were saved at
+ * level 4 against these numbers and still generate exactly this terrain;
+ * `presets/default-small.json` was saved at 7/7/6 against them and still generates
+ * exactly the 18/18/24/180 the demo now boots with. ⚠ The consequence to know is
+ * that the demo's own terrain is **no longer at the default level** of the
+ * renderer's dropdowns — booting the demo and then restarting with the dropdowns
+ * untouched now yields a sparser world, which is the price of the units holding
+ * still. `test/runner.test.js` asserts the fixed mapping in place of the old
+ * demo-equality claim.
+ *
+ * ⚠ **`trees` is one level over two counts** — grove count and lone-tree count —
+ * which is why the abstraction is worth having: the UI offers "how wooded", and
+ * how that divides between woodland and scattered trees stays a modelling
+ * decision the protocol never learns. Both scale together, so the *character* of
+ * the woodland is constant across the scale and only its density changes.
  * @type {Record<'ridges'|'thickets'|'treeGroves'|'treeSingles', number>} config key → count at the default level
  */
 const FORMATION_COUNT_AT_DEFAULT = Object.freeze({
-  ridges: defaultSimulationConfig.terrain.ridges,
-  thickets: defaultSimulationConfig.terrain.thickets,
-  treeGroves: defaultSimulationConfig.terrain.treeGroves,
-  treeSingles: defaultSimulationConfig.terrain.treeSingles,
+  ridges: 10,
+  thickets: 10,
+  treeGroves: 16,
+  treeSingles: 120,
 });
 
 /**
- * The prevalence level that reproduces the demo's own terrain. Restated here
- * rather than imported from the protocol (fixtures speak the simulation's
- * language, not the protocol's) — it must match the protocol's
- * DEFAULT_TERRAIN_PREVALENCE, which is what the renderer's dropdowns default to.
+ * The level the scale is anchored at. Restated here rather than imported from
+ * the protocol (fixtures speak the simulation's language, not the protocol's) —
+ * it must match the protocol's DEFAULT_TERRAIN_PREVALENCE, which is what the
+ * renderer's dropdowns default to.
  *
  * ⚠ 2 until 2026-08-04, when the demo became the denser ngorongoro world and its
- * four formation counts doubled. Anchor and counts moved together deliberately:
- * the mapping is linear through this level, so a preset stored at level 4 against
- * the old defaults still generates the terrain it was saved with.
+ * four formation counts doubled; anchor and counts moved together so that a preset
+ * stored at level 4 against the old defaults still generated the terrain it was
+ * saved with. ⚠ It has **not** moved since, and as of 2026-08-07 it no longer
+ * tracks the demo at all — see FORMATION_COUNT_AT_DEFAULT for why that stopped
+ * being possible and what was chosen instead. Moving this number now is a breaking
+ * change to every stored preset, which is precisely the property it is meant to
+ * have.
  */
 const DEFAULT_TERRAIN_PREVALENCE = 4;
 
