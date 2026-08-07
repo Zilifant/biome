@@ -22,6 +22,36 @@
  * kill-theft test). What is claimed is only that the grace period removes most of
  * the churn — and the measured effect is an order of magnitude, so the bar can sit
  * far below it and still mean something.
+ *
+ * ⚠⚠ **Rewritten 2026-08-07, and the rewrite is the point of this paragraph.** The
+ * original claimed its effect through the *total* membership-event count, with a
+ * `flapping.events > 1000` precondition. The default world changed, the demo's
+ * overall churn fell with it, and the test went red on a mechanism that had not
+ * changed at all — the exact "late, never absent" failure DOCS §14 predicts for the
+ * thirteen tests that fish for a rare event in a fixed window.
+ *
+ * Re-measured over 5000 ticks on two seeds, control (grace 0) against shipped
+ * (grace 300):
+ *
+ * | | seed 42 | seed 7 |
+ * | --- | --- | --- |
+ * | worst animal's tally | 136 → 5 (**27×**) | 219 → 5 (**44×**) |
+ * | records destroyed | 75 → 4 (**19×**) | 227 → 6 (**38×**) |
+ * | total events | 454 → 193 (2.4×) | 1090 → 199 (5.5×) |
+ *
+ * ⚠ **The total is the one number that does not survive a change of world**, and it
+ * never should have carried the claim: it swings 454 → 1090 between two seeds of the
+ * *same* build, because it counts every legitimate join and leave — births, deaths,
+ * dispersal — alongside the flapping. The two figures that separate the arms by
+ * 19–44× on both seeds are the per-animal tally and record destruction, and the
+ * original file already said so in a comment: "the per-animal figure is the one A56
+ * is actually about". The rewrite promotes that comment to the assertion and drops
+ * the aggregate ratios, which discriminated by 2.4× on the seed this file runs.
+ *
+ * ⚠ Still one seed and still 2 × 5000 = **10 000 demo ticks (~70 s)**. A second seed
+ * was measured to validate the rewrite and deliberately *not* added: what went stale
+ * here was an absolute bar, not seed variance, and the surviving ratios clear their
+ * bars by 5–6× on both seeds.
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
@@ -73,29 +103,28 @@ const arm = (grace) => {
 };
 
 describe('persistent groups: A56 in the demo (P5a)', () => {
-  test('⚠⚠ the grace period removes most of the membership churn', () => {
-    // Measured 2026-08-05, seed 42 × 5000 ticks: **3502 membership events and 1168
-    // records destroyed at grace 0, against 313 and ~18 at grace 300** — with one
-    // hyena changing membership 937 times in the control arm and 9 in the shipped
-    // one. The bars below are deliberately an order of magnitude looser than that.
+  test('⚠⚠ the grace period keeps an animal in one record, and keeps the record alive', () => {
+    // Measured 2026-08-07, seed 42 × 5000 ticks: the worst animal changes membership
+    // **136 times at grace 0 against 5 at grace 300**, and **75 records are destroyed
+    // against 4**. Seed 7 says 219 → 5 and 227 → 6. The bars below sit 5–6× below the
+    // smaller of each pair, so this measures the mechanism rather than the trajectory.
     const held = arm(CONFIG.groups.dissolveGraceTicks);
     const flapping = arm(0);
+    // Reported on every failure below, because when this test does go red the first
+    // question is always "did the world change, or did the mechanism break".
+    const context =
+      `control worst=${flapping.worst} destroyed=${flapping.destroyed} events=${flapping.events}; ` +
+      `held worst=${held.worst} destroyed=${held.destroyed} events=${held.events}`;
 
-    assert.ok(flapping.events > 1000, `the control arm really does flap (${flapping.events} events)`);
-    assert.ok(
-      held.events * 3 < flapping.events,
-      `the grace period cuts the churn (${held.events} events against ${flapping.events} without)`,
-    );
-    assert.ok(
-      held.destroyed * 3 < flapping.destroyed,
-      `and the records survive (${held.destroyed} destroyed against ${flapping.destroyed})`,
-    );
-    // ⚠ The per-animal figure is the one A56 is actually about: an *identity* that
-    // changes hands hundreds of times in a lifetime is not an identity.
-    assert.ok(
-      held.worst * 5 < flapping.worst,
-      `no animal churns through records any more (worst ${held.worst} against ${flapping.worst})`,
-    );
+    // The precondition, and it is deliberately the per-animal tally rather than a
+    // total: an animal that changes records fifty times in 5000 ticks is flapping by
+    // any definition, and unlike the total it does not move with the demo's roster.
+    assert.ok(flapping.worst > 50, `the control arm really does flap — ${context}`);
+
+    // ⚠ The claim A56 is actually about: an *identity* that changes hands hundreds of
+    // times in a lifetime is not an identity.
+    assert.ok(held.worst * 5 < flapping.worst, `no animal churns through records any more — ${context}`);
+    assert.ok(held.destroyed * 3 < flapping.destroyed, `and the records survive — ${context}`);
   });
 
   test('and the store is still reclaimed rather than leaking records', () => {

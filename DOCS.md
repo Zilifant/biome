@@ -5960,6 +5960,23 @@ change goes red. The two long-standing ones are
 [`test/protocol-v29.test.js`](test/protocol-v29.test.js)'s first-carcass-theft;
 `carcass.slow` and `mate-choice` are next closest to the edge.
 
+⚠⚠ **The prediction came true on 2026-08-07, and it took `groups.slow.test.js`,
+which is not one of the two this audit named as closest to the edge.** The default
+world changed; the demo's overall group churn fell with it; and the test's
+`flapping.events > 1000` precondition — 3502 when it was written — read **454**. The
+mechanism it guards had not changed. ⚠ **The lesson is narrower than "rare events are
+fragile", and it is about _which number_ carries the claim.** The total event count
+was never a property of the grace period: it counts every legitimate join and leave
+alongside the flapping, and it swings **454 → 1090 between two seeds of the same
+build**. The two figures that separate the arms by **19–44× on both seeds** are the
+worst animal's tally and the count of records destroyed — and the original file
+already said so, in a comment ("the per-animal figure is the one A56 is actually
+about") sitting directly above the assertions that used the aggregate instead. The
+rewrite promoted the comment to the assertion and deleted the aggregate ratios. **An
+aggregate that mixes the phenomenon with its background is a fragile discriminator
+even when it is large**; prefer the per-subject extreme, which does not move with the
+roster.
+
 ⚠ **`cooperation.test.js`'s batch-2 `soloMobbed` cell has gone first four times
 running** — the rarest of its 2×2, solo lion attempts that are *also* mobbed. It
 fell to **n=2 against a threshold of 3** when the charge landed. That was not a
