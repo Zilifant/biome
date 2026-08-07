@@ -32,3 +32,4 @@ DO NOT REFERENCE
 
 - ability to take control of an animal
 - territory layer
+- all behavioral variables editable
