@@ -170,12 +170,21 @@ export const scavengerHyena = Object.freeze({
     // biting the moment batch 2 puts a 600 kg buffalo in front of it, without
     // anyone having to remember to come back and add it.
     maxPreyMassRatio: 1.0,
-    // Below this a chase costs more than the meal returns. A 60 kg hyena
-    // ignoring anything under 4.8 kg is what keeps it from bothering with
-    // newborn calves, which is both true to life and a real protection for the
-    // gazelle's recruitment — the mechanism that makes prey selection
-    // age-structured for free, since `bodyMass` grows along the aging curve.
-    minPreyMassRatio: 0.08,
+    // Below this a chase costs more than the meal returns.
+    //
+    // ⚠⚠ **0.08 → 0.03 on 2026-08-07 (PREDATOR-PLAN).** This line used to argue
+    // that a 4.8 kg floor "keeps it from bothering with newborn calves, which is
+    // ... a real protection for the gazelle's recruitment". Both halves are being
+    // given up deliberately: a hyena taking the smallest, easiest animal it can
+    // reach is what a hyena does, and protecting a prey species through the
+    // predator's floor was tuning the demo rather than stating the animal. 1.8 kg
+    // still refuses a newborn of its own kind (1.5 kg) and a vulture (6 kg) is
+    // above it either way.
+    //
+    // ⚠ The recruitment pressure this removes is real and is why the gazelle is a
+    // species to watch in the next sweep, alongside `behavior.minHungerToHunt`
+    // below — which is the number that actually limits this animal.
+    minPreyMassRatio: 0.03,
   }),
   // Migration (Step 26). Tracks no forage — grass is not food — and follows prey
   // and carrion through perception, exactly as the stalker and vulture do. It

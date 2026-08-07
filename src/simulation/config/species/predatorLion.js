@@ -14,10 +14,13 @@
  * - `hunting.cooperationWeight` — every clanmate already committed to the same
  *   quarry raises the capture odds. **The first species in the world to state
  *   it**, so DOCS A59's "built and inert" half closes with this file.
- * - `groups.forms: true` with the config's `leavingSex: 'male'` — a female-cored
- *   pride, from machinery the hyena already proved (§3.8). ⚠ Pride *membership*
- *   and cooperative hunting, not inherited rank, matrilines, male takeover, or
- *   infanticide: §10.2 puts all four out of scope and they stay out.
+ * - `groups.forms: true`, from machinery the hyena already proved (§3.8).
+ *   ⚠ Pride *membership* and cooperative hunting, not inherited rank, matrilines,
+ *   male takeover, or infanticide: §10.2 puts all four out of scope and they stay
+ *   out. ⚠⚠ **This read "with the config's `leavingSex: 'male'` — a female-cored
+ *   pride" until 2026-08-07.** PREDATOR-PLAN P1 overrides it to `'none'` so that
+ *   the whole species is one pride, which gives the female-cored half up on
+ *   purpose and temporarily. See the `groups` block below.
  * - `predation.maxPreyMassRatio: 3.5` — high enough to commit to an adult buffalo
  *   **alone**, which is the A59 decision made concrete. Prey eligibility is
  *   resolved per animal in perception, where it cannot know whether help is at
@@ -130,30 +133,74 @@ export const predatorLion = Object.freeze({
   territory: Object.freeze({ defends: false, rangeRadius: 30, settleTicks: 1600 }),
   // ⚠ A **pride**: an identity that survives separation, which is what the group
   // registry models and what a herd label cannot (§3.8). Everything about
-  // founding, joining, guardian inheritance, and the male-biased departure that
-  // makes it female-cored is world-level machinery in `config.groups`; a species
-  // only says whether it takes part.
-  groups: Object.freeze({ forms: true }),
+  // founding, joining, guardian inheritance, and departure at dispersal is
+  // world-level machinery in `config.groups`; a species says whether it takes
+  // part and which of those numbers it differs on.
+  //
+  // ⚠⚠ **One pride for the whole species, and it is deliberately temporary**
+  // (PREDATOR-PLAN P1, 2026-08-07). Multiple prides and male coalitions come back
+  // when there are lion behaviours to support them; until then the world is
+  // simpler with one. It is three fields and no mechanism:
+  //
+  //   - `cohort.groupSize` below is larger than any roster, so every founder is
+  //     placed at one anchor and the registry founds a single record on tick 1.
+  //   - `inheritFromGuardian` (the config default) puts every cub in its
+  //     mother's record, so births need no rule.
+  //   - `leavingSex: 'none'` means nothing ever removes a living member.
+  //
+  // ⚠ **It is an initial condition plus no departures, not an enforced
+  // invariant.** Nothing in `GroupSystem` knows this species wants one record. A
+  // lion that ends up unattached — its record dissolved while it was the only
+  // survivor, or it was spawned by command away from the others — rejoins only
+  // by walking within `groups.joinRadius` (6) of a pride-mate, and may found a
+  // second pride with another stray in the meantime. The test in
+  // `test/groups.test.js` asserts the founded world, not an invariant that holds
+  // under every history.
+  //
+  // ⚠ **`leavingSex: 'none'` is what a female-cored pride costs.** The config's
+  // `'male'` is what made departure sex-biased and the pride matrilineal (§3.8);
+  // restoring it is this one field, and it is named here so that is a one-line
+  // change rather than an archaeology exercise.
+  //
+  // ⚠ `maxMembers: 64` against the config's 8: a single pride has to hold the
+  // whole population as it grows, and a record at its cap refuses joiners
+  // silently. 64 is well clear of any lion population this world has produced
+  // (mean 17 at the crater's ten founders) and well under `groups.maxGroups`.
+  groups: Object.freeze({ forms: true, maxMembers: 64, leavingSex: 'none' }),
   // Founders are packed into clusters of this size in roster order
   // (`config.cohorts`), tight enough that a full cluster founds a record on the
   // first tick (see the zebra for why a forming species gets a smaller spread
   // than an aggregating one).
-  // ⚠⚠ **On `default-small`'s 5 lions that is one pride of four and one animal
-  // left over** — a remainder of 1 has nobody to pair with, so the world founds a
-  // single pride and strands the fifth lion (asserted in `test/cohorts.test.js`).
-  // Worth knowing before reading a lion sweep on this world: cooperative capture
-  // is counted from lions committed to the same quarry, and one of the five starts
-  // with no pride at all.
+  //
+  // ⚠⚠ **`groupSize` is larger than any roster on purpose** (PREDATOR-PLAN P1):
+  // the placement loop opens a new anchor only when the current cluster is full,
+  // so a size no roster reaches means *one* anchor for every lion in the world,
+  // which is how the single pride above is founded without a fixture ever writing
+  // a `groupRecordId`. It is not a claim that 64 lions are founded.
+  //
+  // ⚠⚠ **`spread` stays at 4, and the first draft of this phase raised it to 8 on
+  // an argument that measurement refuted.** The argument was that a cluster of
+  // sixty-four cannot fit in a radius-4 disc, since
+  // `locomotion.maxOccupantsPerCell` (2) refuses a full cell. It fits: ~50 cells
+  // at 2 occupants is ~100 slots, and a lion roster of 5/12/20/40/64 founds **one
+  // record with nobody unattached on every seed tried** at spread 4.
+  //
+  // What 8 actually cost was the founding itself. `groups.joinRadius` is 6, so a
+  // record forms by single-linkage through the cluster; at spread 8 two founders
+  // can land 16 apart and five animals are too few to chain between them.
+  // Measured over ten seeds: spread 2/3/4 found **one** pride on 10 of 10, spread
+  // 5 on 8 of 10, spread 6 on 6 of 10, spread 8 on 4 of 10 — and a split pride is
+  // permanent, because records never merge (`GroupSystem` rule 6). **A sparser
+  // cluster is the failure mode here, not a denser one**, which is the opposite
+  // of the intuition, and it is why this number is left alone.
+  //
   // ⚠ This line read "two prides of four out of the eight founders" from
   // 2026-08-04 to 2026-08-07 — it described the 222-animal world and was never
   // updated when the crater roster made it ten. Six species files carried the same
-  // rot. Stated as the arithmetic now, with the roster reading dated, so the next
-  // roster change makes it incomplete rather than false.
-  // ⚠ Four rather than eight, and `groups.maxMembers` is why: a founding pride
-  // at the cap has nowhere to put the daughters that never disperse
-  // (`leavingSex: 'male'`), so it would spend its whole life full. Half the cap
-  // leaves the female-cored pride room to actually be one.
-  cohort: Object.freeze({ groupSize: 4, spread: 4 }),
+  // rot. It then read "one pride of four and one animal left over" for
+  // `default-small`'s five, which P1 makes obsolete: there is no remainder now,
+  // because there is only ever one cluster.
+  cohort: Object.freeze({ groupSize: 64, spread: 4 }),
   // Follows prey through perception, not grass through a gradient — and tracks
   // water for the reason the stalker does: a predator that spends its life in a
   // dry corner of the map needs a steer to the lake on the rare occasions it
@@ -175,11 +222,19 @@ export const predatorLion = Object.freeze({
     // See the header: high enough to commit to an adult buffalo alone, because
     // eligibility cannot know whether help is coming (A59).
     maxPreyMassRatio: 3.5,
-    // 36 kg — every buffalo including a newborn calf (40 kg) is above it, so this
-    // states the floor rather than binding today. It is what would keep a pride
-    // off the small grazers when batch 3 puts wildebeest and zebra calves on the
-    // map, and it costs nothing to say now.
-    minPreyMassRatio: 0.2,
+    // ⚠⚠ **0.2 → 0.05 on 2026-08-07 (PREDATOR-PLAN), and it stopped being inert
+    // in the same edit.** At 0.2 the floor was 36 kg, which is above a newborn
+    // wildebeest (18 kg) and a zebra foal (30 kg) — so a lion walked past the
+    // calves of two of the three species on its own prey list. That was the
+    // opposite of what the number was written for: `minPreyMassRatio` is "what
+    // stops a large predator bothering with something it cannot profit from", and
+    // a calf of a 200 kg grazer is not that.
+    //
+    // 9 kg admits every calf in the world and still refuses a newborn hyena
+    // (1.5 kg) and a vulture (6 kg) if either is ever listed. ⚠ It also admits an
+    // adult gazelle (30 kg) the moment one appears on `preySpeciesIds` — see the
+    // list above for why that is a measurement rather than a preference (A58).
+    minPreyMassRatio: 0.05,
     // ⚠ **What it pays for trying.** `HuntingSystem` scales the hunter's injury
     // chance by `defenderMass / attackerMass`, capped here; the config's 2 would
     // clip a buffalo's 3.33 down to the danger of a 360 kg animal. Raising it to 3

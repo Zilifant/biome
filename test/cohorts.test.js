@@ -297,22 +297,33 @@ describe('cohorts: the social mechanisms pick it up unaided', () => {
     }
   });
 
-  test('⚠ a cohort whose remainder is a single animal strands it, and founds nothing for it', () => {
-    // ⚠ **The lion at 5 founders and `cohort.groupSize: 4` is the case**, and it
-    // is asserted rather than left as a surprise: clusters are filled in order, so
-    // the roster leaves one lion alone on the map with no pride to join on tick 1.
-    // It is not a defect — a record needs two animals and there is only one — but
-    // it *is* the kind of quiet arithmetic that reads as a broken registry later,
-    // and it is the thing to look at first if the lion sweeps badly on this world.
-    // The species file's `cohort` comment still describes the crater's ten lions.
+  test('⚠ the lion is founded as one pride, with nobody left over', () => {
+    // ⚠⚠ **This test used to assert the opposite** — that `default-small`'s five
+    // lions at `cohort.groupSize: 4` were one pride of four plus a stranded
+    // animal, which was the roster's arithmetic and was asserted rather than
+    // glossed over. PREDATOR-PLAN P1 removes the remainder by removing the second
+    // cluster: `groupSize` is now larger than any roster, so every lion in the
+    // world is placed at one anchor and enrols in one record.
+    //
+    // ⚠ The claim is about the *founded* world, not an invariant over every
+    // history — see the species file. A lion that later loses its record has no
+    // long-range way back into the pride.
+    //
+    // ⚠ Derived from the roster, never from a literal count (D1): the point is
+    // that no lion is left out, whatever the preset says there are.
     const engine = world(42, true);
     engine.step(1);
     const lions = cohortOf(engine, 'predator.lion');
-    const { cohort } = getSpecies('predator.lion');
-    assert.equal(lions.length % cohort.groupSize, 1, 'this roster leaves exactly one lion over');
-    const enrolled = lions.filter((l) => l.groupRecordId !== null);
-    assert.equal(enrolled.length, lions.length - 1, 'every lion but the leftover is in the pride');
-    assert.equal(engine.world.groups.all().filter((r) => r.speciesId === 'predator.lion').length, 1);
+    const prides = engine.world.groups.all().filter((r) => r.speciesId === 'predator.lion');
+    assert.equal(prides.length, 1, `${prides.length} lion records on tick 1`);
+    assert.equal(
+      lions.filter((l) => l.groupRecordId === prides[0].id).length,
+      lions.length,
+      `${lions.length} lions founded, ${prides[0].memberIds.length} in the pride`,
+    );
+    // The cluster is one cluster because `groupSize` exceeds the roster, which is
+    // the mechanism rather than a coincidence of this preset's five.
+    assert.ok(getSpecies('predator.lion').cohort.groupSize > lions.length);
   });
 
   test('clustering founds strictly more groups on tick 1 than scattering does', () => {
@@ -329,14 +340,20 @@ describe('cohorts: the social mechanisms pick it up unaided', () => {
   });
 
   test('no founding cluster exceeds the registry cap it is placed under', () => {
-    // A founding cluster larger than `groups.maxMembers` would place animals
-    // together that the registry then refuses to enrol, which reads as a bug in
-    // the registry rather than as the arithmetic it is. Asserted against the
-    // config so it cannot drift apart from it.
+    // A founding cluster larger than the cap the registry will enrol would place
+    // animals together that it then refuses, which reads as a bug in the registry
+    // rather than as the arithmetic it is.
+    //
+    // ⚠ **Resolved the way `GroupSystem` resolves it, not read off the config.** A
+    // species block beats the config (DOCS §8), so the lion's own
+    // `groups.maxMembers: 64` is the cap its cluster is placed under — the config's
+    // 8 is only the fallback for a species that states nothing. Reading the config
+    // alone made this test fail P1's one pride, which is the drift it exists to
+    // catch pointed at itself.
     const engine = world(42, true);
-    const { maxMembers } = engine.config.groups;
     for (const speciesId of ['predator.lion', 'scavenger.hyena', 'herbivore.zebra']) {
-      const { cohort } = getSpecies(speciesId);
+      const { cohort, groups } = getSpecies(speciesId);
+      const maxMembers = groups?.maxMembers ?? engine.config.groups.maxMembers;
       assert.ok(cohort.groupSize <= maxMembers, `${speciesId} founds clusters of ${cohort.groupSize} against a cap of ${maxMembers}`);
     }
   });

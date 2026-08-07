@@ -1306,3 +1306,85 @@ describe('persistent groups: determinism and persistence', () => {
     assert.equal(engine.species.require(GRAZER.id).groups.forms, false);
   });
 });
+
+describe('persistent groups: the lion is one pride (PREDATOR-PLAN P1)', () => {
+  // ⚠⚠ **This is temporary and the tests say so.** Multiple prides and male
+  // coalitions come back when there are lion behaviours to support them; until
+  // then the world is simpler with one pride, and these assertions are what stops
+  // that being a hope. See `config/species/predatorLion.js` for the reasoning.
+  //
+  // ⚠ **Sandbox, not the demo.** Every claim here is about one system deciding
+  // membership, which is the cheapest world that can state it (CLAUDE.md). The
+  // *founded* world — one record over the whole roster on tick 1 — is asserted in
+  // `test/cohorts.test.js`, which is where founding placement lives.
+  const LION = getSpecies('predator.lion');
+
+  test('the three fields that make one pride are all data, and each is load-bearing', () => {
+    // Stated as three separate assertions rather than a deepEqual, because each
+    // one carries a different half of the mechanism and a reader who finds this
+    // failing needs to know which half moved.
+    //
+    // 1. A cluster larger than any roster ⇒ one anchor ⇒ one record on tick 1.
+    assert.ok(LION.cohort.groupSize > 60, 'the founding cluster must exceed any roster');
+    // 2. Nothing removes a living member. The config's `'male'` is what made the
+    //    pride female-cored, and giving that up is what "temporary" costs.
+    assert.equal(LION.groups.leavingSex, 'none');
+    assert.notEqual(CONFIG.groups.leavingSex, 'none', 'the world default still disperses a sex');
+    // 3. The record has room for the population to grow into. A record at its cap
+    //    refuses joiners *silently* (`found()` returns null, nothing is emitted),
+    //    so a cap that binds would look like the feature intermittently failing.
+    assert.ok(LION.groups.maxMembers >= LION.cohort.groupSize);
+    assert.ok(LION.groups.maxMembers <= CONFIG.groups.maxGroups);
+  });
+
+  test('a pride keeps every member: cubs inherit it and a dispersing male does not leave', () => {
+    // ~4 ticks. The dispersal window is asserted by setting `dispersalUntil`
+    // directly rather than by running an animal to maturity: `#dispersingOut`
+    // reads exactly that field through `isDispersing`, so a bounded window is the
+    // whole of what the membership rule sees, and growing a cub up would spend
+    // 2600 ticks to arrive at the same boolean.
+    const engine = sandbox({ species: [LION] });
+    const founders = [0, 1, 2].map((i) => spawn(engine, { speciesId: LION.id, x: 20 + i, y: 20 }));
+    engine.step(1);
+    const pride = soleGroup(engine);
+    assert.deepEqual([...pride.memberIds], [...founders].sort((a, b) => a - b));
+
+    // A cub takes its guardian's record — `inheritFromGuardian`, the config
+    // default, untouched by this phase.
+    const cub = spawn(engine, {
+      speciesId: LION.id,
+      lifeStage: 'juvenile',
+      guardianId: founders[0],
+      x: 20,
+      y: 20,
+    });
+    engine.step(1);
+    assert.equal(entity(engine, cub).groupRecordId, pride.id, 'a cub is born into the pride');
+
+    // ⚠ The half `leavingSex: 'none'` buys. Under the config's `'male'` this
+    // animal would leave on the next tick and be barred from rejoining for the
+    // whole window (A64); here nothing removes it at all.
+    const male = spawn(engine, { speciesId: LION.id, sex: Sexes.MALE, x: 21, y: 20 });
+    engine.step(1);
+    assert.equal(entity(engine, male).groupRecordId, pride.id);
+    entity(engine, male).dispersalUntil = engine.tick + 500;
+    engine.step(1);
+    assert.equal(entity(engine, male).groupRecordId, pride.id, 'a dispersing male keeps its pride');
+    assert.equal(engine.world.groups.all().length, 1, 'and no second pride is founded');
+  });
+
+  test('⚠ one pride is the founded world, not an invariant over every history', () => {
+    // The honest limit, asserted so it is a known property rather than a
+    // surprise: nothing in `GroupSystem` knows this species wants one record.
+    // Two lions placed beyond `groups.joinRadius` of each other found two prides,
+    // and records never merge (rule 6), so they stay two. This is what the species
+    // file means by "an initial condition plus no departures".
+    const engine = sandbox({ species: [LION] });
+    const near = [0, 1].map((i) => spawn(engine, { speciesId: LION.id, x: 10 + i, y: 10 }));
+    const far = [0, 1].map((i) => spawn(engine, { speciesId: LION.id, x: 50 + i, y: 50 }));
+    engine.step(1);
+    const records = engine.world.groups.all();
+    assert.equal(records.length, 2, 'two clusters beyond the join radius are two prides');
+    assert.notEqual(entity(engine, near[0]).groupRecordId, entity(engine, far[0]).groupRecordId);
+  });
+});

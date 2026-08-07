@@ -112,7 +112,20 @@ describe('predation: prey eligibility by mass', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const hyena = engine.species.require('scavenger.hyena');
     assert.equal(hyena.predation.maxPreyMassRatio, 1.0, 'a solo hyena takes prey up to its own mass');
-    assert.equal(hyena.predation.minPreyMassRatio, 0.08, 'and does not bother below a floor');
+    // ⚠ **The floor is asserted as what it admits, not as its value** (D1). It
+    // read `=== 0.08` until 2026-08-07, which made a roster number into a test —
+    // and when PREDATOR-PLAN lowered every hunter's floor so predators would take
+    // the small easy animals in reach, this failed without anything being wrong.
+    // The claim that survives is the one the number exists to make: a floor
+    // exists, it lets the hunter take the calves of the species on its own list,
+    // and it still refuses something too small to be worth a sprint.
+    assert.ok(hyena.predation.minPreyMassRatio > 0, 'a hyena has a floor at all');
+    const floor = minPreyMassFor({ bodyMass: hyena.bodyMass }, hyena.predation);
+    for (const preyId of hyena.preySpeciesIds) {
+      const prey = engine.species.require(preyId);
+      assert.ok(floor < prey.aging.birthMass, `a hyena's floor (${floor} kg) refuses a newborn ${preyId}`);
+    }
+    assert.ok(floor > engine.species.require('scavenger.hyena').aging.birthMass * 0.9, 'and is not zero in disguise');
     // ⚠ The lion (phase 11) is the second, and its ceiling is the load-bearing
     // one: 3.5 × 180 kg is above a 600 kg buffalo, which is what lets a lion
     // *start* a hunt cooperation then improves the odds of. Eligibility is

@@ -107,7 +107,13 @@ export const predatorLeopard = Object.freeze({
   // What it will take on. A 60 kg cat commits to prey up to its own mass, which is
   // every gazelle and every wildebeest calf; the floor keeps it off newborns too
   // small to be worth the sprint.
-  predation: Object.freeze({ maxPreyMassRatio: 1.0, minPreyMassRatio: 0.08 }),
+  // ⚠ **`minPreyMassRatio` 0.08 → 0.03 on 2026-08-07 (PREDATOR-PLAN)**, with the
+  // lion's and the hyena's, and for the same reason: a floor of 4.8 kg made a
+  // 60 kg ambush predator refuse the smallest and easiest animals in reach, which
+  // is the opposite of what the number exists to say. 1.8 kg still refuses a
+  // newborn of its own kind. The ceiling is untouched — what a leopard will take
+  // *on* is unchanged; what it will stoop to is not.
+  predation: Object.freeze({ maxPreyMassRatio: 1.0, minPreyMassRatio: 0.03 }),
   // Territory (Step 24). A solitary ambush predator holds ground: it marks,
   // it avoids a rival's marks, and it disputes ground it finds occupied. The
   // range is wide because a predator needs a lot of prey to live off, and it

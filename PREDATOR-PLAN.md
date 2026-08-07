@@ -1,6 +1,6 @@
 # Social predators — lions and hyenas
 
-**Status: not started.** Eight phases (P1–P8). Nothing below is implemented.
+**Status: P1 shipped 2026-08-07. P2–P8 not started.** Eight phases.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -55,7 +55,7 @@ Each has a recorded failure behind it (`DOCS.md` §16, and the retired plans).
 
 ---
 
-## P1 — One pride, by construction (data only)
+## P1 — One pride, by construction (data only) — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Lions 1._
 
@@ -89,6 +89,61 @@ one species; bounded and small, but it is the first record over 16.
 `groupRecordId` at tick 1 and after a birth. Update `test/cohorts.test.js`, which
 currently asserts the 4+1 split.
 
+### ✅ As built — 2026-08-07
+
+Shipped as three fields in `config/species/predatorLion.js` and no engine change,
+as planned. Two things the plan got wrong:
+
+⚠⚠ **`spread` was raised 4 → 8 and had to be put back, and the reasoning was
+inverted.** The plan argued that 64 founders cannot fit inside a radius-4 disc
+because `locomotion.maxOccupantsPerCell` (2) refuses a full cell. They fit — ~50
+cells at 2 occupants is ~100 slots — and lion rosters of 5/12/20/40/64 all found
+**one record with nobody unattached** at spread 4 on every seed tried.
+
+What spread 8 actually broke was the founding. A record forms by single-linkage
+through `groups.joinRadius` (6), and at spread 8 two founders can land 16 apart
+with too few animals between them to chain. Measured, ten seeds, lion records on
+tick 1:
+
+| `cohort.spread` | seeds founding **one** pride |
+| ---: | ---: |
+| 2, 3, 4 | 10 / 10 |
+| 5 | 8 / 10 |
+| 6 | 6 / 10 |
+| 8 | 4 / 10 |
+
+**A sparser cluster is the failure mode, not a denser one** — the opposite of the
+plan's intuition — and a split pride is permanent, because records never merge
+(`GroupSystem` rule 6). This is A84's shape again (a radius moved without its
+geometric partner), caught by the test rather than by review.
+
+⚠ **Two tests asserted the old arithmetic and both were about the roster rather
+than the mechanism.** `cohorts.test.js`'s stranded-lion test asserted `5 % 4 === 1`
+and is replaced by the P1 claim; its registry-cap test read `maxMembers` off
+`config.groups` when `GroupSystem` resolves the species' block over it (DOCS §8),
+so the test that exists to catch config/species drift was itself drifting.
+
+✅ **It holds over a real run, and `maxMembers` is what makes that true.**
+Measured on the demo, 6000 ticks, lions / prides / unattached:
+
+| seed | t1 | t1500 | t3000 | t6000 |
+| ---: | --- | --- | --- | --- |
+| 1 | 5 / 1 / 0 | 4 / 1 / 0 | 4 / 1 / 0 | **6 / 1 / 0** |
+| 42 | 5 / 1 / 0 | 5 / 1 / 0 | 5 / 1 / 0 | **8 / 1 / 0** |
+
+Cubs are born into the pride and nothing leaves it, so the record simply grows.
+⚠ Seed 42 reaches **8 members by tick 6000, which is exactly the config's
+`maxMembers`** — so without the raise to 64 the next cub would have been refused
+silently and the pride would have started shedding animals into second records
+from there. The headroom was not a precaution.
+
+⚠ **Not asserted in the suite**, deliberately: 2 seeds × 6000 demo ticks is ~1.5
+minutes of CPU for a claim the ~4-tick sandbox test already makes about the
+mechanism. Recorded here as a measurement instead.
+
+**Cost.** No new state, no save-format change, no protocol change, no measurable
+tick cost — `GroupSystem`'s per-record walks are longer for one record of five.
+
 ---
 
 ## P2 — Hyena clans sized from the roster (fixture only)
@@ -119,9 +174,11 @@ Clan count derived from the founder count; clans placed apart.
 2. **Separation.** `config.cohorts.minClusterSeparation` (world-level; 0 is the
    identity). Anchors are rejection-sampled against already-placed anchors _of
    the same species_, bounded by `cohorts.placementAttempts`, falling back to the
-   first draw. ⚠ Write the loop so that at 0 it accepts the first draw and draws
-   nothing extra — otherwise the `worldgen` stream shifts and every preset's
-   world changes.
+   first draw. ✅ **Shifting the `worldgen` stream is accepted** (decision,
+   2026-08-07): every seeded world will differ from today's, and that is the cost
+   of a founding change rather than a reason to defer one. Still write the loop
+   so that at 0 it draws nothing extra — the off arm is worth having as a control
+   even though nothing is being held byte-identical.
 
 3. `groups.maxMembers: 16` on the hyena (from the config's 8), or a clan of 10
    cannot exist. ⚠ A clan at the cap refuses joiners, who then found a _new_
@@ -242,6 +299,37 @@ _Serves: Lions & Hyenas 1, Hyenas 2._
 **This is the ecological phase and the riskiest one**, which is why it is fifth
 rather than first: with P3 and P4 in place, the mass ratios do the partitioning
 that the species lists are doing today.
+
+### ✅ The prey **floor** landed early — 2026-08-07, with P1
+
+`minPreyMassRatio` was lowered for all three hunting species so that a predator
+takes the small, easy animals within its reach:
+
+| species | was | now | floor |
+| --- | ---: | ---: | ---: |
+| lion | 0.2 | **0.05** | 36 kg → 9 kg |
+| hyena | 0.08 | **0.03** | 4.8 kg → 1.8 kg |
+| leopard | 0.08 | **0.03** | 4.8 kg → 1.8 kg |
+
+⚠ **The lion's was not inert and the old value was a defect on its own terms.** A
+36 kg floor is above a newborn wildebeest (18 kg) and a zebra foal (30 kg), so a
+lion walked past the calves of two of the three species on its own prey list —
+the opposite of what `minPreyMassRatio` is for. Every floor still refuses a
+newborn hyena (1.5 kg), and the lion's still refuses a vulture (6 kg).
+
+⚠ **It is unmeasured**, and it lands ahead of the sweep that would have measured
+it. What it takes away is the gazelle's recruitment protection: the hyena's old
+floor was explicitly argued in its own file as "a real protection for the
+gazelle's recruitment", and that is now gone. **The gazelle is the species to
+watch** when P5's sweep runs, alongside `behavior.minHungerToHunt`, which is the
+number that actually limits a carrion-subsidised predator.
+
+⚠ `test/predation.test.js` asserted `minPreyMassRatio === 0.08` as a literal. It
+now asserts what the floor *admits* — below every listed prey's birth mass, above
+a newborn of the hunter's own kind — which is the claim the number exists to make
+and survives the next tuning pass (D1).
+
+The rest of P5 — the two prey **lists** — is unchanged and still waits on P3/P4.
 
 **Change** — two species files:
 
