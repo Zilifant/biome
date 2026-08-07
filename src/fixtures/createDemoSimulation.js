@@ -211,6 +211,13 @@ export function registerDemoSystems(engine) {
       possessionEnabled: engine.config.carcass.possessionEnabled,
       possessionRange: engine.config.carcass.possessionRange,
       possessionShare: engine.config.carcass.possessionShare,
+      // Numbers at a carcass (P7). ⚠ Wired into **both** readers — the decision
+      // system asking whether a body is worth walking to and the feeding system
+      // asking whether it may be eaten — because a body that reads as food to one
+      // and is refused by the other leaves an animal choosing `eat` and starving on
+      // the spot (D11, and the reason `isAvailableTo` exists at all).
+      possessionBackingEnabled: engine.config.carcass.possessionBackingEnabled,
+      possessionBackingRange: engine.config.carcass.possessionBackingRange,
       // Cooperative action (PLAN-SPECIES.md §3.7, phase 10). Two switches from
       // the two global sections that own them — ⚠ *not* from `hunting` or
       // `behavior`, which are species blocks a species overrides, so a switch
@@ -307,6 +314,13 @@ export function registerDemoSystems(engine) {
       possessionEnabled: engine.config.carcass.possessionEnabled,
       possessionRange: engine.config.carcass.possessionRange,
       possessionShare: engine.config.carcass.possessionShare,
+      // Numbers at a carcass (P7). ⚠ Wired into **both** readers — the decision
+      // system asking whether a body is worth walking to and the feeding system
+      // asking whether it may be eaten — because a body that reads as food to one
+      // and is refused by the other leaves an animal choosing `eat` and starving on
+      // the spot (D11, and the reason `isAvailableTo` exists at all).
+      possessionBackingEnabled: engine.config.carcass.possessionBackingEnabled,
+      possessionBackingRange: engine.config.carcass.possessionBackingRange,
       possessionEscalationChance: engine.config.carcass.possessionEscalationChance,
       possessionFightSeverity: engine.config.carcass.possessionFightSeverity,
       possessionWinnerInjuryFraction: engine.config.carcass.possessionWinnerInjuryFraction,

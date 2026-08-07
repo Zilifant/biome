@@ -234,6 +234,38 @@ export const scavengerHyena = Object.freeze({
     // supports regardless of how many are founded.
     minHungerToHunt: 0.75,
     retreatWeight: 0.5, // gives ground less readily than the default 0.7
+    // ⚠⚠ **What a clan is worth at a carcass** (PREDATOR-PLAN P7) — the brief's
+    // "many hyenas should be able to contest and possibly displace a solo healthy
+    // adult lion", and the one thing carcass possession could never express,
+    // because `dominanceOf` reads a **single body** and a 60 kg hyena never
+    // outranks a 180 kg lion however many of them are standing there.
+    //
+    // ⚠⚠ **The arithmetic, and the first draft of it was wrong in a way worth
+    // keeping.** It reasoned from adult masses — "a lion scores ~180, a hyena ~60,
+    // so `1 + 0.5 × 4` draws level" — and set `maxBackers: 4`. Measured, that clan
+    // never displaces anything, because **`dominanceOf` scales with condition and
+    // the two animals are never in the same condition**: the lion at a kill it made
+    // is full (180), and the clan that has come to take it is hungry, which is why
+    // it is there (≈49.5 at 0.3 energy). 49.5 × 3 = 148.5 against 180 — not close.
+    //
+    // ⚠ **Reasoning from body mass alone will always overestimate a scavenger
+    // here**, and that generalises past this line: any comparison of `dominanceOf`
+    // between a fed animal and a hungry one has a ~1.2× condition term in it that
+    // the masses do not show.
+    //
+    // So **0.6 with `maxBackers: 6`**, and the shipped thresholds are measured
+    // rather than derived: against a healthy fed lion (180), a hungry hyena needs
+    // **five clanmates at the body** — 49.5 × (1 + 0.6 × 5) = 198 — and four is
+    // 168, which loses. That is the brief read literally: ***many*** hyenas,
+    // ***possibly*** displace. A pair never does, and a clan that has scattered to
+    // forage does not either, since backers are counted within
+    // `carcass.possessionBackingRange` (6) of the body.
+    //
+    // ⚠ A **well-fed** clan clears it sooner (60 × 3.4 = 204 at four backers), which
+    // is the mechanism being condition-sensitive in the right direction: hyenas that
+    // have already eaten push harder than hyenas that have not.
+    contestBackingWeight: 0.6,
+    maxBackers: 6,
   }),
   // ⚠⚠ **Cooperative hunting, and the hyena's first declaration of it**
   // (PREDATOR-PLAN P5). The brief asks that hyenas hunt cooperatively within their

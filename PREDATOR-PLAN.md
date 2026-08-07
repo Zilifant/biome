@@ -1,9 +1,9 @@
 # Social predators — lions and hyenas
 
-**Status: P1–P6 shipped 2026-08-07. P7–P8 not started.** Eight phases.
+**Status: P1–P7 shipped 2026-08-07. P8 not started.** Eight phases.
 
-⚠⚠ **Read "The guild across the plan" under P6 before shipping anything else.**
-The vulture is down **58%** since P1 and no single phase's arm shows it.
+⚠ The vulture scare of P6 **resolved itself at P7** — see "The guild across the
+plan" under P7. The ten-seed sweep is still owed.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -804,7 +804,7 @@ cannot resolve a 3-animal population, and the vulture is at 4.5.
 
 ---
 
-## P7 — Numbers at a carcass
+## P7 — Numbers at a carcass — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Hyenas 4._
 
@@ -846,7 +846,94 @@ vulture is the species at risk, as it was in batch 1.
 **Test** (`test/carcass.test.js`, sandbox, ~20 ticks): one hyena at a lion's kill
 waits; five of one record take it. Plus the weight-0 identity.
 
----
+### ✅ As built — 2026-08-07
+
+`backedDominanceOf(world, animal, carcass, possession)` — `dominanceOf` times
+`1 + contestBackingWeight × min(backers, maxBackers)`, the shape `cooperationBonus`
+and `shielding` already use — read by `outranks` on **both** sides. Tests live in
+`test/predation.test.js` beside the rest of possession rather than in
+`carcass.test.js` as planned.
+
+⚠⚠ **`resolveContest` gained an injected `scoreOf` rather than a new dominance
+reading.** `outranks` decides to challenge on the backed score; if the contest then
+resolved on one body, the clan would **lose the fight it correctly started** —
+three draws and a wound for nothing, which is exactly what the strictly-greater
+rule exists to prevent. ⚠ The other two callers (territory disputes, mating
+rivalries) pass nothing and get the old behaviour; a test asserts that directly,
+because "the default is the old default" is the whole claim.
+
+⚠ **Backers are counted by group record, not by species**, so two unrelated clans
+at one body back their own and not each other — a clan mechanism rather than a
+crowd one.
+
+#### ⚠⚠ The arithmetic was wrong, and the way it was wrong generalises
+
+The first draft reasoned from adult masses — lion 180, hyena 60, so four backers at
+weight 0.5 draws level — and shipped `maxBackers: 4`. **That clan never displaces
+anything.** `dominanceOf` scales with *condition*, and the two animals are never in
+the same condition: the lion at a kill it made is full (180) and the clan that came
+to take it is hungry, which is why it is there (≈49.5 at 0.3 energy). 49.5 × 3 =
+148.5 against 180 — not close.
+
+⚠ **Any comparison of `dominanceOf` between a fed animal and a hungry one carries a
+~1.2× condition term that the masses do not show.** That is now written into the
+hyena's file, because it will mislead the next person in the same direction.
+
+Shipped at **0.6 / `maxBackers: 6`**, measured against a healthy fed lion:
+
+| backers | backed score | takes the body |
+| ---: | ---: | --- |
+| 3 | 138.6 | no |
+| 4 | 168.3 | no |
+| **5** | **198.0** | **yes** |
+| 6 | 227.7 | yes (cap binds) |
+
+*Many* hyenas, *possibly* displace — the brief read literally. ⚠ The test derives
+its threshold from the species block and asserts the **shape** (monotone, bounded,
+reached at a plausible fraction of a real clan) rather than a count, because the
+count depends on condition.
+
+#### ✅ The reading — and the P6 vulture scare resolves
+
+6 seeds × 6000 ticks, both arms in config (`carcass.possessionBackingEnabled`):
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| OFF | 7.2 | 16.3 | 65.7 | 72.3 | 132.0 | 18.7 | 3.5 | 4.5 |
+| **ON (shipped)** | 7.2 | 13.0 | 66.2 | 67.7 | 132.0 | **22.7** | 3.2 | **10.0** |
+| per-seed | 1u/3d | 1u/5d | 3u/3d | 3u/3d | 3u/3d | **6u/0d** | 1u/2d | **5u/0d** |
+
+✅ **The vulture more than doubles (4.5 → 10.0, up on 5 of 6) and the gazelle is up
+on every seed** — the two species P6 left this plan most worried about. Every
+species alive on 6/6 (leopard 5/6 in **both** arms).
+
+**A hypothesis for why, stated as one.** Clans now take lion kills, so a robbed
+lion has to hunt again — kleptoparasitism raising the *total* kill rate and putting
+more carrion in the world for an obligate scavenger. The hyena pays for it: it wins
+those contests but takes wounds doing so (`fightWinnerInjuryFraction: 0.4` — winning
+a fight is not being unhurt). ⚠ Not established: the supporting number is a
+bounded-outbox event sample (vulture feed events 20 ON against 1 OFF), which is a
+sample and not a census.
+
+### The guild across the plan — updated at P7
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| pre-P3 baseline | 7.7 | 19.0 | 53.7 | 69.5 | 138.8 | 25.7 | 4.0 | 10.7 |
+| P6 pride ground | 7.2 | 16.3 | 65.7 | 72.3 | 132.0 | 18.7 | 3.5 | **4.5** |
+| **P7 carcass numbers** | 7.2 | 13.0 | 66.2 | 67.7 | 132.0 | 22.7 | 3.2 | **10.0** |
+| **net vs baseline** | −6% | **−32%** | +23% | −3% | −5% | −12% | −20% | **−7%** |
+
+⚠⚠ **The vulture's 58% loss at P6 was not a trend, and P7 recovered it to −7%
+without being aimed at it.** The lesson is not that the worry was wrong — it is
+that **a six-seed reading of a 4-animal population could not tell a trend from a
+trough**, which is what the stop-note said. The burden has moved onto the **hyena
+(−32%)** and the **leopard (−20%)**, which are now the species to watch.
+
+⚠ **The ten-seed × 15 000-tick sweep is still the outstanding debt**, and this
+phase is the argument for it rather than against it: two consecutive phases moved
+the vulture by more than 100% in opposite directions, and neither movement was
+resolvable at six seeds.
 
 ## P8 — Observability, and the numbers
 

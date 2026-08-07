@@ -22,8 +22,8 @@ import { SocialSystem } from '../src/simulation/systems/SocialSystem.js';
 import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/species/index.js';
 import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../src/simulation/predation/predation.js';
-import { holderOf, isAvailableTo, mayFeedFreely, outranks } from '../src/simulation/predation/possession.js';
-import { dominanceOf } from '../src/simulation/social/dominance.js';
+import { backedDominanceOf, holderOf, isAvailableTo, mayFeedFreely, outranks } from '../src/simulation/predation/possession.js';
+import { dominanceOf, resolveContest } from '../src/simulation/social/dominance.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
@@ -448,9 +448,15 @@ describe('predation: carcass possession', () => {
     assert.ok(entity(engine, small).energy > beforeSmall, 'a clanmate eats beside the holder');
 
     // And the predicate says exactly that, for the record.
-    const holder = holderOf(engine.world, entity(engine, carcass), { enabled: true, range: 2 });
+    // ⚠ `outranks` takes the world and the body since PREDATOR-PLAN P7, because
+    // standing at a carcass is now `dominanceOf` times how many of your own are
+    // over it. Neither of these two declares a backing weight, so the reading is
+    // the one-body reading it always was.
+    const possession = { enabled: true, range: 2, backingEnabled: true, backingRange: 6 };
+    const body = entity(engine, carcass);
+    const holder = holderOf(engine.world, body, possession);
     assert.equal(mayFeedFreely(holder, entity(engine, small)), true);
-    assert.equal(outranks(entity(engine, small), holder), false, 'it certainly did not win it');
+    assert.equal(outranks(engine.world, entity(engine, small), holder, body, possession), false, 'it certainly did not win it');
     void big;
   });
 
@@ -738,5 +744,144 @@ describe('predation: the cooperative prey ceiling (PREDATOR-PLAN P3, closing A59
     spawnOf(engine, 'scavenger.hyena', { x: 20, y: 21 });
     engine.step(4);
     assert.ok(engine.world.perception.get(grazer).nearestThreat !== null, 'and fears the clan');
+  });
+});
+
+describe('predation: numbers at a carcass (PREDATOR-PLAN P7)', () => {
+  // ⚠⚠ **The brief, read literally:** "group numerical strength should be able to
+  // affect carcass contests. Many hyenas should be able to contest and possibly
+  // displace a solo healthy adult lion." *Many*, and *possibly* — so the shipped
+  // arithmetic is that a clan draws **level** with a lion at four backers (which
+  // `outranks`'s strictly-greater rule refuses) and takes the body at five. A pair
+  // does not, and a clan that has scattered to forage does not.
+
+  const POSSESSION = { enabled: true, range: 2, backingEnabled: true, backingRange: 6, share: 0.25 };
+
+  /** A carcass with a lion on it and `n` clan hyenas standing around. */
+  function standoff(n, { record = 7 } = {}) {
+    const engine = sandbox({ seed: 11 });
+    const carcass = entity(engine, spawnCarcass(engine, { x: 20, y: 20, edibleMass: 200 }));
+    const lion = entity(engine, spawnOf(engine, 'predator.lion', { x: 20, y: 20, energy: 380 }));
+    const hyenas = [];
+    for (let i = 0; i < n; i += 1) {
+      hyenas.push(
+        entity(engine, spawnOf(engine, 'scavenger.hyena', { x: 20 + (i + 1) * 0.4, y: 20, groupRecordId: record })),
+      );
+    }
+    return { engine, carcass, lion, hyenas };
+  }
+
+  test('a lone hyena does not take a lion\u2019s kill and a clan does', () => {
+    // \u26a0\u26a0 **The threshold is measured here, not asserted**, because it depends on
+    // *condition* as much as on the weights: `dominanceOf` scales with energy, the
+    // lion at a kill it made is full and the clan that came to take it is hungry,
+    // and reasoning from body mass alone overestimates the clan by ~1.2\u00d7. So the
+    // test finds the smallest clan that wins and asserts the shape of the curve \u2014
+    // monotone, bounded, and reached at a plausible fraction of a real clan.
+    const { behavior } = getSpecies('scavenger.hyena');
+    const takes = [];
+    for (let n = 1; n <= behavior.maxBackers + 2; n += 1) {
+      const { engine, carcass, lion, hyenas } = standoff(n);
+      takes.push(outranks(engine.world, hyenas[0], lion, carcass, POSSESSION));
+    }
+    assert.equal(takes[0], false, 'a lone hyena never takes a healthy lion\u2019s kill');
+    assert.equal(takes[1], false, 'nor a pair \u2014 the brief asks for *many*');
+    assert.ok(takes.at(-1), 'and a full clan does');
+    // Monotone: once numbers are enough they stay enough. A curve that flipped back
+    // would mean the cap or the count was being read inconsistently somewhere.
+    const first = takes.indexOf(true);
+    assert.ok(first > 1, `a clan of ${first + 1} is not "many"`);
+    assert.ok(takes.slice(first).every(Boolean), 'backing never stops helping once it starts');
+
+    // And the cap really binds: the multiplier stops climbing past `maxBackers`.
+    const { engine, carcass, hyenas } = standoff(behavior.maxBackers + 1);
+    const capped = backedDominanceOf(engine.world, hyenas[0], carcass, POSSESSION);
+    const { engine: e2, carcass: c2, hyenas: h2 } = standoff(behavior.maxBackers + 6);
+    assert.equal(
+      backedDominanceOf(e2.world, h2[0], c2, POSSESSION),
+      capped,
+      `backing stops at maxBackers (${behavior.maxBackers})`,
+    );
+  });
+
+  test('⚠ backing is counted by group record, not by species', () => {
+    // What makes this a *clan* mechanism rather than a crowd one: two unrelated
+    // clans at one body back their own and not each other.
+    const { engine, carcass, hyenas } = standoff(6);
+    const alone = backedDominanceOf(engine.world, hyenas[0], carcass, POSSESSION);
+    for (const h of hyenas.slice(1)) h.groupRecordId = 9;
+    assert.ok(backedDominanceOf(engine.world, hyenas[0], carcass, POSSESSION) < alone, 'a rival clan is not backing');
+    assert.equal(
+      backedDominanceOf(engine.world, hyenas[0], carcass, POSSESSION),
+      dominanceOf(hyenas[0]),
+      'and an animal alone in its record is worth exactly its own body',
+    );
+  });
+
+  test('⚠ every off arm is exactly the identity', () => {
+    // D16: "off" has to be the identity rather than a near-identity, or the arm
+    // that measures the mechanism is an argument rather than a proof. Three ways
+    // of being off, and a species that simply never declares a weight.
+    const { engine, carcass, lion, hyenas } = standoff(6);
+    const base = dominanceOf(hyenas[0]);
+    assert.equal(backedDominanceOf(engine.world, hyenas[0], carcass, { ...POSSESSION, backingEnabled: false }), base);
+    hyenas[0].groupRecordId = null;
+    assert.equal(backedDominanceOf(engine.world, hyenas[0], carcass, POSSESSION), base, 'no record, no backing');
+    // The lion declares no weight at all, so it is its own body however many
+    // pride-mates are standing there.
+    assert.equal(backedDominanceOf(engine.world, lion, carcass, POSSESSION), dominanceOf(lion));
+  });
+
+  test('⚠⚠ the contest resolves on the same reading that started it', () => {
+    // The failure this guards is subtle and would look like bad luck: `outranks`
+    // decides to challenge on backed dominance, and if `resolveContest` then scored
+    // one body the clan would *lose the fight it correctly started* — three draws
+    // and a possible wound for nothing, which is exactly what the strictly-greater
+    // rule exists to prevent. `scoreOf` is what keeps them the same question.
+    const { engine, carcass, lion, hyenas } = standoff(6);
+    const scoreOf = (a) => backedDominanceOf(engine.world, a, carcass, POSSESSION);
+    assert.ok(scoreOf(hyenas[0]) > scoreOf(lion), 'the clan outranks the lion on the backed reading');
+    const result = resolveContest(hyenas[0], lion, new SeededRandom(deriveSeed(1, 'possession')), {
+      escalationChance: 0.3,
+      fightInjurySeverity: 0.2,
+      winnerInjuryFraction: 0.4,
+      injuryHealthDamage: 60,
+      tick: 1,
+      scoreOf,
+    });
+    assert.equal(result.winner.id, hyenas[0].id, 'and wins the contest it started');
+    // Without the injected reading — the pre-P7 resolve — the lion wins on mass,
+    // which is the disagreement this option exists to prevent.
+    const naive = resolveContest(hyenas[0], lion, new SeededRandom(deriveSeed(1, 'possession')), {
+      escalationChance: 0.3,
+      fightInjurySeverity: 0.2,
+      winnerInjuryFraction: 0.4,
+      injuryHealthDamage: 60,
+      tick: 1,
+    });
+    assert.equal(naive.winner.id, lion.id, 'one body still beats one body');
+  });
+
+  test('⚠ a territory dispute and a mating rivalry are untouched', () => {
+    // `resolveContest` gained an option, not a behaviour: its two other callers
+    // pass nothing and must get exactly what they got before. Asserted directly,
+    // because "the default is the old default" is the whole claim.
+    const { engine, carcass, lion, hyenas } = standoff(6);
+    void carcass;
+    void engine;
+    const opts = {
+      escalationChance: 0.3,
+      fightInjurySeverity: 0.2,
+      winnerInjuryFraction: 0.4,
+      injuryHealthDamage: 60,
+      tick: 1,
+    };
+    const plain = resolveContest(hyenas[0], lion, new SeededRandom(deriveSeed(2, 'social')), opts);
+    const explicit = resolveContest(hyenas[0], lion, new SeededRandom(deriveSeed(2, 'social')), {
+      ...opts,
+      scoreOf: dominanceOf,
+    });
+    assert.equal(plain.winner.id, explicit.winner.id);
+    assert.equal(plain.escalated, explicit.escalated);
   });
 });

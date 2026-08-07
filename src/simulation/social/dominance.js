@@ -196,6 +196,22 @@ export function resolveContest(a, b, random, options) {
     injuryHealthDamage,
     tick,
     maxInjuries = MAX_INJURIES,
+    // ⚠⚠ **How each animal is scored, and the default is the only reading this
+    // function had until 2026-08-07** (PREDATOR-PLAN P7). A carcass contest passes
+    // a *backed* dominance — an animal's own weight multiplied by how many of its
+    // record are standing over the body — because "many hyenas displace a lion" is
+    // a fact about numbers and `dominanceOf` is a fact about one body.
+    //
+    // ⚠ It is a parameter rather than a change here because **the other two
+    // contests must not move**: a territory dispute and a mating rivalry both call
+    // this without it and get exactly what they got before. Widening dominance
+    // itself would have changed three mechanisms to serve one.
+    //
+    // ⚠ It feeds `parity` as well as the winner, and that is deliberate: a clan
+    // that overwhelms a lion should win a *walkover*, not a bloodbath. Scoring the
+    // winner one way and the closeness another would make an outmatched holder
+    // fight hardest exactly when it is most outnumbered.
+    scoreOf = dominanceOf,
   } = options;
 
   // Draw first, branch after (the fixed-budget rule).
@@ -203,8 +219,8 @@ export function resolveContest(a, b, random, options) {
   const loserRoll = random.next();
   const winnerRoll = random.next();
 
-  const aScore = dominanceOf(a);
-  const bScore = dominanceOf(b);
+  const aScore = scoreOf(a);
+  const bScore = scoreOf(b);
   // Ties go to the lower id, so two identical animals resolve deterministically.
   const aWins = aScore > bScore || (aScore === bScore && a.id < b.id);
   const winner = aWins ? a : b;

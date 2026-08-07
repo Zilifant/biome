@@ -30,7 +30,14 @@ import { EventTypes } from '../events/EventTypes.js';
 import { recordMemory, forgetMemory, MemoryKinds, MAX_MEMORIES } from '../memory/memories.js';
 import { CarcassSystem } from './CarcassSystem.js';
 import { diseaseSeverity } from '../disease/disease.js';
-import { DEFAULT_POSSESSION, holderOf, mayFeedFreely, outranks, reachesCarcass } from '../predation/possession.js';
+import {
+  DEFAULT_POSSESSION,
+  backedDominanceOf,
+  holderOf,
+  mayFeedFreely,
+  outranks,
+  reachesCarcass,
+} from '../predation/possession.js';
 import { dominanceOf, resolveContest } from '../social/dominance.js';
 import { MAX_INJURIES } from '../injury/injuries.js';
 
@@ -70,6 +77,10 @@ export class FeedingSystem extends SimulationSystem {
     possessionEnabled = DEFAULT_POSSESSION.enabled,
     possessionRange = DEFAULT_POSSESSION.range,
     possessionShare = DEFAULT_POSSESSION.share,
+    // ⚠ Default to the pre-P7 behaviour, so a system built with no options is the
+    // old system; `config.carcass` carries what the demo runs on.
+    possessionBackingEnabled = DEFAULT_POSSESSION.backingEnabled,
+    possessionBackingRange = DEFAULT_POSSESSION.backingRange,
     possessionEscalationChance = DEFAULT_POSSESSION.escalationChance,
     possessionFightSeverity = DEFAULT_POSSESSION.fightInjurySeverity,
     possessionWinnerInjuryFraction = DEFAULT_POSSESSION.fightWinnerInjuryFraction,
@@ -95,6 +106,8 @@ export class FeedingSystem extends SimulationSystem {
       enabled: possessionEnabled,
       range: possessionRange,
       share: possessionShare,
+      backingEnabled: possessionBackingEnabled,
+      backingRange: possessionBackingRange,
       escalationChance: possessionEscalationChance,
       fightInjurySeverity: possessionFightSeverity,
       fightWinnerInjuryFraction: possessionWinnerInjuryFraction,
@@ -220,7 +233,10 @@ export class FeedingSystem extends SimulationSystem {
     const holder = holderOf(world, carcass, this.possession);
     let share = 1;
     if (!mayFeedFreely(holder, entity)) {
-      if (outranks(entity, holder)) {
+      // ⚠ Backed dominance since P7: numbers at the body count for a species that
+      // declares `behavior.contestBackingWeight`. Identity for every other.
+      const scoreOf = (animal) => backedDominanceOf(world, animal, carcass, this.possession);
+      if (outranks(world, entity, holder, carcass, this.possession)) {
         // A challenge. Exactly three draws whatever happens, on the possession
         // stream's own sequence, so a fight over a body cannot shift the `social`
         // stream that mate contests and territory disputes share.
@@ -231,6 +247,12 @@ export class FeedingSystem extends SimulationSystem {
           injuryHealthDamage: this.injuryHealthDamage,
           tick: context.tick,
           maxInjuries: this.maxInjuries,
+          // ⚠⚠ **The same reading `outranks` just used, or the two disagree.**
+          // `outranks` decided to challenge on backed dominance; if the contest
+          // then resolved on one body the clan would lose the fight it correctly
+          // started, spend three draws and risk a wound — precisely what the
+          // "strictly greater" rule exists to prevent.
+          scoreOf,
         });
         // Dominance decided it before the draws were spent, so the challenger
         // wins by construction — but read the result rather than assuming it, so
@@ -244,8 +266,12 @@ export class FeedingSystem extends SimulationSystem {
             entityId: entity.id,
             victimId: holder.id,
             carcassId: carcass.id,
-            dominance: dominanceOf(entity),
-            victimDominance: dominanceOf(holder),
+              // ⚠ Published as the **backed** scores, because those are what decided
+            // it. Reporting one-body dominance beside a takeover that numbers won
+            // would make the event lie about its own cause — the `entity.contested`
+            // discipline of publishing the scores rather than odds, kept honest.
+            dominance: scoreOf(entity),
+            victimDominance: scoreOf(holder),
             escalated: result.escalated,
             injured: result.injured,
           });

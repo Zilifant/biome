@@ -140,6 +140,26 @@ export const DEFAULT_POSSESSION = Object.freeze({
    * **0 restores strict exclusion** and is the measured variant above.
    */
   share: 0.25,
+  /**
+   * ⚠⚠ **Whether numbers count at a carcass** (PREDATOR-PLAN P7). The brief:
+   * "group numerical strength should be able to affect carcass contests — many
+   * hyenas should be able to contest and possibly displace a solo healthy adult
+   * lion." Possession is settled by `dominanceOf`, which reads **one body**, and a
+   * 60 kg hyena never outranks a 180 kg lion however many of them are standing
+   * there. This is what makes the count matter.
+   *
+   * ⚠ `false` is the reproducible control and is exactly the pre-P7 behaviour: the
+   * backing multiplier is skipped and the grid is never touched.
+   */
+  backingEnabled: true,
+  /**
+   * How close one of your own has to be to the body to be backing you.
+   *
+   * ⚠ Deliberately the same 6 as `cooperation.range` — "the animals around the
+   * kill", not "the animals somewhere behind it" — so the two mechanisms that
+   * count a group at a carcass agree about what "there" means.
+   */
+  backingRange: 6,
   escalationChance: 0.3,
   fightInjurySeverity: 0.2,
   fightWinnerInjuryFraction: 0.4,
@@ -179,23 +199,78 @@ export function mayFeedFreely(holder, eater) {
 }
 
 /**
+ * How much weight an animal throws around **at this body** — its own, multiplied
+ * by how many of its group are standing over the carcass with it (PREDATOR-PLAN
+ * P7).
+ *
+ * `1 + contestBackingWeight × min(backers, maxBackers)`, which is the shape
+ * `cooperationBonus` and `shielding` already use, and **exactly the identity** at
+ * weight 0, with no backers, or for an animal in no group.
+ *
+ * ⚠⚠ **Applied to both sides, and it has to be.** A clan taking a body off a lion
+ * and a lion holding one against a clan are the same comparison read twice; if
+ * only the challenger were backed, two clans at one carcass would each displace
+ * the other on alternate ticks.
+ *
+ * ⚠ **Gated on the species weight before the grid is touched**, so seven of the
+ * eight species pay one property read. That matters here more than in most places:
+ * this is reached from the feeding loop, per eater per contested carcass.
+ *
+ * ⚠ **Backers are counted by group record, not by species.** Two unrelated hyena
+ * clans at one body back their own members and not each other, which is what makes
+ * the mechanism about a *clan* rather than about a crowd.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} animal @param {object} carcass
+ * @param {object} possession resolved possession parameters
+ * @returns {number}
+ */
+export function backedDominanceOf(world, animal, carcass, possession) {
+  const base = dominanceOf(animal);
+  if (!possession.backingEnabled || animal.groupRecordId === null) return base;
+  const behavior = world.species.get(animal.speciesId)?.behavior;
+  const weight = behavior?.contestBackingWeight ?? 0;
+  if (!(weight > 0)) return base;
+  let backers = 0;
+  for (const otherId of world.grid.queryRadius(carcass.x, carcass.y, possession.backingRange)) {
+    if (otherId === animal.id) continue;
+    const other = world.entities.get(otherId);
+    if (!other || other.kind !== 'animal' || !other.alive) continue;
+    if (other.groupRecordId !== animal.groupRecordId) continue;
+    backers += 1;
+  }
+  if (backers === 0) return base;
+  return base * (1 + weight * Math.min(backers, behavior.maxBackers ?? backers));
+}
+
+/**
  * Whether `challenger` would take the body off `holder` rather than wait.
  * Strictly greater, so an even match is a stand-off rather than a coin flip.
- * @param {object} challenger @param {object} holder
+ *
+ * ⚠ Reads **backed** dominance since P7, and the same reading has to reach
+ * `resolveContest` (via its `scoreOf` option) or the two would disagree: a clan
+ * would decide to challenge on its numbers and then lose the contest on one
+ * body — spending three draws and risking a wound for nothing, which is the exact
+ * thing this predicate's "strictly greater" rule exists to prevent.
+ *
+ * @param {import('../world/World.js').World} world
+ * @param {object} challenger @param {object} holder @param {object} carcass
+ * @param {object} possession
  */
-export function outranks(challenger, holder) {
-  return dominanceOf(challenger) > dominanceOf(holder);
+export function outranks(world, challenger, holder, carcass, possession) {
+  return backedDominanceOf(world, challenger, carcass, possession) > backedDominanceOf(world, holder, carcass, possession);
 }
 
 /**
  * What fraction of its normal intake `eater` gets off this body: 1 if it holds
  * it, shares a group with the holder, or is about to take it; `share` otherwise.
  *
+ * @param {import('../world/World.js').World} world @param {object} carcass
  * @param {object|null} holder @param {object} eater @param {object} possession
  * @returns {number}
  */
-export function shareFor(holder, eater, possession) {
-  if (mayFeedFreely(holder, eater) || outranks(eater, holder)) return 1;
+export function shareFor(world, carcass, holder, eater, possession) {
+  if (mayFeedFreely(holder, eater) || outranks(world, eater, holder, carcass, possession)) return 1;
   return possession.share;
 }
 
@@ -217,5 +292,5 @@ export function shareFor(holder, eater, possession) {
  */
 export function isAvailableTo(world, carcass, eater, possession) {
   if (!reachesCarcass(world, carcass, eater)) return false;
-  return shareFor(holderOf(world, carcass, possession), eater, possession) > 0;
+  return shareFor(world, carcass, holderOf(world, carcass, possession), eater, possession) > 0;
 }

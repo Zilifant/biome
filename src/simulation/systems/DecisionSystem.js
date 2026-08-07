@@ -259,6 +259,10 @@ export class DecisionSystem extends SimulationSystem {
     possessionEnabled = DEFAULT_POSSESSION.enabled,
     possessionRange = DEFAULT_POSSESSION.range,
     possessionShare = DEFAULT_POSSESSION.share,
+    // ⚠ Default to the pre-P7 behaviour, so a system built with no options is the
+    // old system; `config.carcass` carries what the demo runs on.
+    possessionBackingEnabled = DEFAULT_POSSESSION.backingEnabled,
+    possessionBackingRange = DEFAULT_POSSESSION.backingRange,
     // Cooperative action (phase 10, PLAN-SPECIES.md §3.7). Two world-level
     // switches, wired from `config.cooperation` and `config.mobbing` — ⚠ *not*
     // from `hunting` or `behavior`, which are species blocks a species overrides
@@ -407,6 +411,8 @@ export class DecisionSystem extends SimulationSystem {
       enabled: possessionEnabled,
       range: possessionRange,
       share: possessionShare,
+      backingEnabled: possessionBackingEnabled,
+      backingRange: possessionBackingRange,
     });
     this.cooperation = Object.freeze({
       ...DEFAULT_COOPERATION,

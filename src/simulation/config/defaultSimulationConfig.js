@@ -1256,6 +1256,22 @@ export const defaultSimulationConfig = Object.freeze({
     // times what a bystander does, which is what possession is *for*. **0
     // restores strict exclusion**, and is the measured variant above.
     possessionShare: 0.25,
+    // ⚠⚠ **Numbers at a carcass** (PREDATOR-PLAN P7, 2026-08-07). The brief asks
+    // that "group numerical strength should be able to affect carcass contests —
+    // many hyenas should be able to contest and possibly displace a solo healthy
+    // adult lion". Possession is settled by `dominanceOf`, which reads **one
+    // body**, so a 60 kg hyena never outranked a 180 kg lion however many were
+    // standing there. `false` is the reproducible control and skips the multiply
+    // and the grid query entirely.
+    //
+    // ⚠ World-level, like every other mechanism switch here, because a species
+    // block beats the config (DOCS §8) and an "off" arm inside one could not
+    // switch anything off. The biology is `behavior.contestBackingWeight`.
+    possessionBackingEnabled: true,
+    // How close one of your own must be to the body to count as backing you. ⚠ The
+    // same 6 as `cooperation.range` on purpose: the two mechanisms that count a
+    // group at a kill should agree about what "at" means.
+    possessionBackingRange: 6,
     // Fights over a body are the mildest of the three: a beaten challenger has
     // lost nothing but a meal, and the resident keeps eating. Contests draw
     // from their own `possession` stream so a carcass fight cannot shift the
@@ -2023,6 +2039,21 @@ export const defaultSimulationConfig = Object.freeze({
     // beats eating, drinking, or running.
     patrolWeight: 0.55, // must clear `wanderBias` (0.35) — patrol replaces wander
     retreatWeight: 0.7,
+    // ⚠⚠ **What numbers are worth in a carcass contest** (PREDATOR-PLAN P7). An
+    // animal's standing at a body is `dominanceOf × (1 + weight × backers)`, capped
+    // at `maxBackers` — the shape `cooperationBonus` and `shielding` already use.
+    // **0 is exactly the identity**, so this is one property read for a species
+    // that says nothing, and the grid is never walked for it.
+    //
+    // ⚠ Biology, so it lives in the species block; the switch and the range live in
+    // `config.carcass` beside possession itself. The **hyena** is what it is for: a
+    // clan taking a lion's kill is the animal's defining behaviour and was the one
+    // thing possession could not express, because dominance reads a single body.
+    contestBackingWeight: 0,
+    // The cap on that count. ⚠ A cap rather than a curve, exactly as `maxAttackers`
+    // and `maxDefenders` are: a crowd should be an advantage and never a certainty,
+    // and the clamps inside the contest are the second guard.
+    maxBackers: 4,
     huntWeight: 1.4,
     stalkDiscount: 0.8, // stalking is worth slightly less than committing
     chaseRange: 4.0, // inside this, stalking becomes a sprint
