@@ -36,6 +36,59 @@
  *      phase 14 built one mechanism wrong twice and both times it read as "no
  *      effect" rather than as an error, which is precisely what this family is
  *      for.
+ *   4. **Corruption and runaway commitments** — ⚠ new 2026-08-06, and the family
+ *      the *behaviour* plan forced. `non-finite-state` fires on any `NaN` in a
+ *      position, a steering drift, a physiological scalar or a utility score;
+ *      `commitment-past-ceiling` fires on a ttl further out than its own
+ *      world-level bound allows; `sprint-to-exhaustion` fires on an animal
+ *      holding `defend`/`chase` far past that bound while its stamina is already
+ *      spent; and `lost-from-its-band`, a long-standing record member that never
+ *      once had a bandmate in the centre it steers at. All four are **invariants
+ *      rather than judgements**, which is why they carry the highest severities in
+ *      the tool — and two of them have never fired, which is the correct result
+ *      rather than a reason to loosen them.
+ *
+ * ⚠⚠ **Family 4 exists because this tool was run twice as reassurance that it
+ * could not provide.** The herbivore-behaviour plan named four risks for it —
+ * "an animal locked on one bearing, a band collapsed to a point, a buffalo
+ * sprinting until it dies, an entity at NaN" — and then two phases recorded
+ * "`npm run ethologist` reports no new anomaly kind" as evidence they had not
+ * happened. It could not have reported any of them: nothing read a position for
+ * finiteness, nothing read `stamina` at all, and `defend`/`chase` are
+ * *deliberately excluded* from both the seek and circling detectors because their
+ * targets move evasively. **A clean report from a detector that cannot see the
+ * mechanism is not evidence about the mechanism** — the same shape as D40's null
+ * arm and D31's tautological fixture.
+ *
+ * ### ⛔ Two of the four were measured and deliberately **not** built
+ *
+ * Both were attempted, both were measured against a null arm *before* any code
+ * shipped, and in both cases the measurement says a detector cannot discriminate.
+ * Recorded here so the next person reaching for one starts from the numbers rather
+ * than from the idea (`ACTION-ITEMS.md` **A83**).
+ *
+ * - ⛔ **"An animal locked on one bearing."** The obvious measure is net
+ *   displacement over path length. At a 600-tick window a *healthy* world already
+ *   reaches **0.999** — straight-line travel is ordinary. Lengthening the window to
+ *   1500 separates the arms but not enough to be a detector: with the consensus
+ *   **on**, max 0.567 / p99 0.506 and the top six animals are all wildebeest (the
+ *   species declaring `consensusWeight: 1.0`); with it **off**, max 0.522 /
+ *   p99 0.457 and the top six are mixed. So the mechanism genuinely *is* visible —
+ *   and any threshold that avoids firing on the control arm has **0.017 of
+ *   headroom**, which is noise. The reason is in DOCS §9: consensus strength on the
+ *   demo runs ~0.10, a weak bend on a heading that was going to be arbitrary
+ *   anyway. ⚠ The sharper framing — a commitment that never *expires* — is already
+ *   covered by `commitment-past-ceiling`, which reads the ttl rather than the
+ *   trajectory.
+ * - ⛔ **"A band collapsed to a point."** `locomotion.maxOccupantsPerCell: 2`
+ *   refuses entry to a full cell, so a geometric floor on how tightly N animals can
+ *   pack already exists — and healthy records sit **on** it. Measured minimum
+ *   mean-distance-from-centre by member count over 7000 ticks: 2 members 0.10,
+ *   3 → 0.53, 4 → 0.76, 8 → 1.39, 12 → 1.49, 16 → 2.01, while the tight
+ *   buffalo/zebra records run a *median* of ~2.1. There is no gap between
+ *   "collapsed" and "a real band standing together", because the engine already
+ *   prevents the collapse. ⚠ Same finding the behaviour plan recorded about the
+ *   defensive ring, arriving from the other direction.
  *
  * Determinism makes this trustworthy: every flagged case is exactly reproducible
  * from its seed + config, so a finding is a lead you can re-run and drill into,
@@ -88,6 +141,8 @@
  * ⚠ The default sweep is six worlds of the **eight-species** demo and takes a
  * couple of minutes; progress goes to stderr so `--json` stays pipeable.
  */
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createDemoSimulation, buildDemoConfig } from '../fixtures/createDemoSimulation.js';
 import { TerrainType } from '../simulation/world/TerrainGrid.js';
 import { breedingWindowOf, inBreedingWindow } from '../simulation/mating/breeding.js';
@@ -133,6 +188,30 @@ const D = Object.freeze({
   // absence means something; an animal that died a juvenile is not evidence.
   adultTicksForReview: 800, // must have been an adult this long to be reviewed
   groupChangesFlag: 6, //    joins+leaves above this is flapping (A56)
+  // --- Commitment abuse (2026-08-06, the behaviour plan's mechanisms). Every
+  // threshold here is a **multiple of the engine's own configured ceiling**
+  // rather than a constant, because the whole question these detectors ask is
+  // "is the bound bounding?" — a hardcoded tick count would be a second opinion
+  // about what the bound should be (D11).
+  // ⚠⚠ **Both numbers below were measured before being trusted, and the first
+  // draft of each was wrong in the two opposite directions D39 warns about.**
+  // Measured on the demo, seed 42 × 7000 ticks: the longest unbroken
+  // `defend`/`chase` run by any animal in a healthy world is **31 ticks** (a
+  // leopard), with buffalo at 4 and wildebeest at 2. A factor of 4 against the
+  // 40-tick pursuit ceiling put the trigger at 160 — **5× the observed maximum**,
+  // which is not a loose threshold, it is an unreachable one. 2 puts it at 80:
+  // 2.6× the healthy maximum, clearly anomalous, and still reachable.
+  runawayCommitFactor: 2,
+  exhaustedStaminaFraction: 0.05, // sprinting at or below this much of maxStamina is spent
+  // ⚠⚠ **And the stamina term was very nearly a term that is always true.** The
+  // same run spends **64 128 action-ticks sprinting at ≤5% stamina** — about 1.5%
+  // of all animal-ticks, roughly 100 per animal per life — so a lifetime threshold
+  // of 60 would have been *below typical*, the conjunction would have degenerated
+  // to its hold-run half, and deleting the stamina test would have changed nothing.
+  // That is D43's shape in a detector written to catch D43. So the term is now
+  // scoped to the **episode**: exhausted-sprint ticks *inside the long hold
+  // itself*, which is what "sprinting until it drops" actually means.
+  exhaustedHoldFraction: 0.5, // this much of the over-ceiling hold spent on an empty tank
 });
 
 // ⚠ `hide` belongs here: lying still *is* the behaviour of a concealed neonate
@@ -168,6 +247,20 @@ const CELL_SEEK_ACTIONS = new Set([
  * difference between a report and a wall of text.
  */
 const PURSUIT_ACTIONS = new Set(['stalk', 'seekMate', 'followParent', 'tend']);
+
+/**
+ * Actions an animal *holds a position or a target under load* in — the two the
+ * comment above deliberately excludes from every other detector.
+ *
+ * ⚠⚠ **That exclusion left a hole, and it is the hole detector 4c fills.** It is
+ * right that "made no progress toward a fleeing lion" is not an anomaly, and the
+ * consequence is that `defend` and `chase` are invisible to *both* the seek and
+ * circling detectors — so a mechanism whose named failure mode was "a buffalo
+ * sprinting until it dies" had nothing watching it at all. The claim here is not
+ * about progress; it is about **duration against the engine's own ceiling, while
+ * the sprint budget is already spent.**
+ */
+const HOLD_ACTIONS = new Set(['defend', 'chase']);
 
 function parseArgs(argv) {
   const opts = {
@@ -305,6 +398,13 @@ function speciesFactsOf(world) {
       breedingWindow: window,
       formsGroups: species.groups?.forms === true,
       huntsAnything: (species.preySpeciesIds?.length ?? 0) > 0,
+      // --- The behaviour plan's per-species weights (2026-08-06). All three are
+      // 0 for most of the roster, and 0 means "this species never has the field
+      // written at all" — so a detector reading them must treat 0 as *exempt*
+      // rather than as a low value.
+      chargeWeight: species.behavior?.chargeWeight ?? 0,
+      pursuitTicks: species.behavior?.pursuitTicks ?? 0,
+      consensusWeight: species.behavior?.consensusWeight ?? 0,
     });
   }
   return facts;
@@ -532,6 +632,25 @@ function newTracker(tick, entity) {
     everSawMate: false,
     groupChanges: 0,
     lastGroupRecordId: entity.groupRecordId ?? null,
+    // --- Commitment abuse (2026-08-06). `corrupted` and `overrunReported` are
+    // one-shot latches: both findings describe a state that persists, so without
+    // them one animal fills the report.
+    corrupted: false,
+    overrunReported: false,
+    holdRun: 0, //           consecutive ticks in `defend`/`chase` right now
+    holdSpent: 0, //         ...of which this many were sprinting on an empty tank
+    holdRunMax: 0, //        the longest such run in this life
+    holdRunSpent: 0, //      the spent-sprint count *of that same episode*
+    holdRunAction: null, //  which action that longest run was
+    // Lifetime total, reported for context but ⚠ **not** a trigger: 1.5% of all
+    // animal-ticks in a healthy world are sprints on an empty tank, so a lifetime
+    // count discriminates nothing (see `D.exhaustedHoldFraction`).
+    sprintExhaustedTicks: 0,
+    // P7's premise, counted: how long this animal has belonged to a record, and
+    // how much of that it spent with any of its own band in the centre it steers
+    // at. A member of a band it never once meets is a rally that never worked.
+    inRecordTicks: 0,
+    withBandmateTicks: 0,
     bbox() { return `x[${this.minX.toFixed(0)}..${this.maxX.toFixed(0)}] y[${this.minY.toFixed(0)}..${this.maxY.toFixed(0)}]`; },
   };
 }
@@ -554,6 +673,238 @@ function needOf(entity) {
  */
 function saturate(base, ceiling, ratio) {
   return base + (ceiling - base) * (1 - 1 / (1 + Math.max(0, ratio)));
+}
+
+/**
+ * The two world-level commitment ceilings, derived from the config rather than
+ * restated — so a retuned bound retunes the detector.
+ *
+ * ⚠⚠ **`+ updateInterval` is load-bearing and it is the one line here that is a
+ * claim about the *engine* rather than about the config.** A herd label re-decides
+ * only on a tick `HerdConsensusSystem` actually runs, so a commitment legitimately
+ * quantizes up to the cadence (DOCS §15). A ceiling of `commitTicks` alone would
+ * report the design as a defect on every committed wildebeest in the world.
+ *
+ * ⚠ Extracted from `analyzeRun` so it can be tested. It was inline first, and the
+ * mutation that dropped the slack **survived the whole suite** — because the test
+ * built its own ceiling as a literal `65` and was therefore asserting against
+ * itself rather than against this arithmetic. That is D31 exactly, in a fixture
+ * written the same afternoon as a warning about D31.
+ *
+ * @param {object} config a resolved simulation config
+ */
+export function commitmentCeilingsOf(config) {
+  return {
+    chargeEnabled: config.charge?.enabled !== false,
+    pursuitCeiling: config.charge?.maxPursuitTicks ?? 40,
+    consensusEnabled: config.consensus?.enabled !== false,
+    consensusCeiling: (config.consensus?.commitTicks ?? 60) + (config.consensus?.updateInterval ?? 5),
+  };
+}
+
+/**
+ * Every scalar on an animal that a `NaN` would silently poison, with the ones
+ * that are legitimately `null` marked as nullable.
+ *
+ * ⚠⚠ **This list is the point of the detector, so it is written out rather than
+ * derived.** A generic "walk every numeric property" scan would also walk fields
+ * that are *meant* to be absent and would go quiet the first time somebody added
+ * a legitimately-undefined one; naming them means a new steering field has to be
+ * added here deliberately, which is the same discipline `flatTerrain.js` imposes
+ * on terrain quantities.
+ */
+const FINITE_FIELDS = Object.freeze(['x', 'y', 'heading', 'energy', 'hydration', 'health', 'stamina', 'bodyMass']);
+const NULLABLE_FINITE_FIELDS = Object.freeze([
+  'migrationHeading', 'migrationStrength',
+  // The behaviour plan's three steering channels. Every one of them had a
+  // near-miss NaN in its own phase (a divide by ~0 affinity, `pullScale = 0/0`,
+  // `clamp01(undefined)`, `atan2(0, 0)`), which is why they are listed together.
+  'herdHeading', 'herdStrength', 'herdCommitUntil',
+  'rallyHeading', 'rallyStrength',
+  'trailHeading', 'trailStrength',
+  'defendUntil', 'defendThreatX', 'defendThreatY',
+]);
+
+/**
+ * Detector 4a — **non-finite state**, the failure this whole tool could not see
+ * until 2026-08-06.
+ *
+ * ⚠⚠ **A `NaN` here is not a crash, it is a silent permanent deletion**, and it
+ * has two distinct shapes. A `NaN` *position* removes the animal from every
+ * spatial query while leaving it in `world.entities`, so it is alive, invisible,
+ * and unreachable forever. A `NaN` *utility* loses every `argmaxUtility`
+ * comparison — `NaN > x` is false — so that action is never chosen again, nothing
+ * throws, and the inspector reports `null`. Both read as "the mechanism has no
+ * effect" from any population number, which is exactly what an anomaly finder is
+ * for.
+ *
+ * The behaviour plan produced **four** near-misses of this family in ten phases
+ * (DOCS §16, and see `NULLABLE_FINITE_FIELDS`), every one caught by review rather
+ * than by measurement. This is the measurement.
+ *
+ * ⚠ Fires **at most once per animal**: a corrupted animal stays corrupted for the
+ * rest of the run, so a per-tick finding would be one animal filling the report.
+ *
+ * @param {object} entity
+ * @param {object|null} summary this animal's `world.social` entry, or null
+ * @param {object} tracker
+ * @param {number} tick
+ * @returns {object|null}
+ */
+function nonFiniteState(entity, summary, tracker, tick) {
+  if (tracker.corrupted) return null;
+  const broken = [];
+  for (const field of FINITE_FIELDS) {
+    if (!Number.isFinite(entity[field])) broken.push(`${field}=${entity[field]}`);
+  }
+  // ⚠⚠ **`pullScale` is a divisor, so zero is as fatal as NaN and does not look
+  // it.** `DecisionSystem` computes `herdDistance / pullScale`: at 0 that is
+  // `Infinity`, so the animal is always already "close enough" to its herd and
+  // `herd` never fires as a closing action; at NaN the utility loses every
+  // comparison instead. Both read as "herding stopped working" with nothing
+  // thrown. It lives on the social summary rather than the entity, which is why
+  // it is checked here rather than in the field lists above.
+  if (summary && 'pullScale' in summary) {
+    const pull = summary.pullScale;
+    if (!Number.isFinite(pull)) broken.push(`social.pullScale=${pull}`);
+    else if (pull <= 0) broken.push(`social.pullScale=${pull} (a divisor: herdDistance/0 is Infinity)`);
+  }
+  for (const field of NULLABLE_FINITE_FIELDS) {
+    const value = entity[field];
+    if (value !== null && value !== undefined && !Number.isFinite(value)) broken.push(`${field}=${value}`);
+  }
+  // A non-finite utility is the quieter half and needs no extra state — the
+  // breakdown is already on the entity for inspection.
+  for (const [action, score] of Object.entries(entity.utilityBreakdown ?? {})) {
+    if (!Number.isFinite(score)) broken.push(`utility.${action}=${score}`);
+  }
+  if (broken.length === 0) return null;
+  tracker.corrupted = true;
+  return {
+    kind: 'non-finite-state',
+    id: entity.id,
+    species: entity.speciesId,
+    tick,
+    // ⚠ Deliberately above every other kind's ceiling. Nothing else in this tool
+    // is a *corruption*: the rest are judgements about whether behaviour looks
+    // sensible, and this is state that can no longer mean anything.
+    severity: 20,
+    detail:
+      `non-finite state: ${broken.join(', ')} — at (${entity.x},${entity.y}), action=${entity.action}. ` +
+      'A NaN position leaves the animal alive and outside every spatial query; a NaN utility means that ' +
+      'action is silently never chosen again (DOCS §16)',
+  };
+}
+
+/**
+ * Detector 4b — **a commitment further out than its own configured ceiling.**
+ *
+ * Both of the plan's commitments are bounded by a world-level number precisely so
+ * a species file cannot raise them (`config.charge.maxPursuitTicks`,
+ * `config.consensus.commitTicks`). This asks the only question that matters about
+ * such a bound: is it bounding? A ttl beyond it is an invariant violation rather
+ * than a judgement, which is why it fires on the first tick it is seen rather than
+ * accumulating evidence.
+ *
+ * ⚠ The consensus ceiling is `commitTicks + updateInterval`, not `commitTicks`.
+ * A label re-decides only on a tick `HerdConsensusSystem` runs, so a commitment
+ * legitimately quantizes up to the cadence — that slack is part of the mechanism
+ * (DOCS §15), and a detector that did not know it would report the design.
+ *
+ * ⚠ Checked whether or not the mechanism is switched **on**: with `charge.enabled`
+ * false a `defendUntil` should be null, so a non-null one is a leak rather than a
+ * control arm.
+ *
+ * @returns {object|null}
+ */
+function commitmentPastCeiling(entity, tracker, tick, ctx) {
+  if (tracker.overrunReported) return null;
+  const over = [];
+  if (entity.defendUntil !== null && entity.defendUntil - tick > ctx.pursuitCeiling) {
+    over.push(
+      `defendUntil is ${entity.defendUntil - tick} ticks out against a charge.maxPursuitTicks of ${ctx.pursuitCeiling}` +
+        (ctx.chargeEnabled ? '' : ' — and charge.enabled is false, so it should be null'),
+    );
+  }
+  if (entity.herdCommitUntil !== null && entity.herdCommitUntil - tick > ctx.consensusCeiling) {
+    over.push(
+      `herdCommitUntil is ${entity.herdCommitUntil - tick} ticks out against a ceiling of ${ctx.consensusCeiling} ` +
+        '(commitTicks + updateInterval)' +
+        (ctx.consensusEnabled ? '' : ' — and consensus.enabled is false, so it should be null'),
+    );
+  }
+  if (over.length === 0) return null;
+  tracker.overrunReported = true;
+  return {
+    kind: 'commitment-past-ceiling',
+    id: entity.id,
+    species: entity.speciesId,
+    tick,
+    severity: 12,
+    detail: `${over.join('; ')} — a bound a mechanism can exceed is not a bound`,
+  };
+}
+
+/**
+ * Accumulate one tick of hold-and-sprint state onto a tracker, for detector 4c.
+ *
+ * ⚠ **Extracted so it can be tested, and the reason is a survived mutation.** With
+ * this inline in `analyzeRun`, deleting the line that increments the per-episode
+ * counter left the whole unit suite green — because the tests drove the *detector*
+ * with hand-built trackers and never ran the code that fills one. A detector whose
+ * accumulator is broken reports nothing and looks exactly like a healthy world
+ * (D19: a half-working feature hides better than a broken one).
+ *
+ * ⚠⚠ The run length and its spent-sprint count are captured **together**, so the
+ * pair always describes *one episode*. Two independent maxima would let a long hold
+ * in one fight borrow an empty tank from a different one — the cross-episode
+ * version of the always-true term this detector was reshaped to avoid.
+ *
+ * @param {object} tracker mutated in place
+ * @param {object} entity this tick's authoritative state
+ */
+export function accumulateHold(tracker, entity) {
+  const spent =
+    entity.moveIntent?.sprint === true &&
+    entity.maxStamina > 0 &&
+    entity.stamina / entity.maxStamina <= D.exhaustedStaminaFraction;
+  if (spent) tracker.sprintExhaustedTicks += 1;
+  if (!HOLD_ACTIONS.has(entity.action)) {
+    tracker.holdRun = 0;
+    tracker.holdSpent = 0;
+    return;
+  }
+  tracker.holdRun += 1;
+  if (spent) tracker.holdSpent += 1;
+  if (tracker.holdRun > tracker.holdRunMax) {
+    tracker.holdRunMax = tracker.holdRun;
+    tracker.holdRunSpent = tracker.holdSpent;
+    tracker.holdRunAction = entity.action;
+  }
+}
+
+/**
+ * Accumulate one tick of band-contact state onto a tracker, for detector 4d.
+ *
+ * Counted only while the animal actually holds a membership, so a species that
+ * forms no records never accrues either number and the detector below can never
+ * reach it.
+ *
+ * ⚠ **Extracted for the same reason `accumulateHold` was, and after the same
+ * mutation survived twice.** Deleting the `withBandmateTicks` increment left the
+ * suite green while it was inline, because the detector tests drive hand-built
+ * trackers. An accumulator that never counts makes its detector fire on *every*
+ * long-standing member — the opposite failure to the silent one, and just as
+ * invisible from a clean report.
+ *
+ * @param {object} tracker mutated in place
+ * @param {object} entity
+ * @param {object|null} summary this animal's `world.social` entry, or null
+ */
+export function accumulateBand(tracker, entity, summary) {
+  if (entity.groupRecordId === null || entity.groupRecordId === undefined) return;
+  tracker.inRecordTicks += 1;
+  if ((summary?.bandmates ?? 0) > 0) tracker.withBandmateTicks += 1;
 }
 
 /**
@@ -626,6 +977,63 @@ function lifeReview(entity, tracker, tick, ctx) {
         `— one every ${ticksPerChange.toFixed(1)} ticks (A56)`,
     });
   }
+
+  // ⚠⚠ **Detector 4c — sprinting on a budget nobody is keeping** (2026-08-06).
+  // The behaviour plan named "a buffalo sprinting until it dies" as its own
+  // headline risk and then shipped without anything able to see it: `defend` and
+  // `chase` are *deliberately excluded* from both `SEARCH_ACTIONS` and
+  // `PURSUIT_ACTIONS` above, because their targets move evasively and "made no
+  // progress" is their normal case. So the two detectors that would otherwise
+  // notice a stuck animal are both structurally blind here, and this is the gap.
+  //
+  // The claim is deliberately a **conjunction**, because either half alone is
+  // ordinary: a long hold is a mob standing its ground, and bottomed-out stamina
+  // is any animal that has just run for its life. Together they are an animal
+  // still spending a budget it has already exhausted — which is what a charge
+  // whose stamina gate has stopped biting looks like, and what
+  // `config.charge.staminaFraction` exists to prevent.
+  // ⚠ **Detector 4d — a member of a band it never meets** (P7's premise).
+  // `GroupSystem`'s rally exists to walk a separated member back to its record,
+  // and the one number it gates on is `bandmates` — how many of this animal's own
+  // record are in the centre it is steering at. An animal that held a membership
+  // for a long life and **never once** had a bandmate in that centre is a rally
+  // that never completed: it belongs to a group it has never been with.
+  //
+  // ⚠ This is a **guard rather than a finding**, and that is stated rather than
+  // discovered later: measured over 7000 ticks on seed 42, **295 animals held a
+  // membership for more than 800 ticks and 0 of them never met a bandmate.** It is
+  // here because it is the only coverage P7's mechanism has, and because the
+  // failure it describes is invisible in every population number — the record
+  // still exists, still has members, and still reports a size.
+  if (facts.formsGroups && tracker.inRecordTicks >= D.adultTicksForReview && tracker.withBandmateTicks === 0) {
+    found.push({
+      ...base,
+      kind: 'lost-from-its-band',
+      severity: saturate(4, 11, tracker.inRecordTicks / D.adultTicksForReview - 1),
+      detail:
+        `held a persistent-group membership for ${tracker.inRecordTicks} ticks and never once had a bandmate ` +
+        `in the centre it steers at — the rally's own gate (P7) never cleared, so this animal belongs to a ` +
+        `band it has never been with, roamed ${tracker.bbox()}`,
+    });
+  }
+
+  const holdCeiling = ctx.pursuitCeiling * D.runawayCommitFactor;
+  const spentFraction = tracker.holdRunMax > 0 ? tracker.holdRunSpent / tracker.holdRunMax : 0;
+  if (tracker.holdRunMax > holdCeiling && spentFraction >= D.exhaustedHoldFraction) {
+    found.push({
+      ...base,
+      kind: 'sprint-to-exhaustion',
+      severity: saturate(5, 13, tracker.holdRunMax / holdCeiling - 1),
+      detail:
+        `held ${tracker.holdRunAction} for ${tracker.holdRunMax} consecutive ticks (ceiling ` +
+        `${ctx.pursuitCeiling} × ${D.runawayCommitFactor} = ${holdCeiling}; the healthy demo maximum is 31) ` +
+        `with ${tracker.holdRunSpent} of those ticks sprinting at ≤${(D.exhaustedStaminaFraction * 100).toFixed(0)}% ` +
+        `stamina (${(spentFraction * 100).toFixed(0)}% of the episode; ${tracker.sprintExhaustedTicks} such ticks in its whole life)` +
+        (facts.chargeWeight > 0
+          ? ` — ⚠ this species declares chargeWeight ${facts.chargeWeight} / pursuitTicks ${facts.pursuitTicks}, so check config.charge.staminaFraction is still biting`
+          : ' — ⚠ this species declares no chargeWeight, so the sprint is not a charge and the cause is elsewhere'),
+    });
+  }
   return found;
 }
 
@@ -654,6 +1062,11 @@ function analyzeRun({ seed, composition, ticks, onProgress }) {
     // (DOCS §8), and a detector that fires on a switched-off mechanism is
     // reporting the control arm as a bug.
     breedingEnabled: engine.config.breeding?.enabled !== false,
+    // --- The behaviour plan's two world-level ceilings (2026-08-06). Derived by
+    // `commitmentCeilingsOf`, which is exported so the arithmetic is testable —
+    // inline, the mutation that dropped its `updateInterval` slack survived the
+    // whole suite.
+    ...commitmentCeilingsOf(engine.config),
   };
   // Species that gate receptivity on the calendar — one today (the wildebeest),
   // and the loop below only pays for the ones that do.
@@ -726,6 +1139,20 @@ function analyzeRun({ seed, composition, ticks, onProgress }) {
         tr.minX = Math.min(tr.minX, e.x); tr.maxX = Math.max(tr.maxX, e.x);
         tr.minY = Math.min(tr.minY, e.y); tr.maxY = Math.max(tr.maxY, e.y);
         if (e.moveIntent?.moving && moved < D.refusedEps && !STATIONARY.has(e.action)) tr.refusedSteps += 1;
+
+        // Detectors 4a/4b — corruption, and a commitment past its own ceiling.
+        // Both are one-shot per animal and both are *invariants* rather than
+        // judgements, so they run before anything that reads the same fields.
+        const corrupt = nonFiniteState(e, world.social.get(e.id) ?? null, tr, tick);
+        if (corrupt) anomalies.push(corrupt);
+        const overrun = commitmentPastCeiling(e, tr, tick, ctx);
+        if (overrun) anomalies.push(overrun);
+
+        // Detector 4c's counters — a held stand and a spent sprint budget. Both
+        // are accumulated here and judged once per life in `lifeReview`, because
+        // "the longest run in this life" is not a fact any single tick knows.
+        accumulateHold(tr, e);
+        accumulateBand(tr, e, world.social.get(e.id) ?? null);
 
         // Detector 2a — unresolved intent: committed to reaching something and
         // never closing on it. Two patiences, because a fixed cell and a walking
@@ -1029,4 +1456,15 @@ function main() {
   console.log('and add --species=<id> to narrow the report (never the world) to one animal.');
 }
 
-main();
+/**
+ * ⚠ **Run only when this file is the entry point.** The three family-4 detectors
+ * below are `export`ed so `test/ethologist.test.js` can drive them against
+ * hand-built animals — which is the only way to prove a detector *can* fire, and
+ * D43 is the whole reason that proof is required rather than optional. Without
+ * this guard, importing the module would kick off a six-world sweep.
+ */
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}
+
+export { nonFiniteState, commitmentPastCeiling, lifeReview, D, HOLD_ACTIONS };

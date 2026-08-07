@@ -701,6 +701,58 @@ they are not re-opened by accident.
   labels, and merge on contact") pins the *mechanism*; what is missing is a
   population reading, and the measure to take it with now exists.
 
+- **A83 — The ethologist covers two of the four risks the behaviour plan named,
+  and staleness is its standing failure mode** _(2026-08-06)_.
+
+  ⚠⚠ **The generalisation first, because it will recur:** `npm run ethologist` was
+  cited twice as evidence that the behaviour plan's mechanisms behaved — "reports
+  no new anomaly kind across six worlds" — at a point when it **could not have
+  seen any of them**. It read no position for finiteness, read `stamina` nowhere at
+  all, and `defend`/`chase` are deliberately excluded from both the seek and
+  circling detectors because their targets move evasively. A clean report from a
+  detector that cannot see the mechanism is not evidence about the mechanism
+  (**D40**'s null arm and **D31**'s tautological fixture, in a third costume).
+  **A phase that adds a mechanism must either extend this tool or record that it
+  did not.**
+
+  ✅ **Closed on 2026-08-06 — detector family 4, four kinds:**
+  `non-finite-state` (any NaN in a position, a steering drift, a physiological
+  scalar, a utility score, or `social.pullScale` — which is a **divisor**, so zero
+  is as fatal as NaN and does not look it); `commitment-past-ceiling` (a ttl
+  further out than `config.charge.maxPursuitTicks` or
+  `commitTicks + updateInterval` allows); `sprint-to-exhaustion` (holding
+  `defend`/`chase` past that ceiling with most of the episode spent on an empty
+  tank); and `lost-from-its-band` (a long-standing record member that never once
+  had a bandmate in the centre it steers at — P7's premise, and the only coverage
+  P3/P7 have). All four are proved to fire in
+  [`test/ethologist.test.js`](test/ethologist.test.js), 28 tests, and **17
+  mutations of them each fail that suite**.
+
+  ⛔ **Two of the plan's four risks were measured and deliberately NOT built**,
+  because in both cases the measurement says a detector cannot discriminate. The
+  numbers are in the tool's header; the short version:
+  - **"An animal locked on one bearing."** Net-displacement-over-path at a
+    600-tick window reaches **0.999 in a healthy world** — straight-line travel is
+    ordinary. At 1500 ticks a null arm does separate the mechanism (consensus on:
+    max 0.567, p99 0.506, top six all wildebeest; off: max 0.522, p99 0.457, top
+    six mixed) — but any threshold that avoids firing on the control has **0.017
+    of headroom**, which is noise. Consensus strength on the demo runs ~0.10, a
+    weak bend on an already-arbitrary heading. ⚠ The sharper framing, a commitment
+    that never *expires*, is already covered by `commitment-past-ceiling`.
+  - **"A band collapsed to a point."** `locomotion.maxOccupantsPerCell: 2` already
+    imposes a geometric floor, and healthy records sit **on** it: minimum mean
+    distance from centre by member count over 7000 ticks is 2 → 0.10, 3 → 0.53,
+    4 → 0.76, 8 → 1.39, 12 → 1.49, 16 → 2.01, with tight buffalo/zebra records at
+    a *median* of ~2.1. There is no gap between "collapsed" and "a band standing
+    together" because the engine prevents the collapse — the same finding the
+    behaviour plan recorded about the defensive ring, from the other direction.
+
+  ⬜ **What remains open is the tool's own live-world calibration.** The unit suite
+  proves each detector *can* fire; only a sweep shows whether it fires too often,
+  and `circling-in-need`'s 146-flags-per-healthy-world history is the precedent.
+  Two of the four new kinds have **never fired** on the demo (7000 ticks, seed 42),
+  which is the correct result and not a reason to loosen them.
+
 - **A22 — Tombstones are bounded at 256**, so ancestry cannot be walked further
   back than that. Only bites a query that walks ancestry; lineage _depth_ is
   carried on the entity as `generation`.
