@@ -1,6 +1,6 @@
 # Social predators — lions and hyenas
 
-**Status: P1–P4 shipped 2026-08-07. P5–P8 not started.** Eight phases.
+**Status: P1–P5 shipped 2026-08-07. P6–P8 not started.** Eight phases.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -533,7 +533,7 @@ so `joinStalks: false` keeps meaning what it meant.
 
 ---
 
-## P5 — The prey partition comes out (data only)
+## P5 — The prey partition comes out (data only) — ✅ **SHIPPED 2026-08-07**
 
 _Serves: Lions & Hyenas 1, Hyenas 2._
 
@@ -601,6 +601,92 @@ measured on this exact pair of species:
 **Measurement.** This phase does not ship on a unit test. Ten seeds × 15 000
 ticks, `npm run sweep -- --control=…`, per `DOCS.md` §20 — watching all four
 grazers, both predators, and the leopard and vulture that share the carrion.
+
+### ✅ As built — 2026-08-07
+
+Three data edits, no engine change: the lion gains the gazelle, the hyena gains
+the zebra and the buffalo, and the hyena declares `hunting.cooperationWeight: 0.3`
+/ `maxAttackers: 5` — its first, which is what makes P4's joinable stalks and
+approach spread reach it at all. The brief's "this can share logic with lions" is
+one field.
+
+⚠ **The arms could not be config-driven**, because `preySpeciesIds` is species
+data and no world-level switch can sensibly express "what does the lion hunt". The
+control was therefore measured **before** applying the change rather than by
+swapping files under a running job — population counts are deterministic in seed
+and code, so there is no drift to worry about and nothing to restore.
+
+#### The reading, 6 seeds × 6000 ticks
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| control (post-P4) | 7.0 | 16.8 | 62.2 | 74.0 | 139.3 | 29.8 | 2.5 | 7.8 |
+| **P5 (shipped)** | 5.8 | 13.8 | 54.3 | 75.5 | 148.7 | **22.3** | 3.0 | 7.7 |
+| per-seed | 1u/2d | 2u/3d | 3u/3d | 4u/2d | 4u/2d | **2u/4d** | 3u/1d | 3u/3d |
+
+✅ **Every species alive on 6/6 seeds.** The two movements with a direction are the
+**gazelle** (down, 2u/4d) and the **lion** (down, and never up).
+
+#### ⚠⚠ A58 bites, and this plan's own file comment claimed it would not
+
+The lion's file argued the gazelle was safe to add because `default-small` runs 30
+gazelle against 200 large grazers, so "the nearest eligible animal is usually not a
+gazelle". **Measured, it is a gazelle 31–34% of the time** — over twice their 13%
+share of the roster:
+
+| | wildebeest | gazelle | zebra | buffalo |
+| --- | ---: | ---: | ---: | ---: |
+| lion, seed 1 | 48% | **34%** | 8% | 9% |
+| lion, seed 42 | 38% | **31%** | 24% | 8% |
+| hyena, seed 1 | 18% | **82%** | — | — |
+| hyena, seed 42 | 34% | **62%** | — | 3% |
+
+⚠ **P3 is half the cause, and the interaction was not foreseen by either phase.** A
+*lone* lion's ceiling is 306 kg and only ~40% of lions have a pride-mate at hand,
+so for most lions most of the time the eligible set is gazelle, wildebeest and
+mid-weight zebra — and P5 added the smallest, cheapest member of it. P3 narrowed
+the top of the range and P5 added to the bottom; they push the same way.
+
+#### ⚠⚠ The obvious fix was measured, and it fixes the wrong animal
+
+Raising the lion's floor to **0.18** (32 kg — an adult gazelle refused outright):
+
+| | lion | hyena | buffalo | zebra | wildeb | gazelle | leopard | vulture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| floor 0.05 (shipped) | 5.8 | 13.8 | 54.3 | 75.5 | 148.7 | 22.3 | 3.0 | 7.7 |
+| floor 0.18 | **7.0** | 17.2 | 49.8 | 66.3 | 128.0 | **22.5** | 3.0 | 10.8 |
+
+**The gazelle is unmoved — 22.3 against 22.5.** So the gazelle decline is *not* the
+lion eating them, and the hypothesis that drove this whole investigation was wrong.
+It is the **hyena's new `cooperationWeight`**: hyenas spend 62–82% of their hunts on
+gazelle, and this phase raised their capture odds on exactly that animal for the
+first time. ⚠ **The lever for the gazelle is `hunting.cooperationWeight` or
+`behavior.minHungerToHunt` on the hyena, not anything on the lion.**
+
+The floor does recover the lion, confirming the other half — a third of its hunts
+on a 30 kg animal costs it real energy. It is **not shipped** for three reasons:
+it contradicts the standing instruction to let predators take small easy prey; it
+destabilises the grazers (wildebeest 139 → 128, and seed 1 returns `wildebeest 3,
+zebra 17, buffalo 18`, a collapse neither other arm produces); and it buys the
+gazelle nothing.
+
+⚠ **A structural limit found on the way, and it is the reason no floor is a clean
+fix.** A mass floor high enough to refuse a 30 kg adult gazelle also refuses an
+18 kg wildebeest **calf**: `bodyMass` cannot distinguish a small adult from a large
+animal's young. The quantity that could is `adultMass`, which every entity carries
+and no predation ratio reads. "Not worth specialising on" is therefore **not
+expressible** today; the nearest legal thing is the species list, which is exactly
+what this phase was asked to stop using.
+
+#### ⚠ What this reading is, and is not
+
+Six seeds × 6000 ticks with **enormous per-seed spread** — wildebeest runs 3 to 158
+within a single arm. It is an exploratory reading taken to choose between two
+numbers, not the §20 gate, and it cannot resolve effects of the size being argued
+about. **The ten-seed × 15 000-tick sweep is still owed on this phase** and is where
+the gazelle and the lion should actually be judged. ⚠ Read it together with the
+still-unmeasured prey-**floor** change from P1's day and P3's vulture decline: three
+changes have now landed on this guild without a gate between them.
 
 ---
 

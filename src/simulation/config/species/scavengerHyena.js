@@ -63,7 +63,29 @@ export const scavengerHyena = Object.freeze({
   // buy a handful of ticks of eligibility and a great deal of A58 — the nearest
   // *eligible* animal is what perception reports, and a target that stops being
   // eligible mid-stalk is a hunt that evaporates.
-  preySpeciesIds: Object.freeze(['herbivore.gazelle', 'herbivore.wildebeest']),
+  // ⚠⚠ **The zebra and the buffalo joined on 2026-08-07 (PREDATOR-PLAN P5).** The
+  // note above argued the zebra out on the grounds that "a zebra foal is born at
+  // 30 kg and is over the ratio within a fraction of its juvenile stage, so listing
+  // it would buy a handful of ticks of eligibility and a great deal of A58". That
+  // was **true against a 60 kg ceiling and is no longer the whole story**: P3 gives
+  // a clan of three a 300 kg ceiling, so a grown zebra is a clan's prey while a
+  // foal is a lone hyena's, and the eligibility a listing buys is no longer a
+  // handful of ticks. The buffalo is here on the same terms — calves solo, subadults
+  // to a clan, and an adult refused by both.
+  //
+  // ⚠ The A58 caution stands and is now carried by the ratios rather than by the
+  // list: what a hyena spends its life on is decided by which eligible animal is
+  // *nearest*, and eligibility is a mass test that moves with the animal's own
+  // clan. ⚠⚠ **A quarry that stops being eligible mid-stalk is a hunt that
+  // evaporates**, and this is the roster where that can first happen — a clan that
+  // scatters drops a zebra it had committed to. Watch abandoned stalks, not only
+  // captures.
+  preySpeciesIds: Object.freeze([
+    'herbivore.gazelle',
+    'herbivore.wildebeest',
+    'herbivore.zebra',
+    'herbivore.buffalo',
+  ]),
   bodyMass: 60, // kg (adult) — 0.5× ratio on a 30 kg gazelle is an ordinary
   // predator–prey match, and only 1.3× the stalker, so batch 1 carries almost
   // none of the mass jump the original lion-first plan would have
@@ -213,6 +235,25 @@ export const scavengerHyena = Object.freeze({
     minHungerToHunt: 0.75,
     retreatWeight: 0.5, // gives ground less readily than the default 0.7
   }),
+  // ⚠⚠ **Cooperative hunting, and the hyena's first declaration of it**
+  // (PREDATOR-PLAN P5). The brief asks that hyenas hunt cooperatively within their
+  // clan and says "this can share logic with lions" — and it does, entirely: this
+  // one field is what makes `attackersFor`'s capture bonus, `adoptedPrey`'s
+  // joining, and P4's approach spread all reach this species. Not a line of engine
+  // code was added for it.
+  //
+  // ⚠ **Deliberately absent until now, and the reason it was is worth keeping.**
+  // Phase 7's note said tuning a cooperation term against a 30 kg gazelle a single
+  // hyena takes solo "would fit a parameter to the case it was not built for". That
+  // held while the hyena hunted only gazelle and wildebeest calves. With zebra and
+  // buffalo on the list above and a clan ceiling from P3, there is finally prey
+  // this species needs help with, which is the condition phase 7 said to wait for.
+  //
+  // ⚠ 0.3 against the lion's 0.35 — slightly weaker per animal, because a clan is
+  // bigger than a pride and the two should not compound into a certainty; and
+  // `maxAttackers: 5` against the config's 3 for the same reason, since the cap is
+  // what stops a crowd being a guarantee rather than an advantage.
+  hunting: Object.freeze({ cooperationWeight: 0.3, maxAttackers: 5 }),
   // Which *individuals* it will take on (§3.6). ⚠ The first species to state
   // these at all — every other ships the config's `null`, meaning no bound.
   predation: Object.freeze({

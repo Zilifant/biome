@@ -80,7 +80,50 @@ export const predatorLion = Object.freeze({
   // wider base feeds more lions, and more lions is more pressure on the buffalo
   // the pride was built for. Watch `predator.lion` and `herbivore.buffalo`
   // together in the sweep — and `minHungerToHunt` first, as ever.
-  preySpeciesIds: Object.freeze(['herbivore.buffalo', 'herbivore.wildebeest', 'herbivore.zebra']),
+  // ⚠⚠ **The gazelle joined on 2026-08-07 (PREDATOR-PLAN P5) and the partition
+  // above is retired**, though the argument that built it is kept because it is
+  // still the thing to check if this species stops doing its job. The brief is
+  // "both species should be allowed to hunt all prey species — no artificial
+  // partitioning", and what makes that safe now is that **the mass ratios do the
+  // partitioning the list was doing**:
+  //
+  //   - `minPreyMassRatio` refuses what is not worth a sprint. At the old 0.2 it
+  //     refused a 30 kg gazelle outright (floor 36 kg), so this list entry would
+  //     have been dead on arrival; at 0.05 (floor 9 kg) the list is what decides.
+  //   - `maxPreyMassRatio` / `groupPreyMassRatio` (P3) decide what needs a pride.
+  //
+  // ⚠⚠ **A58 bites, and the first version of this comment claimed it would not.**
+  // It argued that because `default-small` runs 30 gazelle against 200 large
+  // grazers, "the nearest eligible animal is usually not a gazelle". **Measured, a
+  // lion spends 31–34% of its commit-ticks on gazelle** (2 seeds × 2000 ticks) —
+  // over twice their 13% share of the grazer roster. The claim was wrong and is
+  // kept here struck through rather than deleted, because the reasoning behind it
+  // is the reasoning anyone would repeat.
+  //
+  // ⚠ **P3 is half the cause and that was not foreseen.** A *lone* lion's ceiling
+  // is 306 kg, so it refuses an adult buffalo, and only ~40% of lions have a
+  // pride-mate at hand at any moment. For most lions most of the time the eligible
+  // set is therefore gazelle, wildebeest, and mid-weight zebra — and this entry
+  // added the smallest and cheapest-to-catch member of it. The two phases push the
+  // same way.
+  //
+  // ⚠ **The cost is the lion's, not the gazelle's**, which is the opposite of what
+  // it looks like: raising this species' floor to 0.18 (32 kg, refusing an adult
+  // gazelle outright) restores the lion 5.8 → 7.0 and leaves the gazelle **exactly
+  // where it was** (22.3 against 22.5). The gazelle decline in this phase is the
+  // hyena's new `cooperationWeight`, not this list. See PREDATOR-PLAN P5.
+  //
+  // ⚠ The lever, if this needs one, is `minPreyMassRatio` rather than the list —
+  // but note what it cannot do: a mass floor high enough to refuse a 30 kg adult
+  // gazelle also refuses an 18 kg wildebeest *calf*, because `bodyMass` cannot tell
+  // a small adult from a large animal's young. Expressing "not worth specialising
+  // on" needs `adultMass`, which no ratio reads today.
+  preySpeciesIds: Object.freeze([
+    'herbivore.buffalo',
+    'herbivore.wildebeest',
+    'herbivore.zebra',
+    'herbivore.gazelle',
+  ]),
   bodyMass: 180, // kg (adult) — 4× the stalker, and the first real step up
   baseSpeed: 1.4, // powerful rather than quick: faster than a buffalo, barely
   // faster than a gazelle, and it pays for every second of it
