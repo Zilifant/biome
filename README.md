@@ -12,7 +12,7 @@ persistence, performance, and testing. Start there.
 open**, across the engine and the renderer; `DOCS.md` §1 is the same list with
 the evidence and reasoning attached.
 
-**There is no plan in flight.** Everything the four retired plans built is described
+**There is no plan in flight.** Everything the five retired plans built is described
 in `DOCS.md`; everything they left open is in `ACTION-ITEMS.md`.
 
 [`legacy-docs/PLAN.md`](legacy-docs/PLAN.md) is the development roadmap that
@@ -37,8 +37,19 @@ that could have been deleted with the suite still green, and that is now `DOCS.m
 §16 **D43**. What it built is `DOCS.md` §9 and §11; the seven sociality asks it found
 to be structurally inexpressible are §1.3; what it left open is `ACTION-ITEMS.md`
 **A43** and **A82**.
+[`legacy-docs/PREDATOR-PLAN.md`](legacy-docs/PREDATOR-PLAN.md) is the fifth and
+retires on the same terms (2026-08-07): eight phases giving the **lion** and
+**hyena** the sociality the herbivores got — one pride, clans whose size is solved
+from the founder count, a **cooperative prey ceiling** (a pride takes what a lone
+lion refuses), coordinated stalking, **pride territory**, and numbers at a carcass
+(a clan displaces a lion). **All eight shipped.** It closed `ACTION-ITEMS.md`
+**A59** and **A60** — ⚠ *both by not building the fix the item named*, which is the
+lesson it is most worth reading for. What it built is `DOCS.md` §9 and §11; its two
+structurally inexpressible asks (encirclement, and a genuine pride-level decision)
+are §1.3; its lessons are §16 **D55–D59**; what it left open is `ACTION-ITEMS.md`
+**A91**–**A94**.
 
-All four plans' "As built" blocks — where each phase's own prediction turned out
+All five plans' "As built" blocks — where each phase's own prediction turned out
 wrong — are the part worth reading; everything they built is described in `DOCS.md`.
 [`legacy-docs/HANDOFF-2026-08-06.md`](legacy-docs/HANDOFF-2026-08-06.md) is the
 archived session handoff for the behaviour phases and

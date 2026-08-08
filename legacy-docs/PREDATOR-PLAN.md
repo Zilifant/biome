@@ -1,13 +1,39 @@
-# Social predators — lions and hyenas
+# Lions and hyenas — social predators
 
-**Status: complete — P1–P8 shipped 2026-08-07.** Eight phases.
+⚠⚠ **RETIRED 2026-08-07. Everything in this file that is still true has been folded
+into the living documentation, and this copy is kept for provenance only** — the
+same terms as the four plans beside it. Read it for *why* a decision was made, and
+for the **As built** notes where a phase's own prediction turned out wrong. Do not
+read it for current state: it describes line numbers and a codebase that have moved.
 
-⚠⚠ **The ten-seed sweep is in (P8) and the leopard fails it at 4/10.** That is the
-one open item this plan leaves behind; everything else passed.
+✅ **Complete.** All eight phases (P1–P8) shipped.
 
-The brief is the seven asks in the original file, kept verbatim at the bottom.
-This is the implementation plan for them, in an order that lands each mechanism
-before the data that spends it.
+**Where its content lives now:**
+
+| what | where |
+| --- | --- |
+| One pride; clan size solved from the roster; cluster separation | [`DOCS.md`](../DOCS.md) §9 *Persistent groups* and *Founding cohorts* |
+| The cooperative prey ceiling, joinable stalks, the approach spread | [`DOCS.md`](../DOCS.md) §9 *Hunting* |
+| Numbers at a carcass (backed dominance) | [`DOCS.md`](../DOCS.md) §9 *Carcasses* |
+| Pride territory (the shared claim read) | [`DOCS.md`](../DOCS.md) §1.1 **A60** |
+| The v36 inspection fields and clan-size metric | [`DOCS.md`](../DOCS.md) §11 *Queries* |
+| The two asks that are **not expressible**, and the nearest legal thing to each | [`DOCS.md`](../DOCS.md) §1.3 |
+| The lessons — sparse clusters, dead-code thresholds, condition-vs-mass, un-A/B-able species data, the fast-tier blind spot | [`DOCS.md`](../DOCS.md) §16, **D55–D59** |
+| The ten-seed sweep, and why `--set` cannot reach a species block | [`DOCS.md`](../DOCS.md) §*Current state* and §20 |
+| What is still open | [`ACTION-ITEMS.md`](../ACTION-ITEMS.md) — **A91**–**A94**, and **A87** (sharpened) |
+| Per-phase cost measurements | [`BENCHMARK.md`](../BENCHMARK.md) |
+
+**Closed by this plan:** **A59** (a pride can take prey a lone lion refuses) and
+**A60** (a group can hold ground) — ⚠ **both by *not* building the fix the item
+named**, which is the single most reusable thing here. A59 priced its fix at a cost
+that had already disappeared; A60's named fix was built and discarded for storing a
+second copy of membership. Re-read what an old item assumes about cost before
+quoting it.
+
+**Opened by this plan:** **A91** (the leopard fails the gate because it never meets
+a mate), **A92** (two stale demo-tier assertions), **A93** (seed 1 is a drought
+world), **A94** (`npm test` hangs in a sandboxed shell, so persistence and
+determinism are unverified).
 
 ## Context — what already exists
 

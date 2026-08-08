@@ -472,6 +472,47 @@ they are not re-opened by accident.
   open. `matingRange` is wired from `config.reproduction` rather than restated
   (D11). **0 stalls across three worlds afterwards.**
 
+- **⚠ A92 — Two demo-tier assertions describe the pre-P5 prey partition and now
+  fail** _(opened 2026-08-07, PREDATOR-PLAN P5/P8)_. In `test/cooperation.test.js`'s
+  **batch 2** block: (1) *"lions and hyenas partition the prey base by mass"*
+  asserts a lion never kills a gazelle and now counts **22** — the claim P5 was
+  asked to remove ("no artificial partitioning"), so the test is stale rather than
+  the engine wrong; (2) *"a buffalo herd stands its ground"* wants ≥3 lion attempts
+  resolved against a mob and gets **2** — a sample-size consequence of lions now
+  spreading their hunting across four prey species. Both need rewriting to the
+  post-P5 world; neither indicates broken behaviour.
+  ⚠⚠ **They were invisible for eight consecutive phases** because the fast tier
+  skips `demo` and `batch` (**D59**). Do not treat this pair as "known failures to
+  live with" — a stale assertion in the block that holds the ecological claims is
+  exactly what stops the *next* real regression from being noticed.
+
+- **⚠⚠ A93 — Seed 1 generates a world with almost no water, and it is one of the
+  ten sweep seeds** _(opened 2026-08-07, found by `npm run ethologist` during
+  PREDATOR-PLAN P8)_. Water cells on `default-small`: **seed 1 has 13** (0.04% of
+  passable, and **no deep water at all**) against **712–1085** (2.3–3.5%) on seeds
+  2–10 — a 60× deficit. On that world **192 of 247 deaths are dehydration (78%)**
+  and the wildebeest finish at **11** against ~155 elsewhere. It is the source of
+  the ethologist's "died of thirst having NEVER perceived water" flags.
+  ⚠ **Terrain generation, untouched by any recent plan** — but it silently biases
+  every ten-seed reading: seed 1 drags every mean down and accounts for one of the
+  two gazelle extinctions in the P8 sweep. ⚠ Decide deliberately whether the sweep
+  should keep a drought world in its seed set (a legitimate stressor) or whether
+  water placement needs a floor; either is defensible, but the reading should not
+  keep being taken without knowing. Related: **A86**, **A81**.
+
+- **⚠ A94 — `npm test` does not complete in a sandboxed shell, so the persistence
+  and determinism tiers are unverified** _(opened 2026-08-07)_. Two full runs hung
+  reproducibly at the same point — after `perception in inspection`, with every
+  file alphabetically later never starting — the first for **2h15m** before being
+  killed, against a documented full-run time of ~47 min. Excluding
+  `test/presets.test.js` (the known port-binding suite) did **not** fix it.
+  ⚠ What this leaves unknown after PREDATOR-PLAN: the **persistence** and
+  **determinism** tiers have not run against eight phases that touched perception,
+  feeding, territory and the decision system. The fast tier is green (1255) and the
+  demo tier is green apart from **A92**.
+  ⚠ Diagnose before trusting a future "suite green": run the post-`perception`
+  files as their own group and find which one never reports.
+
 - **⚠⚠ A91 — The leopard fails the ten-seed gate at 4/10, and the cause is that it
   never meets another leopard** _(opened 2026-08-07, PREDATOR-PLAN P8)_. The first
   §20 sweep of `default-small` (10 seeds × 15 000 ticks) puts seven species over the
@@ -794,10 +835,17 @@ they are not re-opened by accident.
 ## Engine — schema and configuration
 
 - **A81 — Three species did not persist in the crater demo, and the demo is no
-  longer held to a knife edge** _(2026-08-04)_. ⚠⚠ **The world this item measures
-  stopped being the demo on 2026-08-07**, when the default became `default-small`
-  (230×180, `roundness: 4`, terrain counts 18/18/24/180, 263 animals). **The sweep
-  below has not been re-run there and its numbers do not transfer** — the map is
+  longer held to a knife edge** _(2026-08-04; **the open half closed 2026-08-07**)_.
+  ✅ **`default-small` has now been swept** (PREDATOR-PLAN P8, 10 seeds × 15 000):
+  seven species clear ≥6/10 and the **leopard is 4/10** — better than the crater's
+  1/10, on a different world. Vulture **6/10 but mean 21.0 over a range of 0–75**,
+  i.e. bimodal rather than merely scarce. The leopard's cause is now named
+  (**A91**), and one of the ten seeds is a drought world (**A93**). ⚠ The doctrine
+  this item establishes is unchanged and still governs: **a sweep is a reading to
+  record, not a bar to pass.**
+  ⚠⚠ **The world this item measures stopped being the demo on 2026-08-07**, when the
+  default became `default-small` (230×180, `roundness: 4`, terrain counts
+  18/18/24/180, 263 animals). **The crater sweep below does not transfer** — the map is
   0.37× the area against 0.53× the headcount, and the hyena went 9 → 20 while every
   grazer fell. Re-running `npm run sweep` on ten seeds is the open work; the
   doctrine (a reading to record, not a bar to pass) carries over unchanged.
