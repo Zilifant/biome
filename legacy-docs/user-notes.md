@@ -30,5 +30,4 @@ DO NOT REFERENCE
 ### Ideas - UI
 
 - ability to take control of an animal
-- territory layer
 - all behavioral variables editable
