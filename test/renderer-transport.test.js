@@ -41,9 +41,14 @@ describe('fixture transport', () => {
       if (event.type === 'events') store.applyEventBatch(event.batch);
       if (event.type === 'delta') store.applyDelta(event.delta);
     });
+    const { delta } = await loadFixtures();
     await transport.connect();
     await nextTick();
-    assert.equal(store.tick, 11);
+    // ⚠ Read off the fixture rather than hardcoded. The warm-up moved from 10 to
+    // 2400 ticks when the territory layer needed a world old enough to have one
+    // (see `scripts/generateRendererFixtures.js`), and a literal here is a test
+    // that fails on the regeneration rather than on a defect.
+    assert.equal(store.tick, delta.tick);
     assert.ok(store.entityCount > 0);
     assert.ok(store.events.length > 0);
   });

@@ -194,7 +194,59 @@ export function buildFullSnapshot(data) {
   if (data.features) {
     snapshot.features = { revision: data.features.revision, cells: data.features.cells.map((c) => ({ ...c })) };
   }
+  // Who holds each coarse claim cell (Step 24's ground, projected at last — A36,
+  // v37). RLE row-major over the *claim* grid, which is `cellSize` world cells
+  // across, and owner ids only: the freshness half of a claim is what the
+  // mechanism runs on and is not a thing to draw.
+  //
+  // ⚠ This is the layer the disturbance note above says cannot ride in every
+  // message, and what changed is the encoding rather than the judgement. A
+  // per-*world*-cell claim layer could not; a coarse grid where almost every
+  // cell is `0` compresses to a few dozen runs, and its ownership revision means
+  // a delta carries it only when a boundary actually moves.
+  if (data.territory) {
+    snapshot.territory = {
+      width: data.territory.width,
+      height: data.territory.height,
+      cellSize: data.territory.cellSize,
+      revision: data.territory.revision,
+      encoding: data.territory.encoding,
+      runs: data.territory.runs.map((run) => [...run]),
+    };
+  }
   return snapshot;
+}
+
+/**
+ * Decode a territory RLE projection into a flat row-major owner-id array.
+ * @param {{runs: Array<[number, number]>}} territory
+ * @returns {number[]}
+ */
+export function decodeTerritoryRuns(territory) {
+  const owners = [];
+  for (const [ownerId, count] of territory.runs) {
+    for (let i = 0; i < count; i += 1) owners.push(ownerId);
+  }
+  return owners;
+}
+
+/** Re-encode a flat owner array into RLE runs (inverse of decodeTerritoryRuns). */
+function encodeTerritoryRuns(owners) {
+  const runs = [];
+  if (owners.length === 0) return runs;
+  let currentOwner = owners[0];
+  let count = 0;
+  for (const owner of owners) {
+    if (owner === currentOwner) {
+      count += 1;
+    } else {
+      runs.push([currentOwner, count]);
+      currentOwner = owner;
+      count = 1;
+    }
+  }
+  runs.push([currentOwner, count]);
+  return runs;
 }
 
 /**
@@ -258,6 +310,49 @@ function diffVegetation(previousVegetation, nextVegetation) {
 }
 
 /**
+ * Sparse territory change list between two projections: `[cellIndex, ownerId]`
+ * for every claim cell that changed hands.
+ *
+ * ⚠ **Gated on the ownership revision, and that gate is the feature.** A claim's
+ * *strength* changes on every mark and every decay sweep and is not projected at
+ * all, so the overwhelmingly common answer here is `null` — no territory block
+ * on the delta, no bytes, no diff walked. Only a tick where a boundary actually
+ * moved pays for the O(claim cells) comparison, and a claim grid is `cellSize²`
+ * times smaller than the world.
+ *
+ * The base is **zeros** when the previous snapshot carried no territory or a
+ * differently-shaped one, so a delta is always applicable to what it was built
+ * against without a second message shape for the first one.
+ *
+ * @param {object | undefined} previousTerritory
+ * @param {object | undefined} nextTerritory
+ * @returns {{width: number, height: number, cellSize: number, revision: number,
+ *            changes: Array<[number, number]>} | null}
+ */
+function diffTerritory(previousTerritory, nextTerritory) {
+  if (!nextTerritory) return null;
+  if (previousTerritory && previousTerritory.revision === nextTerritory.revision) return null;
+  const nextOwners = decodeTerritoryRuns(nextTerritory);
+  const sameShape =
+    previousTerritory &&
+    previousTerritory.width === nextTerritory.width &&
+    previousTerritory.height === nextTerritory.height;
+  const previousOwners = sameShape ? decodeTerritoryRuns(previousTerritory) : null;
+  const changes = [];
+  for (let i = 0; i < nextOwners.length; i += 1) {
+    const before = previousOwners ? previousOwners[i] : 0;
+    if (before !== nextOwners[i]) changes.push([i, nextOwners[i]]);
+  }
+  return {
+    width: nextTerritory.width,
+    height: nextTerritory.height,
+    cellSize: nextTerritory.cellSize,
+    revision: nextTerritory.revision,
+    changes,
+  };
+}
+
+/**
  * Diff two full snapshots of the same simulation into a delta.
  * @param {ReturnType<typeof buildFullSnapshot>} previous
  * @param {ReturnType<typeof buildFullSnapshot>} next
@@ -314,6 +409,10 @@ export function buildDeltaSnapshot(previous, next, events = []) {
   // tick even though it rarely changes what it means.
   if (next.features && next.features.revision !== previous.features?.revision) {
     delta.features = { revision: next.features.revision, cells: next.features.cells.map((c) => ({ ...c })) };
+  }
+  const territory = diffTerritory(previous.territory, next.territory);
+  if (territory) {
+    delta.territory = territory;
   }
   return delta;
 }
@@ -394,6 +493,28 @@ export function applyDeltaSnapshot(fullSnapshot, delta) {
       revision: delta.vegetation ? delta.vegetation.revision : base.revision,
       encoding: base.encoding,
       runs: levels ? encodeVegetationRuns(levels) : structuredClone(base.runs),
+    };
+  }
+  // Territory: the same shape as vegetation one step coarser. A delta that omits
+  // it says no cell changed hands, so the base carries forward untouched — which
+  // is the common case by a wide margin.
+  if (fullSnapshot.territory || delta.territory) {
+    const base = fullSnapshot.territory ?? null;
+    const shape = delta.territory ?? base;
+    const sameShape = base && shape.width === base.width && shape.height === base.height;
+    const owners = sameShape ? decodeTerritoryRuns(base) : new Array(shape.width * shape.height).fill(0);
+    if (delta.territory) {
+      for (const [index, ownerId] of delta.territory.changes) {
+        owners[index] = ownerId;
+      }
+    }
+    reconstructed.territory = {
+      width: shape.width,
+      height: shape.height,
+      cellSize: shape.cellSize,
+      revision: shape.revision,
+      encoding: base?.encoding ?? 'rle-row-major',
+      runs: encodeTerritoryRuns(owners),
     };
   }
   return reconstructed;

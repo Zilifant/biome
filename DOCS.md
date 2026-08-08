@@ -810,7 +810,7 @@ reminder.
 | A24 | **No per-cell microclimate.** Temperature is global; cover is the only spatial modifier                                                                                        | Open — needs terrain elevation, which does not exist. This is also why migration has no "warmer south" to steer toward                                                                                                                                                                                                                           |
 | A28 | **Bottleneck detection is left to the caller.** The bounded history carries population per species over time, but nothing computes a minimum or flags a crash                  | Open. Detecting one is a judgement about what counts as a crash; inventing that threshold would be guessing                                                                                                                                                                                                                                      |
 | A35 | **Territory is a predator-only phenomenon** at ~9 individuals. Grazers get a home range but no site fidelity and no claims                                                     | Open. A genuinely territorial third species would be the demonstration                                                                                                                                                                                                                                                                           |
-| A36 | **The claim layer is not drawn on the grid.** The home-range ring is drawn from inspection, for the selected animal only                                                       | Open. A per-cell ownership layer in every snapshot would rival vegetation for something that changes far more slowly and matters for one animal at a time                                                                                                                                                                                        |
+| A36 | **The claim layer is not drawn on the grid.** The home-range ring is drawn from inspection, for the selected animal only                                                       | ✅ **Closed 2026-08-08 (protocol v37)** — and it stood open on the cost note beside it, so the fix was to project *less*. Owner ids only over the **coarse** claim grid, RLE-encoded, behind a second `ownerRevision` on `ScentGrid` that moves when a cell changes hands rather than on every mark and decay sweep; claim *strength* stays inside the engine, which is what makes the gate work, because freshness is the half that changes every tick. Measured over 1000 mature demo ticks: **445 bytes of a 320 KB full snapshot**, and **0.013% of delta bytes** across the 377 ticks in 1000 that carry it at all. The renderer's **territory layer** draws it, grouping claims by `groupRecordId` exactly as `holdsClaim` does — so a pride's ground is one outline (`DOCS-RENDERER.md` §9b). ⚠ The home-range ring is still inspection-only for the selected animal, which is a different fact |
 | A37 | **Disease does not cross species.** A pathogen adapted to a grazer is not the one adapted to a stalker                                                                         | Open — a shared or zoonotic pathogen is its own subject                                                                                                                                                                                                                                                                                          |
 | A39 | **An environmental spillover stands in for an unsimulated reservoir.** Without it the pathogen went extinct with its last carrier (one epidemic in 15k ticks)                  | _Settled_ — an honest modelling stand-in, the same shape as A42. Two draws per tick flat                                                                                                                                                                                                                                                         |
 | A40 | **Remembered routes are not implemented**                                                                                                                                      | _Settled._ Remembered _places_ already exist and `recallFood` already steers to them. A route is a trajectory, and the codebase deliberately stores no trajectory anywhere — a home range is four numbers for exactly this reason                                                                                                                |
@@ -4626,6 +4626,18 @@ slow fade.
 somewhere versus owning it — is the one the whole mechanism turns on, and it is
 species data (`territory.defends`).
 
+**And the claim layer is now something you can see** _(2026-08-08, protocol
+v37, closing §1.4 A36)_. Every claim cell's **owner** rides in full snapshots
+and in deltas that change hands, and the renderer outlines the ground each side
+holds. ⚠ **Nothing about the mechanism moved to make that possible** — the grid
+still stores an entity id and a strength, and that a pride's claims are *one*
+territory is still derived on read from the owner's live `groupRecordId`,
+exactly as `holdsClaim` derives it. What changed is that ownership got its own
+revision (`ownerRevision`), which moves when a boundary does rather than on every
+mark and decay sweep, so the projection is memoized and a delta carries the layer
+on the minority of ticks where anything changed. **445 bytes of a 320 KB
+snapshot; 0.013% of delta bytes.**
+
 ### Migration and dispersal
 
 **Migration is not something an animal decides to do.** There is no `migrate`
@@ -5216,7 +5228,7 @@ this. **Assert the effect landed, not that the call happened.**
 
 ## 11. Protocol reference
 
-Everything a client sees carries `protocolVersion` (currently **36**) and is
+Everything a client sees carries `protocolVersion` (currently **37**) and is
 built by `src/protocol/`.
 
 ### Commands
@@ -5433,9 +5445,58 @@ Full snapshots also embed:
   renderer-neutral cell codes plus a legend with authoritative passability.
 - **vegetation** — quantized biomass levels `0..maxLevel`, RLE, with a
   `revision`.
+- **territory** — who holds each **coarse** claim cell (v37), RLE, with the
+  claim grid's own `cellSize` and a `revision`. See below.
 - **disturbances** and **features** — see below.
 
 Region-bounded snapshots are supported (`?minX=&minY=&maxX=&maxY=`).
+
+#### ✅ v37 — the claim layer, projected at last _(2026-08-08, closing §1.4 A36)_
+
+A **snapshot** layer rather than an inspection one, and the first new one since
+worn ground: `territory` carries **who holds each coarse claim cell**, RLE
+row-major over the claim grid, beside its `cellSize`, its dimensions and a
+revision. Deltas carry a sparse `[cellIndex, ownerId]` change list, and omit the
+block entirely when nothing changed hands.
+
+⚠⚠ **A36 stood open for a year on "a per-cell ownership layer in every snapshot
+would rival vegetation", and the fix was to project less of it — not to compress
+harder.** Three decisions, each of which is the cost argument:
+
+- **Ownership only.** A claim is two numbers: who, and how fresh. The mechanism
+  runs on both; a viewer asked only the first. Freshness is also the half that
+  changes every tick, so carrying it would have made the gate below worthless.
+- **The coarse grid, not the world grid.** `ScentGrid` is `cellSize` (4) world
+  cells across, so this is a sixteenth of a per-world-cell layer before a byte is
+  encoded — and it is the resolution the fact actually has.
+- ⚠ **A second revision.** `ScentGrid.ownerRevision` moves only when a cell
+  changes hands; the existing `revision` moves on every mark and every decay
+  sweep, several times a tick forever. The engine's memoized projection and the
+  protocol's delta diff both key on the new one. Keyed on the old one, the
+  projection would have been rebuilt every tick to produce identical bytes.
+
+Measured over 1000 mature demo ticks (seed 42): **445 bytes of a 320 KB full
+snapshot** (0.14%), **377 of 1000 ticks carry it at all**, and it is **0.013% of
+delta bytes**. ⚠ Most of the 377 is not a boundary moving — it is claims fading
+past the floor and releasing their cell, which is an ownership change like any
+other.
+
+**The renderer groups it, and the engine does not.** A claim names an *animal*;
+that a pride's claims are one territory is derived on read from the owner's live
+`groupRecordId`, which is exactly what `holdsClaim` does and for the reason A60
+records: a group id stored in the grid would be a second copy of membership that
+can go stale. So the protocol stayed as small as the mechanism is, and
+`DOCS-RENDERER.md` §9b holds the drawing.
+
+**Tested at 2600 `smallDemo` ticks** (`test/protocol-v37.test.js`, ~2.5 s), on
+**one engine shared by every test in the file** — the 2400-tick settle is the
+whole cost, and it is not negotiable: at ten ticks no lion is grown, so nothing
+has marked any ground and there is no layer to assert anything about. ⚠ The same
+settle is why the committed renderer fixtures moved from a 10-tick warm-up to
+2400; a test asserts the fixture still holds a pride's ground, because a fixture
+that quietly went back to empty would take the browser spec with it and read as a
+rendering fault.
+
 
 ### Deltas
 
@@ -5454,6 +5515,14 @@ algorithm.
   feature — so the layer costs a delta nothing on the overwhelming majority of
   ticks even though it is _written_ on all of them. Only cells deep enough to be
   something are projected; scuffed ground is internal.
+- **Territory** rides as a sparse `{ width, height, cellSize, revision, changes:
+  [[cellIndex, ownerId]] }` list, gated on `ScentGrid.ownerRevision` — which
+  moves when a cell changes hands, not on the marking and decay that run forever.
+  ⚠ The block is **omitted entirely** when nothing changed hands, which is the
+  common case (623 ticks in 1000), and omission means "nobody moved", never
+  "nobody holds anything". The change list is built against **zeros** when the
+  base snapshot carried no territory, so a delta is always applicable to what it
+  was built against without a second message shape.
 - The **environment** block (a handful of scalars) is carried whole.
 
 ### Events
@@ -6045,6 +6114,22 @@ stash`ed to clean HEAD with the previous fixtures and the previous protocol
 constants, `status-marks.spec.js` fails all four identically and `layers.spec.js`
 fails at the same teardown.
 
+⚠ **The teardown hang got worse on 2026-08-08, and the cause is the fixture's
+warm-up rather than anything about the code** _(measured, not assumed)_. The
+renderer fixtures moved from a 10-tick world to a 2400-tick one so the **territory
+layer** (protocol v37) has ground to draw offline and something to browser-test
+against. A full run then read **14 failed, 26 flaky, 27 passed** (67 tests,
+46 min) against the 9 / 21 / 35 above. Every one of the five extra failures is the
+same `Tearing down … exceeded 30000ms`, and the three genuine assertion failures
+in `status-marks.spec.js` are unchanged in count. The attribution was measured by
+regenerating the fixtures at 10 ticks with the *current* code and re-running:
+`event-log-refs.spec.js` is green in **546 ms** there and hangs for three 30 s
+teardowns at 2400. What a mature world has that a young one does not is **1130
+cells of worn ground** and a live disturbance — entity counts, payload sizes and
+event counts are all within a few percent. ⚠ **The trade was made knowingly**: a
+fixture that cannot show a feature cannot test one, which is the same call the
+2026-08-04 regeneration made when it kept three vultures airborne.
+
 ⚠⚠ **The trap here cost real time and is worth stating as a method failure.** The
 first reading of this was taken by listing `test-results/` directories **while the
 run was still going** and reporting "35 failures, all teardown, zero assertion
@@ -6057,6 +6142,24 @@ running.** The suite has to be run somewhere it can tear a browser down before
 cancelled `presets.test.js` HTTP suites, which the sandbox cannot bind a port for —
 but unlike those, this one is **not** safe to ignore, because real assertions are
 inside it.
+
+⚠⚠ **`persistence.test.js` runs out of memory and never finishes** _(found
+2026-08-08)_. Node dies ~3 s in with `Reached heap limit — JavaScript heap out of
+memory` at the default 4 GB, and ⚠ **the runner then leaves a worker hung rather
+than exiting**, so the file reads as *slow* rather than as *crashed*: a run left
+alone sat for **75 minutes** producing no output at all before anyone looked at
+the log. That is the whole trap — `| tail` buffers, so the stack trace is
+invisible until an exit that never comes. **Redirect to a file and read the head
+of it.**
+
+⚠ **Pre-existing, and verified rather than assumed** — run at a clean `HEAD`
+worktree it produces a byte-identical 58-line crash. So it is the machine or the
+suite, not a change. The consequence for anyone reading this: **`npm test` cannot
+complete here**, which is why the ladder in `CLAUDE.md` matters more than usual.
+What the claim layer's save format needed is covered anyway, in
+`territory.test.js` (`the layer round-trips through a save`, and the
+`captureSimulationState(...).scent` comparisons) — worth knowing before assuming a
+serializer change is untested because this file is red.
 
 Layers:
 

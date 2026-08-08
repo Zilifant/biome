@@ -173,6 +173,66 @@ describe('renderer store: vegetation', () => {
   });
 });
 
+/** A 2x2 claim grid, four world cells across each, held by #7 and #9. */
+const territoryProjection = (revision = 1) => ({
+  width: 2,
+  height: 2,
+  cellSize: 4,
+  revision,
+  encoding: 'rle-row-major',
+  runs: [[7, 1], [0, 2], [9, 1]],
+});
+
+describe('renderer store: territory (v37)', () => {
+  test('decodes the claim layer into a row-major owner lookup', () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ territory: territoryProjection() }));
+    assert.equal(store.territory.cellSize, 4);
+    assert.deepEqual([...store.territory.owners], [7, 0, 0, 9]);
+  });
+
+  test('⚠ owner ids are not truncated to a byte', () => {
+    // These cells name *somebody*. An eight-bit lane would alias animal #260's
+    // ground onto animal #4's, which is a wrong picture rather than a crash.
+    const store = new RendererStore();
+    const wide = { ...territoryProjection(), runs: [[260, 4]] };
+    store.applyFullSnapshot(snapshot({ territory: wide }));
+    assert.deepEqual([...store.territory.owners], [260, 260, 260, 260]);
+  });
+
+  test('applies sparse territory deltas in place', () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ territory: territoryProjection(1) }));
+    store.applyDelta(delta({ territory: { width: 2, height: 2, cellSize: 4, revision: 2, changes: [[1, 7], [3, 0]] } }));
+    assert.deepEqual([...store.territory.owners], [7, 7, 0, 0]);
+    assert.equal(store.territory.revision, 2);
+  });
+
+  test('⚠ a delta that omits territory means nothing changed hands, not that nothing is claimed', () => {
+    // The revision gate makes omission the common case by a wide margin, so
+    // treating it as an empty layer would blink every territory off the map on
+    // every ordinary tick.
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ territory: territoryProjection(1) }));
+    store.applyDelta(delta());
+    assert.deepEqual([...store.territory.owners], [7, 0, 0, 9]);
+  });
+
+  test('a snapshot without territory clears it', () => {
+    const store = new RendererStore();
+    store.applyFullSnapshot(snapshot({ territory: territoryProjection() }));
+    assert.ok(store.territory);
+    store.applyFullSnapshot(snapshot());
+    assert.equal(store.territory, null);
+  });
+
+  test('malformed territory runs (wrong cell count) are rejected', () => {
+    const store = new RendererStore();
+    const bad = { ...territoryProjection(), runs: [[7, 1]] }; // covers 1 of 4 cells
+    assert.throws(() => store.applyFullSnapshot(snapshot({ territory: bad })), /territory runs cover/);
+  });
+});
+
 describe('renderer store: snapshots', () => {
   test('a full snapshot replaces authoritative render state', () => {
     const store = new RendererStore();
@@ -195,13 +255,17 @@ describe('renderer store: snapshots', () => {
     const fixtureDelta = loadFixture('example-delta.json');
     const fixtureEvents = loadFixture('example-events.json');
     store.applyFullSnapshot(fixtureSnapshot);
-    assert.equal(store.tick, 10);
+    // ⚠ Read off the fixture rather than hardcoded. The warm-up moved from 10 to
+    // 2400 ticks when the territory layer needed a world old enough to have one
+    // (see `scripts/generateRendererFixtures.js`), and a literal here is a test
+    // that fails on the regeneration rather than on a defect.
+    assert.equal(store.tick, fixtureSnapshot.tick);
     assert.equal(store.entityCount, fixtureSnapshot.entities.length);
     store.applyEventBatch(fixtureEvents);
     const eventCountAfterBatch = store.events.length;
     const result = store.applyDelta(fixtureDelta);
     assert.equal(result.applied, true);
-    assert.equal(store.tick, 11);
+    assert.equal(store.tick, fixtureSnapshot.tick + 1);
     // The delta's events were already in the batch — dedupe by seq, no dupes.
     assert.equal(store.events.length, eventCountAfterBatch);
   });

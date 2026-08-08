@@ -17,7 +17,7 @@ import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.j
 import { isLastingEvent } from './EventCatalog.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 36;
+export const SUPPORTED_PROTOCOL_VERSION = 37;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {
@@ -105,6 +105,45 @@ function decodeVegetation(vegetation) {
     maxLevel: vegetation.maxLevel ?? 0,
     revision: vegetation.revision ?? 0,
     levels,
+  };
+}
+
+/**
+ * Decode a protocol territory projection (RLE owner ids over the coarse claim
+ * grid) into a fast row-major lookup. Throws on malformed input rather than
+ * guessing.
+ *
+ * ⚠ **`Int32Array`, not `Uint8Array`.** The values here are entity ids, not
+ * levels — this is the one projected layer whose cells name *somebody* — and an
+ * eight-bit lane would silently alias animal #260's ground onto animal #4's.
+ * @param {object} territory
+ */
+function decodeTerritory(territory) {
+  if (!territory || !Array.isArray(territory.runs)) {
+    throw new RendererProtocolError('malformed-message', 'territory requires runs');
+  }
+  if (!Number.isInteger(territory.width) || !Number.isInteger(territory.height)) {
+    throw new RendererProtocolError('malformed-message', 'territory requires integer width and height');
+  }
+  const total = territory.width * territory.height;
+  const owners = new Int32Array(total);
+  let offset = 0;
+  for (const [ownerId, count] of territory.runs) {
+    for (let i = 0; i < count; i += 1) owners[offset + i] = ownerId;
+    offset += count;
+  }
+  if (offset !== total) {
+    throw new RendererProtocolError('malformed-message', `territory runs cover ${offset} cells, expected ${total}`);
+  }
+  return {
+    width: territory.width,
+    height: territory.height,
+    // How many world cells across one claim cell is. The renderer never assumes
+    // it — a claim grid coarser or finer than today's 4 is an engine tuning
+    // decision, and the layer that draws it reads the number it was sent.
+    cellSize: territory.cellSize ?? 1,
+    revision: territory.revision ?? 0,
+    owners,
   };
 }
 
@@ -200,6 +239,19 @@ export class RendererStore {
    * @type {object[]}
    */
   features = [];
+  /**
+   * The territorial claim layer (protocol v37): who holds each **coarse** claim
+   * cell, `cellSize` world cells across. `owners` is a row-major `Int32Array` of
+   * entity ids, `0` meaning unclaimed; updated in place by deltas, and revision-
+   * gated so a delta carries it only on the rare tick a boundary moves.
+   *
+   * ⚠ Ownership only. The engine's claims also carry a freshness, which is what
+   * the mechanism runs on and is deliberately not projected — see the engine's
+   * `world/ScentGrid.js`.
+   * @type {{width: number, height: number, cellSize: number, revision: number,
+   *         owners: Int32Array} | null}
+   */
+  territory = null;
   connection = { state: 'disconnected', detail: '' };
   /** 'live' | 'fixture' */
   mode = 'live';
@@ -328,6 +380,10 @@ export class RendererStore {
     this.environment = snapshot.environment ? { ...snapshot.environment } : null;
     this.disturbances = Array.isArray(snapshot.disturbances) ? snapshot.disturbances.map((d) => ({ ...d })) : [];
     this.features = Array.isArray(snapshot.features?.cells) ? snapshot.features.cells.map((f) => ({ ...f })) : [];
+    // Territory rides whole on a full snapshot and is patched by deltas, exactly
+    // as vegetation is. A snapshot without it clears it — an older host that
+    // does not project claims must not leave the last world's territory drawn.
+    this.territory = snapshot.territory ? decodeTerritory(snapshot.territory) : null;
     // A snapshot may jump the event stream forward (recovery); events skipped
     // over are gone — never invent them, just move the dedupe watermark.
     this.#lastBufferedEventSeq = Math.max(this.#lastBufferedEventSeq, 0);
@@ -426,6 +482,7 @@ export class RendererStore {
     // Omitted means "nothing formed or faded", not "there is nothing" — the
     // revision gate is what makes omission the common case.
     if (Array.isArray(delta.features?.cells)) this.features = delta.features.cells.map((f) => ({ ...f }));
+    this.#applyTerritoryChanges(delta.territory);
     this.tick = delta.tick;
     this.lastEventSeq = delta.lastEventSeq ?? this.lastEventSeq;
     if (Array.isArray(delta.events)) {
@@ -447,6 +504,39 @@ export class RendererStore {
       }
     }
     this.vegetation.revision = vegetation.revision ?? this.vegetation.revision;
+  }
+
+  /**
+   * Patch the claim-owner grid in place from a delta's sparse changes.
+   *
+   * ⚠ **Absent means "nothing changed hands", not "nothing is claimed".** The
+   * ownership revision gate makes omission the common case by a wide margin, so
+   * treating it as an empty layer would blink every territory off the map on
+   * every ordinary tick.
+   *
+   * A delta that arrives before any snapshot carrying territory allocates the
+   * grid from its own dimensions rather than dropping the changes: the protocol
+   * builds its change list against zeros in exactly that case.
+   * @param {{width: number, height: number, cellSize: number, revision: number,
+   *          changes: Array<[number, number]>} | undefined} territory
+   */
+  #applyTerritoryChanges(territory) {
+    if (!territory || !Array.isArray(territory.changes)) return;
+    if (!this.territory || this.territory.width !== territory.width || this.territory.height !== territory.height) {
+      this.territory = {
+        width: territory.width,
+        height: territory.height,
+        cellSize: territory.cellSize ?? 1,
+        revision: territory.revision ?? 0,
+        owners: new Int32Array(territory.width * territory.height),
+      };
+    }
+    for (const [index, ownerId] of territory.changes) {
+      if (index >= 0 && index < this.territory.owners.length) {
+        this.territory.owners[index] = ownerId;
+      }
+    }
+    this.territory.revision = territory.revision ?? this.territory.revision;
   }
 
   /**

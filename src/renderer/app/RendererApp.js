@@ -14,6 +14,7 @@ import { createProjection, occupantsInCell, worldCellOf } from './rendering/Grid
 import { compareOccupants, STATUS_CYCLE_MS } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
 import { describeSocialGroups } from './rendering/SocialLayer.js';
+import { describeTerritories } from './rendering/TerritoryLayer.js';
 import { TransportEvents } from './transports/RendererTransport.js';
 import { describeCell } from './ui/CellDetail.js';
 import { matchWatched } from './ui/Watchlist.js';
@@ -74,6 +75,16 @@ export class RendererApp {
    * @type {{signature: string, groups: object[]} | null}
    */
   #socialCache = null;
+  /**
+   * The last territory-layer trace, memoized the same way and for the same
+   * reason. ⚠ Its signature carries the claim layer's **revision** on top of the
+   * tick, because a recovery snapshot can land on the tick already displayed and
+   * change whose ground is whose; the tick is still in there because the
+   * *entities* decide as much as the claims do — an owner dying drops its ground
+   * without any claim changing hands.
+   * @type {{signature: string, groups: object[]} | null}
+   */
+  #territoryCache = null;
 
   /**
    * @param {object} options
@@ -199,6 +210,7 @@ export class RendererApp {
           statusPhase: this.#statusPhase,
           killCells: this.#killCells(),
           socialGroups: this.#socialGroups(),
+          territories: this.#territoryGroups(),
         });
         this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
       }
@@ -634,9 +646,38 @@ export class RendererApp {
     return groups;
   }
 
-  /** Forget the traced outlines — the layer was switched on or off. */
+  /**
+   * Every territory on screen, outlined (protocol v37) — the second map layer,
+   * and the first one whose fact is about the **ground** rather than about the
+   * animals standing on it.
+   *
+   * ⚠ **The claim layer names an animal and the group is derived here**, exactly
+   * as the engine's `holdsClaim` derives it: the entity map supplies the owner's
+   * species and its live `groupRecordId`, so nothing is stored twice and nothing
+   * can go stale. That is also why this reads the store's entities rather than a
+   * viewport query — a claim on screen can be held by a lion that is not.
+   *
+   * Returns empty while the layer is off, which is the default — nothing is
+   * traced and nothing touches the store — and also when the host is on a
+   * protocol older than v37 and sends no claim layer at all.
+   * @returns {object[]}
+   */
+  #territoryGroups() {
+    if (!this.#ui.layerPanel?.isEnabled('territory')) return [];
+    if (!this.#store.territory) return [];
+    const projection = createProjection(this.#camera, this.#grid.cssWidth, this.#grid.cssHeight);
+    const visible = projection.visibleCellBounds();
+    const signature = `${this.#store.tick}:${this.#store.entityCount}:${this.#store.territory.revision}:${visible.minCellX},${visible.minCellY},${visible.maxCellX},${visible.maxCellY}`;
+    if (this.#territoryCache?.signature === signature) return this.#territoryCache.groups;
+    const groups = describeTerritories(this.#store.territory, this.#store.entities, { visible });
+    this.#territoryCache = { signature, groups };
+    return groups;
+  }
+
+  /** Forget the traced outlines — a layer was switched on or off. */
   invalidateLayers() {
     this.#socialCache = null;
+    this.#territoryCache = null;
     this.#dirty = true;
   }
 

@@ -85,11 +85,72 @@ async function panTo(page, target) {
   }
 }
 
+/** #D6ACFF — a pride's outline, and also the lion's own glyph. */
+const PRIDE = [214, 172, 255];
+
+/** How much of the middle of the grid is pride-coloured right now. */
+async function pridePixels(page) {
+  const box = await page.locator('#biome-canvas').boundingBox();
+  const data = await readRegion(page, Math.floor(box.width / 2) - 100, Math.floor(box.height / 2) - 80, 200, 160);
+  return countColor(data, PRIDE, TOLERANCE);
+}
+
+/**
+ * The centre of the ground the lion **pride** holds in the committed fixtures,
+ * in world cells.
+ *
+ * ⚠ **Read out of the claim layer, not off the lions.** That is the whole point
+ * of the territory layer being a different thing from the social one: a pride's
+ * ground is where it has marked, which is not where its members are standing —
+ * and pointing the camera at the animals is exactly how you get a test that
+ * counts pixels of an outline it is not looking at.
+ *
+ * ⚠ **The densest claim cell, never the centroid**, which is the same lesson the
+ * band test above learned one layer over. A pride's ground in the fixtures is
+ * eight disjoint patches spread over half the map, so their mean is bare grass:
+ * the first version of this pointed the camera at a spot the pride does not hold
+ * and counted zero outline pixels while the layer was working perfectly.
+ */
+function thePridesGround() {
+  const { territory } = SNAPSHOT;
+  expect(territory, 'the fixtures carry the claim layer').toBeTruthy();
+  const byId = new Map(SNAPSHOT.entities.map((entity) => [entity.id, entity]));
+  const held = new Set();
+  let index = 0;
+  for (const [ownerId, count] of territory.runs) {
+    for (let i = 0; i < count; i += 1, index += 1) {
+      const owner = ownerId === 0 ? null : byId.get(ownerId);
+      if (owner?.speciesId === 'predator.lion' && owner.groupRecordId != null) held.add(index);
+    }
+  }
+  expect(held.size, 'the fixtures hold ground for a lion pride').toBeGreaterThan(0);
+  const neighbours = (cell) => {
+    let count = 0;
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (held.has(cell + dy * territory.width + dx)) count += 1;
+      }
+    }
+    return count;
+  };
+  // Ascending order and a strict `>` so the pick is a function of the fixture
+  // alone, exactly as the layer itself is.
+  const densest = [...held].sort((a, b) => a - b).reduce((best, cell) => (neighbours(cell) > neighbours(best) ? cell : best));
+  const size = territory.cellSize;
+  return {
+    x: ((densest % territory.width) + 0.5) * size,
+    y: (Math.floor(densest / territory.width) + 0.5) * size,
+  };
+}
+
 test.describe('map layers', () => {
   test('the panel lists every layer, off, with its key', async ({ appPage: page }) => {
     const social = page.locator('input[data-layer="social"]');
+    const territory = page.locator('input[data-layer="territory"]');
     await expect(social).toBeVisible();
     await expect(social).not.toBeChecked();
+    await expect(territory).toBeVisible();
+    await expect(territory).not.toBeChecked();
     // The key is generated from the appearance registry, so it says what the
     // outlines mean without the legend having to be open.
     await expect(page.locator('#layers-panel .layer-key')).toContainText('band');
@@ -120,6 +181,44 @@ test.describe('map layers', () => {
     await expect
       .poll(async () => await bandPixels(page), { message: 'and go again', timeout: 5000 })
       .toBeLessThanOrEqual(before);
+  });
+
+  test('switching the territory layer on outlines the ground a pride holds', async ({ appPage: page }) => {
+    // ⚠ The half of the territory layer node cannot test, exactly as above: the
+    // geometry is pure and covered in `renderer-view.test.js`, and "an outline
+    // appears on the canvas over the claim cells" is a claim about real pixels.
+    await page.locator('#biome-canvas').click({ position: { x: 20, y: 20 } });
+    await page.keyboard.press('Escape');
+    await panTo(page, thePridesGround());
+    await page.waitForTimeout(200);
+
+    // A change rather than an absolute: the lion's own glyph is bright-purple
+    // too, and a lion standing on its ground is the expected case here.
+    const before = await pridePixels(page);
+
+    await page.locator('input[data-layer="territory"]').check();
+    await expect
+      .poll(async () => await pridePixels(page), { message: 'the pride’s ground is outlined', timeout: 5000 })
+      .toBeGreaterThan(before + 100);
+
+    await page.locator('input[data-layer="territory"]').uncheck();
+    await expect
+      .poll(async () => await pridePixels(page), { message: 'and the outline goes again', timeout: 5000 })
+      .toBeLessThanOrEqual(before);
+  });
+
+  test('the two layers are independent switches', async ({ appPage: page }) => {
+    // One entry per layer in `MAP_LAYERS`, one persisted set keyed by id — so
+    // the failure this rules out is a second layer riding on the first's
+    // checkbox, which would look right until you switched one off.
+    const social = page.locator('input[data-layer="social"]');
+    const territory = page.locator('input[data-layer="territory"]');
+    await territory.check();
+    await expect(social).not.toBeChecked();
+    await social.check();
+    await territory.uncheck();
+    await expect(social).toBeChecked();
+    await expect(territory).not.toBeChecked();
   });
 
   test('a switched-on layer survives a reload', async ({ appPage: page }) => {

@@ -17,7 +17,6 @@ DO NOT REFERENCE
 - sparser/localized vegetation so grazers are forced to actually path between different locations on the map
 - non-circular water
 - elevation changes
-- turn world into island
 - sea creatures
 - paths aren't very path-y
 - open/closed mode; in open mode, new animals can spawn in based on population size

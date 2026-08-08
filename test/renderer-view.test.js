@@ -29,14 +29,15 @@ import {
 import {
   describeSocialGroups,
   membershipsOf,
-  socialRegion,
+  outlineRegion,
   traceOutline,
   insetLoop,
-  paintSocialLayer,
+  paintOutlineLayer,
   MIN_GROUP_MEMBERS,
   MAX_CORRIDOR_CELLS,
 } from '../src/renderer/app/rendering/SocialLayer.js';
 import { MAP_LAYERS, resolveEnabledLayers } from '../src/renderer/app/rendering/MapLayers.js';
+import { describeTerritories, TERRITORY_RING } from '../src/renderer/app/rendering/TerritoryLayer.js';
 import { AsciiGridRenderer } from '../src/renderer/app/rendering/AsciiGridRenderer.js';
 import { structureSignature, describeSections, entityRef, linkifyIds } from '../src/renderer/app/ui/InspectorView.js';
 import { describeLegend, STATUS_SHAPE_GLYPHS } from '../src/renderer/app/ui/Legend.js';
@@ -1457,19 +1458,19 @@ describe('the social layer', () => {
 
   describe('the region a bubble encloses', () => {
     test('one animal is a padded square, so the border clears its glyph', () => {
-      const region = socialRegion([{ cellX: 10, cellY: 10 }], world);
+      const region = outlineRegion([{ cellX: 10, cellY: 10 }], world);
       assert.equal(cells(region), 9, 'three by three around the animal');
     });
 
     test('two animals two cells apart are one blob, with no arm between them', () => {
-      const region = socialRegion([{ cellX: 10, cellY: 10 }, { cellX: 12, cellY: 10 }], world);
+      const region = outlineRegion([{ cellX: 10, cellY: 10 }, { cellX: 12, cellY: 10 }], world);
       const loops = traceOutline(region);
       assert.equal(loops.length, 1, 'the padding merged them');
       assert.equal(cells(region), 15, 'a 5x3 block');
     });
 
     test('an outlying animal is reached by a one-cell arm, not by a bigger bubble', () => {
-      const region = socialRegion([{ cellX: 10, cellY: 10 }, { cellX: 11, cellY: 10 }, { cellX: 25, cellY: 18 }], world);
+      const region = outlineRegion([{ cellX: 10, cellY: 10 }, { cellX: 11, cellY: 10 }, { cellX: 25, cellY: 18 }], world);
       const loops = traceOutline(region);
       assert.equal(loops.length, 1, 'the arm makes it one outline');
       // The two padded squares are 12 and 9 cells; everything else is corridor,
@@ -1485,7 +1486,7 @@ describe('the social layer', () => {
       // picture of an animal that is nowhere near its clan.
       const far = MAX_CORRIDOR_CELLS + 10;
       const wide = { width: 5 + far + 20, height: 60 };
-      const region = socialRegion([{ cellX: 5, cellY: 5 }, { cellX: 6, cellY: 5 }, { cellX: 5 + far, cellY: 5 }], wide);
+      const region = outlineRegion([{ cellX: 5, cellY: 5 }, { cellX: 6, cellY: 5 }, { cellX: 5 + far, cellY: 5 }], wide);
       assert.equal(traceOutline(region).length, 2, 'the far animal is its own island');
     });
 
@@ -1499,18 +1500,18 @@ describe('the social layer', () => {
           cellY: 30 + Math.round(5 * Math.sin((angle * Math.PI) / 6)),
         });
       }
-      assert.equal(traceOutline(socialRegion(ring, world)).length, 1);
+      assert.equal(traceOutline(outlineRegion(ring, world)).length, 1);
     });
 
     test('a bubble never leaves the world, however close to the edge the animals are', () => {
-      const region = socialRegion([{ cellX: 0, cellY: 0 }], world);
+      const region = outlineRegion([{ cellX: 0, cellY: 0 }], world);
       assert.equal(cells(region), 4, 'a corner animal gets the quarter of its square that exists');
     });
   });
 
   describe('tracing an outline', () => {
     test('one cell traces one closed loop of four corners', () => {
-      const loops = traceOutline(socialRegion([{ cellX: 3, cellY: 4 }], world, { padding: 0 }));
+      const loops = traceOutline(outlineRegion([{ cellX: 3, cellY: 4 }], world, { padding: 0 }));
       assert.deepEqual(loops, [[
         { x: 3, y: 4 },
         { x: 4, y: 4 },
@@ -1520,7 +1521,7 @@ describe('the social layer', () => {
     });
 
     test('every loop is closed, axis-aligned, and turns at every point it keeps', () => {
-      const region = socialRegion([{ cellX: 10, cellY: 10 }, { cellX: 14, cellY: 13 }], world);
+      const region = outlineRegion([{ cellX: 10, cellY: 10 }, { cellX: 14, cellY: 13 }], world);
       for (const loop of traceOutline(region)) {
         assert.ok(loop.length >= 4 && loop.length % 2 === 0, `a rectilinear loop has an even number of corners`);
         for (let i = 0; i < loop.length; i += 1) {
@@ -1538,7 +1539,7 @@ describe('the social layer', () => {
       // of travel, so a loop wound the other way would inflate the bubble
       // instead of tightening it — and a hole, which *is* wound the other way,
       // needs exactly that opposite treatment.
-      const [loop] = traceOutline(socialRegion([{ cellX: 3, cellY: 4 }], world, { padding: 0 }));
+      const [loop] = traceOutline(outlineRegion([{ cellX: 3, cellY: 4 }], world, { padding: 0 }));
       const inset = insetLoop(loop, 0.25);
       const width = Math.max(...inset.map((p) => p.x)) - Math.min(...inset.map((p) => p.x));
       assert.ok(width < 1, `inset shrank the square to ${width}`);
@@ -1546,7 +1547,7 @@ describe('the social layer', () => {
     });
 
     test('a zero inset is the loop itself, and a short loop is left alone', () => {
-      const [loop] = traceOutline(socialRegion([{ cellX: 1, cellY: 1 }], world, { padding: 0 }));
+      const [loop] = traceOutline(outlineRegion([{ cellX: 1, cellY: 1 }], world, { padding: 0 }));
       assert.equal(insetLoop(loop, 0), loop);
       assert.deepEqual(insetLoop([{ x: 0, y: 0 }, { x: 1, y: 1 }], 2), [{ x: 0, y: 0 }, { x: 1, y: 1 }]);
     });
@@ -1659,7 +1660,7 @@ describe('the social layer', () => {
         },
       };
       const projection = { cellSize, cellToScreen: (cellX, cellY) => ({ px: cellX * cellSize, py: cellY * cellSize }) };
-      paintSocialLayer(ctx, {
+      paintOutlineLayer(ctx, {
         groups,
         projection,
         visible: { minCellX: 0, minCellY: 0, maxCellX: 40, maxCellY: 40 },
@@ -1707,5 +1708,205 @@ describe('the social layer', () => {
     test('nothing at all is drawn while the layer is off', () => {
       assert.deepEqual(paintWith([]), []);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The territory layer (protocol v37) — the social layer's twin, over the ground
+// rather than over the animals.
+// ---------------------------------------------------------------------------
+
+describe('the territory layer', () => {
+  const CLAIM = 4; // world cells per claim cell, as the engine ships it
+  const animal = (id, overrides = {}) => ({
+    id,
+    kind: 'animal',
+    alive: true,
+    speciesId: 'predator.lion',
+    groupRecordId: null,
+    ...overrides,
+  });
+
+  /**
+   * A claim layer from a picture: one row per string, one character per claim
+   * cell, `.` unclaimed and any other character an owner id looked up in `by`.
+   */
+  const claims = (rows, by) => {
+    const width = rows[0].length;
+    const owners = new Int32Array(width * rows.length);
+    rows.forEach((row, cellY) => {
+      [...row].forEach((mark, cellX) => {
+        owners[cellY * width + cellX] = mark === '.' ? 0 : by[mark];
+      });
+    });
+    return { width, height: rows.length, cellSize: CLAIM, revision: 1, owners };
+  };
+
+  const entityMap = (...animals) => new Map(animals.map((entity) => [entity.id, entity]));
+
+  describe('whose ground it is', () => {
+    test('two pride-mates hold one territory, not two', () => {
+      // The engine's own rule (`holdsClaim`): a pride-mate's mark is the pride's
+      // ground. Two lionesses marking adjacent cells is one purple outline.
+      const territory = claims(['ab', '..'], { a: 1, b: 2 });
+      const groups = describeTerritories(
+        territory,
+        entityMap(animal(1, { groupRecordId: 9 }), animal(2, { groupRecordId: 9 })),
+      );
+      assert.equal(groups.length, 1);
+      assert.equal(groups[0].key, 'record:9');
+      assert.equal(groups[0].holders, 2, 'two animals, one side');
+      assert.equal(groups[0].colorToken, SOCIAL_GROUP_APPEARANCE.pride.colorToken, 'the pride’s own colour');
+      assert.match(groups[0].label, /pride/);
+    });
+
+    test('two prides are two territories, and a clan is a third in its own colour', () => {
+      const territory = claims(['a.b', '..c'], { a: 1, b: 2, c: 3 });
+      const groups = describeTerritories(
+        territory,
+        entityMap(
+          animal(1, { groupRecordId: 9 }),
+          animal(2, { groupRecordId: 10 }),
+          animal(3, { speciesId: 'scavenger.hyena', groupRecordId: 11 }),
+        ),
+      );
+      assert.deepEqual(groups.map((group) => group.key), ['record:10', 'record:11', 'record:9']);
+      const clan = groups.find((group) => group.key === 'record:11');
+      assert.equal(clan.colorToken, SOCIAL_GROUP_APPEARANCE.clan.colorToken);
+      assert.match(clan.label, /clan/);
+    });
+
+    test('a lone holder gets its own ground in its species’ colour', () => {
+      // A leopard belongs to nothing, so there is no group to name — and its red
+      // beside a pride's purple says which animal marked it with no legend.
+      const groups = describeTerritories(claims(['a'], { a: 4 }), entityMap(animal(4, { speciesId: 'predator.leopard' })));
+      assert.equal(groups[0].key, 'holder:4');
+      assert.equal(groups[0].colorToken, SPECIES_APPEARANCE['predator.leopard'].colorToken);
+      assert.match(groups[0].label, /leopard/);
+    });
+
+    test('⚠ a dead holder’s ground is not drawn, exactly as the engine will not honour it', () => {
+      // `holdsClaim` requires the owner alive: a dead lion's marks fade like
+      // anyone else's and the next animal through writes its own. Drawing them
+      // would show a pride holding ground it has already lost.
+      const territory = claims(['ab'], { a: 1, b: 2 });
+      const groups = describeTerritories(
+        territory,
+        entityMap(animal(1, { groupRecordId: 9, alive: false }), animal(2, { groupRecordId: 9 })),
+      );
+      assert.equal(groups.length, 1);
+      assert.equal(groups[0].holders, 1, 'only the living lioness holds anything');
+      assert.equal(groups[0].claimCells, 1);
+    });
+
+    test('a claim whose holder this client has never seen is dropped, never guessed at', () => {
+      assert.deepEqual(describeTerritories(claims(['a'], { a: 77 }), entityMap()), []);
+    });
+
+    test('an absent claim layer draws nothing at all', () => {
+      assert.deepEqual(describeTerritories(null, entityMap(animal(1))), []);
+    });
+  });
+
+  describe('the shape of a territory', () => {
+    test('⚠ two patches of held ground are two outlines — no arm between them', () => {
+      // The one place this layer parts company with the social layer. An arm
+      // between two blobs of a herd wraps an animal that wandered off; an arm
+      // between two blobs of a *territory* would draw a claim over ground
+      // nobody has marked, which is what this layer exists to show the absence
+      // of.
+      const territory = claims(['a....a'], { a: 1 });
+      const [ground] = describeTerritories(territory, entityMap(animal(1, { groupRecordId: 9 })));
+      assert.equal(ground.loops.length, 2, 'two islands');
+      assert.equal(ground.claimCells, 2, 'and no ground invented between them');
+    });
+
+    test('a pocket inside a territory is filled, so it reads as one boundary', () => {
+      const territory = claims(['aaa', 'a.a', 'aaa'], { a: 1 });
+      const [ground] = describeTerritories(territory, entityMap(animal(1, { groupRecordId: 9 })));
+      assert.equal(ground.loops.length, 1, 'the hole is not a second loop');
+      assert.equal(ground.claimCells, 9);
+    });
+
+    test('⚠ outlines come back in world cells, scaled off the claim grid’s own resolution', () => {
+      // Traced at claim resolution — 16× fewer cells at cellSize 4 — and scaled
+      // afterwards, which is exact because a claim boundary only ever falls on a
+      // claim-cell edge.
+      const [ground] = describeTerritories(claims(['.a'], { a: 1 }), entityMap(animal(1)));
+      const xs = ground.loops[0].map((point) => point.x);
+      assert.deepEqual([Math.min(...xs), Math.max(...xs)], [CLAIM, 2 * CLAIM]);
+      assert.deepEqual(ground.bounds, { minCellX: 4, minCellY: 0, maxCellX: 7, maxCellY: 3 });
+    });
+
+    test('a territory nobody can see is not traced at all', () => {
+      const groups = describeTerritories(claims(['a'], { a: 1 }), entityMap(animal(1)), {
+        visible: { minCellX: 200, minCellY: 200, maxCellX: 260, maxCellY: 260 },
+      });
+      assert.deepEqual(groups, []);
+    });
+
+    test('⚠ the same claims always draw the same outlines, whatever order the ids come in', () => {
+      // §3: presentation must be reproducible from its inputs alone.
+      const territory = claims(['ab', 'ba'], { a: 1, b: 2 });
+      const forwards = describeTerritories(territory, entityMap(animal(1, { groupRecordId: 9 }), animal(2, { groupRecordId: 9 })));
+      const backwards = describeTerritories(territory, entityMap(animal(2, { groupRecordId: 9 }), animal(1, { groupRecordId: 9 })));
+      assert.deepEqual(forwards, backwards);
+    });
+  });
+
+  describe('the layer’s place in the registry', () => {
+    test('it is a layer, off by default, with the social layer beside it', () => {
+      const ids = MAP_LAYERS.map((layer) => layer.id);
+      assert.deepEqual(ids, ['social', 'territory']);
+      assert.equal(MAP_LAYERS.find((layer) => layer.id === 'territory').defaultEnabled, false);
+      assert.equal(resolveEnabledLayers(null).size, 0, 'nothing is on before anyone asks');
+    });
+
+    test('⚠ a viewer who stored their choice before this layer existed gets it off', () => {
+      // The registry's own rule: a layer the stored set could not have known
+      // about takes its default, and this one's default is off.
+      assert.deepEqual([...resolveEnabledLayers(['social'])], ['social']);
+    });
+
+    test('territory runs in the outermost lane, so it can never coincide with a record’s ring', () => {
+      const [group] = describeTerritories(claims(['a'], { a: 1 }), entityMap(animal(1, { groupRecordId: 9 })));
+      assert.equal(group.ring, TERRITORY_RING);
+      assert.notEqual(group.ring, SOCIAL_GROUP_APPEARANCE.pride.ring);
+    });
+  });
+});
+
+// ⚠ Appended as its own block rather than folded into "the shape of a
+// territory": it is a claim about the *painter* shared with the social layer,
+// and it is the one property of the territory layer that falls out of geometry
+// nobody wrote for it.
+describe('two territories that share a border', () => {
+  const animal = (id, overrides = {}) => ({ id, kind: 'animal', alive: true, speciesId: 'predator.lion', groupRecordId: null, ...overrides });
+
+  test('⚠ draw two lines a pixel apart, not one over the other', () => {
+    // Territory boundaries sit exactly where two animals' marking rates balance,
+    // so a shared edge is the *usual* case here rather than a corner one — and
+    // "two outlines on one ring lose one of them" (§9a) would make it a real
+    // defect. It is not, because `insetLoop` moves each outline inward toward
+    // its own region: one lands on the pixel row inside one territory, the other
+    // on the row inside the other.
+    const owners = new Int32Array([1, 2]);
+    const territory = { width: 2, height: 1, cellSize: 4, revision: 1, owners };
+    const described = describeTerritories(
+      territory,
+      new Map([[1, animal(1, { groupRecordId: 9 })], [2, animal(2, { groupRecordId: 10 })]]),
+    );
+    // ⚠ By key, not by position: the sort is lexicographic, so `record:10` comes
+    // before `record:9` and destructuring would silently swap the two sides.
+    const left = described.find((group) => group.key === 'record:9');
+    const right = described.find((group) => group.key === 'record:10');
+    // They meet on the world-cell lattice line at x = 4 and each claims up to it.
+    assert.equal(Math.max(...left.loops[0].map((p) => p.x)), 4);
+    assert.equal(Math.min(...right.loops[0].map((p) => p.x)), 4);
+    // And the painter insets each one into its own side of that line.
+    const insetLeft = insetLoop(left.loops[0].map((p) => ({ x: p.x * 10, y: p.y * 10 })), 0.5);
+    const insetRight = insetLoop(right.loops[0].map((p) => ({ x: p.x * 10, y: p.y * 10 })), 0.5);
+    assert.equal(Math.max(...insetLeft.map((p) => p.x)), 39.5, 'the left outline stops inside itself');
+    assert.equal(Math.min(...insetRight.map((p) => p.x)), 40.5, 'and the right one starts inside itself');
   });
 });

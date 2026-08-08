@@ -1101,9 +1101,18 @@ they are not re-opened by accident.
   back than that. Only bites a query that walks ancestry; lineage _depth_ is
   carried on the entity as `generation`.
 
-- **A36 — The territorial claim layer is not projected to the renderer.** The
-  home-range ring is drawn from inspection, for the selected animal only. Blocks
-  renderer item P1.
+- **✅ A36 — The territorial claim layer is not projected to the renderer. CLOSED
+  2026-08-08** (protocol v37). It stood open on "the claim layer would need to earn its per-snapshot
+  cost", and what earned it was projecting **less** of it: owner ids only over the
+  coarse claim grid, RLE-encoded, behind a second `ownerRevision` on `ScentGrid`
+  that moves when a cell changes hands rather than on every mark and decay sweep.
+  Measured over 1000 mature demo ticks: **445 bytes of a 320 KB full snapshot**,
+  and **0.013% of delta bytes** across the 377 ticks in 1000 that carry it at all.
+  Claim *strength* stays inside the engine — it is what the mechanism runs on, it
+  is the half that changes every tick, and dropping it is what makes the revision
+  gate work. Unblocks renderer P1, now the **territory layer**.
+  ⚠ The home-range ring is still an inspection-only overlay for the selected
+  animal, which is a different fact and was never what A36 was about.
 
 - **A5 — No renderer debug overlay of perceived cells.**
 
@@ -1216,11 +1225,39 @@ they are not re-opened by accident.
   `HANDOFF-RENDERER.md` current _with_ each phase** rather than after it. An
   ongoing discipline rather than a discrete task.
 
+- **⚠ `persistence.test.js` runs out of memory and never finishes** _(found
+  2026-08-08)_. Node dies ~3 s in at the default 4 GB heap, and the test runner
+  then leaves a worker hung rather than exiting — so it reads as *slow*, not as
+  *crashed*, and a run left alone sat 75 minutes producing nothing. ⚠ Verified
+  **pre-existing** against a clean `HEAD` worktree (byte-identical 58-line crash),
+  so it is the machine or the suite rather than any change. Consequence:
+  **`npm test` cannot complete on this machine.** Diagnose by redirecting to a
+  file and reading its *head* — a `| tail` pipe hides the stack trace behind an
+  exit that never comes. See DOCS §14.
+
 ## Renderer — known limitations
 
-- **P1 — Per-cell territory ownership is not shown.** Blocked on engine item A36;
-  the protocol carries a claim only via a selected animal's
-  `territory.standingOn`.
+- **✅ P1 — Per-cell territory ownership is not shown. CLOSED 2026-08-08** — as the **Territory**
+  map layer: the ground each pride, clan and lone holder marks, outlined in the
+  same design language as the social layer and in the group's own colour. Closed
+  by engine A36 projecting the claim layer. See `DOCS-RENDERER.md` §9b.
+
+- **P20 — `CellDetail` still says nothing about who owns a cell** _(2026-08-08)_.
+  The store has the answer for every cell now; clicking one reports terrain,
+  forage, wear and disturbances but not the claim. Deliberately not bundled with
+  the layer — the boundary is what makes territory watchable, a row in the
+  inspector is what makes one cell's owner addressable. ⚠ Whatever writes it must
+  resolve the holder the way `TerritoryLayer` does (through the live entity,
+  alive), or the panel and the grid will disagree about ground a dead lion marked.
+
+- **P21 — A hyena clan outlines no territory, and that is engine data, not a
+  renderer gap** _(2026-08-08)_. `scavenger.hyena` ships
+  `territory.defends: false`, which its species file argues for at length as one
+  of three axes keeping the clan from competing the leopard to extinction. The
+  layer already names and colours clans. ⚠ Flipping the flag switches on `patrol`
+  as well as marking, which DOCS §9 records as having cost the demo seeds four
+  times, so it is an ecological change owing a multi-seed gate — related to **A35**
+  and **A66**, and not fixable from the renderer side.
 
 - **P5 — The renderer cannot show a tick it never received, and cannot move the
   engine backward at all.** Resolved by whatever Phase D decides; currently

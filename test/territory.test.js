@@ -13,7 +13,7 @@ import { getSpecies } from '../src/simulation/config/species/index.js';
 import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
-import { buildFullSnapshot } from '../src/protocol/snapshots.js';
+import { buildFullSnapshot, buildDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { createDemoSimulation, restoreDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
@@ -477,18 +477,76 @@ describe('territory: behaviour', () => {
 });
 
 describe('territory: protocol, metrics, and persistence', () => {
-  test('the claim layer stays out of snapshots entirely', () => {
-    // Territory is inspection-only: a per-cell ownership layer in every
-    // snapshot would rival the vegetation block for a thing that changes far
-    // more slowly and that only matters for one animal at a time.
+  // ⚠ This block used to assert the exact opposite — "the claim layer stays out
+  // of snapshots entirely" — on the grounds that ownership changes slowly and
+  // matters for one animal at a time. **A36 closed that (protocol v37) and the
+  // second half is what stopped being true**: "where is each pride's ground" is
+  // a question no number of one-animal inspections answers, which is the same
+  // argument v33 made for `groupRecordId`. What survives unchanged is the rest
+  // of the old claim: the *entity* still carries no territory at all.
+  test('the claim layer is projected as ownership only, and nothing else moved onto the entity', () => {
     const engine = createDemoSimulation({ seed: 42 });
     engine.step(600);
     const snapshot = buildFullSnapshot(engine.getSnapshotData());
-    assert.ok(!('scent' in snapshot) && !('territory' in snapshot), 'no claim layer in the payload');
+    const { territory } = snapshot;
+    assert.ok(territory, 'the claim layer rides in the payload');
+    assert.equal(territory.cellSize, engine.world.scent.cellSize, 'the coarse grid states its own resolution');
+    assert.equal(territory.width, engine.world.scent.width);
+    assert.equal(territory.height, engine.world.scent.height);
+    // Ownership only. Freshness is what the mechanism runs on and doubling the
+    // payload to draw a fade nobody reads is what would make this cost real.
+    assert.ok(!('strength' in territory), 'claim strength stays inside the engine');
+    const covered = territory.runs.reduce((total, [, count]) => total + count, 0);
+    assert.equal(covered, territory.width * territory.height, 'the runs cover the claim grid exactly');
+    // Every owner is a real entity id or the unclaimed sentinel.
+    for (const [ownerId] of territory.runs) {
+      assert.ok(ownerId === 0 || engine.world.entities.get(ownerId), `owner ${ownerId} is a real id`);
+    }
+    assert.ok(!('scent' in snapshot), 'the grid itself never leaks');
     for (const entity of snapshot.entities) {
       assert.ok(!('homeRange' in entity));
       assert.ok(!('territory' in entity));
     }
+  });
+
+  test('⚠ the projection is memoized on ownership, not on the marking that never stops', () => {
+    // The whole per-snapshot cost argument rests on this. Marking runs forever
+    // and almost never moves a boundary, so a refresh must reuse the projection
+    // by reference and only a change of hands may rebuild it.
+    const engine = territoryEngine();
+    const id = spawn(engine, { x: 30, y: 30, speciesId: STALKER.id });
+    engine.step(200);
+    const held = heldGround(engine, id);
+    assert.ok(held, 'the resident marked something');
+    const first = engine.getTerritoryData();
+    engine.world.scent.mark(held.x, held.y, id, 1);
+    assert.equal(engine.getTerritoryData(), first, 'a refresh by the owner moves no boundary');
+    engine.world.scent.mark(held.x, held.y, id + 1000, 1);
+    assert.notEqual(engine.getTerritoryData(), first, 'rebuilt once the cell changes hands');
+  });
+
+  test('a claim that changes hands rides in a delta, and a tick that moves none carries nothing', () => {
+    const engine = territoryEngine();
+    const id = spawn(engine, { x: 30, y: 30, speciesId: STALKER.id });
+    engine.step(200);
+    const held = heldGround(engine, id);
+    assert.ok(held, 'the resident marked something');
+    const before = buildFullSnapshot(engine.getSnapshotData());
+    // Omitted means "nothing changed hands" — which has to be the common case,
+    // or the gate buys nothing.
+    engine.world.scent.mark(held.x, held.y, id, 1);
+    const quiet = buildFullSnapshot(engine.getSnapshotData());
+    assert.equal(buildDeltaSnapshot(before, { ...quiet, tick: before.tick + 1 }).territory, undefined);
+    // Now hand the cell to somebody else and watch it arrive as one change.
+    engine.world.scent.mark(held.x, held.y, id + 1000, 1);
+    const after = buildFullSnapshot(engine.getSnapshotData());
+    const delta = buildDeltaSnapshot(before, { ...after, tick: before.tick + 1 });
+    assert.ok(delta.territory, 'the delta carries the claim layer');
+    assert.deepEqual(
+      delta.territory.changes.map(([, ownerId]) => ownerId),
+      [id + 1000],
+      'exactly the cell that changed hands, and nothing else',
+    );
   });
 
   test('inspection exposes the range, the ground underfoot, and copies', () => {

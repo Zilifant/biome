@@ -19,7 +19,12 @@ import fullSnapshotFixture from '../src/renderer/fixtures/example-full-snapshot.
 describe('protocol v36: the version and the renderer agree', () => {
   test('the engine, the renderer and the committed fixtures are all on one version', () => {
     // The check three stale fixtures once sailed through, kept at every bump.
-    assert.equal(PROTOCOL_VERSION, 36);
+    // ⚠ `>=`, matching every other version file here (v31–v34). It was `=== 36`
+    // for one version, which is a test that fails on the *next* bump rather than
+    // on a defect — and the two assertions below are the ones with content: what
+    // this file guards is that the renderer and the fixtures moved together, not
+    // which number they moved to.
+    assert.ok(PROTOCOL_VERSION >= 36, `the prey ceiling shipped at v36, protocol is at ${PROTOCOL_VERSION}`);
     assert.equal(SUPPORTED_PROTOCOL_VERSION, PROTOCOL_VERSION, 'the renderer speaks what the engine emits');
     assert.equal(fullSnapshotFixture.protocolVersion, PROTOCOL_VERSION, 'the fixture was regenerated for this version');
   });

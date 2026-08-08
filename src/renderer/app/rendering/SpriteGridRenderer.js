@@ -36,7 +36,7 @@ import {
   OCCUPIED_ALPHA,
 } from './EntityAppearance.js';
 import { groundAppearanceAt, paintStatusMark } from './AsciiGridRenderer.js';
-import { paintSocialLayer } from './SocialLayer.js';
+import { paintOutlineLayer } from './SocialLayer.js';
 import {
   slotIdForEntity,
   groundSlotAt,
@@ -238,7 +238,7 @@ export class SpriteGridRenderer {
    * and same store reads as AsciiGridRenderer.draw; see that method for the
    * meaning of each option.
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [], socialGroups = [] }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [], socialGroups = [], territories = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -352,12 +352,19 @@ export class SpriteGridRenderer {
       }
     }
 
-    // --- Social layer: the same outlines, in the same place in the pass order,
-    // from the same shared painter. ⚠ It is *not* a slot and never will be: a
-    // bubble is a shape traced from where the animals are, not a thing that sits
-    // in a cell, so there is nothing for a spritesheet to say about it. Only the
+    // --- The map layers: the same outlines, in the same place in the pass
+    // order, from the same shared painter. ⚠ Neither is a slot and neither ever
+    // will be: a bubble is a shape traced from where the animals are and a
+    // territory one traced from where the claims are, not things that sit in a
+    // cell, so there is nothing for a spritesheet to say about either. Only the
     // colour resolution differs, which is what `resolveColor` is for.
-    paintSocialLayer(ctx, {
+    paintOutlineLayer(ctx, {
+      groups: territories,
+      projection,
+      visible: cells,
+      resolveColor: (token) => this.#color(token),
+    });
+    paintOutlineLayer(ctx, {
       groups: socialGroups,
       projection,
       visible: cells,

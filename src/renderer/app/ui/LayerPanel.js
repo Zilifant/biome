@@ -35,14 +35,21 @@ function store(enabled) {
 }
 
 /**
- * The key to the social layer's colours, built from the appearance registry so
- * it cannot drift from what is drawn — the same rule the legend follows.
+ * The key to the group colours, built from the appearance registry so it cannot
+ * drift from what is drawn — the same rule the legend follows.
  *
- * It sits with the switch rather than in the legend panel because a colour that
- * only means something while a layer is on belongs beside that layer's switch,
- * and because the legend is already the longest panel in the sidebar. ⚠ The
- * legend carries these rows too (`describeLegend`); this is the second reader of
- * one registry, not a second copy of it.
+ * It sits with the switches rather than in the legend panel because a colour
+ * that only means something while a layer is on belongs beside that layer's
+ * switch, and because the legend is already the longest panel in the sidebar.
+ * ⚠ The legend carries these rows too (`describeLegend`); this is the second
+ * reader of one registry, not a second copy of it.
+ *
+ * ⚠ **One key serves both layers, because they share the palette on purpose.** A
+ * pride's territory is drawn in the same purple as the pride, so a bubble a long
+ * way outside its own ground reads as one fact rather than two — see
+ * `rendering/TerritoryLayer.js`. What the key cannot cover is a *lone* holder,
+ * whose ground takes its species' colour; that is what the line below says, and
+ * those colours are already the legend's Animals rows.
  */
 function socialKeyMarkup() {
   return Object.entries(SOCIAL_GROUP_APPEARANCE)
@@ -75,7 +82,8 @@ export class LayerPanel {
           <span>${layer.label} <span class="dim">${layer.note}</span></span>
         </label>`,
       ).join('')}
-      <div class="layer-key">${socialKeyMarkup()}</div>`;
+      <div class="layer-key">${socialKeyMarkup()}</div>
+      <p class="hint">A territory takes its holders' colour above — or the species' own where one animal holds it alone.</p>`;
     // One delegated listener on the container, which is stable — the panel is
     // never rebuilt, but this is also what makes it correct if it ever is.
     container.addEventListener('change', (event) => {

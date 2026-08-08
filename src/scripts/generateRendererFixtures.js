@@ -15,7 +15,34 @@ import { buildFullSnapshot, buildDeltaSnapshot } from '../protocol/snapshots.js'
 import { buildEventBatch } from '../protocol/events.js';
 
 const FIXTURE_SEED = 42;
-const WARMUP_TICKS = 10;
+/**
+ * ⚠ **Long enough that the world has a history, which is a correctness
+ * requirement rather than a nicety.** It was 10 for a long time, and 10 ticks is
+ * a world where nothing has happened yet: no lion is grown, so nothing has
+ * marked any ground, so the **territory layer** (protocol v37) drew literally
+ * nothing offline and the browser suite could not see it at all. The same
+ * argument the 2026-08-04 regeneration made for keeping three vultures airborne
+ * — a fixture that cannot show a feature cannot test one.
+ *
+ * At 2400 the demo has a lion pride holding ground, three leopards holding their
+ * own, two hyena clans, fifty banded zebra and a handful of animals in the air.
+ *
+ * ⚠⚠ **It is not free, and the cost lands on the browser suite rather than on
+ * disk.** The committed set is the same ~2 MB it always was (the event batch is
+ * bounded below, and the snapshot barely moves) and the world is barely bigger —
+ * 256 entities against 263. What a mature world has that a ten-tick one does not
+ * is **1130 cells of worn ground** and a live disturbance, and rendering those
+ * every frame is enough to tip `tests-ui`'s already-fragile browser teardown over
+ * in a sandboxed shell. Measured 2026-08-08: `event-log-refs.spec.js` is green in
+ * **546 ms** against the ten-tick fixtures and hangs for **three 30 s teardowns**
+ * against these — never on an assertion, always on `Tearing down "live"`. The
+ * suite's failure count in a sandbox went **9 → 14**, all of it that same hang
+ * (DOCS §14 already records the hang as an environment limit, and the three real
+ * assertion failures in `status-marks.spec.js` are unchanged). The trade was made
+ * knowingly: a fixture that cannot show a feature cannot test one, and the
+ * territory layer is invisible at ten ticks.
+ */
+const WARMUP_TICKS = 2400;
 
 const outputDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../renderer/fixtures');
 mkdirSync(outputDir, { recursive: true });
@@ -29,7 +56,18 @@ engine.step(1);
 const nextSnapshot = buildFullSnapshot(engine.getSnapshotData());
 const delta = buildDeltaSnapshot(fullSnapshot, nextSnapshot, engine.eventsSince(fullSnapshot.lastEventSeq));
 
-const eventBatch = buildEventBatch(engine.eventsSince(0), {
+/**
+ * ⚠ **The most recent events, not every event the bus still holds.** With a
+ * ten-tick warm-up those two were the same thing; at 2400 they are 7300 events
+ * and 2 MB of committed JSON, which grows with the warm-up forever and is not
+ * what the fixture is *for* — the offline log needs enough history to scroll and
+ * filter, and the store bounds its own buffer anyway (`RendererStore`, per
+ * tier). The tail is the useful end: it is the one that describes the world the
+ * snapshot beside it actually shows.
+ */
+const RECENT_EVENTS = 2500;
+const history = engine.eventsSince(0);
+const eventBatch = buildEventBatch(history.slice(-RECENT_EVENTS), {
   simulationId: engine.simulationId,
   tick: engine.tick,
 });

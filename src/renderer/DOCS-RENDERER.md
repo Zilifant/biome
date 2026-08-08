@@ -37,18 +37,22 @@ stands, not a reading. A dated figure is a record of what was true when it was
 taken — the demo world it was measured in keeps changing underneath these
 numbers, so re-measure rather than inherit.
 
-### Current state (as of 2026-08-04)
+### Current state (as of 2026-08-08)
+
+⚠ The rows below carry their own dates where a claim was measured. The table was
+last rewritten wholesale on 2026-08-04; the 2026-08-08 territory work updated the
+version, fixture, layer and test rows and left the rest as it found them.
 
 |                     |                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
-| Tests               | renderer 127 in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 14 spec files in `tests-ui`                                      |
-| Protocol understood | **34** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine                                                                           |
-| Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a). ⚠ **v34 is a version the renderer speaks but does not yet show**: its additions are all inspection-only (a group's derived `centre`/`leaderId`, the `social.consensus`/`rally`/`charge` commitments, `pullScale`, `bandmates`), and *displaying* them is this roadmap's item rather than the engine plan's — nothing was owed here beyond the matching constant and a regenerated fixture set |
+| Tests               | renderer **142** in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 14 spec files in `tests-ui` _(2026-08-08)_                       |
+| Protocol understood | **37** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine _(2026-08-08)_                                                            |
+| Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a), and the claim grid (v37) is the **territory layer** (§9b). ⚠ **v34 is a version the renderer speaks but does not yet show**: its additions are all inspection-only (a group's derived `centre`/`leaderId`, the `social.consensus`/`rally`/`charge` commitments, `pullScale`, `bandmates`), and *displaying* them is this roadmap's item rather than the engine plan's — nothing was owed here beyond the matching constant and a regenerated fixture set |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
-| Fixtures            | current — v33, all **eight** shipped species, regenerated 2026-08-04 for the **ngorongoro demo**: 500 entities on a 332×280 map (was 231 on 160×120), **3 airborne** so fixture mode still shows the flying mark offline, 3.5 MB committed (was 1.4 MB); ⚠ due on every **roster** change, not only a protocol bump (§10) |
+| Fixtures            | current — v37, regenerated 2026-08-08. ⚠ **The warm-up moved from 10 ticks to 2400**, because at ten ticks no lion is grown and nothing has marked any ground, so the territory layer had nothing to show offline and nothing to browser-test (§9b). The fixture world is now 256 entities on a 232×180 map with a lion pride holding ground, three leopards holding their own, two hyena clans, fifty banded zebra and six animals airborne; the event batch is bounded to its most recent 2500 events to keep the committed set at ~2 MB. ⚠ Due on every **roster** change, not only a protocol bump (§10) |
 | Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
-| Map layers          | **one** — Social (§9a), off by default. The registry is `rendering/MapLayers.js`                                                     |
+| Map layers          | **two** — Social (§9a) and Territory (§9b), both off by default. The registry is `rendering/MapLayers.js`                            |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
 | Git                 | uncommitted (the user handles git)                                                                                                   |
 
@@ -79,6 +83,15 @@ cross-references in code and history keep resolving.
   half-pixel stroke alignment bug (§9a), which no amount of node testing would
   have shown, and what proved the arm-to-an-outlier geometry actually reads as
   one.
+
+- ✅ **The territory layer has been seen in a browser** _(2026-08-08)_, on the
+  same terms and by the same method: `tests-ui/layers.spec.js` counts pixels of
+  the **pride's** colour with the layer off, on and off again. ⚠ Recorded here
+  because the *first* version of that spec was green-looking nonsense — it pointed
+  the camera at the claim **centroid**, which for eight disjoint patches spread
+  over half a map is bare grass, and counted zero outline pixels while the layer
+  was working perfectly. The camera now goes to the densest claim cell. Same
+  lesson the band test learned one layer over, and it did not transfer by itself.
 
 - **⚠ The `»` flying mark has never been seen in a browser** _(2026-08-04)_. Its
   geometry is asserted through the canvas stub — twelve vertices, apex centred and
@@ -148,11 +161,31 @@ present** (P5).
   draw are the two that *outlive their cue* — a consensus heading and a pursuit are
   the only things in this world still going after their reason has gone, and an
   arrow with a countdown is what would make that visible.
-- **P1 — Per-cell territory ownership is not shown.** The protocol carries a
-  claim only via a selected animal's `territory.standingOn`, not as a projected
-  layer. Blocked on engine item A36 (the claim layer would need to earn its
-  per-snapshot cost). `CellDetail` stays silent about ownership rather than
-  guessing.
+- ✅ **P1 — territory ownership _is_ shown** _(2026-08-08, §9b)_, and the item is
+  recorded here rather than deleted because what closed it was the block it named:
+  engine **A36** projected the claim layer, and the projection earned its cost by
+  being ownership-only over a coarse grid behind a revision that moves when a
+  boundary does. **445 bytes of a 320 KB full snapshot; 0.013% of delta bytes.**
+  Two halves of the old item remain open and are stated as their own items below —
+  `CellDetail` still says nothing about who owns a clicked cell, and a hyena clan
+  outlines nothing because the hyena holds no ground.
+- **P20 — `CellDetail` still says nothing about who owns a cell** _(2026-08-08)_.
+  The store now has the answer for every cell, and clicking one reports terrain,
+  forage, wear and disturbances but not the claim. It is a small piece of work
+  deliberately not bundled into the layer: the *boundary* is what makes territory
+  watchable, and a row in the inspector is what makes one cell's owner
+  addressable. ⚠ Whatever writes it must resolve the holder the way
+  `TerritoryLayer` does — through the live entity, alive — or the panel and the
+  grid will disagree about ground a dead lion marked.
+- **P21 — A hyena clan outlines no territory, and that is engine data**
+  _(2026-08-08)_. `scavenger.hyena` ships `territory.defends: false`, which its
+  own species file argues for at length: it is one of three axes keeping the clan
+  from competing the leopard to extinction, the other two being sociality and
+  carrion. So the territory layer draws lion prides and solitary leopards, and
+  names clans in the clan colour for the day that changes. ⚠ **This is not a
+  renderer item and cannot be fixed here** — flipping the flag switches on
+  `patrol` as well as marking, which DOCS §9 records as having cost the demo
+  seeds four times, so it is an ecological change owing a multi-seed gate.
 - **P5 — The renderer cannot show a tick it never received, and cannot move the
   engine backward at all.** Resolved by whatever Phase D decides; currently
   stated in the UI rather than worked around.
@@ -300,6 +333,7 @@ app/
     EntityAppearance.js       ASCII glyph/color/priority registry (pure)
     MapLayers.js              the map-layer registry and its persisted on-set (pure)
     SocialLayer.js            grouping, bubble geometry, and the shared outline painter
+    TerritoryLayer.js         claim cells grouped into pride, clan and lone-holder ground
     AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → layers → overlays
     SpriteGridRenderer.js     the same drawing from a spritesheet (?renderer=sprite)
     SpriteSlots.js            slot vocabulary bridging the registries to sprites (pure)
@@ -1390,6 +1424,142 @@ pass against the 3.5 ms above.
 
 ---
 
+## 9b. The territory layer
+
+_(2026-08-08. `rendering/TerritoryLayer.js`, protocol v37, closing engine A36 and
+this roadmap's P1.)_
+
+### A bubble wraps animals; a territory wraps claims
+
+The two layers are twins to look at — same tracing, same painter, same rounded
+lane just inside a cell edge, same colour per kind of group — and ⚠ **the one
+difference between them is the whole feature.** A social bubble is the boundary
+of where a pride's members are standing. A territory is the boundary of what the
+pride has **marked**, which stays where it is when the pride walks off it. Seeing
+both at once — a purple bubble a long way outside its purple ground — is a pride
+away from home, and it is a thing to watch rather than a thing to read.
+
+That is also why the palette is shared rather than invented: a pride's territory
+is drawn in the pride's own `SOCIAL_GROUP_APPEARANCE` colour, so the association
+costs the viewer nothing. A **lone** holder — a leopard, which belongs to no
+record — takes its species' colour instead, because there is no group to name and
+red ground beside purple ground says which animal marked it without a legend.
+
+### The claim names an animal; the group is derived, never stored
+
+⚠⚠ **This is the engine's own rule, copied rather than invented.**
+`TerritorySystem.holdsClaim` (engine A60, 2026-08-07) decides "is this my *side's*
+ground" by looking the owner up and reading its **live** `groupRecordId` —
+deliberately, because a group id stored in `ScentGrid` would be a second copy of
+membership that outlives a dissolved record, needs rewriting on every join and
+leave, and can be restored from a save into a world whose groups have moved on.
+`describeTerritories` derives the same answer from the same two bulk fields, so
+what is drawn and what the engine acts on cannot disagree.
+
+Two consequences follow, and both are assertions in `renderer-view.test.js`:
+
+- ⚠ **The owner must be alive.** A dead lion's marks linger until they decay, and
+  drawing them would show a pride holding ground the next animal through is free
+  to take.
+- **Ground whose holder this client cannot see is not drawn.** Never guessed at,
+  and never attributed to whoever happens to be standing on it — §3's "never
+  invent a field", applied to a cell rather than to a row.
+
+### No arms, and that is deliberate
+
+The social layer joins a group's separated blobs with one-cell corridors so an
+outlying member is wrapped rather than abandoned. ⚠ **The territory layer refuses
+them outright** (`outlineRegion(..., { maxCorridor: 0 })`, which skips the
+spanning tree entirely rather than merely rejecting long arms). An arm between
+two blobs of a herd wraps an animal that wandered off; an arm between two blobs
+of a *territory* would draw a claim over ground nobody has marked, which is
+precisely the absence this layer exists to show. Two patches of held ground are
+two outlines.
+
+Holes are still filled, unlike arms, and for the reason the social layer fills
+them: a pocket a claim has faded off inside a territory is coarse-grid noise, and
+a second loop drawn inside the first reads as a bug rather than as a fact.
+
+⚠ **Two territories that share a border draw two lines, not one, and that falls
+out of `insetLoop` rather than being arranged.** Every outline is inset *inward*
+from its own boundary, so on a shared lattice edge one side's stroke lands on the
+pixel row inside it and the other's on the row inside the other — a pixel apart,
+each in its own colour. That matters here in a way it does not for the social
+layer, because territory boundaries sit exactly where two animals' marking rates
+balance and are therefore *usually* shared. It is also why territory can sit on
+ring 0 beside the herd label without the "two outlines on one ring lose one of
+them" problem §9a warns about: that failure needs two outlines around the **same**
+cells, and two territories never overlap.
+
+### Traced coarse, scaled after
+
+⚠ **Everything is traced at claim-cell resolution and multiplied up afterwards.**
+A claim cell is `cellSize` world cells across (4 in today's engine), so tracing in
+claim space touches **16× fewer cells** than the same area in world space — and
+the result is exact rather than approximate, because a claim boundary only ever
+falls on a claim-cell edge anyway. That is what makes the layer's cull afford to
+be weaker than the social layer's: it is applied per group, and a pride's ground
+can span a third of the map, so a partly-visible territory pays for all of it.
+The coarseness is what makes that affordable, not the test.
+
+In a world whose width is not a multiple of `cellSize` the last column of claim
+cells reaches a cell or two past the map, and so can an outline — the
+projection's own ragged edge showing through rather than a rounding error here.
+
+### The cost, and how it was earned
+
+⚠ **A36 stood open for a year on "the claim layer would need to earn its
+per-snapshot cost", and the answer was to project less of it.** Two numbers per
+cell is what the *mechanism* needs; the viewer asked whose ground this is, which
+is one of them. So `strength` stays inside the engine — and dropping it is what
+makes the revision gate work at all, because freshness is the half that changes
+every tick.
+
+`ScentGrid` therefore carries **two** revisions. The general one moves on every
+mark and every decay sweep, several times a tick forever. `ownerRevision` moves
+only when a cell changes hands, and both the engine's memoized projection and the
+protocol's delta diff key on that one. Measured over 1000 mature demo ticks
+(seed 42, 2026-08-08):
+
+| | |
+| --- | --- |
+| Territory in a full snapshot | **445 bytes** of 320 KB (0.14%) |
+| Deltas carrying territory at all | **377 of 1000** ticks |
+| Territory's share of delta bytes | **0.013%** |
+
+⚠ Note what the 377 is *not*: it is not 377 ticks of boundary movement, it is
+mostly claims fading past the floor and releasing their cell, which is an
+ownership change like any other. Each one costs ~82 bytes.
+
+### Seen in a browser
+
+`tests-ui/layers.spec.js` counts pixels of the **pride's** colour on the canvas
+with the layer off, on and off again, which is the half of this that node cannot
+test. ⚠ **The camera is pointed at the densest claim cell, never at the claim
+centroid** — the same lesson the band test learned one layer over, and it bit
+again here: a pride's ground in the fixtures is eight disjoint patches spread
+over half the map, so their mean is bare grass, and the first version of the spec
+counted zero outline pixels while the layer was working perfectly.
+
+⚠ **This is also why the fixture warm-up moved from 10 ticks to 2400.** At ten
+ticks no lion is grown, so nothing has marked any ground, so there was no
+territory to see offline *or* to drive a browser test against — a fixture that
+cannot show a feature cannot test one. The mature world costs nothing in the
+snapshot and would have cost 2 MB in the event batch, which is now bounded to its
+most recent 2500 events (`scripts/generateRendererFixtures.js`).
+
+⚠⚠ **It does cost something, and it is worth knowing before anyone regenerates
+in the other direction.** The mature world carries **1130 cells of worn ground**
+where the ten-tick one carried none, and drawing those every frame is enough to
+tip `tests-ui`'s already-fragile browser teardown over in a sandboxed shell:
+`event-log-refs.spec.js` is green in **546 ms** against ten-tick fixtures and
+hangs for three 30 s teardowns against these, and the suite's sandbox failure
+count went **9 → 14** — all of it that same hang, with the three real assertion
+failures in `status-marks.spec.js` unchanged. Attributed by regenerating at 10
+ticks with the *current* code rather than by reasoning about it (DOCS §14).
+
+---
+
 ## 10. Conventions that are easy to miss
 
 These are load-bearing and cost real time to rediscover. Most have their own ⚠ in
@@ -1428,10 +1598,19 @@ the sections above; collected here as a checklist.
   alone, so a status built on one would appear and vanish as the selection
   moved.
 - **A new map layer is one entry in `MAP_LAYERS`** plus the module that draws it
-  (§9a). ⚠ The bar for being a layer at all is narrow: it must be a fact about
-  **every** animal, from **bulk-snapshot** fields, and it must be something a
-  viewer would sometimes want gone. A selected-animal overlay is not a layer, and
-  neither is a pass that draws the world itself.
+  (§9a, §9b). ⚠ The bar for being a layer at all is narrow: it must be a fact
+  about **everything at once**, from **projected** state, and it must be
+  something a viewer would sometimes want gone. What it must not be is a fact
+  about *one* animal — a selected-animal overlay is not a layer, and neither is a
+  pass that draws the world itself. ⚠ The wording was "every animal, from
+  bulk-snapshot fields" until the territory layer, whose fact is the claim grid;
+  it is the *one animal* half that was ever load-bearing.
+- **The outline geometry is shared, not restated.** `outlineRegion`,
+  `traceOutline`, `insetLoop` and `paintOutlineLayer` live in `SocialLayer.js`
+  and are what the territory layer draws with — which is why the painter takes
+  *described groups* rather than entities. ⚠ A second layer that traced its own
+  outlines would be two roundings, two insets and two half-pixel snaps kept
+  identical by hand, which §11 already records going wrong once.
 - **A new event type is one entry in `EventCatalog.js`** — label, group, and a
   retention tier — and it appears in the filter list, in the store's retention
   policy, and in the test that checks the list against the protocol. A type added

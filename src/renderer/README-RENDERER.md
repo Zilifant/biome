@@ -89,7 +89,8 @@ app/
     GridProjection.js         world → cell → screen-pixel projection (pure)
     EntityAppearance.js       ASCII glyph/color/priority registry (pure)
     MapLayers.js              which data layers exist, and which are switched on (pure)
-    SocialLayer.js            the social layer: grouping, bubble geometry, outline painter
+    SocialLayer.js            the social layer: grouping, bubble geometry, the shared outline painter
+    TerritoryLayer.js         the territory layer: claim cells grouped by pride, clan or holder
     AsciiGridRenderer.js      Canvas 2D drawing: terrain → entities → social layer → overlays
   transports/
     RendererTransport.js      transport contract + normalized event types
@@ -260,8 +261,10 @@ the remembered open/closed state, so it must be stable.
 panel in the sidebar.** It is not one of the grid's own passes — terrain,
 forage, worn ground, animals are the world and are never toggleable — and it is
 not one of the *selected animal's* overlays, which appear and vanish with the
-selection. A layer is a fact about every animal at once, drawn from
-bulk-snapshot fields, worth seeing sometimes and in the way the rest of the time.
+selection. A layer is a fact about **everything at once**, drawn from projected
+world state, worth seeing sometimes and in the way the rest of the time — where
+the thing a layer must not be is a fact about *one* animal, which is what makes
+it a layer rather than an overlay.
 
 Layers default to **off**, are remembered in `localStorage`
 (`biome.layers.enabled`), and cost exactly nothing while off — nothing is
@@ -316,6 +319,49 @@ bound it: only groups whose members' bounding box touches the viewport are trace
 it), and the result is memoized on `(tick, viewport)` — every other reason a
 frame is drawn reuses it. Measured on the committed fixture (500 entities, ~60
 groups): **3.5 ms for the whole map, 0.36 ms for a viewport's worth.**
+
+### Territory (protocol v37)
+
+**The ground each pride and clan holds is wrapped in the same solid, rounded
+outline, in the same colour as the group itself.** A leopard, which belongs to
+nothing, gets its own ground outlined in its species' colour instead.
+
+It is the social layer's twin on purpose, and the difference between them is the
+feature: **a social bubble wraps a set of animals, a territory wraps a set of
+claims.** A pride's ground stays where it is when the pride walks off it, so a
+purple bubble a long way outside its own purple boundary is a pride away from
+home — which is a thing you can watch rather than read about.
+
+- **It reads the claim layer, not the animals.** `store.territory` (v37) carries
+  who holds each **coarse** claim cell — `cellSize` world cells across, 4 in
+  today's engine — and nothing about how fresh the claim is.
+- ⚠ **A claim names an animal, and the group is derived on read, never stored.**
+  That is the engine's own rule rather than a renderer shortcut: `holdsClaim` in
+  `systems/TerritorySystem.js` asks "is this my *side's* ground" by looking the
+  owner up and reading its live `groupRecordId`, precisely so there is no second
+  copy of membership to go stale. `rendering/TerritoryLayer.js` does the same
+  thing from the same two bulk fields.
+- ⚠ **The owner must be alive**, again matching `holdsClaim`. A dead lion's marks
+  linger until they decay, and drawing them would show a pride holding ground it
+  has already lost. Ground whose holder this client cannot see is not drawn —
+  never guessed at, and never attributed to whoever is standing on it.
+- ⚠ **No arms.** Two patches of held ground are two outlines. An arm between two
+  blobs of a *herd* wraps an animal that wandered off; an arm between two blobs
+  of a territory would draw a claim over ground nobody has marked, which is
+  exactly what this layer exists to show the absence of. Holes are still filled,
+  as they are for a bubble.
+- **Traced at claim resolution and scaled afterwards**, which is 16× fewer cells
+  at `cellSize` 4 and exact rather than approximate — a claim boundary only ever
+  falls on a claim-cell edge. In a world whose width is not a multiple of
+  `cellSize` an outline can reach a cell or two past the map, which is the
+  projection's own ragged edge showing through.
+
+⚠ **Which species hold ground is engine data, and today that is the lion and the
+leopard.** The hyena ships `territory.defends: false` — deliberately, as one of
+the three axes keeping it from competing the leopard to extinction (see the
+engine's `config/species/scavengerHyena.js`) — so **a clan currently outlines no
+ground at all**. The layer names clans and draws them in the clan colour the
+moment that changes; nothing here needs editing for it.
 
 ## Sprite mode and the sprite editor
 
@@ -688,6 +734,19 @@ async assets calls `app.requestRedraw()` when they arrive.
 What the renderer does with each layer the protocol projects, and why. Open
 gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather than here.
 
+- Territorial claims (protocol v37): the claim grid rides in full snapshots as
+  RLE **owner ids** over the coarse claim cells, and in deltas as a sparse
+  change list gated on an **ownership** revision — so an ordinary tick, where
+  claims are merely refreshed and faded, carries nothing at all. The **territory
+  layer** (see "Map layers") outlines the ground each pride, clan and lone holder
+  marks. This closes the engine's A36 and this roadmap's P1, and it is the same
+  argument v33 made one layer up: inspection answers "whose ground is this lion
+  standing on", and "where is each pride's ground" is a different question that no
+  number of one-animal queries assembles. ⚠ **Ownership only** — a claim's
+  freshness is what the mechanism runs on, is the number that changes every tick,
+  and is not a thing to draw. Measured over 1000 mature demo ticks: **445 bytes of
+  a 320 KB full snapshot**, and **0.013% of delta bytes**, on the 377 ticks in
+  1000 where anything changed hands.
 - Sociality inspection (protocol v34): ⚠ **a layer the renderer speaks and does
   not yet show.** Everything v34 added is inspection-only — a group's derived
   `centre` and `leaderId`, the three steering commitments (`social.consensus`,
@@ -786,10 +845,14 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
   design for v1; `previousPosition` is already tracked for later).
 - The whole world state is streamed; bounded subscriptions await
   region-scoped deltas in the protocol.
-- Per-cell **territory ownership is not shown**: the claim layer is not
-  projected (`PLAN.md` §1.4 A36), and a selected animal's
-  `territory.standingOn` answers that for one animal rather than for a cell. The
-  cell description stays silent about ownership rather than guessing.
+- **The cell description still says nothing about who owns the ground**, even
+  though the claim layer is now projected (v37). The territory *layer* draws the
+  boundaries; naming the holder in the inspector when you click a cell is a
+  separate, small piece of work that has not been done.
+- **A hyena clan outlines no territory**, because the hyena is not a territorial
+  species in this engine (`territory.defends: false`, deliberately). The layer
+  names and colours clans already; what is missing is engine data, not renderer
+  code.
 - A long manual step loses domain **events**, though never world state: the
   engine's outbox is bounded, so a 500-tick step emits ~77 000 events and the
   delta carries ~8 800. The jump is exact; the narration of how it happened is
@@ -801,7 +864,7 @@ gaps and deferrals live in [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1 rather tha
   [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.2 weighs the options.
 - Fixture mode has no inspection or metrics data at all (`http` is null there),
   so those panels are empty offline. [`DOCS-RENDERER.md`](DOCS-RENDERER.md) §1.4 (P6/E3).
-- Fixture playback covers one delta (ticks 10 → 11); use Replay to loop.
+- Fixture playback covers one delta (ticks 2400 → 2401); use Replay to loop.
 - **At the 10px zoom floor the social layer's two rings fuse into one line.** The
   gap between them is a proportion of the cell, and at the floor that is a pixel
   and a half — so an animal in a band inside a herd reads as one outline in the

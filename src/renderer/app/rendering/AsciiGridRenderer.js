@@ -10,7 +10,7 @@
  * with the exact hex fallbacks from EntityAppearance for safety.
  */
 import { createProjection, worldCellOf } from './GridProjection.js';
-import { paintSocialLayer } from './SocialLayer.js';
+import { paintOutlineLayer } from './SocialLayer.js';
 import {
   resolveAppearance,
   compareOccupants,
@@ -204,8 +204,12 @@ export class AsciiGridRenderer {
    *        every herd, band, clan and pride on screen, already traced into
    *        outlines by `SocialLayer.describeSocialGroups`. Empty while the layer
    *        is switched off, which is the default
+   * @param {object[]} [options.territories] the territory layer (protocol v37):
+   *        the ground each pride, clan and lone holder marks, already traced by
+   *        `TerritoryLayer.describeTerritories`. Empty while the layer is
+   *        switched off, which is the default
    */
-  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [], socialGroups = [] }) {
+  draw({ store, camera, familyIds = [], memories = [], huntTargetId = null, groupId = null, homeRange = null, hoverCell = null, statusPhase = 0, killCells = [], socialGroups = [], territories = [] }) {
     const ctx = this.#context;
     const projection = createProjection(camera, this.#cssWidth, this.#cssHeight);
     const { cellSize } = projection;
@@ -347,16 +351,27 @@ export class AsciiGridRenderer {
     }
     ctx.font = uprightFont;
 
-    // --- Social layer (protocol v22 + v33), first of the overlays and under
-    // every one of them. It is the only thing drawn here that is about the whole
-    // map rather than about the selected animal, and it is the least urgent: an
-    // outline says who belongs with whom, and any mark of a *this-moment* fact —
-    // a memory, a quarry, the cell you clicked — has to be readable over it.
+    // --- The map layers (protocol v33 + v37), first of the overlays and under
+    // every one of them. They are the only things drawn here that are about the
+    // whole map rather than about the selected animal, and they are the least
+    // urgent: an outline says who belongs with whom or who holds what, and any
+    // mark of a *this-moment* fact — a memory, a quarry, the cell you clicked —
+    // has to be readable over it.
     //
-    // Drawn after the entities rather than before, though, because it runs on
-    // the cell *boundaries* and never covers a glyph: putting it under the
+    // Drawn after the entities rather than before, though, because they run on
+    // the cell *boundaries* and never cover a glyph: putting them under the
     // terrain pass would have the grass drawn over the outline for no gain.
-    paintSocialLayer(ctx, {
+    //
+    // ⚠ Territory before social, which is the same "more permanent, further
+    // under" rule one step finer: ground outlives the group standing on it, and
+    // where the two outlines meet the animals' bubble is the one to keep.
+    paintOutlineLayer(ctx, {
+      groups: territories,
+      projection,
+      visible: cells,
+      resolveColor: (token) => this.#color(token),
+    });
+    paintOutlineLayer(ctx, {
       groups: socialGroups,
       projection,
       visible: cells,

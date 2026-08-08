@@ -3,7 +3,7 @@
  * associated animals on the map — each herd, band, clan and pride at once,
  * rather than the selected animal's groupmates alone.
  *
- * Everything above `paintSocialLayer` is pure geometry over plain objects: no
+ * Everything above `paintOutlineLayer` is pure geometry over plain objects: no
  * canvas, no store, no DOM. That is deliberate and it is the only way this is
  * testable at all (§10, "describe, then render") — the interesting part of this
  * module is the shape of a bubble, and a shape you can only see is a shape
@@ -88,8 +88,13 @@ export const MIN_GROUP_MEMBERS = 2;
 const KEY_SPAN = 1 << 21;
 const KEY_ORIGIN = 1 << 10;
 const cellKey = (cellX, cellY) => (cellX + KEY_ORIGIN) * KEY_SPAN + (cellY + KEY_ORIGIN);
-const keyCellX = (key) => Math.floor(key / KEY_SPAN) - KEY_ORIGIN;
-const keyCellY = (key) => (key % KEY_SPAN) - KEY_ORIGIN;
+/**
+ * ⚠ Exported because a region comes back packed, so any layer that wants its
+ * bounds has to unpack it the same way. One packing, one place — a private copy
+ * in the territory layer is the "kept identical by hand" smell §10 names.
+ */
+export const keyCellX = (key) => Math.floor(key / KEY_SPAN) - KEY_ORIGIN;
+export const keyCellY = (key) => (key % KEY_SPAN) - KEY_ORIGIN;
 /** Ascending, so anything derived from a cell set is independent of arrival order. */
 const byKey = (a, b) => a - b;
 
@@ -272,21 +277,30 @@ function manhattan(a, b) {
 /**
  * The cell region one group's outline encloses: its members, padded, holes
  * filled, blobs joined by corridors. Pure, deterministic, and independent of the
- * camera — the region is in world cells, so it is computed once per tick rather
- * than once per frame.
+ * camera — the region is in cells, so it is computed once per tick rather than
+ * once per frame.
+ *
+ * ⚠ **`maxCorridor: 0` switches the arms off entirely**, and it is not merely
+ * "no arm is short enough": the spanning tree is skipped, which is what makes
+ * this reusable by a layer whose regions are *areas* rather than scatters of
+ * animals. The territory layer wants exactly that — ground held in two places is
+ * two territories, and an arm between them would draw a claim over ground nobody
+ * holds — and it could not afford the tree anyway, whose inner loop is over every
+ * member cell of every blob pair.
  *
  * @param {Array<{cellX: number, cellY: number}>} memberCells cells with a member
  *        in them; duplicates are fine
- * @param {{width: number, height: number} | null} world
+ * @param {{width: number, height: number} | null} world bounds to clamp to, in
+ *        the same cell units as `memberCells`
  * @param {{padding?: number, maxCorridor?: number}} [options]
  * @returns {Set<number>} packed cell keys (see `cellKey`)
  */
-export function socialRegion(memberCells, world, { padding = BUBBLE_PADDING, maxCorridor = MAX_CORRIDOR_CELLS } = {}) {
+export function outlineRegion(memberCells, world, { padding = BUBBLE_PADDING, maxCorridor = MAX_CORRIDOR_CELLS } = {}) {
   const region = padCells(memberCells, world, padding);
   if (region.size === 0) return region;
   const blobs = connectedBlobs(region);
   for (const blob of blobs) fillHoles(blob, region);
-  if (blobs.length < 2) return region;
+  if (blobs.length < 2 || maxCorridor <= 0) return region;
 
   // Which blob each member cell landed in, so a corridor is drawn between the
   // two *animals* that are closest rather than between two padding cells — the
@@ -548,7 +562,7 @@ export function describeSocialGroups(entities, world, options = {}) {
       continue;
     }
     const appearance = SOCIAL_GROUP_APPEARANCE[group.kind] ?? SOCIAL_GROUP_APPEARANCE.group;
-    const region = socialRegion(group.cells, world, options);
+    const region = outlineRegion(group.cells, world, options);
     const loops = traceOutline(region);
     if (loops.length === 0) continue;
     let minCellX = Infinity;
@@ -637,13 +651,17 @@ function traceRoundedPath(ctx, points, radius) {
 }
 
 /**
- * Paint the social layer.
+ * Paint a set of traced outlines — the social layer, and the territory layer
+ * that reuses it (`rendering/TerritoryLayer.js`).
  *
- * ⚠ **Shared by both grid renderers**, like `paintStatusMark` and
- * `groundAppearanceAt` — the geometry is the layer, and two copies of it kept
- * identical by hand is the failure §11 already records once. Colour resolution
- * stays each renderer's own: `resolveColor` takes a theme token, because the two
- * resolve tokens differently and neither should learn the other's way.
+ * ⚠ **Shared by both grid renderers *and* both layers**, like `paintStatusMark`
+ * and `groundAppearanceAt` — the geometry is the layer, and two copies of it
+ * kept identical by hand is the failure §11 already records once. It takes
+ * described groups rather than entities precisely so a second layer can describe
+ * its regions its own way and still be drawn as the same kind of mark: solid,
+ * rounded, one lane per ring. Colour resolution stays each renderer's own —
+ * `resolveColor` takes a theme token, because the two resolve tokens differently
+ * and neither should learn the other's way.
  *
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} options
@@ -654,7 +672,7 @@ function traceRoundedPath(ctx, points, radius) {
  *        than traced into the void
  * @param {(colorToken: string) => string} options.resolveColor
  */
-export function paintSocialLayer(ctx, { groups, projection, visible, resolveColor }) {
+export function paintOutlineLayer(ctx, { groups, projection, visible, resolveColor }) {
   if (!groups || groups.length === 0) return;
   const { cellSize } = projection;
   const origin = projection.cellToScreen(0, 0);

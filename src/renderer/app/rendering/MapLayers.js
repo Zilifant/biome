@@ -36,6 +36,19 @@ export const MAP_LAYERS = Object.freeze([
     note: 'outlines each herd, band, clan and pride',
     defaultEnabled: false,
   }),
+  // ⚠ The one layer here that is **not** read off the entities. Its fact is the
+  // claim grid (protocol v37) — a projection of the world rather than of the
+  // animals in it — which is why the "a fact about every animal at once" test
+  // above is worded as it is: what a layer must not be is a fact about *one*
+  // animal. Territory is about every claim at once, and answering "where is each
+  // pride's ground" from a query about one lion is exactly as impossible as
+  // answering "where is each pride" was at v33.
+  Object.freeze({
+    id: 'territory',
+    label: 'Territory',
+    note: 'outlines the ground each pride, clan and lone holder marks',
+    defaultEnabled: false,
+  }),
 ]);
 
 /** Presentation state, so it lives in the browser rather than in the store. */

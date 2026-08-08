@@ -19,6 +19,7 @@ import { SystemScheduler, PHASES } from './SystemScheduler.js';
 import { World } from '../world/World.js';
 import { projectTerrain } from '../world/TerrainGrid.js';
 import { projectVegetation } from '../world/VegetationGrid.js';
+import { projectTerritory } from '../world/ScentGrid.js';
 import { DomainEventBus } from '../events/DomainEventBus.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { CommandProcessor } from '../commands/CommandProcessor.js';
@@ -121,6 +122,9 @@ export class SimulationEngine {
   /** @type {object | null} memoized feature projection, keyed by revision */
   #featureProjection = null;
   #featureProjectionRevision = -1;
+  /** @type {object | null} memoized territory projection, keyed by owner revision */
+  #territoryProjection = null;
+  #territoryProjectionRevision = -1;
 
   /**
    * @param {object} [options]
@@ -292,7 +296,30 @@ export class SimulationEngine {
       environment: { ...this.world.environment },
       disturbances: projectDisturbances(this.world.disturbances),
       features: this.getFeatureData(),
+      territory: this.getTerritoryData(),
     };
+  }
+
+  /**
+   * Renderer-neutral projection of the territorial claim layer — who holds each
+   * coarse claim cell (§1.4 A36, protocol v37).
+   *
+   * ⚠ **Memoized on the scent grid's *ownership* revision, not its revision.**
+   * The general stamp moves on every mark and every decay sweep, which is
+   * several times a tick forever; ownership moves when a boundary does, which is
+   * rare. That is the whole reason `ScentGrid` carries two — a projection keyed
+   * on the first would be rebuilt every tick to produce the same bytes, which is
+   * exactly the per-snapshot cost A36 said the layer had to earn.
+   * Callers must treat it as read-only.
+   * @returns {object}
+   */
+  getTerritoryData() {
+    const revision = this.world.scent.ownerRevision;
+    if (this.#territoryProjection === null || this.#territoryProjectionRevision !== revision) {
+      this.#territoryProjection = projectTerritory(this.world.scent);
+      this.#territoryProjectionRevision = revision;
+    }
+    return this.#territoryProjection;
   }
 
   /**

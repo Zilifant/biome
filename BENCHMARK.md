@@ -969,6 +969,46 @@ true case. That is D28's shape in D28's loop. It was caught by reading the diff,
 not by a timing; at demo scale it would have hidden under exactly the ~1% noise
 floor this section is about. `threatens()` now keeps both inside the `&&` chain.
 
+### The claim layer's projection (2026-08-08, closing A36 — protocol v37)
+
+⚠⚠ **`npm run benchmark` cannot see this change, and running it would have been
+the wrong measurement.** The scenarios step the engine headless and never build a
+snapshot; what v37 adds is entirely in the *snapshot pipeline*. So the arm below
+times what actually changed — step + full snapshot + delta, one tick at a time,
+from a mature world (t3100 after a 3000-tick settle and a 100-tick pipeline
+warm-up), seed 42. Interleaved in one session against a HEAD **git worktree**
+rather than a stash, so the two trees are on disk at once and nothing has to be
+put back between runs.
+
+| arm | demo, snapshot pipeline |
+| --- | ---: |
+| HEAD | 10.8526, 10.7482 ms/tick |
+| tree (v37) | 10.6079, 10.9313 ms/tick |
+
+The ranges overlap completely: **flat**. Three things predict that, and they are
+the design rather than luck:
+
+- **The engine's tick path is untouched.** The only line added inside a loop is
+  `dropped += 1` in `ScentGrid.decay`, and it runs on the rare cell that fades
+  past the floor rather than on every cell.
+- **The projection is memoized on `ownerRevision`**, which moves when a cell
+  changes hands — 377 ticks in 1000 at demo scale — so on the other 623 the
+  snapshot attaches an object it already had.
+- **The delta diff is gated on the same stamp**, so the O(claim cells) comparison
+  is skipped on those 623 ticks too. And a claim grid is `cellSize²` = 16 times
+  smaller than the world grid, so the ticks that do pay walk 2610 cells rather
+  than 41 760.
+
+Payload, measured over the same 1000 ticks: **445 bytes of a 320 KB full
+snapshot** (0.14%), and **0.013% of delta bytes** — ~82 bytes on each of the 377
+ticks that carry it. That is the number A36 was open on.
+
+⚠ **What this arm does *not* measure is the renderer's tracing**, which is the
+expensive half of a map layer (the social layer measured 3.5 ms for a whole-map
+pass). Territory traces at claim resolution, so it walks a sixteenth of the cells
+a world-space trace of the same ground would; `DOCS-RENDERER.md` §9b records the
+reasoning, and nobody has put a stopwatch on it.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

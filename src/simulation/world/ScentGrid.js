@@ -48,6 +48,19 @@ export class ScentGrid {
   /** @type {Float32Array} claim strength per claim cell, 0…1 */
   #strength;
   #revision = 0;
+  /**
+   * A second revision that moves **only when a cell changes hands**.
+   *
+   * ⚠ `#revision` moves on every mark and every decay sweep, which is several
+   * times a tick forever — it is the right stamp for "has anything about this
+   * layer changed", and it is useless for the one consumer that only cares
+   * *who* holds what: the renderer projection (A36). Ownership is the rare
+   * event, strength is the constant one, and separating them is what lets a
+   * delta carry territory on the ticks a boundary actually moves rather than on
+   * all of them. Same judgement `FeatureGrid` makes between wear and what wear
+   * *means*.
+   */
+  #ownerRevision = 0;
 
   /**
    * @param {object} options
@@ -78,6 +91,21 @@ export class ScentGrid {
 
   get revision() {
     return this.#revision;
+  }
+
+  /** Moves only when some cell changes hands. See `#ownerRevision`. */
+  get ownerRevision() {
+    return this.#ownerRevision;
+  }
+
+  /**
+   * Who holds each claim cell, row-major (0 = unclaimed). Read-only by
+   * contract, exactly as `VegetationGrid.levels()` is — the projection below is
+   * its only caller and it does not keep the reference.
+   * @returns {Int32Array}
+   */
+  owners() {
+    return this.#owner;
   }
 
   /** Claim-cell coordinates for a continuous world position, clamped. */
@@ -131,7 +159,9 @@ export class ScentGrid {
     if (currentOwner === ownerId || currentOwner === 0 || this.#strength[index] <= 0) {
       this.#owner[index] = ownerId;
       this.#strength[index] = Math.min(1, Math.max(this.#strength[index] * (currentOwner === ownerId ? 1 : 0), 0) + strength);
-      return currentOwner !== ownerId;
+      if (currentOwner === ownerId) return false;
+      this.#ownerRevision += 1;
+      return true;
     }
     // Contested ground: the incoming mark erodes the resident's claim, and only
     // takes the cell once it has worn it away completely.
@@ -142,6 +172,7 @@ export class ScentGrid {
     }
     this.#owner[index] = ownerId;
     this.#strength[index] = Math.min(1, -remaining);
+    this.#ownerRevision += 1;
     return true;
   }
 
@@ -164,7 +195,10 @@ export class ScentGrid {
       if (toId <= 0) this.#strength[i] = 0;
       moved += 1;
     }
-    if (moved > 0) this.#revision += 1;
+    if (moved > 0) {
+      this.#revision += 1;
+      this.#ownerRevision += 1;
+    }
     return moved;
   }
 
@@ -176,17 +210,23 @@ export class ScentGrid {
    */
   decay(amount, claimFloor = DEFAULT_TERRITORY_PARAMS.claimFloor) {
     if (!(amount > 0)) return;
+    let dropped = 0;
     for (let i = 0; i < this.#strength.length; i += 1) {
       if (this.#owner[i] === 0) continue;
       const next = this.#strength[i] - amount;
       if (next <= claimFloor) {
         this.#owner[i] = 0;
         this.#strength[i] = 0;
+        dropped += 1;
       } else {
         this.#strength[i] = next;
       }
     }
     this.#revision += 1;
+    // ⚠ Only when a claim actually faded out. Every sweep weakens claims and
+    // almost none of them end one, so gating the ownership stamp here is what
+    // keeps the projection reusable across the ticks in between.
+    if (dropped > 0) this.#ownerRevision += 1;
   }
 
   /** How many claim cells one owner holds. O(cells); for metrics and tests. */
@@ -219,6 +259,7 @@ export class ScentGrid {
       owner: Array.from(this.#owner),
       strength: Array.from(this.#strength),
       revision: this.#revision,
+      ownerRevision: this.#ownerRevision,
     };
   }
 
@@ -228,5 +269,57 @@ export class ScentGrid {
     this.#owner = Int32Array.from(saved.owner ?? []);
     this.#strength = Float32Array.from(saved.strength ?? []);
     this.#revision = saved.revision ?? 0;
+    // ⚠ **A save written before this field existed is still `formatVersion` 34
+    // and still restores**, so the fallback is load-bearing rather than
+    // defensive: the addition is a cache key, not state, and every reader that
+    // matters treats a *higher* stamp as "re-derive". Falling back to the
+    // general revision is therefore safe in the only direction that counts — a
+    // projection memoized against it is invalidated once too often, never once
+    // too seldom.
+    this.#ownerRevision = saved.ownerRevision ?? saved.revision ?? 0;
   }
+}
+
+/**
+ * Renderer-neutral projection of **who holds what**, carried by full snapshots
+ * and patched by deltas (protocol v37, closing §1.4 A36).
+ *
+ * ⚠ **Ownership only — the strengths stay inside the engine.** Two numbers per
+ * cell is what the *mechanism* needs; a viewer asked "whose ground is this" and
+ * the answer is one of them. Projecting freshness as well would double the
+ * payload to draw a fade nothing reads, and it is the number that changes every
+ * tick, so it is also what would make the revision gate below worthless.
+ *
+ * RLE row-major over the coarse claim grid, exactly as vegetation is over the
+ * world grid. It compresses hard for the reason the layer exists: most of the
+ * map is unclaimed, so the common projection is a handful of runs of `0` around
+ * a few blocks of one id.
+ *
+ * @param {ScentGrid} scent
+ */
+export function projectTerritory(scent) {
+  const owners = scent.owners();
+  const runs = [];
+  if (owners.length > 0) {
+    let currentOwner = owners[0];
+    let count = 0;
+    for (const owner of owners) {
+      if (owner === currentOwner) {
+        count += 1;
+      } else {
+        runs.push([currentOwner, count]);
+        currentOwner = owner;
+        count = 1;
+      }
+    }
+    runs.push([currentOwner, count]);
+  }
+  return {
+    width: scent.width,
+    height: scent.height,
+    cellSize: scent.cellSize,
+    revision: scent.ownerRevision,
+    encoding: 'rle-row-major',
+    runs,
+  };
 }
