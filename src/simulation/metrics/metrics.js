@@ -390,6 +390,33 @@ function groupMetrics(world) {
       counts[record.speciesId] = (counts[record.speciesId] ?? 0) + 1;
       return counts;
     }, {}),
+    // ⚠⚠ **Mean members per record, per species** (v36, PREDATOR-PLAN P8). The
+    // count above says how many clans there are and this says how big they are,
+    // which are different questions and the second one is the one P2 is judged by:
+    // its rule solves clan *size* from the founder count and aims at 8–12, and a
+    // roster that quietly drifted to pairs would read identically in `bySpecies`.
+    //
+    // ⚠ A separate map rather than a richer `bySpecies`, deliberately: the
+    // renderer's metrics panel reads `bySpecies[id]` as a number, and changing its
+    // shape to add a field would break a consumer to save a key.
+    //
+    // ⚠⚠ **Peak concurrent records is *not* here and is not an oversight.** It is
+    // history rather than state — a maximum over time cannot be recomputed from the
+    // world, so it would have to be accumulated and persisted, and would then read
+    // differently after a restore. That is the same reason `saturated` above is a
+    // sample rather than a count of refusals, stated in DOCS §9. Take a peak by
+    // sampling this metric over a run, which is what a sweep already does.
+    meanSizeBySpecies: (() => {
+      const sums = {};
+      for (const record of records) {
+        const entry = (sums[record.speciesId] ??= { total: 0, records: 0 });
+        entry.total += record.memberIds.length;
+        entry.records += 1;
+      }
+      const means = {};
+      for (const [speciesId, entry] of Object.entries(sums)) means[speciesId] = entry.total / entry.records;
+      return means;
+    })(),
   };
 }
 

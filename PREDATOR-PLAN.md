@@ -1,9 +1,9 @@
 # Social predators — lions and hyenas
 
-**Status: P1–P7 shipped 2026-08-07. P8 not started.** Eight phases.
+**Status: complete — P1–P8 shipped 2026-08-07.** Eight phases.
 
-⚠ The vulture scare of P6 **resolved itself at P7** — see "The guild across the
-plan" under P7. The ten-seed sweep is still owed.
+⚠⚠ **The ten-seed sweep is in (P8) and the leopard fails it at 4/10.** That is the
+one open item this plan leaves behind; everything else passed.
 
 The brief is the seven asks in the original file, kept verbatim at the bottom.
 This is the implementation plan for them, in an order that lands each mechanism
@@ -935,7 +935,7 @@ phase is the argument for it rather than against it: two consecutive phases move
 the vulture by more than 100% in opposite directions, and neither movement was
 resolvable at six seeds.
 
-## P8 — Observability, and the numbers
+## P8 — Observability, and the numbers — ✅ **SHIPPED 2026-08-07**
 
 No behaviour. This is what makes the seven asks checkable rather than asserted.
 
@@ -955,6 +955,104 @@ No behaviour. This is what makes the seven asks checkable rather than asserted.
   the feeding loop. Interleaved against HEAD, in one session, at a **mature**
   world: step 3000 first, then time 1000 ticks. A cold measurement will report a
   real regression as flat.
+
+### ✅ As built — 2026-08-07
+
+**Protocol v36.** ⚠ It was already **35** at HEAD before this plan started, while
+`README.md` and `DOCS.md` both still said 34 — pre-existing rot, fixed in passing.
+
+**Two inspection additions, both answering a question the phases created:**
+
+- `getEntityDetails().predation` — `solo`, `group`, and **`ceiling`** (the one
+  actually in force this tick), plus the `backing` it was chosen by, `needed`, and
+  `floor`. P3's mechanism was invisible: "why did that hyena walk past a zebra" and
+  "because it was alone" were two inferences and are now one look. ⚠ `null` for any
+  species with an empty prey list, so the vulture reports nothing rather than a
+  ceiling it has no prey for.
+- `metrics.groups.meanSizeBySpecies` — beside the existing per-species *count*. The
+  count says how many clans exist, this says how big they are, and the second is
+  what P2 is judged by: a roster that drifted to pairs reads identically in
+  `bySpecies`. It reads back **hyena 10.0** (exactly P2's target) and **one lion
+  pride** — P1 and P2 confirmed through the metrics rather than the registry.
+
+⚠⚠ **Peak concurrent records was asked for and is deliberately absent.** A maximum
+over time cannot be recomputed from the world, so it would have to be accumulated
+and persisted — and would read differently after a restore, which is the same
+reason `saturated` is a sample rather than a count of refusals (DOCS §9). A test
+asserts the absence so it reads as a decision rather than a gap; a sweep samples the
+metric over a run if a peak is wanted, and this one reports **peak 27 concurrent**.
+
+### ⚠⚠ The ten-seed sweep — 10 seeds × 15 000 ticks
+
+| species | t5000 | t10000 | t15000 | seeds | range |
+| --- | ---: | ---: | ---: | ---: | --- |
+| buffalo | 64.6 | 70.5 | 69.4 | 10/10 | 29–90 |
+| gazelle | 28.7 | 20.4 | 25.2 | 8/10 | 0–89 |
+| wildebeest | 131.4 | 102.8 | 98.7 | 10/10 | 3–141 |
+| zebra | 65.2 | 74.6 | 88.7 | 10/10 | 21–110 |
+| **leopard** | 2.8 | 2.2 | **1.6** | **4/10** | 0–7 |
+| lion | 7.5 | 8.1 | **9.5** | 10/10 | 6–14 |
+| hyena | 13.9 | 14.1 | 11.2 | 10/10 | 2–24 |
+| vulture | 7.7 | 10.5 | **21.0** | 6/10 | 0–75 |
+
+**Seven of eight species clear the §20 bar (≥6/10). The leopard does not, at 4/10.**
+
+✅ **What the plan set out to do shows up in the numbers.** The **lion grows from 5
+founders to a mean of 9.5 on 10/10 seeds** and takes **45.7% of all carrion in the
+world** — a pride that hunts cooperatively, holds ground, and wins its kills. The
+hyena holds 10/10 at 37.6% of carrion. Persistent groups: **peak 27 concurrent, 636
+founded, 96 dissolved** over the run.
+
+⚠ **The vulture is bimodal, not recovered.** Mean 21.0 with a range of 0–75: it
+either takes off or dies out (extinct on 4 seeds, all before t14000). The P6→P7
+swing this plan spent so long arguing about was two samples of that distribution,
+which is what a six-seed reading of a small population cannot see.
+
+#### ⚠⚠ The leopard, and what this sweep cannot say about it
+
+Deaths across all seeds: **50 total — age 34, starvation 14.** It starves, on 3
+founders, taking 7.3% of the world's carrion.
+
+✅⚠ **`npm run ethologist` names the cause, and it is not this plan.** On one of the
+six worlds, **3 of 3 leopards** are flagged `never-saw-a-mate` — adult for 5232
+ticks, roaming x[2..174] y[5..178] across almost the whole map, and **never once
+perceiving a mate candidate**. The vulture shows the same anomaly once. The leopard
+is flagged for **no** movement or intent anomaly at all: it is not misbehaving and
+it is not being out-manoeuvred, it is **alone**. Three founders on a 230×180 ellipse
+do not find each other, whatever the hunting rules are.
+
+⚠ The ethologist also points at **A63** — crypsis and mate-finding pass through the
+same perception gate — which is the second candidate and the only one that would
+need a mechanism rather than a roster edit. Opened as **A91**.
+
+⚠⚠ **There is no pre-plan ten-seed baseline on this world to compare against**, and
+`README.md` says so in as many words: `default-small` "has NOT been through the §20
+ten-seed gate". So this sweep **cannot attribute** the leopard's 4/10 to this plan
+rather than to the world change of 2026-08-07 that preceded it. What can be said:
+
+- The leopard's **own** data moved once in this plan — `minPreyMassRatio` 0.08 →
+  0.03, which *widens* what it may take and should help.
+- What moved around it is competition: lions and hyenas now hunt more species, take
+  larger prey with help, and lions hold ground.
+- ⚠ The last recorded ten-seed reading (**A81**, the crater world) had the leopard
+  at **1/10**. 4/10 is better than that, on a different world.
+
+✅ **The ethologist is otherwise clean, and one absence is the one that matters:
+`group-flapping` does not appear once across six worlds.** That is the anomaly A56
+was opened by and the check P1 and P2 most needed — a one-pride lion and clans
+solved from the roster did not destabilise the registry. Every anomaly reported is a
+standing item: `unresolved-intent` ×30, `circling-in-need` ×24 (**A88**),
+`barren-season` ×21 (**A62**), `movement-denied` ×19 (**A66**/**A84**),
+`death:dehydration` ×10 (**A86**). **No new anomaly kind appeared.**
+
+**Recommended next step, and it is not a tuning change:** re-run this sweep with
+`--controlSet=cooperation.joinStalks=false,cooperation.approachSpread=0,carcass.possessionBackingEnabled=false`
+to price the three config-switchable mechanisms. ⚠ It will not isolate the rest —
+prey lists, ceilings, and `territory.defends` are **species data and cannot be
+switched off from config**, which is the one structural gap this plan hit repeatedly
+and did not fix.
+
+---
 
 ---
 

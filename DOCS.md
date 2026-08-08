@@ -4992,6 +4992,39 @@ its dominance) the arrangement is self-stabilising: a takeover happens once, not
 once per tick, with no cooldown field to store and no flapping. Two exactly-equal
 animals never contest, so the tie case cannot oscillate either.
 
+#### ✅ Numbers at a carcass — 2026-08-07 (PREDATOR-PLAN P7)
+
+✅ **A clan can now take a body off an animal no one of them could beat.**
+`backedDominanceOf` scales an animal's standing by how many of its **own group
+record** are within `carcass.possessionBackingRange` (6) of the body:
+`dominanceOf × (1 + behavior.contestBackingWeight × min(backers, maxBackers))` —
+the shape `cooperationBonus` and `shielding` already use, and **exactly the
+identity** at weight 0, with no backers, or for an animal in no record. Read on
+**both** sides, or two clans at one carcass would displace each other on alternate
+ticks.
+
+⚠⚠ **`resolveContest` takes an injected `scoreOf` rather than a widened dominance.**
+`outranks` decides to challenge on the backed score; if the contest then resolved
+on one body the clan would **lose the fight it correctly started** — three draws
+and a wound for nothing, which is exactly what the strictly-greater rule above
+exists to prevent. The other two callers (territory disputes, mating rivalries)
+pass nothing and are unchanged, which a test asserts directly: widening
+`dominanceOf` itself would have changed three mechanisms to serve one.
+
+⚠⚠ **Setting the weight from body mass alone was wrong, and the error generalises.**
+The first draft reasoned lion 180 against hyena 60 and shipped a cap of 4 backers.
+That clan never displaces anything, because **`dominanceOf` scales with condition
+and the two animals are never in the same condition**: the lion at a kill it made
+is full, and the clan that came to take it is hungry, which is why it is there
+(≈49.5 against 180). Any comparison of `dominanceOf` between a fed animal and a
+hungry one carries a ~1.2× term the masses do not show. Shipped at 0.6 with
+`maxBackers: 6`, measured: four backers reads 168.3 and loses, **five reads 198.0
+and takes the body**.
+
+⚠ Only the **hyena** declares it, which is the animal it is for — a clan taking a
+lion's kill is its defining behaviour and the one thing possession could not
+express, because dominance reads a single body.
+
 ⚠ **A bystander gets scraps, not nothing, and that was a measurement rather than
 a preference.** The first version excluded outright, which is the obvious reading
 of "arrive first, leave when the big animals come" — and it cost the demo three
@@ -5113,7 +5146,7 @@ this. **Assert the effect landed, not that the call happened.**
 
 ## 11. Protocol reference
 
-Everything a client sees carries `protocolVersion` (currently **34**) and is
+Everything a client sees carries `protocolVersion` (currently **36**) and is
 built by `src/protocol/`.
 
 ### Commands

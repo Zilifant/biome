@@ -472,6 +472,26 @@ they are not re-opened by accident.
   open. `matingRange` is wired from `config.reproduction` rather than restated
   (D11). **0 stalls across three worlds afterwards.**
 
+- **⚠⚠ A91 — The leopard fails the ten-seed gate at 4/10, and the cause is that it
+  never meets another leopard** _(opened 2026-08-07, PREDATOR-PLAN P8)_. The first
+  §20 sweep of `default-small` (10 seeds × 15 000 ticks) puts seven species over the
+  bar and the leopard at **4/10, mean 1.6**. ⚠⚠ **`npm run ethologist` names the
+  mechanism and it is not competition**: on one world **3 of 3 leopards** were
+  flagged `never-saw-a-mate` — adult for 5232 ticks, roaming x[2..174] y[5..178],
+  and never once perceiving a mate candidate. The vulture shows the same anomaly
+  once (5 founders). Its deaths are age 34 / starvation 14 out of 50, and it is
+  flagged for **no** movement or intent anomaly at all — it is not misbehaving, it
+  is alone.
+  ⚠ **The lever is the founding count, not a predator mechanism.** Three founders on
+  a 230×180 ellipse do not find each other, whatever the hunting rules are. ⚠ The
+  ethologist also points at **A63** (crypsis passes through the same perception gate
+  as mate-finding), which is the second candidate and the one that would need a
+  mechanism rather than a roster edit.
+  ⚠⚠ **This sweep cannot attribute the 4/10 to PREDATOR-PLAN**, because
+  `default-small` had never been through the §20 gate before it (README says so) —
+  there is no pre-plan baseline on this world. For scale, **A81**'s crater reading
+  had the leopard at **1/10**. Related: **A81**, **A63**, **A78**.
+
 - **⚠⚠ A87 — The two neighbour walks are not equivalent, and the test that says
   they are has been passing for the wrong reason** _(opened 2026-08-06, found by
   A84; **became deterministic 2026-08-07**, PREDATOR-PLAN P5)_. ⚠⚠ **The seed luck

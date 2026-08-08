@@ -25,6 +25,7 @@ import { CommandProcessor } from '../commands/CommandProcessor.js';
 import { SeededRandom, deriveSeed } from '../random/SeededRandom.js';
 import { defaultSimulationConfig, mergeConfig } from '../config/defaultSimulationConfig.js';
 import { SpeciesRegistry } from '../config/species/schema.js';
+import { groupBackingFor, maxPreyMassFor, minPreyMassFor } from '../predation/predation.js';
 import { SPECIES_DEFINITIONS } from '../config/species/index.js';
 import { recordTombstone, lookupLineageList, lookupLineage } from '../world/lineage.js';
 import { genotypeOf } from '../traits/genetics.js';
@@ -386,6 +387,37 @@ export class SimulationEngine {
       // has committed to, not just that it is moving.
       huntTargetId: entity.huntTargetId,
       lastHuntTick: entity.lastHuntTick,
+      // ⚠⚠ **What this animal may take on *right now*, and the company that
+      // decided it** (v36, PREDATOR-PLAN P8). Null for anything that hunts
+      // nothing, so seven of eight species and every carcass carry nothing here.
+      //
+      // The two ceilings are the phase-3 mechanism (**A59**) made visible: `solo`
+      // is `maxPreyMassRatio × bodyMass`, `group` is `groupPreyMassRatio × bodyMass`
+      // when the species states one, and `ceiling` is **the one actually in force
+      // this tick** — which is the whole reason this block exists. "Why did that
+      // hyena walk past a zebra" and "because it was alone" were two inferences
+      // and are now one look.
+      //
+      // ⚠ `backing` is the count the ceiling was chosen by, and it is *last tick's*
+      // — perception reads the social summary a phase before `SocialSystem`
+      // rewrites it, which `predation/predation.js` states and this mirrors rather
+      // than papers over. Reporting a fresh count beside a stale decision would be
+      // the more confusing of the two.
+      predation: (() => {
+        const species = this.world.species.get(entity.speciesId);
+        if (!species?.preySpeciesIds?.length) return null;
+        const block = species.predation ?? null;
+        const backing = groupBackingFor(this.world, entityId, block);
+        const solo = maxPreyMassFor(entity, block ? { ...block, groupPreyMassRatio: null } : null);
+        return {
+          backing,
+          needed: block?.backingForLargePrey ?? null,
+          ceiling: maxPreyMassFor(entity, block, backing),
+          solo,
+          group: block?.groupPreyMassRatio == null ? null : entity.bodyMass * block.groupPreyMassRatio,
+          floor: minPreyMassFor(entity, block),
+        };
+      })(),
       // Injuries (Step 17) — inspection-only, worst first, and already capped
       // by the injury helper. `impairment` is the derived total the movement
       // and feeding systems act on, exposed so the penalty is legible rather
