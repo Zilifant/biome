@@ -94,6 +94,33 @@ describe('trees: placement', () => {
     assert.ok(trees > 0, 'the wooded world has trees in it');
   });
 
+  test('⚠⚠ no two trees touch, anywhere on the map', () => {
+    // The spacing rule (2026-08-08), asserted over a heavily wooded world so it
+    // covers both passes and the seams where they overlap: groves, lone trees,
+    // their companions, and a grove landing on top of a single.
+    const dense = grid({ treeGroves: 20, treeSingles: 200, treeGroveDensity: 0.9, treeClusterMax: 2 });
+    assert.equal(maxClumpSize(dense), 1, 'a clump of adjacent trees is the thicket silhouette trees exist to avoid');
+  });
+
+  test('a dense stand is trees 2–3 cells apart, not a blob', () => {
+    // The positive half of the same claim: forbidding adjacency must not simply
+    // scatter trees to the winds. The overwhelming majority still have close
+    // company — just not touching.
+    const gaps = nearestNeighbourGaps(grid({ treeGroves: 12, treeSingles: 80 }));
+    assert.ok(gaps.length > 100, 'enough trees to talk about a distribution');
+    const close = gaps.filter((d) => d <= 3).length;
+    assert.ok(close / gaps.length >= 0.8, `only ${close}/${gaps.length} trees have a neighbour within 3 cells`);
+  });
+
+  test('spacing 1 is the off state for the rule, with the layer still on', () => {
+    // ⚠ Distinct from `treeGroves: 0, treeSingles: 0`, which is the off state for
+    // the *layer*. At spacing 1 a tree needs only its own cell, so the clumping
+    // the rule exists to prevent comes back — which is what proves the rule is
+    // doing the work and not some other change to the pass.
+    const loose = grid({ treeGroves: 12, treeSingles: 80, treeSpacing: 1 });
+    assert.ok(maxClumpSize(loose) > 1, 'without the rule, trees touch again');
+  });
+
   test('groves are scattered, not solid — open ground survives inside one', () => {
     // A grove-only world: every tree came from a disc, so the canopy fraction
     // inside the wooded region is the density and never 1.
@@ -112,26 +139,38 @@ describe('trees: placement', () => {
     assert.ok(open > 0, 'a grove is semi-open woodland, not a stand');
   });
 
-  test('lone trees come in ones, twos and threes', () => {
-    const clumps = clumpSizes(grid({ ...TREELESS, treeSingles: 60 }));
-    assert.ok(clumps.length > 0, 'scattered trees exist');
-    for (const size of [1, 2, 3]) {
-      assert.ok(clumps.includes(size), `no clump of ${size} — all three shapes should occur`);
-    }
-    // ⚠ **A proportion, not a maximum**, and the difference is a real property
-    // of the generator rather than a loosened assertion: nothing stops two
-    // independently scattered clumps landing next to each other and reading as
-    // one larger one. Measured at 60 singles on 128², ~97% of clumps are 1–3
-    // and the rest are chance merges. A hard ceiling here would be asserting
-    // that the scatter never collides, which is not true and should not be.
-    const small = clumps.filter((size) => size <= 3).length;
-    assert.ok(small / clumps.length >= 0.9, `only ${small}/${clumps.length} clumps are lone/pair/triplet`);
+  test('lone trees come in loose ones, twos and threes', () => {
+    // ⚠ **Rewritten 2026-08-08 with the spacing rule**: the shapes are the same
+    // — a lone tree, a pair, a triplet — but a companion now stands 2–3 cells
+    // off rather than on an 8-neighbour, so the clump is no longer a *connected*
+    // clump and cannot be counted as one. Clustering is measured against its own
+    // control instead: turning it on adds trees, and every one it adds keeps its
+    // distance.
+    const singles = { ...TREELESS, treeSingles: 60 };
+    const lone = grid({ ...singles, treeClusterMax: 0 });
+    const clustered = grid({ ...singles, treeClusterMax: 2 });
+    const loneCount = lone.countByType()[TerrainType.TREE];
+    const clusteredCount = clustered.countByType()[TerrainType.TREE];
+    assert.ok(loneCount > 0, 'scattered trees exist');
+    assert.ok(clusteredCount > loneCount * 1.3, `companions barely landed: ${loneCount} → ${clusteredCount}`);
+    assert.equal(maxClumpSize(clustered), 1, 'a companion is near its seed, never against it');
+    // The companions really are *company*: with clustering on, a clear majority
+    // of trees have another within the clump ring.
+    const gaps = nearestNeighbourGaps(clustered);
+    const close = gaps.filter((d) => d <= 3).length;
+    assert.ok(close / gaps.length >= 0.5, `only ${close}/${gaps.length} trees have close company`);
   });
 
   test('a companion count cannot shift the stream — the draw budget is fixed', () => {
     // With clustering off, every single spends the same five draws it spends
     // with clustering on, so the *positions* of the seed trees are identical and
     // only the companions differ.
+    //
+    // ⚠ This is also what the deferred companion planting is for (2026-08-08):
+    // under the spacing rule an inline companion would reject a later seed tree
+    // three cells away, so `treeClusterMax` would decide where the lone trees
+    // *are* and this assertion would fail on collisions rather than on a stream
+    // shift. Seeds are all planted first; companions follow.
     const clustered = grid({ ...TREELESS, treeSingles: 40, treeClusterMax: 2 });
     const lone = grid({ ...TREELESS, treeSingles: 40, treeClusterMax: 0 });
     for (let y = 0; y < lone.height; y += 1) {
@@ -208,6 +247,41 @@ function firstCell(grid, code) {
     for (let x = 0; x < grid.width; x += 1) if (grid.codeAt(x, y) === code) return [x, y];
   }
   throw new Error(`no cell of code ${code}`);
+}
+
+/** The largest 8-connected clump of tree cells — 1 when no two trees touch. */
+function maxClumpSize(grid) {
+  return clumpSizes(grid).reduce((max, size) => (size > max ? size : max), 0);
+}
+
+/**
+ * For every tree, the Chebyshev distance to the nearest other tree, capped at
+ * `MAX_GAP` (a tree with no company inside that window reports the cap). This is
+ * the distribution the spacing rule is about: 1 must never appear, and most of
+ * the mass should sit at 2–3.
+ */
+const MAX_GAP = 6;
+function nearestNeighbourGaps(grid) {
+  const gaps = [];
+  for (let y = 0; y < grid.height; y += 1) {
+    for (let x = 0; x < grid.width; x += 1) {
+      if (grid.codeAt(x, y) !== TerrainType.TREE) continue;
+      let nearest = MAX_GAP;
+      for (let r = 1; r < MAX_GAP && nearest === MAX_GAP; r += 1) {
+        for (let dy = -r; dy <= r && nearest === MAX_GAP; dy += 1) {
+          for (let dx = -r; dx <= r; dx += 1) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; // the ring only
+            if (grid.codeAt(x + dx, y + dy) === TerrainType.TREE) {
+              nearest = r;
+              break;
+            }
+          }
+        }
+      }
+      gaps.push(nearest);
+    }
+  }
+  return gaps;
 }
 
 /** Sizes of the 8-connected clumps of tree cells. */

@@ -1470,9 +1470,52 @@ top of the scale, not a second pass over it).
 generator cannot make both: `treeGroves` random-walk discs where each open cell
 becomes a tree with probability `treeGroveDensity` (a *scattered* disc — filling
 it would be a thicket wearing another name), and `treeSingles` lone trees each
-with 0–2 adjacent companions, so a "single" is a single, a pair, or a triplet.
-Measured at the shipped 8/60: ~97% of scattered clumps are 1–3 cells and the rest
-are two clumps landing adjacent by chance.
+with 0–2 companions, so a "single" is a single, a pair, or a triplet.
+
+⚠⚠ **No two trees touch** _(2026-08-08)_. `treeSpacing` is the minimum Chebyshev
+distance between two tree cells, and at the shipped **2** it forbids the eight
+cells around a tree — so a *dense* stand is many trees each 2–3 cells from the
+next, and the canopy is never a run of adjacent cells. **Probability alone did
+not deliver that**, and the failure is worth stating because it is the one every
+"just make it sparse" scatter has: at density 0.4 about **86%** of tree cells had
+a neighbouring tree, because a scattered disc is sparse *on average* while the
+eye reads any run of touching cells as one solid mass — the thicket silhouette
+this layer exists to contrast with. A rule beats a distribution here.
+
+| | before | after |
+| --- | ---: | ---: |
+| tree cells with a tree touching them | 86.2% | **0%** |
+| nearest other tree 2–3 cells away | 11.7% | **97.5%** |
+| share of a 160×120 map | 4.83% | 3.98% |
+
+_(5 seeds, `treeGroves: 24, treeSingles: 180`. On `default-small`'s 230×180 the
+same change reads 2.73% → 2.20% of the bounding box.)_
+
+⚠ **Three things had to move together, and each is a consequence rather than
+tuning.** The exclusion caps a disc at ~25% wooded however high the density goes,
+so (a) `treeGroveDensity` is now a per-cell *attempt* rate, not the fraction of
+cells that end up wooded; (b) the discs widened (radius 2–5 → **3–8**), because a
+grove that cannot pack trees keeps its count by covering more ground — unwidened,
+the rule halved the canopy to 2.27%; and (c) the density **fell** to 0.45 rather
+than rising to the 0.6 that restores the old share exactly, because a greedy
+row-major scan at a high attempt rate plants, skips the excluded cell, and plants
+again — a saturated grove comes out in `T·T·T·T` rows that read as a plantation.
+At 0.45 the gaps mix 2, 3 and 4.
+
+⚠ **A companion is now planted `treeSpacing`..`treeSpacing + 1` cells from its
+seed** (the 40-cell ring at spacing 2) rather than on an 8-neighbour, and — the
+part that is not obvious — **every seed tree is planted before any companion is.**
+Under a spacing rule an occupied cell *rejects* a later tree that lands beside
+it, so inline companions would let `treeClusterMax` decide where the lone trees are
+rather than merely whether they have company, and the "no clumps" control would
+stop being the same world without clumps. The draws stay interleaved in their
+original order, so deferring the planting shifts no stream.
+
+⚠ `treeSpacing: 1` is the reproducible off state **for the rule** (a tree needs
+only its own cell), and is distinct from `treeGroves: 0, treeSingles: 0`, the off
+state for the **layer**, which still spends no draws at all. ⚠ Every tree share
+quoted below this line was measured before the rule and against the old grove
+parameters; they are the historical readings, not current ones.
 
 ⚠ **Placed last among the generation steps**, after thicket and before
 connectivity, so the draws can never shift a lake, an outcrop, a cover patch or a

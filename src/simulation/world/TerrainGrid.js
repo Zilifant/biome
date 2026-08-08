@@ -253,21 +253,36 @@ function clamp01(value) {
 }
 
 /**
- * The eight cells touching a cell, in a fixed order. Used only by tree clumping,
- * where the order is *behaviour* rather than style: a companion pick is an index
+ * Cells a companion tree may grow on, given the spacing rule: every offset whose
+ * Chebyshev distance from the seed is `spacing` or `spacing + 1` — as close as
+ * the rule allows, and one ring further. At the shipped spacing of 2 that is the
+ * 40 cells 2–3 away, which is what a "clump" of trees means here (2026-08-08).
+ *
+ * ⚠ **The order is *behaviour* rather than style**: a companion pick is an index
  * into this list, so reordering it changes which side of a lone tree its pair
- * grows on for every seed in the project.
+ * grows on for every seed in the project. Row-major over the bounding square,
+ * and it stays that way.
+ *
+ * Cached per spacing because it is rebuilt once per world at most.
+ * @type {Map<number, ReadonlyArray<readonly [number, number]>>}
  */
-const NEIGHBOUR_OFFSETS = Object.freeze([
-  Object.freeze([1, 0]),
-  Object.freeze([-1, 0]),
-  Object.freeze([0, 1]),
-  Object.freeze([0, -1]),
-  Object.freeze([1, 1]),
-  Object.freeze([1, -1]),
-  Object.freeze([-1, 1]),
-  Object.freeze([-1, -1]),
-]);
+const CLUMP_OFFSETS = new Map();
+
+function clumpOffsets(spacing) {
+  const cached = CLUMP_OFFSETS.get(spacing);
+  if (cached !== undefined) return cached;
+  const outer = spacing + 1;
+  const offsets = [];
+  for (let dy = -outer; dy <= outer; dy += 1) {
+    for (let dx = -outer; dx <= outer; dx += 1) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < spacing) continue;
+      offsets.push(Object.freeze([dx, dy]));
+    }
+  }
+  const frozen = Object.freeze(offsets);
+  CLUMP_OFFSETS.set(spacing, frozen);
+  return frozen;
+}
 
 /** Clamp an arbitrary input to a whole roundness level in 0..MAX_ROUNDNESS. */
 function clampRoundness(roundness) {
@@ -603,6 +618,21 @@ export class TerrainGrid {
    * canopy is broken and animals move and graze *through* it. That is what
    * "semi-open forest" means here.
    *
+   * ⚠⚠ **No two trees touch** (2026-08-08). Probability alone still produced
+   * thicket-shaped blobs — at density 0.4 roughly a fifth of grove cells had a
+   * neighbouring tree, and the eye reads a run of adjacent cells as one solid
+   * mass however scattered the disc is on average. `treeSpacing` makes the
+   * separation a rule instead of a hope: no tree may be planted within
+   * `treeSpacing - 1` cells of another, so a *dense* stand is now many trees each
+   * 2–3 cells from the next. Both passes go through `#plantTree`, so the rule
+   * holds across groves, singles, companions and the boundary where two passes
+   * overlap — the one place where "each pass is sparse" would not have.
+   *
+   * ⚠ `treeSpacing: 1` imposes nothing (a tree's own cell is the only cell it
+   * needs) and is the reproducible off state for the rule, distinct from
+   * `treeGroves: 0, treeSingles: 0`, which is the off state for the *layer* and
+   * still spends no draws at all.
+   *
    * ⚠ **Both passes write onto GROUND only.** A grove never buries a lake, a
    * rock outcrop, a cover patch or a stand of thicket — trees fill the gaps in
    * the map that were open, which is also why they cannot affect connectivity
@@ -622,6 +652,7 @@ export class TerrainGrid {
     // untouched and the map is byte-identical to one generated before trees.
     if (groves === 0 && singles === 0) return;
 
+    const spacing = Math.max(1, Math.round(params.treeSpacing ?? 1));
     const density = clamp01(params.treeGroveDensity ?? 0);
     const minR = Math.max(0.5, params.treeGroveMinRadius);
     const maxR = Math.max(minR, params.treeGroveMaxRadius);
@@ -634,7 +665,7 @@ export class TerrainGrid {
       const steps = random.int(minSteps, maxSteps);
       for (let s = 0; s < steps; s += 1) {
         const r = random.float(minR, maxR);
-        this.#scatterDisc(random, cx, cy, r, density);
+        this.#scatterDisc(random, cx, cy, r, density, spacing);
         const angle = random.float(0, Math.PI * 2);
         const stepLen = r * drift;
         cx += Math.cos(angle) * stepLen;
@@ -642,11 +673,23 @@ export class TerrainGrid {
       }
     }
 
-    // Lone trees, and the pairs and triplets that read as one tree with its
-    // offspring beside it. The companion is placed on an 8-neighbour rather than
-    // anywhere nearby, so a "pair" is genuinely adjacent and the RLE stays as
-    // compact as it can for a scattered layer.
+    // Lone trees, and the loose pairs and triplets that read as one tree with
+    // its offspring a little way off. The companion sits `spacing`..`spacing + 1`
+    // cells away rather than on an 8-neighbour (2026-08-08), so a "clump" is a
+    // few trees with grass between them instead of a solid two- or three-cell
+    // blob — the smallest version of the same rule the groves follow.
+    const offsets = clumpOffsets(spacing);
     const clusterMax = Math.max(0, Math.round(params.treeClusterMax ?? 0));
+    // ⚠ **Seeds are all planted before any companion is.** A companion occupies
+    // ground, and under the spacing rule an occupied cell *rejects* a later tree
+    // that lands beside it — so planting companions inline would let
+    // `treeClusterMax` decide where the lone trees are, not merely whether they
+    // have company.
+    // Deferring the companions keeps clumping a strictly additive setting, which
+    // is what makes a "no clumps" control the same world without clumps. The
+    // *draws* stay interleaved and in their original order, so the stream is
+    // untouched by the reordering of the planting.
+    const pending = [];
     for (let n = 0; n < singles; n += 1) {
       const cellX = random.int(0, this.#width - 1);
       const cellY = random.int(0, this.#height - 1);
@@ -659,14 +702,16 @@ export class TerrainGrid {
       const companions = random.int(0, clusterMax);
       // Always two picks, then apply the first `companions` of them — a fixed
       // budget, so how large a clump turns out to be cannot shift the stream.
-      const first = random.int(0, NEIGHBOUR_OFFSETS.length - 1);
-      const second = random.int(0, NEIGHBOUR_OFFSETS.length - 1);
-      if (!this.#plantTree(cellX, cellY)) continue; // not open ground — nothing here
-      const picks = [first, second];
-      for (let c = 0; c < companions && c < picks.length; c += 1) {
-        const [dx, dy] = NEIGHBOUR_OFFSETS[picks[c]];
-        this.#plantTree(cellX + dx, cellY + dy);
+      const first = random.int(0, offsets.length - 1);
+      const second = random.int(0, offsets.length - 1);
+      if (!this.#plantTree(cellX, cellY, spacing)) continue; // no room here
+      for (let c = 0; c < companions && c < 2; c += 1) {
+        const [dx, dy] = offsets[c === 0 ? first : second];
+        pending.push(cellX + dx, cellY + dy);
       }
+    }
+    for (let i = 0; i < pending.length; i += 2) {
+      this.#plantTree(pending[i], pending[i + 1], spacing);
     }
   }
 
@@ -674,8 +719,12 @@ export class TerrainGrid {
    * Turn a fraction of the open cells inside a disc into trees. The bounding-box
    * walk and the exterior guard are `#stampDisc`'s, deliberately — only the fill
    * rule differs.
+   *
+   * ⚠ The spacing rejection happens **after** the draw, so the fixed draw budget
+   * in `#scatterTrees`'s header still holds: a grove spends exactly one draw per
+   * open cell it considers, whether or not that cell ends up wooded.
    */
-  #scatterDisc(random, cx, cy, r, density) {
+  #scatterDisc(random, cx, cy, r, density, spacing) {
     const rSquared = r * r;
     const minX = Math.max(0, Math.floor(cx - r));
     const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
@@ -692,20 +741,39 @@ export class TerrainGrid {
         // grove spends depends only on the geometry of its discs and on which
         // cells are open — both already fixed by the time this runs.
         if (this.#cells[idx] !== TerrainType.GROUND) continue;
-        if (random.next() < density) this.#cells[idx] = TerrainType.TREE;
+        if (random.next() < density) this.#plantTree(x, y, spacing);
       }
     }
   }
 
   /**
-   * Plant one tree on open ground. Returns whether anything was planted, so the
-   * caller can skip a clump whose seed cell was water, rock, or already wooded.
+   * Plant one tree on open ground, if the spacing rule leaves room. Returns
+   * whether anything was planted, so the caller can skip a clump whose seed cell
+   * was water, rock, already wooded, or too close to a tree.
+   *
+   * `spacing` is the minimum Chebyshev distance between two trees: 1 is no rule
+   * at all (a tree needs only its own cell) and 2 — the shipped value — forbids
+   * the eight touching cells, so the nearest another tree can stand is two cells
+   * away. The scan is `(2·spacing − 1)²` cells and runs once per world at
+   * generation, never in a tick.
    */
-  #plantTree(cellX, cellY) {
+  #plantTree(cellX, cellY, spacing = 1) {
     if (!this.#inBounds(cellX, cellY)) return false;
     const idx = this.#index(cellX, cellY);
     if (this.#exterior !== null && this.#exterior[idx] === 1) return false;
     if (this.#cells[idx] !== TerrainType.GROUND) return false;
+    const reach = spacing - 1;
+    if (reach > 0) {
+      const minX = Math.max(0, cellX - reach);
+      const maxX = Math.min(this.#width - 1, cellX + reach);
+      const minY = Math.max(0, cellY - reach);
+      const maxY = Math.min(this.#height - 1, cellY + reach);
+      for (let y = minY; y <= maxY; y += 1) {
+        for (let x = minX; x <= maxX; x += 1) {
+          if (this.#cells[this.#index(x, y)] === TerrainType.TREE) return false;
+        }
+      }
+    }
     this.#cells[idx] = TerrainType.TREE;
     return true;
   }

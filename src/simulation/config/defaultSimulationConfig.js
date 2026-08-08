@@ -154,15 +154,40 @@ export const defaultSimulationConfig = Object.freeze({
     // At `8/60` trees are **2.45% of the map** (5 seeds, 160×120), which
     // takes sheltering ground from 5.05% to ~7.5% — the largest single change to
     // shelter availability since thicket arrived.
+    // ⚠⚠ **No two trees touch** (2026-08-08). `treeSpacing` is the minimum
+    // Chebyshev distance between two tree cells: 2 forbids the eight cells
+    // around a tree, so the nearest another can stand is two away and a *dense*
+    // stand is many trees 2–3 cells apart rather than a blob of adjacent cells.
+    // A scattered disc alone did not deliver that — at density 0.4 about a fifth
+    // of grove cells had a neighbour, and adjacent cells read as one solid mass
+    // however sparse the disc is on average, which is the thicket silhouette
+    // trees exist to contrast with. 1 is the off state for the rule (and leaves
+    // the layer on); see TerrainGrid `#scatterTrees`.
+    treeSpacing: 2,
     treeGroves: 24, // 16 before 2026-08-07, 8 before 2026-08-04; see `ridges` above
-    treeGroveMinRadius: 2,
-    treeGroveMaxRadius: 5,
+    // ⚠ **The discs widened (2→3, 5→8) on 2026-08-08 as one change with
+    // `treeSpacing`, and `treeGroveDensity` stopped meaning what it says.** Under
+    // the spacing rule a disc saturates at ~25% wooded however high the density
+    // goes, so this is now a per-cell *attempt* rate, and the way a grove keeps
+    // its tree count is to cover more ground rather than to pack it. Unwidened,
+    // the rule halved the canopy (4.83% → 2.27% of a 160×120 map); at 3–8 it is
+    // **3.98%**, near where it was and spread over a broader stand.
+    // _(5 seeds, 160×120, `24/180`.)_
+    //
+    // ⚠ **0.45 rather than the 0.6 that restores the old share exactly**, and the
+    // reason is visual: a greedy row-major scan at a high attempt rate plants a
+    // tree, skips the excluded cell, plants again — so a saturated grove comes
+    // out in `T·T·T·T` rows that read as a plantation. At 0.45 the gaps mix 2, 3
+    // and 4 and the stand looks grown rather than planted.
+    treeGroveMinRadius: 3,
+    treeGroveMaxRadius: 8,
     treeGroveMinSteps: 2,
     treeGroveMaxSteps: 6,
     treeGroveDrift: 1,
-    treeGroveDensity: 0.4, // fraction of open cells inside a grove that carry a tree
-    // Lone trees, each with 0..`treeClusterMax` companions on an adjacent cell —
-    // so a "single" is a single, a pair, or a triplet. A count rather than a
+    treeGroveDensity: 0.45, // per-cell attempt rate inside a grove; see treeSpacing
+    // Lone trees, each with 0..`treeClusterMax` companions `treeSpacing`..
+    // `treeSpacing + 1` cells away — so a "single" is a lone tree, or a loose
+    // pair or triplet with grass between the trunks. A count rather than a
     // density because it is the one tree quantity that reads as a number of
     // *objects* on the map rather than as an area.
     treeSingles: 180, // 120 before 2026-08-07, 60 before 2026-08-04; see `ridges` above
