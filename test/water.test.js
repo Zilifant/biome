@@ -78,7 +78,18 @@ describe('world.nearestWater: the long-range water bearing', () => {
     // default: the "far land corner" this test reads from is outside the ellipse
     // and is now sea, so the bearing it asked for was correctly null. The claim
     // is about the water bearing, not about the world's shape.
-    const engine = new SimulationEngine({ seed: 42, config: { terrain: { roundness: 0 } } });
+    //
+    // ⚠⚠ **One lake and nothing else, since 2026-08-08.** The world now ships a
+    // pond, a stream across the map and a marsh full of pools, so `nearestWater`
+    // from a far corner correctly points at whichever of those is closest — and
+    // this test's whole method is to compare its answer against **the lake's**
+    // centroid. That is the failure mode a bearing is *supposed* to have: the
+    // reading was right and the yardstick was wrong. The other water is switched
+    // off so the two agree on what "the water" means.
+    const engine = new SimulationEngine({
+      seed: 42,
+      config: { terrain: { roundness: 0, smallLakes: 0, streams: 0, marshFraction: 0 } },
+    });
     const world = engine.world;
     const lake = shallowWaterCentroid(world.terrain);
     assert.ok(lake, 'demo world has a lake');
@@ -95,7 +106,13 @@ describe('world.nearestWater: the long-range water bearing', () => {
   });
 
   test('is null in a world with no water', () => {
-    const engine = new SimulationEngine({ seed: 42, config: { terrain: { lakes: 0 } } });
+    // ⚠ `lakes: 0` is no longer "no water" on its own (2026-08-08) — a pond, a
+    // stream and a marsh each put drinkable water on the map independently. A
+    // world with none of them is what this test has always meant.
+    const engine = new SimulationEngine({
+      seed: 42,
+      config: { terrain: { lakes: 0, smallLakes: 0, streams: 0, marshFraction: 0 } },
+    });
     assert.equal(engine.world.nearestWater(30, 30), null);
   });
 });

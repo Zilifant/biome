@@ -11,7 +11,16 @@ describe('thicket: terrain properties', () => {
   // ROCK — which would have this suite's "more prevalent than rock" comparison
   // measuring the world's *shape* against a thicket count. The claim is about
   // rock **formations**.
-  const grid = new TerrainGrid({ width: 128, height: 128, seed: 42, params: { roundness: 0 } });
+  //
+  // ⚠⚠ `marshFraction: 0` since 2026-08-08, and it is the same lesson one layer
+  // on: **thicket now has two sources.** A marsh grows reed beds, which are
+  // thicket cells, so without this every claim in this suite would be measuring
+  // the thicket generator plus a wetland. The cells are the same cells — that is
+  // the point of composing a marsh from existing codes — but "a thicket is a
+  // stand" is a claim about the *generator*, so the other source is switched off
+  // rather than the claim being loosened.
+  const DRY = Object.freeze({ roundness: 0, marshFraction: 0 });
+  const grid = new TerrainGrid({ width: 128, height: 128, seed: 42, params: DRY });
   const thicket = firstCell(grid, TerrainType.THICKET);
 
   test('passable, but a crawl (extremely slow) — you can enter, you just barely move', () => {
@@ -27,7 +36,7 @@ describe('thicket: terrain properties', () => {
   test('shelters from the weather and reads as thicket through the world chokepoints', () => {
     // The engine derives its own terrain seed, so find the thicket in *its*
     // terrain rather than the standalone grid above.
-    const engine = new SimulationEngine({ seed: 42 });
+    const engine = new SimulationEngine({ seed: 42, config: { terrain: { marshFraction: 0 } } });
     const cell = firstCell(engine.world.terrain, TerrainType.THICKET);
     assert.equal(engine.world.isShelteredAt(cell[0] + 0.5, cell[1] + 0.5), true);
     assert.equal(engine.world.isThicketAt(cell[0] + 0.5, cell[1] + 0.5), true);
@@ -66,7 +75,9 @@ describe('thicket: terrain properties', () => {
   });
 
   test('no thickets when disabled', () => {
-    const flat = new TerrainGrid({ width: 128, height: 128, seed: 42, params: { thickets: 0 } });
+    // ⚠ `marshFraction: 0` too (2026-08-08): the stand generator is what
+    // `thickets` switches off, and a marsh would still grow reed beds.
+    const flat = new TerrainGrid({ width: 128, height: 128, seed: 42, params: { thickets: 0, marshFraction: 0 } });
     assert.equal(flat.countByType()[TerrainType.THICKET], 0);
   });
 });
@@ -92,7 +103,11 @@ function thicketWithGroundApproach(grid) {
 
 describe('thicket: avoided unless it is the last choice', () => {
   function movementEngine() {
-    const engine = new SimulationEngine({ seed: 42 });
+    // ⚠ No marsh (2026-08-08): `thicketWithGroundApproach` takes the *first*
+    // thicket with open ground to its west, and a wetland's scattered reed beds
+    // would hand it a lone cell in a bog rather than the edge of a stand — which
+    // is the thing an animal is supposed to treat as a wall.
+    const engine = new SimulationEngine({ seed: 42, config: { terrain: { marshFraction: 0 } } });
     engine.registerSystem(new MovementSystem());
     return engine;
   }

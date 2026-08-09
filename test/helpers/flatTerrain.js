@@ -38,4 +38,17 @@ export const FLAT_TERRAIN = Object.freeze({
   coverPatchDensity: 0,
   treeGroves: 0,
   treeSingles: 0,
+  // ⚠ **The water features (2026-08-08), and they caught this file out exactly
+  // as the trees did.** All three ship *on* — a pond, a stream across the map,
+  // and a marsh over 5% of it — so every sandbox that spread `FLAT_TERRAIN`
+  // without them got a channel of shallow water through the middle and a
+  // wetland of thicket, timber and tall grass somewhere in it. Seven suites went
+  // red (carcass, detour, disturbances, engineering, forage guilds, habitat and
+  // memory) and the rest passed, which is again the worse outcome. Same lesson,
+  // third time: **the rule in this header is the whole point of the file, and it
+  // is only worth anything if the commit that adds a generator quantity obeys
+  // it.**
+  smallLakes: 0,
+  streams: 0,
+  marshFraction: 0,
 });

@@ -28,6 +28,7 @@ import { createDemoSimulation, buildDemoConfig } from '../src/fixtures/createDem
 import { defaultSimulationConfig } from '../src/simulation/config/defaultSimulationConfig.js';
 import { validateCommand } from '../src/protocol/validation.js';
 import { CommandTypes } from '../src/protocol/commands.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const W = 160;
 const H = 120;
@@ -268,7 +269,12 @@ describe('roundness: the off state', () => {
     // says it directly: if the carve ran at all at level 0 — even writing rock it
     // then read back — there would be rock on an otherwise empty map.
     for (const seed of [42, 7, 13]) {
-      const bare = { lakes: 0, ridges: 0, thickets: 0, coverPatchDensity: 0, treeGroves: 0, treeSingles: 0 };
+      // ⚠ `FLAT_TERRAIN` rather than a literal since 2026-08-08. The literal was
+      // one of the ~25 copies that helper exists to retire, and the water
+      // features are what proved the point again: "every other generator is off"
+      // stopped being what this list said the moment three more shipped. The
+      // helper is the one place that has to be kept true.
+      const bare = { ...FLAT_TERRAIN };
       const off = new TerrainGrid({ width: W, height: H, seed, params: { ...bare, roundness: 0 } });
       assert.equal(off.countByType()[TerrainType.ROCK] ?? 0, 0, `seed ${seed}: level 0 wrote rock`);
       // ...and the carve does run when it is asked to, so the assertion above is

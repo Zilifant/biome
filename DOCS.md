@@ -6505,6 +6505,29 @@ landed unchanged in a 32×32 sandbox — **~12% of it, against 2.45% of the demo
 — and about twenty suites quietly began testing a wooded map. **Five noticed. The rest
 passed**, which is the worse outcome.
 
+⚠⚠ **The water features broke this rule again on 2026-08-08, in the same commit
+that quotes it**, and the shape of the failure is worth more than the fix. All
+three ship *on*, so every sandbox spreading `FLAT_TERRAIN` got a stream through
+the middle and a marsh of reed beds, timber and tall grass somewhere in it —
+**seven suites went red** (carcass, detour, disturbance, engineering, forage
+guilds, habitat, memory) and the rest passed. ⚠ The tell is that the red ones
+were not the ones testing terrain: they were testing *carcass decay*, *detours*,
+*floods* and *what an animal remembers*, which is what a shared sandbox drifting
+underneath you looks like from the outside. **A helper that has to be updated by
+hand is a rule with a failure mode, and the only defence that has ever worked
+here is running the whole suite before believing the change is done.**
+
+⚠ **Six further suites needed a real recalibration, not a helper fix**, because
+the marsh gives thicket, tree, cover and shallow water each a **second source**.
+`thickets: 0` no longer means "no thicket cells", and `lakes: 0` no longer means
+"no water" — so `test/thicket.test.js`, `test/water.test.js` and
+`test/runner.test.js` now switch the marsh off where their claim is about a
+particular *generator*. ⚠ `test/water.test.js`'s bearing test is the instructive
+one: `nearestWater` correctly pointed at a marsh pool, and the test compared it
+against the **lake's** centroid — the reading was right and the yardstick was
+wrong. **Composing a feature from existing codes is cheap in engine code and is
+paid for in every test that assumed a code had one source.**
+
 ### Permanent invariant tests
 
 Living entities in bounds · impassable cells never occupied **by a grounded
