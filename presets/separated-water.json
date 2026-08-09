@@ -1,0 +1,51 @@
+{
+  "formatVersion": 1,
+  "name": "separated-water",
+  "savedAt": "2026-08-09T18:25:53.835Z",
+  "world": {
+    "seed": 17,
+    "width": 230,
+    "height": 180,
+    "rocks": 7,
+    "thickets": 7,
+    "trees": 6,
+    "roundness": 4,
+    "smallLakes": 2,
+    "streams": 1,
+    "marsh": 10,
+    "founding": [
+      {
+        "speciesId": "herbivore.gazelle",
+        "count": 30
+      },
+      {
+        "speciesId": "herbivore.wildebeest",
+        "count": 100
+      },
+      {
+        "speciesId": "herbivore.zebra",
+        "count": 50
+      },
+      {
+        "speciesId": "herbivore.buffalo",
+        "count": 50
+      },
+      {
+        "speciesId": "predator.leopard",
+        "count": 3
+      },
+      {
+        "speciesId": "predator.lion",
+        "count": 5
+      },
+      {
+        "speciesId": "scavenger.vulture",
+        "count": 5
+      },
+      {
+        "speciesId": "scavenger.hyena",
+        "count": 20
+      }
+    ]
+  }
+}

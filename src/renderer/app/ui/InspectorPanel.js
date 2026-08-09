@@ -28,7 +28,15 @@ export class InspectorPanel {
   #body;
   #view;
   #callbacks;
-  #docked = false;
+  /**
+   * ⚠ **Docked by default since 2026-08-09.** The floating popover was the
+   * original surface and it still is a mode, but it sits *over* the map — which
+   * makes the panel the one piece of UI a viewer has to move the mouse across
+   * the grid to reach, and the one that covers what it is describing. A column
+   * of its own is where a panel you read while the world runs belongs; floating
+   * is now the deliberate choice rather than the default one.
+   */
+  #docked = true;
   /**
    * A pinned popover stays where the viewer put it instead of re-anchoring to
    * each new selection. Dragging it pins it implicitly: having deliberately
@@ -77,7 +85,9 @@ export class InspectorPanel {
       if (event.target.closest?.('[data-panel="dock"]')) this.#setDocked(false);
     });
     this.#bindDrag();
-    this.#view.mount(this.#body);
+    // Apply the initial state through the same path every later toggle takes,
+    // so "docked by default" cannot drift from what docking actually does.
+    this.#setDocked(this.#docked);
   }
 
   /** The sidebar host, so the docked state can be restored on load. */
@@ -153,6 +163,13 @@ export class InspectorPanel {
     this.#docked = docked;
     this.#popover.hidden = docked;
     this.#dockHost.hidden = !docked;
+    // ⚠ The dock host now lives in a column of its own, so docking is a change
+    // to the page's *layout* and not only to this panel. One attribute on the
+    // grid drives the track width, the aside and its drag handle together (see
+    // `#main[data-inspector]` in renderer.css) — a hidden aside on its own would
+    // leave the map with a dead gutter beside it, because a hidden grid item
+    // still holds its column open.
+    this.#dockHost.closest('#main')?.setAttribute('data-inspector', docked ? 'docked' : 'floating');
     this.#popover.querySelector('[data-panel="dock"]').textContent = docked ? 'float' : 'dock';
     if (docked) {
       this.#dockHost.innerHTML = `

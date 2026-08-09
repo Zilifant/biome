@@ -20,10 +20,46 @@ import { CommandTypes, RUNNER_COMMAND_TYPES, MAX_SPEED_MULTIPLIER, okResult, err
 
 const MIN_SPEED_MULTIPLIER = 0.1;
 
+/**
+ * ⚠⚠ **The cap on how often the world is *reported*, which is not how often it
+ * is simulated** (2026-08-09).
+ *
+ * Every emission builds a full snapshot (~4.5 ms) and broadcasts a delta of
+ * 180–310 KB to every client — so at 32× the untethered per-tick cadence was
+ * **6.9 MB/s**, and at 64× nearly 14 MB/s. The server absorbs that (its event
+ * loop stays under 27 ms of lag even at 64×); the *client* is what falls behind,
+ * and when it does, everything the viewer touches breaks at once, because a
+ * `command.result` shares the socket with the delta stream and is delivered
+ * behind it. Measured on a client throttled to a tenth of this machine: the view
+ * ran **109 ticks (~3.4 s) behind** at 32×, which is exactly the reported
+ * "it pauses a second or two after I click, and says the command failed".
+ *
+ * 20/s is chosen so that **nothing changes at or below 20×** — the tick cadence
+ * is already slower than the cap, so no seed, no test and no existing recording
+ * moves — and above it the client sees a steady 20 frames a second of a world
+ * running as fast as it likes.
+ *
+ * ⚠ This is the same trade `stepManually` has always made (C4), applied to the
+ * real-time loop: a delta is a **diff between two snapshots, not a replay**, so
+ * a window covering several ticks is exactly as correct as one covering one.
+ * The engine is untouched — it takes the same steps in the same order — and the
+ * only thing given up is the *narration*: domain events are bounded, so a window
+ * long enough to overrun the outbox drops its oldest events.
+ */
+const DEFAULT_MAX_BROADCASTS_PER_SECOND = 20;
+
 export class SimulationRunner extends EventEmitter {
   /** @type {ReturnType<typeof setInterval> | null} */
   #timer = null;
+  /**
+   * The last snapshot **broadcast**, which is the base of the next delta — not
+   * the current state of the engine. With coalescing on, the two differ by up to
+   * `#ticksPerBroadcast - 1` ticks.
+   */
   #lastSnapshot;
+  /** Ticks taken since the last emission, and how many are allowed to accrue. */
+  #pendingTicks = 0;
+  #ticksPerBroadcast = 1;
 
   /**
    * Builds a fresh engine for a seed. Optional: a runner without one simply
@@ -40,11 +76,15 @@ export class SimulationRunner extends EventEmitter {
    *        factory used by `restart`; the host supplies it, so the runner never
    *        needs to know how a world is composed
    */
-  constructor({ engine, tickIntervalMs = 1000, createEngine = null }) {
+  constructor({ engine, tickIntervalMs = 1000, createEngine = null, maxBroadcastsPerSecond = DEFAULT_MAX_BROADCASTS_PER_SECOND }) {
     super();
     this.engine = engine;
     this.#createEngine = createEngine;
     this.baseTickIntervalMs = tickIntervalMs;
+    // 0 or less disables coalescing entirely — one delta per tick, whatever the
+    // speed. That is the off state this shipped against, and the arm every
+    // "reporting cadence changes nothing" claim is measured on.
+    this.maxBroadcastsPerSecond = maxBroadcastsPerSecond > 0 ? maxBroadcastsPerSecond : Infinity;
     this.speed = 1;
     this.started = false;
     this.paused = false;
@@ -86,6 +126,10 @@ export class SimulationRunner extends EventEmitter {
     const chosen = seed === undefined ? Math.floor(Math.random() * 0x100000000) : seed;
     const wasPaused = this.paused;
     this.#clearTimer();
+    // ⚠ Dropped, not flushed. The ticks are the *old* world's, and the snapshot
+    // that would report them is about to be replaced by one from a world that
+    // shares no ids, no tick and no simulationId with it.
+    this.#pendingTicks = 0;
     this.engine = this.#createEngine(chosen >>> 0, options);
     this.#lastSnapshot = this.getFullSnapshot();
     // The run state is the *host's*, not the world's, so it survives a restart:
@@ -104,12 +148,14 @@ export class SimulationRunner extends EventEmitter {
   stop() {
     this.started = false;
     this.#clearTimer();
+    this.#flush();
   }
 
   pause() {
     if (this.paused) return;
     this.paused = true;
     this.#clearTimer();
+    this.#flush();
   }
 
   resume() {
@@ -150,11 +196,15 @@ export class SimulationRunner extends EventEmitter {
    */
   stepManually(ticks = 1) {
     if (ticks < 1) return;
-    const previous = this.#lastSnapshot;
     for (let i = 0; i < ticks; i += 1) {
       this.engine.step();
     }
-    this.#emitSince(previous);
+    // Through the flush, so a manual step also clears any window the real-time
+    // loop left open — stepping is only ever done from a pause, which has
+    // already flushed, but the counter must not survive into the next window
+    // either way.
+    this.#pendingTicks += ticks;
+    this.#flush();
   }
 
   /**
@@ -172,6 +222,11 @@ export class SimulationRunner extends EventEmitter {
   #schedule() {
     this.#clearTimer();
     const interval = Math.max(1, Math.round(this.baseTickIntervalMs / this.speed));
+    // How many ticks may accrue between broadcasts, derived from the cadence
+    // rather than from a clock: at or below `maxBroadcastsPerSecond` ticks per
+    // second this is 1 and the runner emits exactly as it always has.
+    const ticksPerSecond = 1000 / interval;
+    this.#ticksPerBroadcast = Math.max(1, Math.ceil(ticksPerSecond / this.maxBroadcastsPerSecond));
     this.#timer = setInterval(() => this.#tickOnce(), interval);
     this.#timer.unref?.();
   }
@@ -184,9 +239,25 @@ export class SimulationRunner extends EventEmitter {
   }
 
   #tickOnce() {
-    const previous = this.#lastSnapshot;
     this.engine.step();
-    this.#emitSince(previous);
+    this.#pendingTicks += 1;
+    if (this.#pendingTicks >= this.#ticksPerBroadcast) this.#flush();
+  }
+
+  /**
+   * Report everything simulated since the last emission, if anything has been.
+   *
+   * ⚠ **Called on pause and on stop as well as from the tick loop**, and that is
+   * not tidiness: a viewer who pauses must be looking at the world the host
+   * actually stopped in. Without the flush the last partial window would sit
+   * unreported until the next resume, so the picture would freeze one to three
+   * ticks *before* the state every command result describes — the exact class of
+   * mismatch this whole change exists to remove.
+   */
+  #flush() {
+    if (this.#pendingTicks === 0) return;
+    this.#pendingTicks = 0;
+    this.#emitSince(this.#lastSnapshot);
   }
 
   /**
@@ -196,6 +267,23 @@ export class SimulationRunner extends EventEmitter {
    */
   getFullSnapshot({ bounds = null } = {}) {
     return buildFullSnapshot(this.engine.getSnapshotData({ bounds }));
+  }
+
+  /**
+   * The snapshot the delta chain is **based on** — what a client joining or
+   * recovering has to start from.
+   *
+   * ⚠⚠ **Not the same thing as `getFullSnapshot()`, and handing out the wrong
+   * one is a desync generator.** Coalescing means the engine can be a couple of
+   * ticks ahead of the last thing broadcast; a client given the *fresher* world
+   * would receive the next delta with a `baseTick` behind its own tick, and
+   * `RendererStore` treats that as a desync — so it would ask for a snapshot,
+   * be handed a fresh one again, and go round. Every unbounded snapshot a live
+   * client can chain from comes from here. Bounded region queries still build
+   * fresh: they are a *question about the world*, not a place to stand.
+   */
+  getBroadcastSnapshot() {
+    return this.#lastSnapshot;
   }
 
   /** @param {number} entityId */

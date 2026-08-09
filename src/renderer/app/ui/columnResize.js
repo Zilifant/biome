@@ -1,7 +1,8 @@
 /**
  * Draggable column widths.
  *
- * The three asides — events, population, sidebar — are grid tracks of `#main`
+ * The four asides — events, the docked inspector, population, sidebar — are
+ * grid tracks of `#main`
  * whose widths are CSS custom properties, so a drag writes one number on the
  * document root and the grid does the rest. Nothing here touches a panel's own
  * layout, and no panel needs to know it can be resized.
@@ -47,6 +48,10 @@ const MAX_FRACTION = 0.5;
  */
 export const RESIZABLE_COLUMNS = Object.freeze([
   Object.freeze({ id: 'events-column', cssVar: '--events-width', min: 260, edge: 'end', label: 'Event log width' }),
+  // ⚠ Its handle and column are hidden by CSS while the inspector floats, so a
+  // width written here simply has no track to apply to until it is docked again
+  // — which is why nothing needs to unbind or re-bind on a dock toggle.
+  Object.freeze({ id: 'inspector-column', cssVar: '--inspector-width', min: 300, edge: 'end', label: 'Inspector width' }),
   Object.freeze({ id: 'population-column', cssVar: '--population-width', min: 300, edge: 'start', label: 'Population width' }),
   Object.freeze({ id: 'sidebar', cssVar: '--sidebar-width', min: 300, edge: 'start', label: 'Sidebar width' }),
 ]);

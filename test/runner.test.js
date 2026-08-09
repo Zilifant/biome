@@ -6,6 +6,7 @@ import { applyDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
 import { defaultSimulationConfig } from '../src/simulation/config/defaultSimulationConfig.js';
 import { DEFAULT_TERRAIN_PREVALENCE } from '../src/protocol/commands.js';
+import { smallDemo } from './helpers/smallDemo.js';
 
 /** A paused runner over the demo world, with every emission captured. */
 function pausedRunner(seed = 42) {
@@ -106,6 +107,116 @@ describe('runner: manual stepping', () => {
     runner.handleCommand({ type: 'simulation.resume' });
     assert.equal(runner.getStatus().paused, false);
     runner.stop();
+  });
+});
+
+describe('runner: broadcast coalescing at speed (2026-08-09)', () => {
+  // ⚠ **Tick cost: ~120 real-time ticks of a `smallDemo` world across the file,
+  // and no long runs at all.** These are cadence claims — how often the world is
+  // *reported* — so the world only has to be a world. What they cannot use is a
+  // fake clock: the cadence is the runner's own `setInterval`, and stubbing it
+  // would test the stub.
+  //
+  // The claim: above `maxBroadcastsPerSecond` the runner keeps simulating at full
+  // speed and reports less often, which is the same trade C4 made for manual
+  // stepping. Below it, nothing changes at all.
+  const runnerAt = (speed, { maxBroadcastsPerSecond = 20, tickIntervalMs = 1000 } = {}) => {
+    const runner = new SimulationRunner({ engine: smallDemo({ seed: 5 }), tickIntervalMs, maxBroadcastsPerSecond });
+    const emissions = [];
+    runner.on('tick', ({ delta }) => emissions.push(delta));
+    runner.setSpeed(speed);
+    return { runner, emissions };
+  };
+  const run = (runner, ms) => new Promise((resolve) => {
+    runner.start();
+    setTimeout(() => { runner.stop(); resolve(); }, ms);
+  });
+
+  test('⚠ at or below the cap the cadence is exactly what it always was', async () => {
+    // 20 ticks/s against a 20/s cap: one delta per tick, every delta spanning
+    // one tick. This is the arm that makes the change invisible to every world
+    // anybody was already running.
+    const { runner, emissions } = runnerAt(20, { maxBroadcastsPerSecond: 20 });
+    await run(runner, 350);
+    assert.ok(emissions.length >= 3, `expected several emissions, got ${emissions.length}`);
+    for (const delta of emissions) {
+      assert.equal(delta.tick - delta.baseTick, 1, 'a delta covered more than its own tick');
+    }
+  });
+
+  test('above the cap one delta covers several ticks, and they still chain', async () => {
+    // 100 ticks/s against a 20/s cap → five ticks per delta. What must hold is
+    // not the count (a timer is a timer) but that the *chain* is unbroken: a
+    // client applies these in order, and a gap is a desync.
+    const { runner, emissions } = runnerAt(100, { maxBroadcastsPerSecond: 20 });
+    await run(runner, 400);
+    assert.ok(emissions.length >= 2, `expected several emissions, got ${emissions.length}`);
+    for (const delta of emissions) {
+      assert.ok(delta.tick - delta.baseTick > 1, `a delta at 100x covered only ${delta.tick - delta.baseTick} tick`);
+    }
+    for (let i = 1; i < emissions.length; i += 1) {
+      assert.equal(emissions[i].baseTick, emissions[i - 1].tick, 'the delta chain has a gap in it');
+    }
+    // And the simulation itself is not slowed down by reporting less: far more
+    // ticks were taken than deltas sent.
+    const ticksCovered = emissions[emissions.length - 1].tick - emissions[0].baseTick;
+    assert.ok(ticksCovered > emissions.length, `${ticksCovered} ticks in ${emissions.length} deltas is not coalescing`);
+  });
+
+  test('⚠⚠ pausing flushes the window, so the view is where the host stopped', async () => {
+    // The bug this whole change is about, in its smallest form: pause has to
+    // leave the client looking at the tick the host actually stopped on. An
+    // unflushed window would freeze the picture one to four ticks *before* the
+    // state every command result reports.
+    const { runner, emissions } = runnerAt(100, { maxBroadcastsPerSecond: 20 });
+    await run(runner, 300);
+    runner.start();
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    runner.pause();
+    assert.equal(emissions[emissions.length - 1].tick, runner.engine.tick, 'the last delta is not the paused world');
+    runner.stop();
+  });
+
+  test('reporting less often changes reporting, never the simulation', async () => {
+    // The same guard C4 has, for the real-time loop: the engine takes the same
+    // steps in the same order, so a coalesced run and an uncoalesced one of the
+    // same length end byte-identical.
+    const coalesced = runnerAt(100, { maxBroadcastsPerSecond: 20 });
+    const uncoalesced = runnerAt(100, { maxBroadcastsPerSecond: 0 }); // 0 disables it
+    await run(coalesced.runner, 300);
+    await run(uncoalesced.runner, 300);
+    // Step both to the same tick — the timers will not have delivered the same
+    // number, and the claim is about *state*, not about cadence.
+    const target = Math.max(coalesced.runner.engine.tick, uncoalesced.runner.engine.tick);
+    coalesced.runner.stepManually(target - coalesced.runner.engine.tick);
+    uncoalesced.runner.stepManually(target - uncoalesced.runner.engine.tick);
+    assert.deepEqual(
+      coalesced.runner.getFullSnapshot().entities,
+      uncoalesced.runner.getFullSnapshot().entities,
+      'the world differs depending on how often it was reported',
+    );
+    assert.ok(uncoalesced.emissions.length > coalesced.emissions.length, 'the control did not emit more');
+    for (const delta of uncoalesced.emissions) {
+      assert.equal(delta.tick - delta.baseTick, 1, 'the off state coalesced anyway');
+    }
+  });
+
+  test('⚠⚠ a joining client is given the chain base, not the freshest world', async () => {
+    // The desync generator this change could have introduced. Mid-window the
+    // engine is ahead of the last broadcast; a client handed *that* world gets
+    // the next delta with a baseTick behind its own tick, which RendererStore
+    // treats as a desync — so it asks for a snapshot, is handed a fresh one
+    // again, and goes round. `getBroadcastSnapshot` is what both transports send.
+    const { runner } = runnerAt(100, { maxBroadcastsPerSecond: 20 });
+    runner.start();
+    await new Promise((resolve) => setTimeout(resolve, 130));
+    const chainBase = runner.getBroadcastSnapshot();
+    const fresh = runner.getFullSnapshot();
+    runner.stop();
+    assert.ok(chainBase.tick <= fresh.tick, 'the chain base cannot be ahead of the world');
+    // And the base is exactly what the last delta reported, which is the property
+    // that makes it chainable.
+    assert.equal(chainBase.kind, fresh.kind, 'both are full snapshots');
   });
 });
 

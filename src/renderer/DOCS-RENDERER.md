@@ -46,7 +46,7 @@ version, fixture, layer and test rows and left the rest as it found them.
 |                     |                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
-| Tests               | renderer **142** in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 14 spec files in `tests-ui` _(2026-08-08)_                       |
+| Tests               | renderer **142** in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; **15** spec files in `tests-ui` _(2026-08-09: `inspector-press.spec.js` joined — the click a rebuild eats can only be seen in a browser)_                       |
 | Protocol understood | **38** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine _(2026-08-08)_                                                            |
 | Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a), and the claim grid (v37) is the **territory layer** (§9b). ⚠ **v34 is a version the renderer speaks but does not yet show**: its additions are all inspection-only (a group's derived `centre`/`leaderId`, the `social.consensus`/`rally`/`charge` commitments, `pullScale`, `bandmates`), and *displaying* them is this roadmap's item rather than the engine plan's — nothing was owed here beyond the matching constant and a regenerated fixture set |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
@@ -196,6 +196,33 @@ present** (P5).
   but coalescing is what makes it easy to hit. The honest fix, if it ever
   matters, is for a long step to send _no_ events rather than a truncated set —
   which is a protocol question, not a renderer one.
+  ⚠⚠ **That ratio is a fact about a 500-tick manual step, not about the running
+  world, and reading it as the latter would send you to the wrong file.**
+  Measured per tick on the hosted world (2026-08-09): the delta is **180–310 KB**
+  and breaks down **59% `updated` / 21% `features` / 19% `events`** — see the new
+  **P22** below, which is where the bytes actually are.
+- **P23 — A section body is replaced wholesale, so the panel has to freeze
+  itself while it is being clicked, and a rebuild has to read its own open
+  sections back out of the DOM** _(2026-08-09)_. `#patchSections` writes
+  `host.innerHTML = body` for any section whose content changed, which at speed
+  is most of them most ticks — and replacing the node under a finger is what
+  stops a `click` from firing at all (§5). The shipped fix defers the whole
+  render for the length of a press, which works and is bounded, but it treats the
+  symptom. The panel's own stated rule is **values are patched, shapes are
+  rebuilt**, and section bodies are the one place that does both: extending the
+  `data-live` mechanism into them would mean a body is never replaced, and
+  nothing would need deferring. See DOCS-RENDERER §5.
+- **⚠⚠ P22 — The per-tick delta is 180–310 KB, and two thirds of it is
+  re-sent rather than diffed** _(2026-08-09)_. `updated` carries **complete public
+  entity objects, not field patches** — `snapshots.js` says so at the top ("favors
+  correctness over compression") — so every animal that moved ships all ~40 of its
+  whitelisted fields, every tick: **121–180 KB**. `features` re-sends **every worn
+  cell** whenever its revision moves, which is ~80% of ticks: **11–72 KB**, where
+  `vegetation` and `territory` both carry real sparse diffs (`diffVegetation`,
+  `diffTerritory`) and cost ~1 KB. Broadcast coalescing (§8) divides the *rate*;
+  this is the *size*, and it is the next lever if a fast world still feels heavy.
+  Giving `features` a sparse diff is a copy of `diffVegetation` and needs no
+  protocol bump; field patches for `updated` do.
 - **P13 — A large advance blocks the host's event loop for its whole duration**
   (~1.4 ms/tick at demo scale), so 10 000 ticks is ~14 s unresponsive. UI
   defaults stay under a second; a genuinely long run belongs in
@@ -526,10 +553,21 @@ disagree with the cell drawn under the cursor.
 
 ### One view, two hosts
 
-`InspectorPanel` owns _where_ the inspector is (a floating popover anchored to the
-clicked cell, or docked in the sidebar) and `InspectorView` owns _what it says_.
-Both hosts render the same view object — docking is a change of host, not a
-different panel. The fourteen section formatters return `{ id, title, badge,
+`InspectorPanel` owns _where_ the inspector is (**a column of its own**, or a
+floating popover anchored to the clicked cell) and `InspectorView` owns _what it
+says_. Both hosts render the same view object — docking is a change of host, not
+a different panel.
+
+⚠ **Docked is the default, and the dock is `#inspector-column`, not the
+sidebar** _(2026-08-09)_. The popover was the original surface and is still a
+mode, but it sits *over the map*: it covers the thing it describes, and it is the
+one panel a viewer has to move the pointer across the grid to reach — which is
+its own cost, since every cell the pointer crosses marks the frame dirty. The
+column is the mirror of the population column on the other side of the grid.
+⚠ **Floating collapses the whole track** (`#main[data-inspector]`), because a
+hidden grid item still holds its column open and would leave a dead gutter beside
+the map. One attribute drives the track, the aside and the drag handle together,
+so they cannot disagree. The fourteen section formatters return `{ id, title, badge,
 body }` rather than finished HTML precisely so presentation is the view's
 decision, not theirs; forking them would mean maintaining ~500 lines twice.
 
@@ -550,6 +588,75 @@ it.**
 once per host through a `WeakSet` for exactly that reason; an unguarded
 `addEventListener` there stacks one handler per remount, and the symptom (a toggle
 firing five times) looks nothing like the cause.
+
+### ⚠⚠ Nothing may rewrite this panel while a finger is down on it
+
+_(2026-08-09.)_ **A `click` is dispatched only when the press and the release land
+on the same node.** This view rewrites its own container on every render —
+`#patchSections` replaces section bodies, `#buildMarkup` replaces everything —
+and at speed the structure signature changes almost every tick, mostly because a
+section such as "Recent events" appears and vanishes as events about the animal
+age out. Measured against a live host at 32×: the browser dispatched
+`pointerdown` and `pointerup` on the button and **no `click` at all**. The panel
+silently stopped answering the mouse — only the mouse, and only while the world
+moved fast enough to rebuild inside the ~100 ms a human click takes. At 1× a
+rebuild lands inside maybe one press in ten, which is why it read as "sometimes
+the inspector ignores me".
+
+⚠ **Delegation on the stable host was not the fix and was never the problem.**
+It keeps the *listener* alive across rebuilds, which is what it was written for.
+What delegation cannot preserve is the node the click has to fire on. **A
+keypress carries its meaning in the event; a click was deriving its meaning from
+a node this panel was busy deleting** — which is the whole reason the keyboard
+felt fine while the mouse did not.
+
+So `render` returns early while a press is held and replays the latest one on
+release. Two details are load-bearing:
+
+- ⚠ **The release listens on the `document`**, not on the host: a press that
+  ends over the map still ends, and a flag left set would freeze the panel for
+  good.
+- ⚠⚠ **The replay is deferred past the click** (`setTimeout(…, 0)`). Rendering
+  inside the `pointerup` handler deletes the node a moment before the browser
+  looks for it, and the click vanishes exactly as before. This cost a full
+  measurement round to find: the panel was correctly frozen for the whole press
+  and the click *still* did not fire, because the fix had become the thing doing
+  the destroying.
+
+The cost is bounded by how long a finger is down — about a tenth of a second of
+staleness, in one panel. ⚠ The principled end state is different and is recorded
+as **P23**: extend `data-live` patching into section bodies so a body is never
+wholesale-replaced, at which point nothing needs to be deferred at all.
+
+#### ⚠⚠ And a rebuild must trust the DOM, not what it last remembered being told
+
+Freezing the panel for the press fixed the **click** and did nothing for the
+**section dropdowns**, which stayed impossible to open above about 4×. They are a
+different failure with the same shape, and worth keeping separate in your head:
+
+A `<details>` is opened by the browser as the click's **default action**, and the
+`toggle` event that reports it is fired **asynchronously**. The click therefore
+succeeds — and then an ordinary render lands before the toggle task runs,
+replaces the element, and rebuilds it from `#openSections`, which nothing has
+updated yet. Measured 2026-08-09 on a live host:
+
+| speed | order after pressing a summary | sticks? |
+| --- | --- | --- |
+| paused, 4× | `click` → **`toggle`** → rebuild | ✓ |
+| 8×, 32× | `click` → rebuild → rebuild → … (**no `toggle` at all**) | ✘ |
+
+So the structural pass harvests the live `<details open>` states first
+(`#syncOpenSections`). **State the DOM already holds is not the renderer's to
+re-derive** — and an event that tells you about it is a courtesy that arrives on
+its own schedule. ⚠ Only sections currently in the DOM are folded in: an id for a
+section this selection does not show keeps whatever the viewer last chose, or
+opening a section on one animal would close it on every other.
+
+⚠ One consequence worth knowing: because a rebuild re-inserts an already-open
+`<details>`, the browser fires a `toggle` for it **every time**. The listener now
+returns early when the open-set already agrees — it used to write the whole set
+to `localStorage` on each one, which is a *synchronous* main-thread write, ~50 a
+second with three sections expanded.
 
 ### Two passes: values are patched, shapes are rebuilt
 
@@ -982,6 +1089,36 @@ run and a tick-by-tick one end byte-identical).
 
 The cost it exposes is P12 (§1.3): the delta is ~95% event payload against a
 bounded outbox, so a long step drops events while keeping world state exact.
+
+### ⚠⚠ The same coalescing now applies to the running clock _(2026-08-09)_
+
+`maxBroadcastsPerSecond` (20) caps the **real-time** loop the same way, and the
+reason it had to is a renderer problem even though the fix is server-side. Per
+tick the delta is 180–310 KB, so at 32× the socket carried **6.9 MB/s** — and a
+client that cannot drain that does not merely fall behind visually. **A
+`command.result` is delivered on the same socket, in order, behind the backlog**,
+so it misses `WebSocketRendererTransport`'s 5 s `COMMAND_TIMEOUT_MS` and the
+status bar reports `simulation.pause failed` about a pause that the host executed
+in two milliseconds. Measured on a client throttled to a tenth of a modern
+machine: **99–109 ticks (~3 s) behind** at 32×, page event-loop lag **p95 105 ms**
+— clicks land nowhere, keys arrive late, and the world keeps moving for a second
+or two after it has already stopped.
+
+⚠ **The renderer's own half of it was in `RendererApp.start`**: a store change
+marked the frame dirty **and rebuilt every panel synchronously**, so the canvas
+was frame-gated while the DOM ran at the *simulation's* cadence. `EventLog.render`
+rebuilds up to 200 `<li>` from scratch, and the churn scaled exactly with speed —
+**48 nodes/s at 1×, 1095/s at 32×** — for a panel a viewer reads about twice a
+second. Panels now update inside the frame, beside the draw they belong with.
+**Anything driven by the delta stream rather than by the frame is a hot path
+wearing a disguise**, and this one hid behind a correctly-gated canvas for eight
+phases.
+
+⚠ A joining client is now sent `runner.getBroadcastSnapshot()` — the base of the
+delta chain — rather than a freshly built world, because mid-window the engine is
+ahead of the last broadcast and a client standing on the fresher world desyncs on
+the very next frame. The unbounded `/api/snapshot` (which is what desync recovery
+fetches) comes from the same place; a bounded region query still reads live.
 
 ---
 

@@ -94,8 +94,8 @@ body {
 }
 
 /* ---- main area ----
-   Four columns: the event log on the left, the grid in the middle, then
-   population, then the controls/inspector/legend sidebar. Each aside's width is
+   Five columns: the event log, the docked inspector, the grid, population, and
+   the controls/legend sidebar. The inspector's track is 0 wide while it floats. Each aside's width is
    a custom property so a drag handle can rewrite it (ui/columnResize.js); the
    fallbacks here are also the minimum widths, ⚠ and are restated in
    RESIZABLE_COLUMNS — they have to agree, or the first drag jumps. */
@@ -103,11 +103,27 @@ body {
   display: grid;
   grid-template-columns:
     var(--events-width, 260px)
+    var(--inspector-track, 0px)
     1fr
     var(--population-width, 300px)
     var(--sidebar-width, 300px);
   gap: 4px;
   min-height: 0;
+}
+
+/* ⚠ **The inspector's track is 0 until it is docked**, and collapsing the track
+   is the point rather than hiding the aside: a hidden item still holds its grid
+   column open, so the map would keep a dead 300px gutter beside it whenever the
+   panel was floating. `data-inspector` is written by InspectorPanel on every
+   dock and undock, so one attribute drives the track, the aside and the handle
+   together and they cannot disagree. */
+#main[data-inspector="docked"] {
+  --inspector-track: var(--inspector-width, 300px);
+}
+
+#main:not([data-inspector="docked"]) #inspector-column,
+#main:not([data-inspector="docked"]) .col-resizer[data-resize="inspector-column"] {
+  display: none;
 }
 
 /* ⚠ **Every child of `#main` is placed explicitly**, and that is not tidiness.
@@ -125,16 +141,20 @@ body {
   grid-column: 1;
 }
 
-#viewport-wrap {
+#inspector-column {
   grid-column: 2;
 }
 
-#population-column {
+#viewport-wrap {
   grid-column: 3;
 }
 
-#sidebar {
+#population-column {
   grid-column: 4;
+}
+
+#sidebar {
+  grid-column: 5;
 }
 
 /* ---- column drag handles ----
@@ -162,20 +182,27 @@ body {
   margin-right: -5px;
 }
 
-.col-resizer[data-resize="population-column"] {
-  grid-column: 3;
-  justify-self: start;
-  margin-left: -5px;
+/* Like the events column, the inspector grows rightward from its inner edge. */
+.col-resizer[data-resize="inspector-column"] {
+  grid-column: 2;
+  justify-self: end;
+  margin-right: -5px;
 }
 
-.col-resizer[data-resize="sidebar"] {
+.col-resizer[data-resize="population-column"] {
   grid-column: 4;
   justify-self: start;
   margin-left: -5px;
 }
 
+.col-resizer[data-resize="sidebar"] {
+  grid-column: 5;
+  justify-self: start;
+  margin-left: -5px;
+}
+
 /* ---- panel columns ----
-   The three asides are the same thing in different places, so they share one
+   The four asides are the same thing in different places, so they share one
    rule rather than one per id: a panel behaves identically whichever column it
    is in, which is what let the population panel move out of the sidebar without
    touching its own styling. */

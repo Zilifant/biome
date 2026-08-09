@@ -5810,6 +5810,52 @@ something new when full, because the alternative deletes live state. Tombstones
 evict, because there the oldest entry is genuinely the least useful and
 `forgotten` is a reportable answer.
 
+#### ⚠⚠ The broadcast cadence is bounded too _(2026-08-09)_
+
+**`maxBroadcastsPerSecond` (20) caps how often the world is _reported_, which is
+not how often it is simulated.** Above 20 ticks a second the runner keeps
+stepping at full speed and emits one delta per window, exactly as `stepManually`
+has coalesced multi-tick steps since C4 — a delta is a **diff between two
+snapshots, not a replay**, so a window covering four ticks is as correct as one
+covering one. At or below 20× nothing changes at all, which is what keeps every
+existing world, test and recording where it was.
+
+⚠ **What it fixes is not server load.** _Measured 2026-08-09 on the hosted world:_
+the runner spends **10.6 ms per tick** (step 3.4, full snapshot 4.5, delta 1.9,
+stringify 0.85) and its event-loop lag stays under **27 ms even at 64×** — the
+host is never the thing that stops answering. The delta is **180–310 KB**, so
+per-tick reporting was **6.9 MB/s at 32×**, and the *client* is what falls
+behind. When it does, **everything the viewer touches breaks at once**, because
+`command.result` shares the socket with the delta stream and is delivered behind
+it: measured on a client throttled to a tenth of this machine, the view ran **109
+ticks (~3.4 s) behind** at 32×, so a pause landed instantly on the host, appeared
+seconds later on screen, and reported `failed` when the reply missed the
+transport's 5 s timeout. **One backlog, three symptoms, none of them the
+simulation's fault.**
+
+⚠ **Pause, stop and restart flush the pending window** (restart drops it — the
+ticks belong to a world that no longer exists). A viewer who pauses must be
+looking at the tick the host actually stopped on; an unflushed window would leave
+the picture a few ticks behind the state every command result describes, which is
+the same mismatch in miniature.
+
+⚠⚠ **A joining or recovering client is given the _chain base_, never the freshest
+world** — `getBroadcastSnapshot()` rather than `getFullSnapshot()`. Mid-window the
+engine is ahead of the last broadcast, and a client standing on the fresher world
+receives the next delta with a `baseTick` behind its own tick, which `RendererStore`
+treats as a desync: it asks for a snapshot, is handed a fresh one again, and goes
+round. Both the WebSocket connect and the **unbounded** `/api/snapshot` come from
+the chain base for exactly this reason; a *bounded* region query is a question
+about the world rather than a place to stand, and is still answered live.
+
+⚠ **The renderer has the same rule on the other side** (`RendererApp`): a store
+change marks the frame dirty and nothing more. Panel DOM used to be rebuilt
+synchronously per delta while the canvas was frame-gated — `EventLog.render`
+rebuilds up to 200 `<li>` from scratch — and the churn scaled exactly with speed:
+**48 nodes/s at 1×, 1095/s at 32×**, for a panel a viewer reads about twice a
+second. **Anything driven by the delta stream instead of the frame is a hot path
+wearing a disguise.**
+
 ---
 
 ## 12. Persistence

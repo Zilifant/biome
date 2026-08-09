@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect } from './helpers/app.js';
+import { test, expect, floatInspector } from './helpers/app.js';
 
 /**
  * `color-contrast` is disabled deliberately. The Dracula `comment` token
@@ -31,6 +31,7 @@ test.describe('accessibility (axe)', () => {
   test('the inspector, once open, has no serious or critical violations', async ({ appPage: page }) => {
     // Selecting a cell mounts the inspector popover (role=dialog) — its own DOM
     // to check, distinct from the resting layout.
+    await floatInspector(page);
     const canvas = await page.locator('#biome-canvas').boundingBox();
     await page.mouse.click(canvas.x + 300, canvas.y + 300);
     await expect(page.locator('.inspector-popover')).toBeVisible();

@@ -131,9 +131,17 @@ export class RendererApp {
 
   start() {
     this.#store.setMode(this.#mode);
+    // ⚠⚠ **A store change marks the frame dirty and does nothing else**
+    // (2026-08-09). It used to rebuild the panels here, synchronously, once per
+    // delta — so the canvas was properly frame-gated while the *DOM* ran at the
+    // simulation's cadence. `EventLog.render` rebuilds up to 200 `<li>` from
+    // scratch, and measured against a live host the churn scaled exactly with
+    // speed: **48 nodes/s at 1× and 1095/s at 32×**, for a panel a viewer can
+    // read about twice a second. Panels now update in the frame, beside the draw
+    // they belong with, which bounds them by refresh rate instead of by tick
+    // rate and leaves the main thread free to answer a click.
     this.#store.subscribe(() => {
       this.#dirty = true;
-      this.#updatePanels();
     });
     this.#transport.subscribe((event) => this.#onTransportEvent(event));
 
@@ -212,7 +220,10 @@ export class RendererApp {
           socialGroups: this.#socialGroups(),
           territories: this.#territoryGroups(),
         });
-        this.#ui.statusPanel.update(this.#store, this.#camera, this.#runState);
+        // The whole panel set, not just the status bar: they read the same store
+        // the draw just read, and updating them anywhere else is what put DOM
+        // work on the delta stream.
+        this.#updatePanels();
       }
       requestAnimationFrame(frame);
     };
@@ -529,8 +540,10 @@ export class RendererApp {
       // they are.
       if (inspection?.found && this.#store.selection?.activeId === entityId) {
         this.#inspectionDetail = inspection;
+        // Marking dirty is the whole update: the frame renders the panels. This
+        // poll is once a second, so it could afford to do it here — but two
+        // routes to the same DOM is how one of them ends up on a hot path.
         this.#dirty = true;
-        this.#updatePanels();
       }
     } catch {
       // Inspection detail is optional enrichment; the store view stands alone.

@@ -10,7 +10,8 @@
   <body>
     <div id="app">
       <header id="status-bar"></header>
-      <!-- Four columns: events, the grid, population, and the sidebar. Each aside
+      <!-- Five columns: events, the docked inspector, the grid, population, and
+         the sidebar. The inspector's track collapses to nothing while it floats. Each aside
          carries a drag handle on its *inner* edge (the one facing the grid),
          placed in the same grid track as the column it resizes so it overlays
          the column edge rather than taking a track of its own. -->
@@ -21,6 +22,22 @@
         <div
           class="col-resizer"
           data-resize="events-column"
+          role="separator"
+          aria-orientation="vertical"
+          tabindex="0"
+          title="Drag to resize · arrow keys to nudge · double-click to reset"
+        ></div>
+        <!-- The docked inspector's own column, mirroring the population column
+           on the other side of the grid. It is the default home for the
+           inspector; floating it collapses this track to nothing (see
+           `#main[data-inspector]` in renderer.css) rather than leaving an empty
+           gutter beside the map. -->
+        <aside id="inspector-column" class="panel-column">
+          <section id="inspector-panel" aria-label="Cell inspector"></section>
+        </aside>
+        <div
+          class="col-resizer"
+          data-resize="inspector-column"
           role="separator"
           aria-orientation="vertical"
           tabindex="0"
@@ -51,13 +68,6 @@
             aria-label="Simulation and camera controls"
           ></section>
           <section id="layers-panel" aria-label="Map layers"></section>
-          <!-- Dock target for the inspector. Hidden until the floating popover is
-             docked into it; the popover is the default surface. -->
-          <section
-            id="inspector-panel"
-            aria-label="Cell inspector"
-            hidden
-          ></section>
           <section id="legend-panel" aria-label="Glyph legend"></section>
         </aside>
         <div

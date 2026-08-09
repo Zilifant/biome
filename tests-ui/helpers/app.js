@@ -323,6 +323,22 @@ export async function waitForRender(page) {
   );
 }
 
+/**
+ * Float the inspector out of its column, for the specs that are about the
+ * popover itself.
+ *
+ * ⚠ **The inspector docks by default since 2026-08-09**, so "select a cell and
+ * the popover appears" stopped being true — the panel renders into
+ * `#inspector-column` instead and the popover stays hidden. Three specs assert
+ * popover behaviour (its visibility, that a drag does not open it, that Esc
+ * closes it); they now ask for it explicitly rather than relying on a default
+ * that has moved.
+ */
+export async function floatInspector(page) {
+  await page.locator('#inspector-column [data-panel="dock"]').click();
+  await expect(page.locator('#inspector-column')).toBeHidden();
+}
+
 /** Dracula tokens the renderer draws with, as [r,g,b]. */
 export const COLORS = Object.freeze({
   selection: [68, 71, 90], // #44475A — the selected-cell fill

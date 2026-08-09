@@ -38,7 +38,11 @@ export function attachWebSocketTransport({ httpServer, runner, path = '/ws' }) {
   const wss = new WebSocketServer({ server: httpServer, path });
 
   wss.on('connection', (socket) => {
-    send(socket, MessageTypes.SNAPSHOT_FULL, runner.getFullSnapshot());
+    // ⚠ The **broadcast** snapshot, not a freshly built one: it is the base of
+    // the delta chain, and a client standing anywhere else desyncs on the very
+    // next frame (see SimulationRunner.getBroadcastSnapshot). It is also free —
+    // already built — where a fresh one costs ~4.5 ms and 300 KB per connect.
+    send(socket, MessageTypes.SNAPSHOT_FULL, runner.getBroadcastSnapshot());
     socket.on('message', (raw) => {
       let message;
       try {

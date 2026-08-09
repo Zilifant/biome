@@ -1,27 +1,55 @@
 import { test, expect, waitForRender } from './helpers/app.js';
 
 test.describe('layout', () => {
-  test('four columns, left to right: events, grid, population, sidebar', async ({ appPage: page }) => {
+  test('five columns, left to right: events, inspector, grid, population, sidebar', async ({ appPage: page }) => {
     // The event log has its own column on the left; population moved out of the
-    // sidebar into a column of its own between the grid and the sidebar.
+    // sidebar into a column of its own between the grid and the sidebar; and the
+    // inspector (2026-08-09) got the mirror of that on the left.
     await expect(page.locator('#events-column #event-log-panel')).toHaveCount(1);
     await expect(page.locator('#sidebar #event-log-panel')).toHaveCount(0);
     await expect(page.locator('#population-column #metrics-panel')).toHaveCount(1);
     await expect(page.locator('#sidebar #metrics-panel')).toHaveCount(0);
+    await expect(page.locator('#inspector-column #inspector-panel')).toHaveCount(1);
+    await expect(page.locator('#sidebar #inspector-panel')).toHaveCount(0);
 
     const events = await page.locator('#events-column').boundingBox();
+    const inspector = await page.locator('#inspector-column').boundingBox();
     const canvas = await page.locator('#biome-canvas').boundingBox();
     const population = await page.locator('#population-column').boundingBox();
     const sidebar = await page.locator('#sidebar').boundingBox();
-    expect(events.x).toBeLessThan(canvas.x);
+    expect(events.x).toBeLessThan(inspector.x);
+    expect(inspector.x).toBeLessThan(canvas.x);
     expect(canvas.x).toBeLessThan(population.x);
     expect(population.x).toBeLessThan(sidebar.x);
   });
 
-  test('the sidebar holds controls, legend, and the inspector dock', async ({ appPage: page }) => {
-    for (const id of ['controls-panel', 'legend-panel', 'inspector-panel']) {
+  test('the sidebar holds controls and the legend', async ({ appPage: page }) => {
+    for (const id of ['controls-panel', 'legend-panel']) {
       await expect(page.locator(`#sidebar #${id}`)).toHaveCount(1);
     }
+  });
+
+  test('⚠ the inspector starts docked, and floating it gives the grid the room back', async ({ appPage: page }) => {
+    // Docked is the default since 2026-08-09: the panel is read while the world
+    // runs, and floating it puts it over the very thing it describes. Floating
+    // must **collapse the track**, not merely hide the aside — a hidden grid
+    // item still holds its column open, which would leave a dead gutter.
+    const column = page.locator('#inspector-column');
+    await expect(column).toBeVisible();
+    const gridBefore = (await page.locator('#viewport-wrap').boundingBox()).width;
+
+    await page.locator('#inspector-column [data-panel="dock"]').click();
+    await expect(column).toBeHidden();
+    // ⚠ The popover is *not* asserted visible here: with nothing selected it is
+    // correctly hidden, because visibility is derived from `store.selection`
+    // rather than from a flag of the panel's own. Floating is about where the
+    // panel lives; whether it is showing is a different question.
+    const gridAfter = (await page.locator('#viewport-wrap').boundingBox()).width;
+    expect(gridAfter).toBeGreaterThan(gridBefore + 100);
+    // ⚠ The return trip is not asserted here, and that is a fact about the panel
+    // rather than a gap: the popover — and so its dock button — is only shown
+    // when something is selected, because visibility is derived from
+    // `store.selection`. Re-docking is exercised where a selection exists.
   });
 
   test('the status bar reports fixture mode and the fixture world', async ({ appPage: page }) => {

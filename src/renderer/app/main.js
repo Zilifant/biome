@@ -58,8 +58,10 @@ if (spriteMode) {
 }
 const ui = {
   statusPanel: new StatusPanel(document.getElementById('status-bar')),
-  // The inspector floats over the grid, anchored to the cell you clicked, and
-  // can be docked into the sidebar instead. Both are hosts for one view.
+  // The inspector lives in a column of its own by default, and can be floated
+  // over the grid anchored to the cell you clicked instead. Both are hosts for
+  // one view. ⚠ `dockHost` is the section inside `#inspector-column`, not the
+  // sidebar: floating collapses that whole column (see renderer.css).
   inspector: new InspectorPanel({
     floatingHost: document.getElementById('viewport-wrap'),
     dockHost: document.getElementById('inspector-panel'),

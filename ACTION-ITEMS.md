@@ -1131,6 +1131,7 @@ they are not re-opened by accident.
 
 ## Engine — performance and payload
 
+
 - **The mature performance target is not reached.** ~25 000 behaviourally complex
   animals inside a one-second tick. Linear extrapolation from large-5k puts ~25k
   entities at ~220 ms/tick, but that assumes the world grows with the population
@@ -1273,6 +1274,27 @@ they are not re-opened by accident.
   engine backward at all.** Resolved by whatever Phase D decides; currently
   stated in the UI rather than worked around.
 
+- **P23 — A section body is replaced wholesale, so the panel has to freeze
+  itself while it is being clicked, and a rebuild has to read its own open
+  sections back out of the DOM** _(2026-08-09)_. `#patchSections` writes
+  `host.innerHTML = body` for any section whose content changed, which at speed
+  is most of them most ticks — and replacing the node under a finger is what
+  stops a `click` from firing at all (§5). The shipped fix defers the whole
+  render for the length of a press, which works and is bounded, but it treats the
+  symptom. The panel's own stated rule is **values are patched, shapes are
+  rebuilt**, and section bodies are the one place that does both: extending the
+  `data-live` mechanism into them would mean a body is never replaced, and
+  nothing would need deferring. See DOCS-RENDERER §5.
+- **⚠⚠ P22 — The per-tick delta is 180–310 KB, and two thirds of it is re-sent
+  rather than diffed** _(2026-08-09)_. `updated` carries complete public entity
+  objects rather than field patches (`snapshots.js`: "favors correctness over
+  compression"), so every animal that moved ships all ~40 whitelisted fields every
+  tick — **121–180 KB**. `features` re-sends every worn cell whenever its revision
+  moves, ~80% of ticks — **11–72 KB** — where `vegetation` and `territory` carry
+  real sparse diffs and cost ~1 KB. Broadcast coalescing (2026-08-09) capped the
+  *rate* at 20/s and measurably fixed the reported unresponsiveness; this is the
+  *size*, and it is the next lever. A sparse `features` diff is a copy of
+  `diffVegetation` and needs no protocol bump; field patches for `updated` do. See DOCS §11.
 - **⚠ P12 — A coalesced delta is ~95% event payload**, and a step long enough to
   overrun the bounded outbox drops events: ~77 000 emitted at 500 ticks, 8 810
   delivered. World state stays exact; the narration does not. The named fix is

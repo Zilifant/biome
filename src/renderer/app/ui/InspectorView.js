@@ -695,6 +695,27 @@ export class InspectorView {
   #openSections = loadOpenSections();
   /** Hosts whose listeners are already bound. @type {WeakSet<HTMLElement>} */
   #boundHosts = new WeakSet();
+  /**
+   * ⚠⚠ **Whether a press is being held inside this panel — while it is, the
+   * panel does not touch its own DOM at all**, and nothing less than that works.
+   *
+   * Measured 2026-08-09 at 32×: **112 DOM mutations landed inside a 120 ms
+   * press**, and the browser dispatched `pointerdown` and `pointerup` on the
+   * button but **no `click` at all** — the two halves hit different node
+   * objects, and a click requires one. Deferring only the *section body* patch
+   * was not enough, because most of that churn is the **structural** rebuild
+   * (`#buildMarkup`, which rewrites the whole container): at speed the shape
+   * signature changes almost every tick, mostly because a section such as
+   * "Recent events" appears and disappears as events about the animal age out.
+   *
+   * So the whole render is deferred, not part of it, and the latest one is
+   * replayed the moment the press ends. The cost is bounded by how long a finger
+   * is down — about a tenth of a second of staleness in one panel — against a
+   * panel that otherwise cannot be clicked at all while the world moves.
+   */
+  #pressHeld = false;
+  /** The most recent render skipped during a press, replayed on release. @type {any[] | null} */
+  #deferredRender = null;
 
   /**
    * @param {{onCycle: () => void, onFollowToggle: () => void}} callbacks
@@ -720,6 +741,45 @@ export class InspectorView {
     // then write the open-set once per past mount.
     if (this.#boundHosts.has(host)) return;
     this.#boundHosts.add(host);
+    // ⚠⚠ **Nothing may rewrite this panel while a finger is down on it**, and
+    // the two listeners below are the whole of how that is enforced.
+    //
+    // A `click` is only dispatched when the press and the release land on the
+    // *same node*. This view rewrites its own container — `#patchSections`
+    // replaces section bodies, `#buildMarkup` replaces everything — on every
+    // render, and at speed the structure signature changes almost every tick
+    // (a section such as "Recent events" appears and disappears as events about
+    // the animal age out). Measured 2026-08-09 at 32×: the browser dispatched
+    // `pointerdown` and `pointerup` on the button and **no `click` at all**, so
+    // the panel silently stopped answering the mouse — only the mouse, and only
+    // while the world moved fast enough to rebuild inside the ~100 ms a human
+    // click takes. At 1× a rebuild lands inside maybe one press in ten.
+    //
+    // ⚠ Delegation on this stable host is what keeps the *listener* alive across
+    // those rebuilds, and it does — that is why it was written this way. What
+    // delegation cannot preserve is the node the click needs to fire on.
+    host.addEventListener('pointerdown', () => {
+      this.#pressHeld = true;
+    });
+    // ⚠ The release listens on the **document**, not on the host: a press that
+    // ends outside the panel still ends, and a `#pressHeld` left true would
+    // freeze this panel for good.
+    const releasePress = () => {
+      if (!this.#pressHeld) return;
+      this.#pressHeld = false;
+      const pending = this.#deferredRender;
+      this.#deferredRender = null;
+      // ⚠⚠ **After the click, not during the release.** `click` is dispatched
+      // once `pointerup` has been handled, and only to the node the press and
+      // the release both landed on — so rendering *here* deletes that node a
+      // moment before the browser looks for it, and the click never fires. This
+      // cost a full measurement round to find: the panel was correctly frozen
+      // for the whole press and the click still vanished, because the fix
+      // itself had become the thing doing the destroying.
+      if (pending) setTimeout(() => this.render(...pending), 0);
+    };
+    document.addEventListener('pointerup', releasePress);
+    document.addEventListener('pointercancel', releasePress);
     host.addEventListener('click', (event) => {
       const action = event.target?.closest?.('[data-action]')?.dataset?.action;
       if (action === 'cycle') this.#callbacks.onCycle();
@@ -734,7 +794,15 @@ export class InspectorView {
       (event) => {
         const id = event.target?.dataset?.section;
         if (!id) return;
-        if (event.target.open) this.#openSections.add(id);
+        const open = event.target.open === true;
+        // ⚠ **Only when it actually changed.** `localStorage` is synchronous, on
+        // the main thread — and since a rebuild re-inserts an already-open
+        // `<details>`, the browser fires a `toggle` for it every time. This used
+        // to write the whole open-set on each one: at 16 rebuilds a second with
+        // three sections expanded, that is ~50 synchronous writes a second to
+        // record something nobody changed.
+        if (open === this.#openSections.has(id)) return;
+        if (open) this.#openSections.add(id);
         else this.#openSections.delete(id);
         saveOpenSections(this.#openSections);
       },
@@ -751,6 +819,13 @@ export class InspectorView {
    */
   render(store, inspectionDetail, cell = null) {
     if (!this.#container) return;
+    // ⚠ Hold every write while a finger is down — see `#pressHeld`. Only the
+    // latest render is kept: they are all "describe the world as it is now", so
+    // replaying the newest one on release is the same answer sooner.
+    if (this.#pressHeld) {
+      this.#deferredRender = [store, inspectionDetail, cell];
+      return;
+    }
     const selection = store.selection;
     const active = selection?.activeId != null ? store.getEntity(selection.activeId) : null;
     const live = active && inspectionDetail?.entity?.id === active.id ? inspectionDetail.entity : null;
@@ -778,6 +853,17 @@ export class InspectorView {
     // filled by one patch pass, so there is exactly one place that knows how a
     // live value is formatted.
     this.#signature = signature;
+    // ⚠⚠ **Read the open sections back out of the DOM first**, because the DOM
+    // may know something this object does not yet. A `<details>` is opened by
+    // the browser as the click's default action and the `toggle` event that
+    // tells us about it is fired **asynchronously** — so above about 4× a
+    // rebuild lands in between, replaces the element, and recreates it from an
+    // open-set that was never told. Measured 2026-08-09: at 8× and 32× the
+    // sequence after a press on a summary is `click` → rebuild → rebuild → …
+    // with **no `toggle` at all**, and the section snaps shut the instant it is
+    // opened. Harvesting makes a rebuild preserve what the panel is actually
+    // showing rather than what it last remembered being told.
+    this.#syncOpenSections();
     this.#buildMarkup(store, selection, active, inspectionDetail, cell, sections);
     this.#liveNodes = new Map();
     for (const node of this.#container.querySelectorAll('[data-live]')) {
@@ -816,6 +902,28 @@ export class InspectorView {
    * The id *set* is part of the structure signature, so by the time this runs
    * the sections are known to be the same ones in the same order.
    */
+  /**
+   * Fold the live `<details>` states back into the remembered open-set.
+   *
+   * ⚠ Only sections currently in the DOM are touched: an id belonging to a
+   * section this selection does not show must keep whatever the viewer last
+   * chose for it, or opening a section on one animal would quietly close it for
+   * every other.
+   */
+  #syncOpenSections() {
+    if (!this.#container) return;
+    let changed = false;
+    for (const node of this.#container.querySelectorAll('[data-section]')) {
+      const id = node.dataset.section;
+      const open = node.open === true;
+      if (open === this.#openSections.has(id)) continue;
+      if (open) this.#openSections.add(id);
+      else this.#openSections.delete(id);
+      changed = true;
+    }
+    if (changed) saveOpenSections(this.#openSections);
+  }
+
   #patchSections(sections) {
     for (const { id, badge, body } of sections) {
       const rendered = `${badge} ${body}`;

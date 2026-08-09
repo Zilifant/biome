@@ -20,11 +20,13 @@ test.describe('entity id references are navigable', () => {
 
     // Click a handful; at least one references an entity that is in view and must
     // open the inspector, and none may throw.
+    // ⚠ The inspector docks by default, so "did it open" is about the docked
+    // column now — the popover only appears when a viewer asks it to float.
     const count = Math.min(await refs.count(), 5);
     let inspectorOpened = false;
     for (let i = 0; i < count; i += 1) {
       await refs.nth(i).click();
-      if (await page.locator('.inspector-popover').isVisible()) inspectorOpened = true;
+      if ((await page.locator('#inspector-column .dock-body details[data-section]').count()) > 0) inspectorOpened = true;
     }
 
     expect(errors).toEqual([]);

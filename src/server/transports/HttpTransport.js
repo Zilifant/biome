@@ -55,7 +55,13 @@ export function createHttpRouter(runner, { presets } = {}) {
       res.status(400).json({ ok: false, error: { code: 'invalid-bounds', message: formatErrors(parsed.errors) } });
       return;
     }
-    res.json(runner.getFullSnapshot({ bounds: parsed.bounds }));
+    // ⚠ An unbounded snapshot is what a desynchronized client recovers onto, so
+    // it must be the base of the delta chain rather than the freshest possible
+    // world — otherwise recovery hands back a snapshot the next delta cannot
+    // chain to and the client desyncs again (SimulationRunner.getBroadcastSnapshot).
+    // A *bounded* request is a question about a region, chains to nothing, and
+    // is still answered from the live world.
+    res.json(parsed.bounds ? runner.getFullSnapshot({ bounds: parsed.bounds }) : runner.getBroadcastSnapshot());
   });
 
   router.get('/terrain', (_req, res) => {

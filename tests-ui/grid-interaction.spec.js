@@ -1,8 +1,18 @@
-import { test, expect, readRegion, countColor, canvasCursor, gridViewportPoint, COLORS } from './helpers/app.js';
+import { test, expect, readRegion, countColor, canvasCursor, gridViewportPoint, COLORS, floatInspector } from './helpers/app.js';
 
-// A cell well inside the grid, away from the edges and the panels.
-const GX = 300;
-const GY = 300;
+// A point well inside the grid, away from its edges.
+//
+// ⚠ **Derived from the canvas, not hard-coded** (2026-08-09). These were the
+// literals 300,300, which sat inside the canvas until the inspector took a
+// column of its own and the map narrowed — at a 1440-px window the grid is now
+// ~264 px wide, so the "cell well inside the grid" was off the canvas entirely
+// and every hover and click in this file silently did nothing. A coordinate into
+// a canvas whose size depends on the panel layout has to be computed from that
+// canvas.
+const gridPoint = async (page) => {
+  const box = await page.locator('#biome-canvas').boundingBox();
+  return { gx: Math.round(box.width * 0.45), gy: Math.round(box.height * 0.4) };
+};
 
 test.describe('grid interaction', () => {
   test('the grid shows a crosshair cursor; hovering a cell draws yellow brackets that clear on leave', async ({
@@ -17,6 +27,7 @@ test.describe('grid interaction', () => {
       await page.mouse.move(sidebar.x + 20, sidebar.y + 20);
     };
     await parkAway();
+    const { gx: GX, gy: GY } = await gridPoint(page);
     const baselineYellow = countColor(await readRegion(page, GX - 9, GY - 9, 18, 18), COLORS.brightYellow);
 
     // Hover the cell → yellow bracket pixels appear on it.
@@ -35,6 +46,7 @@ test.describe('grid interaction', () => {
 
   test('dragging pans the camera with a move cursor and never selects', async ({ appPage: page }) => {
     const camBefore = await page.locator('#status-camera').textContent();
+    const { gx: GX, gy: GY } = await gridPoint(page);
     const from = await gridViewportPoint(page, GX, GY);
 
     await page.mouse.move(from.x, from.y);
@@ -48,12 +60,15 @@ test.describe('grid interaction', () => {
 
     // Camera moved…
     await expect.poll(async () => page.locator('#status-camera').textContent()).not.toBe(camBefore);
-    // …and a drag never opens the inspector.
+    // …and a drag never opens the inspector. ⚠ Asked to float first: the panel
+    // docks by default now, and a docked panel is always "visible".
     await expect(page.locator('.inspector-popover')).toBeHidden();
     await expect(page.locator('#biome-canvas')).not.toHaveClass(/dragging/);
   });
 
   test('clicking selects a cell (grey fill + inspector); the grey fill is selection-only', async ({ appPage: page }) => {
+    await floatInspector(page);
+    const { gx: GX, gy: GY } = await gridPoint(page);
     const point = await gridViewportPoint(page, GX, GY);
     await page.mouse.click(point.x, point.y);
 
@@ -69,10 +84,15 @@ test.describe('grid interaction', () => {
       .poll(async () => countColor(await readRegion(page, GX - 7, GY - 7, 14, 14), COLORS.selection, SELECTION_TOL))
       .toBeGreaterThan(0);
     // …but a different, unselected cell does not.
-    expect(countColor(await readRegion(page, GX + 80, GY, 14, 14), COLORS.selection, SELECTION_TOL)).toBe(0);
+    // ⚠ A cell *back* from the probe, not 80px forward: the grid is narrower than
+    // it was and forward ran off the canvas, which reads as "no selection colour"
+    // for the wrong reason and would pass even if the fill leaked everywhere.
+    expect(countColor(await readRegion(page, Math.max(0, GX - 60), GY, 14, 14), COLORS.selection, SELECTION_TOL)).toBe(0);
   });
 
   test('Escape clears the selection and leaves no focus border on the map', async ({ appPage: page }) => {
+    await floatInspector(page);
+    const { gx: GX, gy: GY } = await gridPoint(page);
     const point = await gridViewportPoint(page, GX, GY);
     await page.mouse.click(point.x, point.y);
     await expect(page.locator('.inspector-popover')).toBeVisible();
