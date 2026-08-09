@@ -834,6 +834,16 @@ they are not re-opened by accident.
 
 ## Engine — schema and configuration
 
+- **A96 — The three water features are unmeasured, and the marsh is the one that
+  matters** _(2026-08-08, TERRAIN-PLAN.md)_. Ponds, a stream and a marsh ship on
+  by default and no ecological reading was taken of any of them — deliberately, but
+  the exposure is real: all three add **drinkable water**, and a 5% marsh is a large
+  permanent water source that is not the lake. Second-order, and easier to forget:
+  the marsh also converts open ground to cover (more grass), thicket (refuge, and
+  sight-blocking) and trees (shelter, and a leopard's larder), in a region that is
+  by construction next to water. The instrument is `npm run sweep`, ten seeds,
+  `marsh: 0` as the control. See DOCS §1.4 and §7 Terrain.
+
 - **A81 — Three species did not persist in the crater demo, and the demo is no
   longer held to a knife edge** _(2026-08-04; **the open half closed 2026-08-07**)_.
   ✅ **`default-small` has now been swept** (PREDATOR-PLAN P8, 10 seeds × 15 000):

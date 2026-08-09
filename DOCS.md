@@ -92,7 +92,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | --------------------- | ------------------------------------------------------ |
 | Roadmap               | Steps 1–30 complete; the plan is finished              |
 | Tests                 | ⚠⚠ **Not fully verifiable in a sandboxed shell as of 2026-08-07** — `npm test` **hangs** partway (**A95**), so the last complete figure below is historical. What is known at 2026-08-07 after PREDATOR-PLAN: the **fast tier is 1255 passing / 0 failing / 5 cancelled**, and the demo tier carries **2 known-stale assertions** in `test/cooperation.test.js`'s batch-2 block (**A92**) that describe the pre-P5 prey partition. The persistence and determinism tiers are **unrun**. Was **1386 passing / 0 failing, 336 suites** _(2026-08-07, after the demo became `default-small`: +1 in `test/cohorts.test.js` for the stranded fifth lion this roster produces)_. ⚠ The run is `npm test`, TAP: 1391 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for; they pass **20/20** run alone. ⚠⚠ **Three suites were recalibrated in that change and two of them were asserting something false**, each documented in place. (1) `test/groups.test.js` asserted a record can never hold one member — which contradicts `groups.dissolveGraceTicks: 300` (A56/P5a, 2026-08-05), whose entire purpose is to let a record survive below `minMembers`. It had passed for two days by luck, because no record on seed 42 happened to be inside its grace window at tick 1500. It now asserts the grace clock rather than its absence. (2) `test/consensus.test.js` counted *labels holding exactly one heading*, which weighted a label of 1 the same as a label of 24 and scored a 24-strong band a failure when one member was a tick into a fresh commitment — it measured "how many labels are small". It was already one seed from red: on the crater world it reads 74% on seed 42 (the only seed asserted) and **exactly 50% on seed 1**, which its own `> 0.5` bar fails. Replaced by distinct headings per committed animal, which reads 0.21–0.34 on `default-small` and 0.17–0.27 on the crater across five seeds against 1.0 for a true smear. (3) `test/cohorts.test.js` required `>= 2` records per forming species, which was a claim about the crater's founder counts rather than about the mechanism; the bar is now derived from the roster and the cohort size. Was **1327 passing / 0 failing, 326 suites** _(2026-08-06, after BEHAVIOR-PLAN P10: +17 in the new `test/protocol-v34.test.js` — the version/renderer/fixture agreement, a hand-checked plain-mean group centre, that centre surviving `rallyEnabled: false` **in both arms**, a dead-but-listed member excluded while a merely separated one still counts, `leaderId` flipping to the senescent animal at `leadAgeWeight: 0.5` and to the prime adult at 0, inspecting every animal leaving the save byte-identical, the four consensus fields against 25 live commitments, a commitment whose label disagrees with its herd, a projected pursuit, the `pullScale` unit guard, band spread hand-checked and distinguishing a packed band from a strung-out one, a record of one contributing no spread, and `saturated` in both arms)_. ⚠ The run is `npm test`, TAP: 1332 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1310 passing / 0 failing, 321 suites** _(2026-08-06, after BEHAVIOR-PLAN P9: +14 in `test/cooperation.test.js` — the charge and its walking control, the self-ward refusal, the stamina reserve, a commitment outliving its ward and expiring on schedule, the world's ceiling on `pursuitTicks`, flee winning against a second threat, and a save round-trip that then runs on identically)_. ⚠ The run is `npm test`, TAP: 1315 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. ⚠ P9 also **widened `test/cooperation.test.js`'s batch-2 seed list from four to six**, which costs two more 6000-tick demo runs and takes its thinnest cell from a 3-against-3 coin flip to n=10. Was **1296 passing / 0 failing, 320 suites** _(2026-08-06, after BEHAVIOR-PLAN P8: +31 in the new `test/consensus.test.js` — the circular mean and its denominator, the three-clause re-decision rule, the `atan2(0, 0)` guard, a commitment outliving a deleted cue, the strength not climbing over four commitment cycles, the dispersal gate over 100 ticks, leadership, and both off arms)_. ⚠ The run is `npm test`, TAP: 1301 tests, 5 **cancelled** — the preset-HTTP suites, which a sandboxed shell cannot bind a port for. Was **1187 passing / 0 failing, 296 suites** _(2026-08-04, after the social layer: +5 for the v33 protocol bump and +35 across `renderer-view.test.js` for the layer registry and the bubble geometry, plus `tests-ui/layers.spec.js`)_. Was **1147 passing / 0 failing** _(2026-08-04, after the demo became the ngorongoro world — the run that measured it is `node --test`, TAP: 1152 tests, 5 cancelled, being the preset-HTTP suites below)_. ⚠ Six suites were **recalibrated rather than repaired** in that change and each says so in place: the cohort digests are pinned to the pre-ngorongoro world, `FLAT_TERRAIN` zeroes `roundness`, three suites ask for a rectangle explicitly, the roundness no-op is restated as "the carve writes nothing", and the carcass steady-state window runs to 15 000 ticks (A81). Was **1131 passing / 0 failing, 283 suites** _(2026-08-04, +16 for flight, +5 for the v32 protocol bump, +5 across the renderer and movement suites for the third status shape and the narrowed impassable-cell invariant, and +3 for V1 — the vulture's ascent, the fact that a **bird** reaches a cached kill where the clan cannot, and the woodland cue asserted as a cue rather than as an occupancy share)_. Was **1106 / 278 suites** _(2026-08-03, +11 for trees, +15 for elevation, +7 for kill caching)_. Was **1004 / 252** _(2026-08-01)_. ⚠ The 5 preset-HTTP suites are **cancelled** in a sandboxed shell, identically on clean HEAD, and a full-suite run can also report one of them as failed under port contention — they pass 15/15 when run alone |
-| `PROTOCOL_VERSION`    | **34** _(2026-08-06)_ — the social mechanisms BEHAVIOR-PLAN built become **inspectable** (P10): a group's derived `centre` and `leaderId`, the three steering commitments (`social.consensus`, `social.rally`, `social.charge`), and `social.nearby`'s `pullScale` and `bandmates`. ⚠ **Nothing new rides in a bulk snapshot** — every addition is inspection-only, which is the same standing test as v33 answered the other way: these are one-animal questions, and three of the four blocks are null for most of the world. ⚠ It is the version bump the **fixtures** were waiting for: six behavioural phases (P1, P2, P3, P7, P8, P9) had landed since the last regeneration, and DOCS §12's rule is to regenerate after the last behavioural change rather than at the bump. v33 was `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
+| `PROTOCOL_VERSION`    | **38** _(2026-08-08)_ — three optional `simulation.restart` fields for the **water features**: `smallLakes` and `streams` (counts) and `marsh` (a percent of the playable map). ⚠ Deliberately **not** prevalence levels — see §11, where the break from `rocks`/`thickets`/`trees` is argued. v37 was the **claim layer** in bulk snapshots (`territory`, closing A36). Earlier: **34** _(2026-08-06)_ — the social mechanisms BEHAVIOR-PLAN built become **inspectable** (P10): a group's derived `centre` and `leaderId`, the three steering commitments (`social.consensus`, `social.rally`, `social.charge`), and `social.nearby`'s `pullScale` and `bandmates`. ⚠ **Nothing new rides in a bulk snapshot** — every addition is inspection-only, which is the same standing test as v33 answered the other way: these are one-animal questions, and three of the four blocks are null for most of the world. ⚠ It is the version bump the **fixtures** were waiting for: six behavioural phases (P1, P2, P3, P7, P8, P9) had landed since the last regeneration, and DOCS §12's rule is to regenerate after the last behavioural change rather than at the bump. v33 was `groupRecordId` in bulk snapshots, so the renderer's social layer can outline every pride, clan and band at once (§11); v32 was `flying` (phase F1); v31 was `elevation` (phase T2); v30 was reproductive state (`gestating`, `seekingMate`); v29 was the founding roster by species, host-published roster, group + possession projections |
 | `SAVE_FORMAT_VERSION` | **34** _(2026-08-06)_ — the charge and the pursuit after it (BEHAVIOR-PLAN P9): three per-entity fields (`defendUntil`, `defendThreatX`, `defendThreatY`), a new `config.charge` section, and two new `config.behavior` weights. ⚠ **No system descriptor changed** — a charge is two lines inside `DecisionSystem`, not a system — so unlike v33 the only things invalidating a v33 save are the fields and the config, which is exactly the case §12 says to bump for. v33 was the herd movement consensus (BEHAVIOR-PLAN P8): four per-entity fields (`herdHeading`, `herdStrength`, `herdCommitUntil`, `herdCommitLabel`), the `HerdConsensusSystem` descriptor, the new `config.consensus` section, and `config.groups.leadWeight`. ⚠ This is the first per-entity *drift* here that genuinely must be saved, and the contrast with P7's deliberately-transient `rallyHeading` is the reason: a commitment exists precisely to outlive its cue, so a restore that dropped it would put a marching herd back on its individual noses. v32 was A56's `belowMinSince` (P5a), where a v31 record would have restored as `undefined` and never dissolved. v31 was `flying` and the `flight` section (phase F1). ⚠ A v30 save would in fact have restored correctly — the field defaults to `false` and the missing section merges from the defaults — so this bump is the **discipline** rather than a repair: §12 says bump when persisted state changes, and a save whose format number no longer identifies its contents is worse than a loud refusal. v30 was elevation, the `climbing` section, and the tree terrain params, where the bump *was* a repair: terrain is regenerated from `config.terrain` on load, so a v29 save would rebuild its world with the new tree defaults under animals placed without them |
 | Benchmark (large-5k)  | **167.51 ms/tick** _(2026-08-07, `default-small`, 9649→11122 at 2000 ticks)_ against 133.73 on 2026-08-04 — ⚠⚠ **drift, not a regression, and measured rather than assumed.** The only thing in that change reaching the scale scenarios is `config.terrain`, which they inherit, so the formation counts going 10/10/16/120 → 18/18/24/180 was A/B'd interleaved on large-5k (three alternating pairs, 500 ticks each): **142.94 new against 149.62 old** — the new counts measure *faster*, while the old arm alone swings 132.50–169.43 on a byte-identical config. No effect to measure, which is what absolute formation counts on a 1M-cell map predict. ⚠ The run's real finding is that this machine is drifting nearer **±25%** than the ±10% §13 records, so cross-day large-5k readings are unusable without a same-session baseline. `demo-default` reads **3.0726** on 230×180 holding 263 (was 5.5224 on the crater) — that row follows the demo and is meant to move. Earlier: **134.46 ms/tick** _(2026-08-01, A65/A67/A68, 9649→10218 at 1200 ticks)_ against a **130.63** same-machine, same-tick-count re-baseline of unmodified main — **+2.9%** for three defect fixes, which is above §13's 1% noise floor and recorded rather than absorbed. ⚠ The 129.02 below and this are **not comparable**: they are different tick counts on different days, which is exactly why the re-baseline was run. Earlier: **129.02 ms/tick** _(2026-07-30, phase 14, 9649→11094 entities)_ — flat against phase 13's 130.24 at the same roster size. Cover concealment measured **+2.6%** interleaved, which is a real cost and a much smaller one than §3.12 feared: opacity became the *top of the concealment scale* rather than a second pass, so the raycast was left untouched. ⚠ Nothing before phase 13 is comparable — the roster grew twice. See BENCHMARK.md |
 | Demo world            | **`default-small`** _(2026-08-07)_ — 230×180, `terrain.roundness: 4`, terrain formation counts 18/18/24/180, and a **263-animal roster** (gazelle 30, wildebeest 100, zebra 50, buffalo 50, leopard 3, lion 5, vulture 5, hyena 20). ⚠ **One world for everything**: the server boots it, `npm run benchmark`'s `demo-default` scenario measures it, `npm run ethologist` sweeps it, and every test calling `createDemoSimulation()` gets it. The server's `SIM_SEED` default is **4** (the seed the preset names); everything else still builds on seed 42, sharing the *composition* and deliberately not the seed. Booting the demo and loading `presets/default-small.json` are byte-identical at 50 ticks. Terrain mix, 5 seeds: ground 66.3%, rock 23.9%, tree 2.61%, cover 2.57%, thicket 2.20%, water 1.59%, deep water 0.77%. ✅⚠ **Swept 2026-08-07 (PREDATOR-PLAN P8), 10 seeds × 15 000 ticks — the first §20 gate this world has had.** Seven species clear the ≥6/10 bar and the **leopard does not, at 4/10, mean 1.6** (**A91**: the cause is `never-saw-a-mate`, not competition). Means at t15000: buffalo 69.4 (10/10), zebra 88.7 (10/10), wildebeest 98.7 (10/10), gazelle 25.2 (8/10), **lion 9.5 (10/10, grown from 5 founders)**, hyena 11.2 (10/10), vulture 21.0 (6/10, range 0–75 — bimodal, it either takes off or dies out), leopard 1.6 (4/10). Carrion split: lion 45.7%, hyena 37.6%, vulture 9.5%, leopard 7.3%. Persistent groups: peak 27 concurrent, 636 founded / 96 dissolved. ⚠⚠ **Seed 1 of those ten is a drought world** (**A93**: 13 water cells against 712–1085 elsewhere), so it drags every mean and accounts for one of the two gazelle extinctions. ⚠ There is **no pre-plan baseline on this world**, so the sweep cannot attribute the leopard's 4/10 to PREDATOR-PLAN rather than to the world change that preceded it. The paragraph that follows was written before this sweep and its warning still holds for every *older* reading quoted in this document: ⚠⚠ **the crater's readings do not transfer** — the map is 0.37× the area against 0.53× the headcount (density up ~1.4×), the terrain is denser again, and three counts moved *against* the trend (hyena 9 → 20, vulture held at 5 while every grazer fell). The crater sweep's headline was that the leopard and vulture were effectively gone; every input to it has moved. `npm run sweep` on ten seeds is the reading to take, and A81's doctrine still holds — it is a reading to record, not a bar to pass. ⚠ Two structural facts of this roster, both asserted in `test/cohorts.test.js`: **every lion in the world is founded into one pride** (PREDATOR-PLAN P1, 2026-08-07 — `cohort.groupSize` exceeds any roster, so there is one cluster and no remainder; it read "5 lions at `cohort.groupSize: 4` found one pride and strand a fifth animal" until then), and **the hyena's 20 found two clans of ten** (PREDATOR-PLAN P2, 2026-08-07 — clan size is now solved from the founder count, `clusters = clamp(round(count / 10), 1, 5)`, and the clans are pushed 60 units apart; it read "the hyena's 20 leave a remainder pair that starts on the dissolve-grace clock" until then, and there is no remainder now). Was `ngorongoro-500-10x` _(2026-08-04 – 2026-08-07)_ — 332×280 and ~500 animals at the real caldera's herbivore ratios (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9), swept 10 × 15 000 with the four grazers and the lion on **10/10** seeds, the hyena on 7/10 and the **leopard and vulture on 1/10**. Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15), a swept knife edge. Survival readings elsewhere in this document describe one of those two worlds, never this one |
@@ -852,6 +852,23 @@ does not need.** Every row is a decision, not a backlog item.
 
 ### 1.4 Structural and configuration debt
 
+**A96 — The three water features are unmeasured, and the marsh is the one that
+matters** _(2026-08-08, TERRAIN-PLAN.md)_. Ponds, a stream and a marsh ship on by
+default (`smallLakes: 1`, `streams: 1`, `marshFraction: 0.05`) and **no
+ecological reading was taken of any of them**, deliberately: the request was for
+the terrain, and §13's rules mean a population claim needs a ten-seed gate, which
+is separate work. The specific exposure is that **all three add drinkable water**
+and hydration pressure is one of the few things that moves animals across the
+whole map — a 5% marsh is a large permanent water source that is not the lake, so
+the lake stops being the place everything has to walk to. ⚠ Second-order, and
+easier to forget: the marsh converts open ground to **cover** (more grass, per
+`coverSuitability`), to **thicket** (a refuge, and sight-blocking) and to
+**trees** (shelter, and a leopard's larder) — so it moves grazing, concealment and
+kill caching at the same time, in a region that is by construction next to water.
+⚠ The honest instrument is `npm run sweep` on ten seeds with `marsh: 0` as the
+control, per the discipline **A81** establishes: a sweep is a reading to record,
+not a bar to pass.
+
 **A81 — Three species did not persist in the crater demo, and the demo is no
 longer held to a knife edge** _(2026-08-04)_. The demo became the
 `ngorongoro-500-10x` world on that date — 332×280, `roundness: 4`, the four terrain
@@ -1239,6 +1256,7 @@ gives up is domain **events**: the outbox is bounded, so a 500-tick step emits
 | Stream                                    | Consumer                                        |
 | ----------------------------------------- | ----------------------------------------------- |
 | `terrain`, `vegetation`                   | world generation (once, at construction)        |
+| `terrain` → `water`                       | ponds, the stream, the marsh (§7 Terrain)       |
 | `worldgen`, `demogen.age`, `disease.seed` | the demo fixture's founding cohort              |
 | `decision`                                | action selection (exploration and tie-breaking) |
 | `aging`                                   | late-life mortality roll                        |
@@ -1610,6 +1628,109 @@ line of sight is blocked — loses the prey it followed in. Measured (thickets 0
 bites), and edge/corner occupancy eased slightly, with demo survival unchanged.
 It does not grow, is not eaten, and is not sought — the growing, grazable,
 maturing version is A51.
+
+#### Water features — ponds, a stream, and a marsh _(2026-08-08, TERRAIN-PLAN.md W1–W4)_
+
+Three additions, all user-configurable from the panel (`smallLakes`, `streams`,
+`marsh` on `simulation.restart`, protocol **v38**).
+
+⚠⚠ **They draw from their own RNG stream** (`terrain` → `water`, derived by
+name per §4), and that is not tidiness. They are the first generator passes a
+*user* turns up and down from the UI, and one of them — ponds — has to run
+early for layering reasons, so on the single `terrain` stream "one more pond"
+would have regenerated every rock formation, cover patch, stand and tree on the
+map. Deriving costs the parent nothing (`deriveStream` hashes the root seed, not
+the live state), so adding the stream shifted no existing seed by itself.
+
+⚠ **What a separate stream does _not_ buy is independence of outcome**, and this
+is the general lesson rather than a fact about water: every pass writes the same
+grid, so a marsh still consumes ground a tree would have been planted on however
+independent its draws are. **Only the last pass in the pipeline can promise to
+change nothing else** — a promise that belonged to trees since T1 and now belongs
+to the marsh. `test/trees.test.js` holds the water off for exactly that reason,
+and says so.
+
+**Ponds** (`smallLakes`, default 1) are discs of shallow water, ~⅓ the lake's
+radius. ⚠ **Fully shallow — `lakeDeepFraction` is not applied.** A deep core
+exists to make a *large* lake something an animal walks around; on a five-cell
+pond it would leave a drinkable ring one cell wide. They are placed immediately
+after the lakes and **before rock**, unlike every pass added since trees, and the
+reason is layering rather than draws: rock is stamped over water, so a pond at
+the end of the pipeline would sit on top of an outcrop and read as water on a
+hilltop.
+
+**The stream** (`streams`, default 1) runs from a drawn point on the perimeter to
+the point half a perimeter away, stamping a ~3-cell channel and turning by a
+drawn angle off the bearing to its target each step, so it wanders without losing
+the plot. ⚠ `streamMeander` is clamped below π/2, and that clamp is what
+guarantees termination: every step keeps a positive component toward the target.
+
+⚠ **It cuts through rock**, which is the one place a pass deliberately buries an
+earlier one. A stream that stopped at the first outcrop would end in the middle
+of the map; through rock it is a gorge. This can only ever *add* connectivity
+(shallow water is passable), so §7's guarantee is untouched — but rock formations
+are no longer the only thing deciding where the map is walkable. **Two structural
+exceptions**: it never writes past the coast, and it never overwrites
+`DEEP_WATER`, because a lake core is not a ford and a channel filling one in
+would quietly delete the only impassable water in the world.
+
+**The marsh** (`marsh`, a percent, default 5) is a wetland covering that share of
+the **playable** map: shallow pools threaded through tall grass, reed beds and
+standing timber. It grows as a tethered random walk of discs from an anchor and
+then draws each footprint cell against four cumulative bands (water 0.30, cover
+0.34, thicket 0.14, tree 0.10, the remaining 0.12 left as open ground).
+
+⚠⚠ **It is composed from the seven codes that exist and is not one of them**, and
+this is the decision the feature rests on. A `MARSH` code would have cost a
+protocol bump, a branch in all five terrain-keyed tables, a renderer glyph, and
+**one habitat weight per species** — the artifact **A79** is still open from the
+last time a code was added. Tall grass is `COVER` on its merits, not as a
+compromise: cover already shelters, already conceals, and already carries **1.35×
+the grass capacity of open ground**, so "tall grass that grows more grass" needs
+no new code. **The cost, stated rather than discovered later:** a marsh is not
+*addressable*. Nothing can ask "is this cell marsh?", no metric can report marsh
+occupancy, and once generation ends the region exists only as an arrangement of
+ordinary cells. A later phase needing marsh *identity* is when a code earns its
+price.
+
+⚠ **The anchor is drawn from the world's existing shallow water** — a lake shore
+or a bank of the stream — because a marsh anchored on dry ground is a swamp in a
+desert. A lakeless world falls back to a drawn position, and **all three draws
+are spent either way**, so which branch runs cannot shift the stream.
+
+⚠ **Two things about the area target were got wrong first and are worth keeping
+written down.** (a) It counts cells the marsh can actually **convert** — open
+ground and cover — because the marsh anchors on a shore, so its basin overlaps
+the lake it grew from, and counting every cell meant a 5% marsh spent a third of
+its area on water that was already there. (b) The tether radius is sized against
+the **land share** of the map, not against its own area: a quarter of this world
+is rock, so a basin holding `target` cells holds far fewer than `target`
+convertible ones, and a 30% marsh came out at 21%. ⚠ (c) The tether therefore
+**grows** — capped at the map's diagonal — when the walk stalls, because a
+land-share estimate is an estimate. ⚠⚠ The first attempt *exited* on a stall
+instead and made the shortfall worse, which is the transferable part: **a stall
+usually means the walk is standing in ground it already marked, not that the map
+is full**, and after each widening it takes many small steps to reach open ground
+— every one of which reads as another stall. The step backstop terminates the
+loop; the reach only decides how far the tether lets it look.
+
+⚠ The *converted* area still reads under the percentage asked for, for three
+reasons that are all deliberate: 12% of the footprint stays open ground, standing
+thicket and timber inside it are left alone, and at the top of the range the walk
+runs out of steps before it runs out of map. Measured on 230×180, `roundness: 4`:
+5% asked → **4.1–4.3%** of the playable map converted, 15% → **12.5%**, 30% →
+**18–23%**.
+
+⚠ **Marsh timber obeys `treeSpacing`**, through the same `#hasTreeWithin` the
+scattered passes use. A rule enforced in two places is a rule with two
+behaviours.
+
+⚠ **A marsh is mostly drinkable water, and hydration pressure moves animals
+around this world. That consequence is recorded and _not_ measured** — the
+request was for terrain, and a population claim needs the ten-seed gate of §13.
+⚠ Note also that **thicket now has two independent sources**: `thickets: 0` no
+longer implies "no thicket cells on the map", and `test/runner.test.js` had to
+say `marsh: 0` to keep asserting what it was asserting.
 
 ⚠ **A lake is a shallow ring around an impassable deep core.** Each lake stamps a
 shallow `WATER` disc, then a `DEEP_WATER` disc of `lakeDeepFraction` of the
@@ -5271,7 +5392,7 @@ this. **Assert the effect landed, not that the call happened.**
 
 ## 11. Protocol reference
 
-Everything a client sees carries `protocolVersion` (currently **37**) and is
+Everything a client sees carries `protocolVersion` (currently **38**) and is
 built by `src/protocol/`.
 
 ### Commands
@@ -5291,11 +5412,25 @@ all ban unseeded randomness — a client that wants to replay a world simply nam
 the seed it was given.
 
 It also takes optional **world-composition** fields — `width`, `height`, terrain
-prevalence, and a **founding roster** — each bounded in `commands.js`, set high
-enough to reach the performance ceiling without an OOM or a non-terminating
-build. The runner never learns world _composition_: it passes the options to the
-engine factory, and `buildDemoConfig` (in the demo fixture) is the single place
-that turns them into a `config.demo.founding` override.
+prevalence, the **water features**, and a **founding roster** — each bounded in
+`commands.js`, set high enough to reach the performance ceiling without an OOM or
+a non-terminating build. The runner never learns world _composition_: it passes
+the options to the engine factory, and `buildDemoConfig` (in the demo fixture) is
+the single place that turns them into a `config.demo.founding` override.
+
+⚠⚠ **`smallLakes`, `streams` and `marsh` (v38) are two counts and a percentage,
+not prevalence levels**, and the break from `rocks`/`thickets`/`trees` is
+deliberate. Those three are abstractions *over* a generator quantity, which is
+what lets the host retune formation counts without the protocol or the UI
+learning anything. "How many ponds" and "how much of the map is marsh" are not
+abstractions over anything — they **are** the settings, and inventing a level to
+stand in for a number the user already thinks in would be a translation between a
+scale and itself. That is the argument `roundness` has always made, applied twice
+more. ⚠ The one translation is `marsh`, which crosses the boundary as a whole
+**percent** (a field offers percents; the generator takes a fraction), and
+`buildDemoConfig` divides by 100 — on the same side of the line as the prevalence
+mapping, for the same reason. The percentage is of the world's **playable** area:
+on a round world, of the part inside the rim.
 
 #### ⚠ The founding roster, and why v29 exists
 

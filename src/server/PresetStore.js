@@ -53,7 +53,22 @@ export const MAX_PRESETS = 500;
  * scavenger — see FOUNDING_ROLE_ALIASES). Persisting them would be writing a
  * known lie to disk with a long shelf life.
  */
-const WORLD_FIELDS = Object.freeze(['seed', 'width', 'height', 'rocks', 'thickets', 'trees', 'roundness', 'founding']);
+// ⚠ `smallLakes`, `streams` and `marsh` joined at v38 and the list stays
+// additive: a preset saved before them simply omits them, and the host's own
+// defaults fill in — which is why the format version did not have to move.
+const WORLD_FIELDS = Object.freeze([
+  'seed',
+  'width',
+  'height',
+  'rocks',
+  'thickets',
+  'trees',
+  'roundness',
+  'smallLakes',
+  'streams',
+  'marsh',
+  'founding',
+]);
 
 /**
  * A filesystem-safe slug for a preset name, or null if the name cannot produce

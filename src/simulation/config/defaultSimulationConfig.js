@@ -84,6 +84,55 @@ export const defaultSimulationConfig = Object.freeze({
     // leaving a shallow drinkable ring of the remaining radius. 0 disables it (a
     // fully shallow lake). See TerrainGrid #carveLakes.
     lakeDeepFraction: 0.55,
+    // Ponds beside the lake (TERRAIN-PLAN.md phase W1). A count, and the one
+    // water quantity a user is most likely to want more of. ⚠ **Fully shallow —
+    // `lakeDeepFraction` is not applied to them.** A deep core exists to make a
+    // large lake something an animal walks around; on a five-cell pond it would
+    // leave a drinkable ring one cell wide, which is a hazard rather than a
+    // water source. 0 disables them, spending no draws. See #carveSmallLakes.
+    smallLakes: 1,
+    smallLakeRadiusFraction: 0.045, // against the lake's 0.14
+    // A stream: a meandering shallow channel from one side of the world to the
+    // other (phase W2). ⚠ It cuts through **rock** as well as ground — a stream
+    // that stopped at the first outcrop would end in the middle of the map — but
+    // never through the coast or a lake's deep core. Since shallow water is
+    // passable it can only ever add connectivity. 0 disables. See #carveStreams.
+    streams: 1,
+    streamWidth: 1.1, // disc radius per step, so a channel ~3 cells across
+    // ⚠ Clamped below π/2 by the generator, and that clamp is what guarantees
+    // the walk terminates: every step keeps a positive component toward its
+    // target, so the course wanders without ever failing to arrive.
+    streamMeander: 0.7,
+    streamStepLength: 1.5,
+    // The marsh (phase W3): a wetland covering this fraction of the **playable**
+    // map — not of the bounding box, so a 5% marsh on a level-4 world is 5% of
+    // the 0.785 an animal can stand on. Shallow pools threaded through tall
+    // grass, reed beds and standing timber.
+    //
+    // ⚠⚠ **It is composed from the terrain codes that already exist, and is not
+    // one of them.** Water is the pools, COVER the tall grass (cover already
+    // carries 1.35× the grass capacity of open ground — see `coverSuitability`
+    // below — so "tall grass that grows more grass" needs no new code), THICKET
+    // the reed beds, TREE the timber. A MARSH code would have cost a protocol
+    // bump, a branch in all five terrain-keyed tables, a renderer glyph, and one
+    // habitat weight per species (A79 is still open from the last code added).
+    // What is given up is *addressability*: nothing can ask whether a cell is
+    // marsh. See TERRAIN-PLAN.md §2 and #growMarsh.
+    //
+    // ⚠ A marsh is mostly drinkable water, and hydration pressure moves animals
+    // around this world. The ecological consequence is **recorded and not
+    // measured** — the request was for the terrain, and a population claim needs
+    // the ten-seed gate of §13. 0 disables, spending no draws.
+    marshFraction: 0.05,
+    marshMinRadius: 3,
+    marshMaxRadius: 7,
+    marshDrift: 0.85,
+    // The four bands a footprint cell is drawn against, in order; what is left
+    // over (here 12%) stays open ground, so the wetland has dry footing in it.
+    marshWaterDensity: 0.3,
+    marshGrassDensity: 0.34,
+    marshThicketDensity: 0.14,
+    marshTreeDensity: 0.1,
     // Rock is generated as several irregular formations of varying size
     // scattered around the map, never one long dividing ridge. `ridges` is the
     // formation count (0 disables rock entirely, which the flat-world tests

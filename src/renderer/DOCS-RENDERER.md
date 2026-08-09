@@ -47,10 +47,10 @@ version, fixture, layer and test rows and left the rest as it found them.
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
 | Tests               | renderer **142** in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; 14 spec files in `tests-ui` _(2026-08-08)_                       |
-| Protocol understood | **37** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine _(2026-08-08)_                                                            |
+| Protocol understood | **38** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine _(2026-08-08)_                                                            |
 | Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a), and the claim grid (v37) is the **territory layer** (§9b). ⚠ **v34 is a version the renderer speaks but does not yet show**: its additions are all inspection-only (a group's derived `centre`/`leaderId`, the `social.consensus`/`rally`/`charge` commitments, `pullScale`, `bandmates`), and *displaying* them is this roadmap's item rather than the engine plan's — nothing was owed here beyond the matching constant and a regenerated fixture set |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
-| Fixtures            | current — v37, regenerated 2026-08-08. ⚠ **The warm-up moved from 10 ticks to 2400**, because at ten ticks no lion is grown and nothing has marked any ground, so the territory layer had nothing to show offline and nothing to browser-test (§9b). The fixture world is now 256 entities on a 232×180 map with a lion pride holding ground, three leopards holding their own, two hyena clans, fifty banded zebra and six animals airborne; the event batch is bounded to its most recent 2500 events to keep the committed set at ~2 MB. ⚠ Due on every **roster** change, not only a protocol bump (§10) |
+| Fixtures            | current — v38, regenerated 2026-08-08 (the world's terrain moved with the water features, so the recording had to move with it). ⚠ **The warm-up moved from 10 ticks to 2400**, because at ten ticks no lion is grown and nothing has marked any ground, so the territory layer had nothing to show offline and nothing to browser-test (§9b). The fixture world is now 256 entities on a 232×180 map with a lion pride holding ground, three leopards holding their own, two hyena clans, fifty banded zebra and six animals airborne; the event batch is bounded to its most recent 2500 events to keep the committed set at ~2 MB. ⚠ Due on every **roster** change, not only a protocol bump (§10) |
 | Status marks        | **seven**, in three shape families — dot (condition), diamond (state), chevron (place). ⚠ The chevron arrived 2026-08-04 with flight  |
 | Map layers          | **two** — Social (§9a) and Territory (§9b), both off by default. The registry is `rendering/MapLayers.js`                            |
 | Zoom levels         | 10–32px; 10px is a floor, not a default                                                                                              |
@@ -927,9 +927,21 @@ demo's own terrain, and the top
 crowds out open grazing ground — and `buildDemoConfig` maps it linearly through
 the default to the generator's `terrain.ridges` (rock) and `terrain.thickets`
 formation counts, so the renderer never has to know a formation from a cell.
+⚠⚠ **The three water fields are the exception, and the difference is visible in
+the widget** _(v38, 2026-08-08)_: `smallLakes` and `streams` are **counts** and
+`marsh` is a **percentage of the playable map**, so they are number inputs rather
+than the level dropdowns beside them. They are not abstractions over a generator
+quantity the way prevalence is — they are the settings themselves, exactly as
+`roundness` is — so nothing is mapped on the way through except `marsh`, which
+the host divides by 100. ⚠ The practical consequence for this panel: unlike the
+prevalence levels, **these three defaults must be re-synced by hand** if the
+demo's own water changes, because there is no anchor level standing in for
+"whatever the demo does".
+
 Bounds are the protocol's (`MAX_WORLD_DIMENSION`, `MAX_FOUNDING_PER_SPECIES`
 and `MAX_FOUNDING_TOTAL`,
-`MAX_TERRAIN_PREVALENCE` in `commands.js`), chosen high enough to reach the sim's
+`MAX_TERRAIN_PREVALENCE`, `MAX_SMALL_LAKES`, `MAX_STREAMS`, `MAX_MARSH_PERCENT`
+in `commands.js`), chosen high enough to reach the sim's
 performance ceiling — a ~1M-cell world, tens of thousands of founders — without
 an out-of-memory or a non-terminating build. An explicit `0` clears a species or
 a terrain type. The renderer drops its

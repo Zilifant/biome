@@ -470,10 +470,15 @@ impassable rock, low **cover**, sight-blocking **thicket**, and **tree** — eac
 its own traversal cost and, for rock and thicket, opacity to line of sight), a
 cell-level vegetation biomass field that grows logistically toward a
 terrain-derived capacity, and a turning year — season, temperature, and weather
-spells that modulate both. The demo world is **230×180 rounded to an ellipse**, the
-`default-small` composition. Its mix, measured 2026-08-07 over 5 seeds: ground
-66.3%, rock 23.9% (almost all of it the rim), tree 2.61%, cover 2.57%, thicket
-2.20%, water 1.59%, deep water 0.77%.
+spells that modulate both. Water comes in four arrangements: a **lake** (a
+drinkable ring around an impassable core), **ponds**, a meandering **stream** that
+crosses the map, and a **marsh** covering a share of it — shallow pools threaded
+through tall grass, reed beds and standing timber. ⚠ The marsh is *composed* from
+the terrain codes above rather than being one of them; `DOCS.md` §7 Terrain says
+why that was the whole design. The demo world is **230×180 rounded to an
+ellipse**, the `default-small` composition. Its mix, measured 2026-08-08 over 5
+seeds: ground 62.1%, rock 23.5% (almost all of it the rim), water 4.6%, cover
+3.8%, thicket 2.7%, tree 2.5%, deep water 0.9%.
 
 **Eight species, and a species is data.** ⚠ The passage that follows was written
 when there were **three** — a grazer, the stalker that hunted it, and a corvid that

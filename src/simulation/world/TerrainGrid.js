@@ -460,8 +460,28 @@ export class TerrainGrid {
     // than punched through it) and `#ensureConnectivity` refuses to tunnel
     // through it. ⚠ It draws **no randomness** — the shape is pure geometry — so
     // adding it shifts no stream and a level-0 world is unchanged (§4).
+    // ⚠⚠ **The three water features draw from their own stream** (§4: a system
+    // drawing more or fewer values must never shift the sequence an unrelated
+    // one observes). They are the first passes here that a *user* turns up and
+    // down from the panel, and one of them — ponds — has to run early for
+    // layering reasons, so on a single stream "one more pond" would have
+    // regenerated every rock formation, cover patch, stand and tree on the map.
+    // Deriving costs the parent nothing (`deriveStream` hashes the root seed,
+    // not the current state), so this shifts no existing seed by itself.
+    //
+    // ⚠ What a separate stream does **not** buy is independence of *outcome*.
+    // Every pass writes the same grid, so a marsh still consumes ground a tree
+    // would have been planted on. Only the last pass in the pipeline can promise
+    // to change nothing else, and that promise now belongs to the marsh.
+    const water = random.deriveStream('water');
     this.#buildExterior(params);
     this.#carveLakes(random, params);
+    // Ponds immediately after the lakes and *before* rock, unlike every other
+    // pass added since — and the reason is the layering rather than the draws.
+    // Rock is stamped over water, so an outcrop can sit on a shore and clip it;
+    // a pond placed at the end of the pipeline would sit on top of an outcrop
+    // and read as water on a hilltop.
+    this.#carveSmallLakes(water, params);
     this.#carveRockFormations(random, params);
     this.#growCoverPatches(random, params);
     // Thickets last of the placement steps (before connectivity), so their draws
@@ -475,6 +495,12 @@ export class TerrainGrid {
     // ground. ⚠ `#scatterTrees` spends **no draws at all** when both counts are
     // 0, which is what makes that claim provable rather than merely likely.
     this.#scatterTrees(random, params);
+    // Water features last, in the order water actually arrives: a stream erodes
+    // the finished map, and the marsh spreads over whatever the stream leaves.
+    // Both are the latest possible point in the pipeline, so their draws shift
+    // nothing before them and each is provably inert at its off setting.
+    this.#carveStreams(water, params);
+    this.#growMarsh(water, params);
     // Run last, so the guarantee holds over the finished map: every passable
     // cell reaches every other passable cell without crossing rock. Thicket is
     // passable, so it neither strands ground nor is carved through.
@@ -546,6 +572,36 @@ export class TerrainGrid {
       // only the cells change. `onlyGround` is false so it overwrites the
       // shallow water it sits inside.
       if (deepFraction > 0) this.#stampDisc(cx, cy, r * deepFraction, TerrainType.DEEP_WATER);
+    }
+  }
+
+  /**
+   * Ponds: `smallLakes` discs of shallow water, much smaller than the lake and
+   * **fully shallow**.
+   *
+   * ⚠ **No deep core, deliberately.** `lakeDeepFraction` exists to make a large
+   * lake something an animal walks *around* — the drinkable part is the ring at
+   * its edge. A pond of five cells with an impassable middle is a ring one cell
+   * wide, which is a hazard rather than a water source. A pond is drinkable all
+   * the way across.
+   *
+   * ⚠ `onlyGround`, unlike `#carveLakes`. At this point in the pipeline the only
+   * non-ground cells are the lake and the rim, so this says exactly one thing: a
+   * pond landing on the lake is clipped by it rather than filling its deep core
+   * in with shallow water.
+   *
+   * **Draw budget: 3 per pond** — position and a radius jitter — matching
+   * `#carveLakes`. At `smallLakes: 0` it returns before the first one.
+   */
+  #carveSmallLakes(random, params) {
+    const count = Math.max(0, Math.round(params.smallLakes ?? 0));
+    if (count === 0) return; // the off state: no draws, no trace
+    const radius = (params.smallLakeRadiusFraction ?? 0) * Math.min(this.#width, this.#height);
+    for (let n = 0; n < count; n += 1) {
+      const cx = random.int(0, this.#width - 1);
+      const cy = random.int(0, this.#height - 1);
+      const r = radius * random.float(0.7, 1.15);
+      this.#stampDisc(cx, cy, r, TerrainType.WATER, true);
     }
   }
 
@@ -762,20 +818,328 @@ export class TerrainGrid {
     const idx = this.#index(cellX, cellY);
     if (this.#exterior !== null && this.#exterior[idx] === 1) return false;
     if (this.#cells[idx] !== TerrainType.GROUND) return false;
-    const reach = spacing - 1;
-    if (reach > 0) {
-      const minX = Math.max(0, cellX - reach);
-      const maxX = Math.min(this.#width - 1, cellX + reach);
-      const minY = Math.max(0, cellY - reach);
-      const maxY = Math.min(this.#height - 1, cellY + reach);
-      for (let y = minY; y <= maxY; y += 1) {
-        for (let x = minX; x <= maxX; x += 1) {
-          if (this.#cells[this.#index(x, y)] === TerrainType.TREE) return false;
+    if (this.#hasTreeWithin(cellX, cellY, spacing - 1)) return false;
+    this.#cells[idx] = TerrainType.TREE;
+    return true;
+  }
+
+  /**
+   * Whether any tree stands within `reach` cells (Chebyshev) of a cell. The
+   * spacing rule has exactly one implementation, shared by the two passes that
+   * plant trees — the scattered ones and the marsh's timber — because a rule
+   * enforced in two places is a rule with two behaviours.
+   */
+  #hasTreeWithin(cellX, cellY, reach) {
+    if (reach <= 0) return false;
+    const minX = Math.max(0, cellX - reach);
+    const maxX = Math.min(this.#width - 1, cellX + reach);
+    const minY = Math.max(0, cellY - reach);
+    const maxY = Math.min(this.#height - 1, cellY + reach);
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        if (this.#cells[this.#index(x, y)] === TerrainType.TREE) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * A point on the bounding box's perimeter, parameterised by `t` in [0, 1)
+   * running clockwise from the top-left corner. Used only by the stream, where
+   * the point half a perimeter away is the far side of the world — which is what
+   * makes a channel cross the map rather than clip a corner.
+   *
+   * ⚠ The *bounding box*, not the rounded shape. A start point outside the coast
+   * writes nothing (the exterior guard), so on a round world the channel simply
+   * begins where it reaches the shore, which is where a river reaching the sea
+   * should begin.
+   *
+   * @param {number} t @returns {[number, number]}
+   */
+  #perimeterPoint(t) {
+    const w = this.#width - 1;
+    const h = this.#height - 1;
+    let d = t * 2 * (w + h);
+    if (d < w) return [d, 0];
+    d -= w;
+    if (d < h) return [w, d];
+    d -= h;
+    if (d < w) return [w - d, h];
+    d -= w;
+    return [0, h - d];
+  }
+
+  /**
+   * Streams: a meandering shallow channel from one side of the world to the
+   * other. Each step stamps a disc of shallow water and turns by a drawn angle
+   * off the bearing to its target, so the course wanders without losing the plot.
+   *
+   * ⚠ **It cuts through what it meets, rock included.** A stream that stopped at
+   * the first outcrop would end in the middle of the map, which is the one thing
+   * a stream may not do; through rock it is a gorge. This can only ever *add*
+   * connectivity — shallow water is passable — so the guarantee `#ensureConnectivity`
+   * makes is untouched, and the corridor it opens is one the carve would
+   * otherwise have had to make.
+   *
+   * ⚠ **Two exceptions, both structural.** It never writes past the coast (so a
+   * channel reaching the rim ends at the sea rather than breaching it), and it
+   * never overwrites `DEEP_WATER`: a lake core is not a ford, and a channel
+   * filling it in would quietly delete the only impassable water in the world.
+   * Running *into* a lake is fine and looks right — the channel arrives at the
+   * shallows and stops mattering.
+   *
+   * **Draw budget: 1 for the start point, then 1 per step.** The step count is
+   * geometry, not a draw, and is capped so no bearing can loop forever.
+   * ⚠ `streamMeander` is clamped below π/2 because that is what guarantees
+   * termination: every step keeps a positive component toward the target, so the
+   * walk converges however much it wanders.
+   */
+  #carveStreams(random, params) {
+    const count = Math.max(0, Math.round(params.streams ?? 0));
+    if (count === 0) return; // the off state: no draws, no trace
+    const width = Math.max(0.5, params.streamWidth ?? 1);
+    const meander = Math.min(Math.max(0, params.streamMeander ?? 0), Math.PI / 2 - 0.05);
+    const stepLength = Math.max(0.5, params.streamStepLength ?? 1);
+    // Generous: the shortest crossing is one diagonal, and a meandering course
+    // is longer than a straight one but not four times the map's girth longer.
+    const maxSteps = Math.ceil((4 * (this.#width + this.#height)) / stepLength);
+    for (let n = 0; n < count; n += 1) {
+      const start = random.next();
+      let [x, y] = this.#perimeterPoint(start);
+      const [targetX, targetY] = this.#perimeterPoint((start + 0.5) % 1);
+      for (let s = 0; s < maxSteps; s += 1) {
+        this.#stampChannel(x, y, width);
+        const dx = targetX - x;
+        const dy = targetY - y;
+        if (dx * dx + dy * dy <= stepLength * stepLength) break; // arrived
+        const angle = Math.atan2(dy, dx) + (random.next() * 2 - 1) * meander;
+        x += Math.cos(angle) * stepLength;
+        y += Math.sin(angle) * stepLength;
+      }
+    }
+  }
+
+  /**
+   * Stamp one disc of the stream bed. `#stampDisc`'s walk and exterior guard,
+   * with the one rule that is the stream's own: deep water is left alone.
+   */
+  #stampChannel(cx, cy, r) {
+    const rSquared = r * r;
+    const minX = Math.max(0, Math.floor(cx - r));
+    const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
+    const minY = Math.max(0, Math.floor(cy - r));
+    const maxY = Math.min(this.#height - 1, Math.ceil(cy + r));
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy > rSquared) continue;
+        const idx = this.#index(x, y);
+        if (this.#exterior !== null && this.#exterior[idx] === 1) continue; // past the coast
+        if (this.#cells[idx] === TerrainType.DEEP_WATER) continue; // a lake core is not a ford
+        this.#cells[idx] = TerrainType.WATER;
+      }
+    }
+  }
+
+  /**
+   * The marsh: a wetland covering `marshFraction` of the **playable** map —
+   * shallow pools threaded through tall grass, reed beds and standing timber.
+   *
+   * ⚠⚠ **It is composed from the terrain codes that already exist and is not one
+   * of them**, which is the decision the whole feature rests on (TERRAIN-PLAN.md
+   * §2). `WATER` is the pools, `COVER` the tall grass — cover already carries
+   * 1.35× the grass capacity of open ground, so tall grass that grows more grass
+   * needs no new code — `THICKET` the reed beds, and `TREE` the timber. Every
+   * consumer in the engine reads a marsh correctly on the day it ships, with no
+   * new branch anywhere. **The cost, stated rather than discovered later:** a
+   * marsh is not *addressable*. Nothing can ask "is this cell marsh?", no metric
+   * can report marsh occupancy, and once generation ends the region exists only
+   * as an arrangement of ordinary cells.
+   *
+   * ⚠ **The anchor is drawn from the world's existing shallow water** — a lake
+   * shore or a bank of the stream — because a marsh anchored on dry ground is a
+   * swamp in a desert. With no water anywhere (a lakeless test world) it falls
+   * back to a drawn position, and **all three draws are spent either way**, so
+   * which branch runs cannot shift the stream.
+   *
+   * ⚠ **Fraction of the *playable* area, not of the bounding box.** A 5% marsh
+   * should mean 5% of the world an animal can stand in; on a level-4 round world
+   * that is 5% of 0.785 of the rectangle. The footprint then grows until it
+   * holds that many *convertible* cells — see `#markDisc` for why counting any
+   * other way makes the number mean less than it says.
+   *
+   * ⚠ **It writes on `GROUND` and `COVER` only.** Rock, lakes, deep water, and
+   * the thickets and trees already standing there survive inside the footprint —
+   * an outcrop in a wetland is an island, and the marsh can be laid over any map
+   * without destroying its features.
+   *
+   * **Draw budget: 3 for the anchor, 2 per walk step, and 1 per footprint cell.**
+   * At `marshFraction: 0` it returns before the first one.
+   */
+  #growMarsh(random, params) {
+    const fraction = clamp01(params.marshFraction ?? 0);
+    const target = Math.round(fraction * this.#playableCellCount());
+    if (target <= 0) return; // the off state: no draws, no trace
+
+    // Every shallow-water cell, collected without a draw — the map is already
+    // finished, so this is a scan of what is there rather than a decision.
+    const shores = [];
+    let convertible = 0;
+    for (let i = 0; i < this.#cells.length; i += 1) {
+      const code = this.#cells[i];
+      if (code === TerrainType.WATER) shores.push(i);
+      if (code === TerrainType.GROUND || code === TerrainType.COVER) convertible += 1;
+    }
+    // ⚠ Both the fallback position and the shore pick are drawn unconditionally.
+    // Spending them only in the branch that uses them would make "is there water
+    // in this world?" shift the stream for everything downstream.
+    const fallbackX = random.int(0, this.#width - 1);
+    const fallbackY = random.int(0, this.#height - 1);
+    const pick = random.next();
+    let anchorX = fallbackX;
+    let anchorY = fallbackY;
+    if (shores.length > 0) {
+      const idx = shores[Math.min(shores.length - 1, Math.floor(pick * shores.length))];
+      anchorX = idx % this.#width;
+      anchorY = Math.floor(idx / this.#width);
+    }
+
+    // The footprint: a random walk of discs from the anchor, tethered to a basin
+    // whose radius is set by the area asked for. ⚠ The tether is what keeps a
+    // marsh a *basin* rather than a snake wandering off the map — beyond it the
+    // heading is the bearing home plus the same drawn jitter, so the walk turns
+    // back without spending a different number of draws.
+    const mask = new Uint8Array(this.#cells.length);
+    const minR = Math.max(1, params.marshMinRadius ?? 1);
+    const maxR = Math.max(minR, params.marshMaxRadius ?? minR);
+    const drift = params.marshDrift ?? 1;
+    // ⚠ The basin is sized against the **land** the walk will find inside it,
+    // not against its own area, and the difference is the second thing the first
+    // version got wrong. A quarter of this world is rock and some of the rest is
+    // lake, so a basin holding `target` *cells* holds far fewer than `target`
+    // convertible ones — a 30% marsh came out at 21%. Dividing by the land share
+    // makes the tether scale with how much of the map is wettable, so the marsh
+    // keeps the same compact shape at every fraction instead of only at small
+    // ones. The floor keeps a nearly-landless world from asking for infinity.
+    const landShare = Math.max(0.05, convertible / Math.max(1, this.#playableCellCount()));
+    const basin = Math.sqrt(target / (Math.PI * landShare)) * 1.35;
+    const maxSteps = 200 + target; // a backstop, never the binding constraint
+    let cx = anchorX;
+    let cy = anchorY;
+    let covered = 0;
+    // ⚠⚠ **The basin grows when the walk runs out of ground, and measuring made
+    // that necessary.** A tether sized from the land share is an *estimate*, and
+    // on a good half of seeds the walk marks everything convertible inside it and
+    // then wanders in circles marking nothing — so a marsh asked for 20% of the
+    // map quietly delivered less. Widening the reach after a run of fruitless
+    // steps is what a wetland short of room actually does, and it makes the
+    // percentage a promise rather than a hope. Termination is still guaranteed:
+    // the reach grows geometrically, so it passes the map's own diagonal in a
+    // bounded number of expansions and the walk stops there — which is the
+    // honest answer for a world with less wettable land than was asked for.
+    const diagonal = Math.hypot(this.#width, this.#height);
+    let reach = basin;
+    let stalled = 0;
+    for (let s = 0; s < maxSteps && covered < target; s += 1) {
+      const r = random.float(minR, maxR);
+      const added = this.#markDisc(mask, cx, cy, r);
+      covered += added;
+      if (added > 0) {
+        stalled = 0;
+      } else {
+        stalled += 1;
+        if (stalled >= 40) {
+          stalled = 0;
+          // ⚠ Capped, not broken out of. An early exit here is what the first
+          // attempt did, and it made the shortfall *worse*: a stall usually means
+          // the walk is standing in ground it has already marked, not that the
+          // map is full, and after each widening it takes many small steps to
+          // reach open ground — every one of which reads as another stall. The
+          // step backstop is what terminates this loop; the reach only decides
+          // how far the tether lets it look.
+          reach = Math.min(reach * 1.25, diagonal);
+        }
+      }
+      const jitter = random.float(-Math.PI, Math.PI);
+      const home = Math.atan2(anchorY - cy, anchorX - cx);
+      const dx = cx - anchorX;
+      const dy = cy - anchorY;
+      const angle = dx * dx + dy * dy > reach * reach ? home + jitter * 0.25 : jitter;
+      const stepLength = r * drift;
+      cx += Math.cos(angle) * stepLength;
+      cy += Math.sin(angle) * stepLength;
+    }
+
+    // Fill it. One draw per footprint cell, against four cumulative bands; what
+    // is left over stays open ground, so the wetland has dry footing in it.
+    const water = clamp01(params.marshWaterDensity ?? 0);
+    const grass = water + clamp01(params.marshGrassDensity ?? 0);
+    const thicket = grass + clamp01(params.marshThicketDensity ?? 0);
+    const timber = thicket + clamp01(params.marshTreeDensity ?? 0);
+    const spacing = Math.max(1, Math.round(params.treeSpacing ?? 1));
+    for (let y = 0; y < this.#height; y += 1) {
+      for (let x = 0; x < this.#width; x += 1) {
+        const idx = this.#index(x, y);
+        if (mask[idx] === 0) continue;
+        const code = this.#cells[idx];
+        if (code !== TerrainType.GROUND && code !== TerrainType.COVER) continue;
+        const roll = random.next();
+        if (roll < water) this.#cells[idx] = TerrainType.WATER;
+        else if (roll < grass) this.#cells[idx] = TerrainType.COVER;
+        else if (roll < thicket) this.#cells[idx] = TerrainType.THICKET;
+        // ⚠ Marsh timber obeys the same spacing rule as every other tree, so a
+        // wetland cannot do what groves are forbidden from doing. A cell whose
+        // neighbours are already wooded simply stays as it is.
+        else if (roll < timber && !this.#hasTreeWithin(x, y, spacing - 1)) {
+          this.#cells[idx] = TerrainType.TREE;
         }
       }
     }
-    this.#cells[idx] = TerrainType.TREE;
-    return true;
+  }
+
+  /**
+   * Mark the in-bounds, non-exterior cells of a disc in `mask`, returning how
+   * many newly marked cells the marsh can actually *convert* — open ground and
+   * cover.
+   *
+   * ⚠ **Counting convertible cells rather than marked ones is what makes the
+   * percentage mean anything**, and the first version got it wrong. The marsh
+   * anchors on a shore, so its basin overlaps the lake it grew from; counting
+   * every marked cell meant a 5% marsh spent a third of its area on water that
+   * was already there and came out visibly smaller than asked for. The sea past
+   * the coast is excluded for the same reason, one step earlier.
+   */
+  #markDisc(mask, cx, cy, r) {
+    const rSquared = r * r;
+    const minX = Math.max(0, Math.floor(cx - r));
+    const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
+    const minY = Math.max(0, Math.floor(cy - r));
+    const maxY = Math.min(this.#height - 1, Math.ceil(cy + r));
+    let added = 0;
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy > rSquared) continue;
+        const idx = this.#index(x, y);
+        if (this.#exterior !== null && this.#exterior[idx] === 1) continue; // past the coast
+        if (mask[idx] === 1) continue;
+        mask[idx] = 1;
+        const code = this.#cells[idx];
+        if (code === TerrainType.GROUND || code === TerrainType.COVER) added += 1;
+      }
+    }
+    return added;
+  }
+
+  /** Cells inside the world's shape — the whole grid at roundness 0. No draws. */
+  #playableCellCount() {
+    const total = this.#width * this.#height;
+    if (this.#exterior === null) return total;
+    let outside = 0;
+    for (let i = 0; i < this.#exterior.length; i += 1) outside += this.#exterior[i];
+    return total - outside;
   }
 
   /**

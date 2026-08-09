@@ -20,6 +20,9 @@ import {
   MAX_SPEED_MULTIPLIER,
   MAX_TERRAIN_PREVALENCE,
   MAX_ROUNDNESS,
+  MAX_SMALL_LAKES,
+  MAX_STREAMS,
+  MAX_MARSH_PERCENT,
   MAX_WORLD_DIMENSION,
   MIN_WORLD_DIMENSION,
   SEXES,
@@ -225,6 +228,11 @@ export function validateCommand(command) {
       // World shape: 0 (rectangle) .. MAX_ROUNDNESS (ellipse). A level, like the
       // two above, but the level is the setting rather than a stand-in for one.
       validateOptionalIntInRange(command.roundness, 'roundness', 0, MAX_ROUNDNESS, errors);
+      // Water features (v38): two counts and a percentage, each the setting
+      // itself rather than a stand-in for one. See the constants in commands.js.
+      validateOptionalIntInRange(command.smallLakes, 'smallLakes', 0, MAX_SMALL_LAKES, errors);
+      validateOptionalIntInRange(command.streams, 'streams', 0, MAX_STREAMS, errors);
+      validateOptionalIntInRange(command.marsh, 'marsh', 0, MAX_MARSH_PERCENT, errors);
       break;
     case CommandTypes.ENTITY_SPAWN:
       validateSpawnEntity(command.entity, errors);

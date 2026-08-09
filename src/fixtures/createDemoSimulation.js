@@ -812,7 +812,10 @@ export function buildDemoConfig(options = {}) {
     options.rocks !== undefined ||
     options.thickets !== undefined ||
     options.trees !== undefined ||
-    options.roundness !== undefined
+    options.roundness !== undefined ||
+    options.smallLakes !== undefined ||
+    options.streams !== undefined ||
+    options.marsh !== undefined
   ) {
     config.terrain = {};
     if (options.rocks !== undefined) {
@@ -836,6 +839,20 @@ export function buildDemoConfig(options = {}) {
     // scale and itself.
     if (options.roundness !== undefined) {
       config.terrain.roundness = options.roundness;
+    }
+    // The v38 water features, passed through for the same reason `roundness` is:
+    // a pond count is a pond count. ⚠ The one translation here is `marsh`, which
+    // crosses the boundary as a whole **percent** — a dropdown offers percents,
+    // and the generator takes a fraction, so the division belongs on this side
+    // exactly like the prevalence mapping above it.
+    if (options.smallLakes !== undefined) {
+      config.terrain.smallLakes = options.smallLakes;
+    }
+    if (options.streams !== undefined) {
+      config.terrain.streams = options.streams;
+    }
+    if (options.marsh !== undefined) {
+      config.terrain.marshFraction = options.marsh / 100;
     }
   }
   // ⚠ **A roster replaces the whole default roster; role aliases patch it.**

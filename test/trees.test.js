@@ -18,10 +18,19 @@ import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
  * Both are asserted directly rather than inferred from a population number.
  */
 
-const WOODED = Object.freeze({ treeGroves: 6, treeSingles: 40 });
+// ⚠ **`DRY` on both arms since 2026-08-08, and it is load-bearing.** Trees used
+// to be the last placement pass, which is what let a wooded world and a treeless
+// one be compared cell by cell. The stream and the marsh now run *after* them
+// (TERRAIN-PLAN.md phases W2–W3), and both consume open ground — so with water on,
+// removing the trees hands the marsh different cells to convert and the two maps
+// differ in places no tree ever stood. The water is switched off rather than the
+// claim being weakened: what these tests are about is that the *tree* pass
+// disturbs nothing, and that is still exactly true of the passes before it.
+const DRY = Object.freeze({ smallLakes: 0, streams: 0, marshFraction: 0 });
+const WOODED = Object.freeze({ ...DRY, treeGroves: 6, treeSingles: 40 });
 // ⚠ Explicit, not `{}`: trees are in the demo defaults now, so an empty
 // params object is a *wooded* world. The control has to say so.
-const TREELESS = Object.freeze({ treeGroves: 0, treeSingles: 0 });
+const TREELESS = Object.freeze({ ...DRY, treeGroves: 0, treeSingles: 0 });
 
 const grid = (params, seed = 42) => new TerrainGrid({ width: 128, height: 128, seed, params });
 

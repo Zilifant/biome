@@ -75,6 +75,17 @@ const MAX_TERRAIN_PREVALENCE = 10;
  */
 const MAX_ROUNDNESS = 4;
 
+/**
+ * The v38 water features, restated for the same reason as everything above.
+ * ⚠ These three are **not** prevalence levels: two are counts of a thing on the
+ * map and one is a percentage of it, so the field carries the number the user is
+ * already thinking in. See the protocol's MAX_SMALL_LAKES / MAX_STREAMS /
+ * MAX_MARSH_PERCENT for the argument.
+ */
+const MAX_SMALL_LAKES = 12;
+const MAX_STREAMS = 4;
+const MAX_MARSH_PERCENT = 40;
+
 /** Matches the host's MAX_PRESET_NAME_LENGTH, restated for the same reason. */
 const MAX_PRESET_NAME_LENGTH = 60;
 
@@ -98,6 +109,12 @@ const DEFAULTS = Object.freeze({
   thickets: 4,
   trees: 4,
   roundness: 4,
+  // ⚠ Real quantities rather than levels, so unlike the four above these *do*
+  // have to be re-synced by hand if the demo's own water changes. They open on
+  // the protocol's DEFAULT_SMALL_LAKES / DEFAULT_STREAMS / DEFAULT_MARSH_PERCENT.
+  smallLakes: 1,
+  streams: 1,
+  marsh: 5,
 });
 
 /**
@@ -262,6 +279,17 @@ export class Controls {
             <label for="ctl-trees" class="dim">Trees</label>
             ${prevalenceSelect("ctl-trees", DEFAULTS.trees, "Tree prevalence")}
           </div>
+          <p class="hint">Water — ponds beside the lake, streams running across the map, and a marsh (shallow water threaded through tall grass, reeds and timber) covering this share of the usable ground.</p>
+          <div class="control-row">
+            <label for="ctl-small-lakes" class="dim">Ponds</label>
+            <input type="number" id="ctl-small-lakes" min="0" max="${MAX_SMALL_LAKES}" step="1" value="${DEFAULTS.smallLakes}" aria-label="Small lakes" />
+            <label for="ctl-streams" class="dim">Streams</label>
+            <input type="number" id="ctl-streams" min="0" max="${MAX_STREAMS}" step="1" value="${DEFAULTS.streams}" aria-label="Streams" />
+          </div>
+          <div class="control-row">
+            <label for="ctl-marsh" class="dim">Marsh %</label>
+            <input type="number" id="ctl-marsh" min="0" max="${MAX_MARSH_PERCENT}" step="1" value="${DEFAULTS.marsh}" aria-label="Marsh percentage of the map" />
+          </div>
           <p class="hint">World shape — 0 is a plain rectangle, ${MAX_ROUNDNESS} rounds it off to an ellipse. Ground outside the shape is impassable, so a rounder world is a smaller one.</p>
           <div class="control-row">
             <label for="ctl-roundness" class="dim">Roundness</label>
@@ -297,6 +325,9 @@ export class Controls {
       thickets: container.querySelector("#ctl-thickets"),
       trees: container.querySelector("#ctl-trees"),
       roundness: container.querySelector("#ctl-roundness"),
+      smallLakes: container.querySelector("#ctl-small-lakes"),
+      streams: container.querySelector("#ctl-streams"),
+      marsh: container.querySelector("#ctl-marsh"),
     };
 
     this.#els.run.addEventListener("click", () => callbacks.onToggleRun());
@@ -526,6 +557,9 @@ export class Controls {
     setValue(this.#els.thickets, world.thickets);
     setValue(this.#els.trees, world.trees);
     setValue(this.#els.roundness, world.roundness);
+    setValue(this.#els.smallLakes, world.smallLakes);
+    setValue(this.#els.streams, world.streams);
+    setValue(this.#els.marsh, world.marsh);
 
     // ⚠ A species in the preset that this host does not offer is *skipped*, and
     // one the host offers that the preset omits is set to 0 rather than left at
@@ -634,6 +668,12 @@ export class Controls {
       ["thickets", this.#els.thickets, 0, MAX_TERRAIN_PREVALENCE],
       ["trees", this.#els.trees, 0, MAX_TERRAIN_PREVALENCE],
       ["roundness", this.#els.roundness, 0, MAX_ROUNDNESS],
+      // The water features (v38). Number fields rather than dropdowns: a count
+      // and a percentage are quantities, and a 41-entry marsh dropdown would be
+      // a worse way to type "5" than typing 5.
+      ["smallLakes", this.#els.smallLakes, 0, MAX_SMALL_LAKES],
+      ["streams", this.#els.streams, 0, MAX_STREAMS],
+      ["marsh", this.#els.marsh, 0, MAX_MARSH_PERCENT],
     ];
     const params = {};
     for (const [key, element, min, max] of fields) {
@@ -782,6 +822,9 @@ export class Controls {
       this.#els.thickets,
       this.#els.trees,
       this.#els.roundness,
+      this.#els.smallLakes,
+      this.#els.streams,
+      this.#els.marsh,
       this.#els.preset,
       this.#els.presetName,
       this.#els.presetLoad,

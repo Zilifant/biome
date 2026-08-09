@@ -210,7 +210,12 @@ describe('runner: restart', () => {
       createEngine: (nextSeed, options) => createDemoSimulation({ seed: nextSeed, config: buildDemoConfig(options ?? {}) }),
     });
     runner.pause();
-    const result = runner.handleCommand({ type: 'simulation.restart', seed: 3, rocks: 0, thickets: 0 });
+    // ⚠ `marsh: 0` is not incidental (v38): a marsh grows its own **reed beds**,
+    // which are thicket cells, so thicket now has two independent sources and
+    // "the thicket generator is off" no longer implies "no thicket on the map".
+    // The assertion below is about the prevalence mapping reaching the generator,
+    // so the other source is switched off rather than the claim being weakened.
+    const result = runner.handleCommand({ type: 'simulation.restart', seed: 3, rocks: 0, thickets: 0, marsh: 0 });
     assert.equal(result.ok, true);
     const counts = runner.engine.world.terrain.countByType();
     // The connectivity pass may carve a few rock corridors, so rock can be

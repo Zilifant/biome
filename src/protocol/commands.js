@@ -17,7 +17,8 @@ export const CommandTypes = Object.freeze({
   SIMULATION_RESUME: 'simulation.resume',
   SIMULATION_SET_SPEED: 'simulation.setSpeed', // { multiplier }
   SIMULATION_STEP: 'simulation.step', //          { ticks } (only while paused)
-  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets?, trees?, roundness? }
+  // { seed?, width?, height?, founding?: [{speciesId, count}], rocks?, thickets?, trees?, roundness?,
+  //   smallLakes?, streams?, marsh? }  — the last three are v38's water features
   // ⚠ v29 replaced the per-role counts with a roster. `herbivores` /
   // `predators` / `scavengers` are still accepted as **deprecated aliases** for
   // one version; see FOUNDING_ROLE_ALIASES below.
@@ -186,6 +187,38 @@ export const DEFAULT_TERRAIN_PREVALENCE = 4;
 export const MAX_ROUNDNESS = 4;
 /** 0 (the plain rectangle) until 2026-08-04; the demo is now the crater's rim. */
 export const DEFAULT_ROUNDNESS = 4;
+
+/**
+ * The three water features (v38, TERRAIN-PLAN.md): ponds beside the lake, a
+ * stream running across the world, and a marsh covering a share of it.
+ *
+ * ⚠⚠ **Two counts and a percentage, not prevalence levels**, and the break from
+ * `rocks`/`thickets`/`trees` is deliberate. Those three are abstractions *over* a
+ * generator quantity, which is what lets the host retune formation counts without
+ * the protocol or the UI learning anything. "How many ponds" and "how much of the
+ * map is marsh" are not abstractions over anything — they are the settings
+ * themselves, and inventing a level to stand in for a number the user already
+ * thinks in would be a translation between a scale and itself. That is exactly
+ * the argument `roundness` makes above, and it applies twice more here.
+ *
+ * ⚠ `marsh` is an integer **percent** rather than a fraction: the protocol
+ * carries whole numbers a dropdown can offer, and the host divides by 100. It is
+ * a percentage of the world's *playable* area — on a round world, of the part
+ * inside the rim — which is the reading DOCS §7 Terrain spells out.
+ */
+export const MAX_SMALL_LAKES = 12;
+/** One extra pond, which is what the demo ships with. */
+export const DEFAULT_SMALL_LAKES = 1;
+export const MAX_STREAMS = 4;
+/** One stream: more than one on a map this size reads as a flood plain. */
+export const DEFAULT_STREAMS = 1;
+/**
+ * 40%, and the ceiling is a judgement rather than a limit of the generator: past
+ * roughly this much wetland the world stops being a savanna with a marsh in it
+ * and becomes a marsh with some savanna in it.
+ */
+export const MAX_MARSH_PERCENT = 40;
+export const DEFAULT_MARSH_PERCENT = 5;
 
 /**
  * Successful command result.
