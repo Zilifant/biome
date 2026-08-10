@@ -693,9 +693,12 @@ second mechanism to keep in step.
 **⚠ A62 — A calendar mechanism meets the compressed lifespan** _(from 2026-07-30,
 phase 13, PLAN-SPECIES.md §3.11)_
 
-Two compressions that are each defensible alone (§5): the year is 8000 ticks so a
-run reaches winter, and lifespans are compressed beside it so every species stays
-measurable in a 15 000-tick sweep. Together they leave a large animal with **about
+Two compressions that are each defensible alone (§5): the year is 4000 ticks
+(8000 before 2026-08-09) so a run reaches the dry season, and lifespans are
+compressed beside it so every species stays measurable in a 15 000-tick sweep.
+⚠ **Halving the year halved the severity of this item** — the same lifespan now
+spans twice as many calendars — but it did not close it, because the mechanism is
+unchanged and a female still loses a whole year by missing one window. Together they leave a large animal with **about
 one year of adult life** — so a mechanism keyed to the *calendar* rather than to
 the animal's own clock costs a female her whole remaining reproductive life the
 moment she falls out of phase with it.
@@ -816,7 +819,7 @@ reminder.
 | A40 | **Remembered routes are not implemented**                                                                                                                                      | _Settled._ Remembered _places_ already exist and `recallFood` already steers to them. A route is a trajectory, and the codebase deliberately stores no trajectory anywhere — a home range is four numbers for exactly this reason                                                                                                                |
 | A42 | **The forage cue reaches beyond perception** (18 units against 6)                                                                                                              | _Settled_ — a stated stand-in for coarse long-range cues this world does not simulate (the smell of green ground, the lie of the land). Bounded by being a _difference_: a flat world produces no pull                                                                                                                                           |
 | A43 | **Population fragmentation is enabled, not asserted.** Herd labels split by hop count and separate forage patches pull herds apart, but no test claims a fragmentation outcome | ⚠ **Narrowed 2026-08-06 (P10), not closed.** The *measure* this row was waiting on now exists — `groups.spread`, and it reads demo bands loosening 5.5 → 15.6 over 1500 ticks with a per-record max of 83. BEHAVIOR-PLAN proposed that P2's two-bands test closes the item; it does not — that asserts a **centroid** (a steering input, one tick, a sandbox) where A43 asks for a population **outcome**. What is left is a label-split reading on a real world, deliberately not written as a demo assertion because a label count is an equilibrium and an equilibrium test measures the seed (D14). See `ACTION-ITEMS.md` A43 |
-| A44 | **Drought and severe winter are not local disturbances**                                                                                                                       | _Settled._ Both exist as _global_ weather states, so a spatially bounded copy would be the same mechanism at a different scale. Fire, flood, and storm have no global analogue, which is why they are the three that shipped                                                                                                                     |
+| A44 | **Drought and severe winter are not local disturbances**                                                                                                                       | _Settled._ Drought exists as a _global_ weather state, so a spatially bounded copy would be the same mechanism at a different scale. Fire, flood, and storm have no global analogue, which is why they are the three that shipped. ⚠ **"Severe winter" no longer exists at all** — the wet/dry conversion (2026-08-09) removed the temperate year, so snow is a `WEATHER` string with zero odds in every phase and the season never bites through cold |
 | A45 | **A disturbance never modifies terrain**                                                                                                                                       | _Settled._ Terrain is derived and unsaved, so an edit would vanish on restore. "Affected terrain" is a derived traversal penalty plus a renderer overlay                                                                                                                                                                                         |
 | A46 | **Disturbance mortality is rare in the demo** — 0–12 deaths across ten seeds, against **852 burns** over the same runs                                                         | _Settled._ A region covers ~1% of the map and animals walk out of it, so the cost is local and **sublethal** rather than demographic — the same shape disease turned out to have. The lethal path is exercised in a controlled test. Making it demographically significant means bigger or more frequent events, which breaks recovery (see D18) |
 | A47 | **Animals do not seek other animals' burrows.** A burrow shelters whoever stands on it, but only trails exert a pull                                                           | Open. Giving burrows one means teaching the perception hot loop about features                                                                                                                                                                                                                                                                   |
@@ -1494,14 +1497,23 @@ completely and asserting the stream lands in the same state.
 **documentation only** — it never affects tick math.
 
 **The year and the lifespan are both compressed.** A literal year would be
-525 600 ticks and no demo run would reach winter. `ticksPerYear: 8000` puts four
-2000-tick seasons inside a run, against a compressed `maxAge` of 12 000 — so a
-grazer lives about a year and a half, and growth, stage transitions, and age
-death are all observable in a short run.
+525 600 ticks and no demo run would reach the dry season. `ticksPerYear: 4000`
+puts **two 2000-tick seasons** — wet and dry — inside a run, each split into two
+1000-tick phases, against a compressed `maxAge` of 12 000–13 000 — so a grazer
+lives about three years, and growth, stage transitions, and age death are all
+observable in a short run.
+
+⚠⚠ **The year halved (8000 → 4000) with the wet/dry conversion on 2026-08-09**,
+and it is the one number that changes what every *absolute* tick count means as a
+fraction of the year. Gestations, cooldowns, life stages and decay all doubled in
+year-fractions without a line of them changing. Only one thing in the roster is
+genuinely calendar-coupled — the wildebeest's breeding window — and it moved with
+it (§8). The compression ratio below therefore improved: a large animal now lives
+through **three** wet/dry cycles rather than one and a half.
 
 ⚠⚠ **The two compressions are not independent, and their ratio is a modelling
 choice nobody made deliberately.** Each was chosen on its own — the year so a run
-reaches winter, the lifespan so a species is measurable inside a 15 000-tick sweep
+reaches the dry season, the lifespan so a species is measurable inside a 15 000-tick sweep
 (PLAN-SPECIES §11.6, which gave up life-history *ratios* to keep the *ordering*).
 Together they say something neither was meant to: **a large animal lives about one
 year.** The megafauna are worst affected, because compressing a 20-year lifespan
@@ -2115,7 +2127,21 @@ looked correct and changed almost nothing — biomass moved 91k↔96k across a w
 year — because logistic growth toward a _fixed_ capacity means a field already at
 capacity simply stops growing, and a slower rate cannot brown it off. Scaling
 `capacityScale` plus a dieback term made the swing real: **85.8k in summer
-against 30.4k in winter**. A test pins the distinction directly.
+against 30.4k in winter**.
+
+⚠⚠ **Those two numbers are history as of the wet/dry conversion (2026-08-09), and
+the distinction they taught is not.** A wet/dry year has **no global dieback at
+all**: `PHASE_CAPACITY` is 0.9 in `wetEarly` and 1.0 in the other three phases, so
+nothing browns the map off uniformly any more. That is deliberate rather than a
+regression — the dry season has to leave the riparian strip alone while stopping
+the open plain regrowing, and **one global scalar cannot say "here but not
+there"**. The dry season's vegetation effect is therefore entirely *per-cell*
+(`wetCapacityBonus 0.6 → 0`, `dryGrowthScale 0.75 → 0`; see SEASON-PLAN.md §5),
+and grass on the plain does not die back — it simply never recovers from being
+eaten. The rate-versus-ceiling lesson survives intact and is still pinned by a
+test, which now measures it on a **grazed** field: the wet flush runs 2.5× ahead
+of the settled year while the field is climbing, and 10% *behind* once both have
+saturated, because at that point only the ceiling is left.
 
 #### Water proximity — taller by the water, slower on the dry plain _(2026-08-09)_
 
@@ -3088,6 +3114,19 @@ costs it real energy. What changed is that the cost is no longer a death
 sentence: it is stressed on 12.9% of its animal-ticks and floored on all of them.
 Widening its band would erase the differentiation the roster exists to express.
 
+⚠⚠ **All of the above is a measurement of a world that no longer exists, and the
+number to carry forward is the *shape* rather than the percentage.** The wet/dry
+conversion cut `temperatureAmplitude` **9 → 2** on 2026-08-09, which retires
+temperature as a mechanism rather than retuning it: the bare year now runs
+12…16 °C, inside the 5…24 °C intersection of every comfort band in the roster, so
+**no animal is stressed by the season at all** and a drought reaches only 21 °C.
+A storm (−10 °C on a disturbance) is the only thing left that can push an animal
+out of band. The thermoregulation share of every species' energy budget is
+therefore near zero and every animal in the world got materially cheaper to run —
+⚠ which has **not been swept**, landed in the same phase as the whole season
+conversion, and will partly mask the dry season's cost. See SEASON-PLAN.md §2.3
+and §10.
+
 ⚠ **Check whether a per-tick field is consumed before you read it.**
 `lastMoveDistance` is an accumulator that metabolism _consumes and zeroes_ in
 `physiology`, so any `environment`-phase system reads 0 forever. The engineering
@@ -3714,8 +3753,11 @@ Four boundaries, each stated rather than left to be found:
 - **The gate lives in `isReproductivelyReady`**, the single shared rule, so the
   decision system's `seekMate` is gated by the same predicate that gates pairing —
   she does not walk to a male she would refuse.
-- **A window may wrap the year boundary** (`0.9 → 0.1` is a rut running from late
-  autumn into early spring). Half-open at the end, like every range here.
+- **A window may wrap the year boundary** (`0.9 → 0.1` is a rut running from the
+  late dry season into the start of the wet). Half-open at the end, like every
+  range here. ⚠ **No shipped species exercises this any more** — the wildebeest's
+  window wrapped until 2026-08-09 and is now `{0.40, 0.60}` — so the wrapping case
+  is covered by unit tests alone (`test/breeding.test.js`).
 - **Conception only.** A pregnancy carried past the window's end is delivered
   normally, and nothing about gestation, birth, or parenting is seasonal.
 
@@ -5221,8 +5263,8 @@ not move, §6 Memory), so an animal that drank once is not left to forget the on
 water on the map.
 
 **Nothing in it is seasonal, and nothing in it knows what a season is.** Season
-arrives through the grass: a green spring flattens the gradient to nothing and
-animals scatter; a grazed-out winter sharpens it and they concentrate.
+arrives through the grass: the wet flush flattens the gradient to nothing and
+animals scatter; a grazed-out dry season sharpens it and they concentrate.
 
 **Recolonization is not implemented at all** — nothing anywhere knows a region
 was emptied. Ground nobody is eating grows back to capacity and becomes the best
@@ -5268,6 +5310,49 @@ showing that twenty animals and four hundred leave the stream in the same state.
 deaths _from_ disease. What suppresses the population is time spent feeding badly
 and not breeding — so `symptomaticTicks` and `feedPenalty`, not the mortality
 rate, are the numbers that decide what disease costs.
+
+### Season and weather
+
+**Two seasons, four phases, two clocks.** `world/Environment.js` +
+`systems/WeatherSystem.js`. The year is `ticksPerYear: 4000`, cut into four
+1000-tick **phases** — `wetEarly`, `wetLate`, `dryEarly`, `dryLate` — which group
+into two 2000-tick **seasons**, `wet` and `dry`. Everything downstream reads one
+small record on `world.environment`.
+
+⚠ **The two clocks are deliberately different, and merging them is the mistake
+this file exists to refuse.** The season and phase are **pure functions of the
+tick**, so the calendar survives a save, a restore, and a fresh run at the same
+seed with nothing stored. The weather is **stochastic and stateful**: one draw
+from the `weather` stream every `spellTicks: 200`, with odds keyed per phase.
+
+| | wetEarly | wetLate | dryEarly | dryLate |
+| --- | ---: | ---: | ---: | ---: |
+| `PHASE_GROWTH` | 1.35 | 1.0 | 1.0 | 1.0 |
+| `PHASE_CAPACITY` | 0.9 | 1.0 | 1.0 | 1.0 |
+| rain | 0.55 | 0.42 | 0.10 | 0.05 |
+| drought | 0 | 0.03 | 0.30 | 0.50 |
+
+⚠⚠ **A drought is weather; the dry season is not a drought.** Making the dry
+season *be* a drought spell was considered and refused: it would start at a
+different tick on every seed and stop being derivable from the clock on load. The
+dry season is the **floor**; a drought spell is a bad patch within it, and the
+odds above are how that is said. ⚠ Rain in the dry season does **not** refill the
+map — water is on the season's clock, not the weather's.
+
+⚠ **Four phases rather than two seasons, because the wet season is not uniform.**
+The flush at its start grows more grass than its settled middle, which is exactly
+what the old `spring`/`summer` split carried. The year is still cut into quarters
+and every per-quarter table is still keyed by one; a season is a *pair*.
+`seasonProgress` runs across the half-year season and `phaseProgress` across the
+quarter — ⚠ `seasonProgress` **changed meaning** at the conversion, having been
+the quarter's progress before it.
+
+⚠ **`snow` is retained in `WEATHER` at zero odds in every phase.** A wet/dry world
+never snows, but the string stays so older saves load and no protocol enum
+shrinks. Temperature is likewise no longer a mechanism — see §9 Metabolism.
+
+**The dry season's real work is not here.** Draining the map and the per-cell
+vegetation response are terrain and vegetation concerns; see SEASON-PLAN.md.
 
 ### Disturbances
 

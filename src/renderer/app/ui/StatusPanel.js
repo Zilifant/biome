@@ -102,9 +102,16 @@ export class StatusPanel {
     this.#els.entities.textContent = String(store.entityCount);
     // Season, weather, and temperature (protocol v18). Renderer-owned wording;
     // the protocol sends bare names and a number.
+    //
+    // ⚠ A season is half a year and is split into two phases, so the season name
+    // alone would hold still for 2000 ticks while the grass changed underneath
+    // it. The phase is shown as the season's half — `wet (late)` — because
+    // `wetLate` is the protocol's spelling and not a thing to put on a status
+    // bar. An older payload without a phase simply shows the season.
     const environment = store.environment;
+    const phaseSuffix = environment?.phase ? ` (${environment.phase.endsWith('Late') ? 'late' : 'early'})` : '';
     this.#els.season.textContent = environment
-      ? `${environment.season} · ${environment.weather} · ${environment.temperature.toFixed(1)}°C`
+      ? `${environment.season}${phaseSuffix} · ${environment.weather} · ${environment.temperature.toFixed(1)}°C`
       : '–';
     this.#els.season.className = environment ? WEATHER_TONE[environment.weather] ?? '' : '';
     this.#els.camera.textContent = `${Math.floor(camera.centerX)},${Math.floor(camera.centerY)}`;

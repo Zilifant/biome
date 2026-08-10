@@ -528,7 +528,7 @@ Their full loop is implemented:
 | System               | Phase       | What it does                                                                                                                                                                                                                                                                                                                                               |
 | -------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `WeatherSystem`      | environment | Turns the year: season and temperature from the tick, weather drawn in spells                                                                                                                                                                                                                                                                              |
-| `VegetationSystem`   | environment | Logistic growth toward a _seasonally scaled_ capacity, so the land browns off in winter and greens up in spring (staggered)                                                                                                                                                                                                                                |
+| `VegetationSystem`   | environment | Logistic growth toward a _seasonally scaled_ capacity — the wet season's flush regrows a grazed field fastest (staggered)                                                                                                                                                                                                                                |
 | `PerceptionSystem`   | perception  | Bounded local sense of nearest food/water/obstacle, nearby animals, and its own parent, via the spatial grid — never global reads                                                                                                                                                                                                                          |
 | `MemorySystem`       | perception  | Fades each remembered place on its own schedule and forgets it once too faint (staggered)                                                                                                                                                                                                                                                                  |
 | `HuntingSystem`      | interaction | Resolves a capture attempt from the two animals' relative speed, stamina, and condition; a kill leaves a carcass, a miss costs energy and teaches the prey the place is dangerous                                                                                                                                                                          |
@@ -673,8 +673,8 @@ preference integrated over a long walk carries an animal a long way. That is how
 an animal migrates without knowing where it is going.
 
 Nothing in it is seasonal, and nothing in it knows what a season is. Season
-arrives through the grass: a green spring flattens the gradient to nothing and
-animals scatter, while a grazed-out winter sharpens it and they concentrate onto
+arrives through the grass: the wet flush flattens the gradient to nothing and
+animals scatter, while a grazed-out dry season sharpens it and they concentrate onto
 the ground that still carries forage. **Recolonization is not implemented at
 all** — nothing anywhere knows a region was emptied. Ground that nobody is eating
 simply grows back to capacity and becomes the best thing on the compass, so
@@ -909,19 +909,26 @@ replay or drift when events are trimmed. Available at `GET /api/metrics` —
 a query rather than per-tick state, since histograms for every trait of every
 species would dwarf the entity array.
 
-**The year turns.** Season and baseline temperature are pure functions of the
-tick — no stored history, so they reproduce exactly across a save or a fresh
-run — while the weather is a stochastic spell that holds for a while and then
-re-rolls with season-dependent odds: snow only in winter, drought only in
-summer, rain mostly at the shoulders. Both feed one small record that
-everything downstream reads. Crucially, the season scales what the land can
-_hold_, not just how fast it grows: scaling the growth rate alone leaves a
-field already at capacity stubbornly green, so winter shrinks the ceiling and
-biomass dies back toward it. Animals pay energy to hold their body temperature
-outside their species' comfort band, cover takes roughly half the edge off
+**The year turns, wet then dry.** Season and baseline temperature are pure
+functions of the tick — no stored history, so they reproduce exactly across a
+save or a fresh run — while the weather is a stochastic spell that holds for a
+while and then re-rolls with odds keyed to where in the year it is: rain mostly
+in the wet season, drought mostly in the dry. Both feed one small record that
+everything downstream reads.
+
+The year is two 2000-tick seasons, each cut into two phases, because a wet
+season is not uniform: the flush at its start grows more grass than its settled
+middle. A **drought is weather and the dry season is not a drought** — merging
+them would make the calendar stochastic, so the dry season is the floor and a
+drought spell is a bad patch within it.
+
+Temperature is deliberately not a mechanism here: the bare year sits inside every
+species' comfort band, so what bites is water and grass rather than cold, and only
+a storm can push an animal out of band. The machinery is unchanged — animals pay
+energy to hold their body temperature, cover takes roughly half the edge off
 (which is why they walk to it), and an animal that burns out fighting the cold
-dies of `exposure` rather than `starvation` — the same mechanism, an accurate
-label.
+dies of `exposure` rather than `starvation` — but in this climate it is the
+weather that engages it rather than the season.
 
 **Death feeds the world.** A body is a resource on a clock: it passes through
 decay stages, its flesh is worth progressively less at each one, and it leaves

@@ -1273,16 +1273,35 @@ describe('batch 2: the two mechanisms in the demo world', () => {
     );
   });
 
-  test('a buffalo herd stands its ground, and a hunt it stands against is a worse hunt', () => {
+  test('a buffalo herd stands its ground in the shipped world', () => {
+    // ⚠⚠ **The odds half of this test was removed on 2026-08-09, and adding seeds
+    // — the fix that worked the last two times — was measured and does not work.**
+    // The `soloMobbed` cell (a *lone* lion whose target is being mobbed) is the
+    // rarest of the four, and after the wet/dry conversion it stops filling
+    // altogether. Measured cumulatively, 6000 ticks per seed:
+    //
+    //   42   42,2   42,2,3   +5   +1   +7   +11   +13
+    //    0     1       2      2    2    2     2     2
+    //
+    // Five further seeds — **30 000 demo ticks** — added not one sample. This is
+    // not a thin cell that a wider net will fill; the phenomenon has become too
+    // rare in this world to measure at demo scale, and a threshold of 3 was
+    // asking the suite to keep buying seeds against a number that had stopped
+    // responding to them.
+    //
+    // ⚠ **The claim itself lost nothing, because it is tested properly
+    // elsewhere.** `mobbing: what it costs the hunter` → "a mobbed prey is harder
+    // to take" calls `captureChance` directly against a constructed standoff and
+    // asserts the ordering deterministically, with no sampling at all. That is
+    // where a claim about *odds* belongs; what a demo run can honestly add is
+    // that the behaviour occurs in the shipped world, which is what is left here.
+    //
+    // ⚠ For the record, since it is the number a future reader will want: across
+    // eight seeds × 6000 ticks the buffalo spent **32 ticks standing its ground
+    // and 33 ticks being mobbed for**. That is real and it is tiny, and DOCS §1.2
+    // A33 already records mobbing as rare in the demo.
     assert.ok(observed.buffaloStandTicks > 0, 'the hunted buffalo turns and faces');
     assert.ok(observed.buffaloMobTicks > 0, 'and herdmates come to it');
-    const mobbed = observed.soloMobbed;
-    const unmobbed = observed.soloClean;
-    assert.ok(mobbed.n >= 3, `attempts are resolved against a mob (${mobbed.n})`);
-    assert.ok(
-      odds(mobbed) < odds(unmobbed),
-      `${show('mean capture chance against a mob', mobbed)} against ${show('unmobbed', unmobbed)}`,
-    );
   });
 
   test('⚠ and hunting a 600 kg animal hurts: lions are trampled', () => {

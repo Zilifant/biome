@@ -41,10 +41,12 @@ export const EventTypes = Object.freeze({
   // Decay (Step 18). A carcass announces each stage it passes through; when it
   // is finally gone the usual `entity.removed` follows.
   ENTITY_DECAYED: 'entity.decayed', // { entityId, stage, stageName, edibleMass }
-  // The turning year (Step 19). World-level rather than per-entity, and emitted
-  // only when the season or the weather actually changes — temperature drifts
-  // every tick and would flood the log.
-  ENVIRONMENT_CHANGED: 'environment.changed', // { season, weather, temperature, previousSeason, previousWeather }
+  // The turning year (Step 19; wet/dry since SEASON-PLAN.md D1). World-level
+  // rather than per-entity, and emitted only when the season, the phase or the
+  // weather actually changes — temperature drifts every tick and would flood the
+  // log. ⚠ The **phase** is on it because a season is two phases: `wetEarly →
+  // wetLate` changes what the grass does without changing the season's name.
+  ENVIRONMENT_CHANGED: 'environment.changed', // { season, phase, weather, temperature, previousSeason, previousPhase, previousWeather }
   // Sociality (Step 23). `alarmed` fires on the *transition* into panic only —
   // a herd of twenty in view of a predator would otherwise emit twenty events a
   // tick for as long as it stayed in view. `sourceId` is null when the animal

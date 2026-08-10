@@ -282,10 +282,31 @@
  *       insertion order, which a restore re-sorts — same events, different
  *       sequence), and `assertKnownSpecies` now checks `pendingCommands`, the third
  *       place a `speciesId` can hide and the one it was not looking in.
+ *  36 — the year becomes **wet/dry** (SEASON-PLAN.md D1). The `environment` block
+ *       gains `phase` and `phaseProgress`; `season` changes from one of
+ *       `spring|summer|autumn|winter` to one of `wet|dry`; and `seasonProgress`
+ *       changes meaning from "through this quarter" to "through this half-year
+ *       season".
+ *
+ *       ⚠ **The config is what actually invalidates a v35 save, not the fields.**
+ *       `config.environment` moved under it — `ticksPerYear 8000 → 4000`,
+ *       `spellTicks 400 → 200`, `temperatureAmplitude 9 → 2` — and the whole
+ *       environment record is a pure function of the tick and those numbers, so a
+ *       v35 save restored into this engine would resume at a different point in a
+ *       different year with a different climate. That is not a missing field, it
+ *       is a different world, which is the case §12 says to bump for.
+ *
+ *       ⚠ Also in this version, and it is a *behaviour* change rather than a
+ *       format one: the wildebeest's `reproduction.gestationTicks` moved
+ *       1400 → 2400 and its `breedingWindow` to `{0.40, 0.60}`, so that calving
+ *       lands at the start of the wet season rather than being smeared across the
+ *       dry one. A v35 save carries gestating females whose `gestationUntil` was
+ *       set on the old clock; they would simply calve early, which is harmless,
+ *       but the save is invalidated on the config's account anyway.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 35;
+export const SAVE_FORMAT_VERSION = 36;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.

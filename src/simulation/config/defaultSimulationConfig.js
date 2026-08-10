@@ -1282,11 +1282,29 @@ export const defaultSimulationConfig = Object.freeze({
   // Season and weather (see world/Environment.js and systems/WeatherSystem.js).
   // The year is compressed exactly as lifespan is: a tick is ~1 in-world minute,
   // so a literal year would be 525,600 ticks and no demo run would ever reach
-  // winter. At 8000 ticks a year, each season is 2000 ticks and an animal lives
-  // roughly 1.5 years against the compressed `aging.maxAge`.
+  // the dry season.
+  //
+  // ⚠ **8000 → 4000 with the wet/dry conversion** (SEASON-PLAN.md §2.2). At 4000
+  // a season is 2000 ticks, a phase 1000, and a wildebeest lives ~3.25 years
+  // against the compressed `aging.maxAge` — so a lifetime now contains enough
+  // wet/dry cycles for the seasons to be something an animal lives through
+  // rather than something that happens to it once. It also halves what a
+  // full-year measurement costs: a demo year is ~1m32s of wall-clock.
+  //
+  // ⚠ Everything measured in **absolute ticks** — gestation, cooldowns, life
+  // stages, decay — therefore doubles as a fraction of the year. Only one thing
+  // in the roster is genuinely calendar-coupled (the wildebeest's breeding
+  // window, which moved with it); everything else simply means "half a year's
+  // worth" now.
   environment: Object.freeze({
-    ticksPerYear: 8000,
-    spellTicks: 400, // how long one weather state holds before re-rolling
+    ticksPerYear: 4000,
+    // How long one weather state holds before re-rolling. ⚠ **400 → 200 with the
+    // shorter year**, so a phase still sees ~5 spells: at 4000/400 a phase would
+    // get 2.5, and the dry season could draw twice and never see a drought.
+    // Halving it doubles the rate the `weather` stream is consumed, so every
+    // seeded world's weather sequence changes — expected, and the reason "the
+    // weather is unchanged" is not a claim this conversion can make.
+    spellTicks: 200,
     meanTemperature: 14, // °C, annual mean
     // °C: summer peaks ~23, winter troughs ~5. Measured — at an amplitude of 14
     // the bare seasons alone pushed animals outside their comfort band all
@@ -1314,7 +1332,23 @@ export const defaultSimulationConfig = Object.freeze({
     // drought takes summer to 28, and a storm is −10 on top of either. ⚠ This
     // changes an energy sink for every animal in the world, so it is swept, not
     // assumed — see DOCS §1.1 A67 and §9 Metabolism.
-    temperatureAmplitude: 9,
+    //
+    // ⚠⚠ **9 → 2 with the wet/dry conversion, and this retires temperature as a
+    // mechanism rather than retuning it.** A wet/dry world's pressure is water
+    // and grass; cold is not what it is about. At 2 the bare year is 12…16 °C,
+    // inside the 5…24 °C intersection of every species' comfort band, so **the
+    // season alone never stresses anything**. Weather still moves it (drought
+    // +5 → 21, rain −2 → 10, both comfortable) and a storm (−10) is the only
+    // thing left that can push an animal out of band.
+    //
+    // ⚠ The note above says an amplitude change is swept rather than assumed,
+    // and that has not been done for this one: it lands in the same phase as the
+    // whole season conversion, so the two cannot be told apart afterwards. What
+    // is known is the direction — A67 measured thermoregulation at 40.1% of the
+    // leopard's energy budget at amplitude 11, so this makes every animal in the
+    // world materially cheaper to run, and some of the dry season's cost will be
+    // paid for out of that. See SEASON-PLAN.md §2.3 and §10.
+    temperatureAmplitude: 2,
   }),
   // Carcasses and decay (see systems/CarcassSystem.js). A body is a resource on
   // a clock: it passes through decay stages, its flesh is worth less at each

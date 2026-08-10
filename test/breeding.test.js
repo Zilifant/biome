@@ -32,7 +32,7 @@ import { SPECIES_DEFINITIONS } from '../src/simulation/config/species/index.js';
 import { GENOME_LOCI, expressGenome } from '../src/simulation/traits/genetics.js';
 import { Sexes } from '../src/simulation/mating/mateChoice.js';
 import { EventTypes } from '../src/simulation/events/EventTypes.js';
-import { yearProgress } from '../src/simulation/world/Environment.js';
+import { yearProgress, phaseAt } from '../src/simulation/world/Environment.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { DEFAULT_BREEDING, breedingWindowOf, inBreedingWindow } from '../src/simulation/mating/breeding.js';
@@ -398,10 +398,41 @@ describe('breeding windows: in the shipped world', () => {
     const engine = createDemoSimulation({ seed: 42 });
     const seasonal = engine.species.all().filter((s) => breedingWindowOf(s.reproduction) !== null);
     assert.deepEqual(seasonal.map((s) => s.id), ['herbivore.wildebeest']);
-    // ⚠ And its window wraps the year, which is the case the mechanism was built
-    // to allow and the shipped roster now exercises.
-    const rut = breedingWindowOf(seasonal[0].reproduction);
-    assert.ok(rut.startFraction > rut.endFraction, 'late winter into early summer');
+  });
+
+  test('⚠ the rut is timed so that every calf lands in the wet season flush', () => {
+    // ⚠⚠ **This replaced an assertion that the shipped window *wraps* the year.**
+    // It did, until the wet/dry conversion — `{0.85, 0.5}` — and the old comment
+    // called that "late winter into early summer". Two things were wrong with it
+    // even then: a wrapping window whose true width is `(1 − 0.85) + 0.5` = **0.65
+    // of the year** is not a compressed rut, and the file's own prose beside it
+    // described a 0.30-year window. The wrapping *case* is still exercised by the
+    // unit tests above (`a wrapped window works across the year boundary`), so
+    // nothing lost coverage; what it stopped doing was pinning the roster.
+    //
+    // What is worth pinning is the thing the timing is *for*: a compressed rut plus
+    // a constant gestation is a compressed calving season (§3.11), and it should
+    // land where the grass is. So this computes the calving season from the two
+    // numbers and asserts where it falls, which is the claim `herbivoreWildebeest.js`
+    // actually makes.
+    const engine = createDemoSimulation({ seed: 42 });
+    const { ticksPerYear } = engine.config.environment;
+    const wildebeest = engine.species.get('herbivore.wildebeest');
+    const rut = breedingWindowOf(wildebeest.reproduction);
+    assert.ok(rut.startFraction < rut.endFraction, 'the rut does not wrap the year');
+    assert.ok(rut.endFraction - rut.startFraction <= 0.25, 'and it is compressed — a fifth of the year');
+
+    const gestation = wildebeest.reproduction.gestationTicks / ticksPerYear;
+    const firstCalf = (rut.startFraction + gestation) % 1;
+    const lastCalf = (rut.endFraction + gestation) % 1;
+    assert.ok(firstCalf < lastCalf, 'the calving season does not straddle the year boundary either');
+    for (const progress of [firstCalf, (firstCalf + lastCalf) / 2, lastCalf]) {
+      assert.equal(
+        phaseAt(progress * ticksPerYear, ticksPerYear),
+        'wetEarly',
+        `a calf born at yearProgress ${progress.toFixed(3)} arrives in the wet flush`,
+      );
+    }
   });
 
   test('⚠ a world with no wildebeest is byte-identical with the mechanism switched off', () => {

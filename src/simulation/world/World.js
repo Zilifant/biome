@@ -2,7 +2,7 @@ import { EntityManager } from './EntityManager.js';
 import { SpatialGrid } from './SpatialGrid.js';
 import { TerrainGrid, TerrainType, isShelteringCode } from './TerrainGrid.js';
 import { VegetationGrid } from './VegetationGrid.js';
-import { initialEnvironment } from './Environment.js';
+import { initialEnvironment, DEFAULT_ENVIRONMENT_PARAMS } from './Environment.js';
 import { ScentGrid } from './ScentGrid.js';
 import { speedScaleAt } from '../disturbance/disturbances.js';
 import { FeatureGrid } from './FeatureGrid.js';
@@ -155,7 +155,7 @@ export class World {
     this.metrics = null;
     /** @type {object[]} */
     this.metricsHistory = [];
-    this.environment = initialEnvironment(config.environment ?? { ticksPerYear: 8000, meanTemperature: 14, temperatureAmplitude: 14 });
+    this.environment = initialEnvironment(config.environment ?? DEFAULT_ENVIRONMENT_PARAMS);
     // Active local disturbances (Step 27) — fires, floods, storms. A bounded
     // list of small records, capped by the disturbance system, and the *only*
     // state the mechanism has: every effect (slower ground, colder air, burnt

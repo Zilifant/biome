@@ -203,7 +203,22 @@ describe('reproduction: demo integration', () => {
     const engine = createDemoSimulation({ seed: 42 });
     let births = 0;
     let firstBirth = null;
-    for (let t = 0; t < 3000; t += 1) {
+    // ⚠⚠ **4500 ticks, not 3000, and the horizon is now a fact about the calendar
+    // rather than a round number.** The wet/dry year is 4000 ticks and the
+    // wildebeest — 100 of the 263 founders — calves in a compressed wave at the
+    // start of the wet season (`breedingWindow {0.40, 0.60}` plus a 2400-tick
+    // gestation, so every calf lands in `yearProgress 0.00…0.18`). Measured on
+    // seed 42, population against a founding cohort of 263:
+    //
+    //   tick   1500  2000  2500  3000  3500  4000  4500  5000
+    //   pop     259   263   264   263   270   288   333   340
+    //
+    // The old 3000-tick horizon lands exactly in the trough *before* the first
+    // calving wave, so "the population renewed" was being asked at the one moment
+    // in the year it is least true. A seasonal calver makes this assertion
+    // sensitive to where in the year you stop looking, which it never was before —
+    // so the horizon has to clear the wave rather than merely be long.
+    for (let t = 0; t < 4500; t += 1) {
       const before = engine.events.lastSeq;
       engine.step(1);
       for (const e of engine.eventsSince(before)) {

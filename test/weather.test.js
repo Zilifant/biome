@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
 import { SeededRandom } from '../src/simulation/random/SeededRandom.js';
 import {
+  PHASES,
   SEASONS,
   WEATHER,
+  phaseAt,
   seasonAt,
   yearProgress,
   baseTemperatureAt,
@@ -62,14 +64,26 @@ function spawnGrazer(engine, overrides = {}) {
 }
 
 describe('weather: the seasonal cycle', () => {
-  test('the year turns through all four seasons in order and repeats', () => {
+  test('the year turns through all four phases in order and repeats', () => {
     const seen = [];
-    for (let i = 0; i < SEASONS.length; i += 1) {
-      seen.push(seasonAt(i * (ENV.ticksPerYear / SEASONS.length) + 10, ENV.ticksPerYear));
+    for (let i = 0; i < PHASES.length; i += 1) {
+      seen.push(phaseAt(i * (ENV.ticksPerYear / PHASES.length) + 10, ENV.ticksPerYear));
     }
-    assert.deepEqual(seen, [...SEASONS]);
-    assert.equal(seasonAt(ENV.ticksPerYear + 10, ENV.ticksPerYear), SEASONS[0], 'the next year starts over');
+    assert.deepEqual(seen, [...PHASES]);
+    assert.equal(phaseAt(ENV.ticksPerYear + 10, ENV.ticksPerYear), PHASES[0], 'the next year starts over');
     assert.ok(yearProgress(ENV.ticksPerYear, ENV.ticksPerYear) < 1e-9, 'the year wraps cleanly');
+  });
+
+  test('a season is a pair of phases — the wet half, then the dry half', () => {
+    assert.deepEqual([...SEASONS], ['wet', 'dry']);
+    const quarter = ENV.ticksPerYear / PHASES.length;
+    const seasonOf = (i) => seasonAt(i * quarter + 10, ENV.ticksPerYear);
+    assert.deepEqual([seasonOf(0), seasonOf(1), seasonOf(2), seasonOf(3)], ['wet', 'wet', 'dry', 'dry']);
+    // The two are consistent by construction rather than by two tables: every
+    // phase resolves to the season its name starts with.
+    for (let i = 0; i < PHASES.length; i += 1) {
+      assert.ok(PHASES[i].startsWith(seasonOf(i)), `${PHASES[i]} belongs to ${seasonOf(i)}`);
+    }
   });
 
   test('season is a pure function of the tick, so it needs no stored history', () => {
@@ -83,45 +97,93 @@ describe('weather: the seasonal cycle', () => {
     }
   });
 
-  test('temperature peaks in midsummer and troughs in midwinter', () => {
-    const at = (progress) => baseTemperatureAt(progress * ENV.ticksPerYear, ENV);
-    const midSummer = at(0.375);
-    const midWinter = at(0.875);
-    const midSpring = at(0.125);
-    const midAutumn = at(0.625);
+  test('seasonProgress runs across the half-year season, phaseProgress across the quarter', () => {
+    // ⚠ `seasonProgress` changed meaning with the wet/dry conversion: it used to
+    // be position within the quarter, which is now `phaseProgress`. Both are in
+    // the protocol, so this pins which is which.
+    const at = (progress) => describeEnvironment(progress * ENV.ticksPerYear, 'clear', ENV);
+    const midWetLate = at(0.375);
+    assert.equal(midWetLate.season, 'wet');
+    assert.equal(midWetLate.phase, 'wetLate');
+    assert.ok(Math.abs(midWetLate.seasonProgress - 0.75) < 1e-9, 'three quarters through the wet season');
+    assert.ok(Math.abs(midWetLate.phaseProgress - 0.5) < 1e-9, 'and halfway through its second phase');
 
-    assert.ok(midSummer > midSpring && midSummer > midAutumn, 'summer is the warmest');
-    assert.ok(midWinter < midSpring && midWinter < midAutumn, 'winter is the coldest');
-    assert.ok(Math.abs(midSummer - (ENV.meanTemperature + ENV.temperatureAmplitude)) < 1e-6, 'peak is mean + amplitude');
-    assert.ok(Math.abs(midWinter - (ENV.meanTemperature - ENV.temperatureAmplitude)) < 1e-6, 'trough is mean − amplitude');
-    // And the seasons those extremes fall in really are named that.
-    assert.equal(seasonAt(0.375 * ENV.ticksPerYear, ENV.ticksPerYear), 'summer');
-    assert.equal(seasonAt(0.875 * ENV.ticksPerYear, ENV.ticksPerYear), 'winter');
+    const startOfDry = at(0.5);
+    assert.equal(startOfDry.season, 'dry');
+    assert.equal(startOfDry.phase, 'dryEarly');
+    assert.ok(startOfDry.seasonProgress < 1e-9, 'the dry season starts over at 0');
+  });
+
+  test('⚠ the bare year never leaves any species comfort band — temperature is not a mechanism here', () => {
+    // The wet/dry conversion cut `temperatureAmplitude` 9 → 2 deliberately: this
+    // world's pressure is water and grass, not cold. That is a *claim about every
+    // species at once*, so it is asserted against the roster rather than against
+    // one animal — the intersection of every comfort band is what the amplitude
+    // was chosen against (SEASON-PLAN.md §2.3).
+    const registry = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
+    let warmestFloor = -Infinity;
+    let coolestCeiling = Infinity;
+    for (const definition of SPECIES_DEFINITIONS) {
+      const species = registry.get(definition.id);
+      if (species.comfortMin !== undefined) warmestFloor = Math.max(warmestFloor, species.comfortMin);
+      if (species.comfortMax !== undefined) coolestCeiling = Math.min(coolestCeiling, species.comfortMax);
+    }
+    const peak = ENV.meanTemperature + ENV.temperatureAmplitude;
+    const trough = ENV.meanTemperature - ENV.temperatureAmplitude;
+    assert.ok(trough >= warmestFloor, `the coldest bare tick (${trough}) is above every floor (${warmestFloor})`);
+    assert.ok(peak <= coolestCeiling, `the warmest bare tick (${peak}) is below every ceiling (${coolestCeiling})`);
+
+    // Weather still moves it, and must not move it out either: drought is the
+    // biggest shift the odds can produce now that snow never falls.
+    const drought = describeEnvironment(0.875 * ENV.ticksPerYear, 'drought', ENV).temperature;
+    const rain = describeEnvironment(0.375 * ENV.ticksPerYear, 'rain', ENV).temperature;
+    assert.ok(drought <= coolestCeiling, `a drought (${drought.toFixed(1)}) is still inside every band`);
+    assert.ok(rain >= warmestFloor, `and so is rain (${rain.toFixed(1)})`);
+  });
+
+  test('temperature still peaks and troughs where the sinusoid says, at its reduced amplitude', () => {
+    const at = (progress) => baseTemperatureAt(progress * ENV.ticksPerYear, ENV);
+    const peak = at(0.375);
+    const trough = at(0.875);
+    assert.ok(Math.abs(peak - (ENV.meanTemperature + ENV.temperatureAmplitude)) < 1e-6, 'peak is mean + amplitude');
+    assert.ok(Math.abs(trough - (ENV.meanTemperature - ENV.temperatureAmplitude)) < 1e-6, 'trough is mean − amplitude');
+    assert.ok(peak > at(0.125) && peak > at(0.625), 'the peak is the peak');
+    // ⚠ The phase shift was left at 0.125, so the warmest point is still the
+    // middle of the year's second quarter — which is now late in the *wet*
+    // season rather than midsummer. At an amplitude of 2 it no longer matters
+    // where the swing lands, which is why the shift was not moved.
+    assert.equal(phaseAt(0.375 * ENV.ticksPerYear, ENV.ticksPerYear), 'wetLate');
+    assert.equal(phaseAt(0.875 * ENV.ticksPerYear, ENV.ticksPerYear), 'dryLate');
   });
 });
 
 describe('weather: spells', () => {
-  test('each season draws the weather it should, and only that', () => {
+  test('each phase draws the weather it should, and only that', () => {
     const random = new SeededRandom(11);
-    const byseason = {};
-    for (const season of SEASONS) {
-      byseason[season] = new Set();
-      for (let i = 0; i < 500; i += 1) byseason[season].add(rollWeather(season, random));
+    const byPhase = {};
+    for (const phase of PHASES) {
+      byPhase[phase] = new Set();
+      for (let i = 0; i < 500; i += 1) byPhase[phase].add(rollWeather(phase, random));
     }
-    assert.ok(byseason.winter.has('snow'), 'it snows in winter');
-    assert.ok(!byseason.summer.has('snow'), 'and never in summer');
-    assert.ok(byseason.summer.has('drought'), 'droughts are a summer thing');
-    assert.ok(!byseason.winter.has('drought'), 'not a winter one');
-    for (const season of SEASONS) {
-      for (const weather of byseason[season]) assert.ok(WEATHER.includes(weather), `unknown weather ${weather}`);
+    // ⚠ It never snows anywhere. The state is kept in `WEATHER` so old saves
+    // load and the renderer keeps its tone key, but a wet/dry world has no
+    // winter for it to fall in — so this is asserted for every phase, not just
+    // one, because "zero odds" is the whole of the claim.
+    for (const phase of PHASES) assert.ok(!byPhase[phase].has('snow'), `no snow in ${phase}`);
+    assert.ok(byPhase.dryLate.has('drought'), 'droughts are a dry-season thing');
+    assert.ok(byPhase.dryEarly.has('drought'), 'in both of its phases');
+    assert.ok(!byPhase.wetEarly.has('drought'), 'and the wet flush has none at all');
+    assert.ok(byPhase.wetEarly.has('rain'), 'which is when it rains');
+    for (const phase of PHASES) {
+      for (const weather of byPhase[phase]) assert.ok(WEATHER.includes(weather), `unknown weather ${weather}`);
     }
   });
 
   test('one draw per roll, whatever it returns', () => {
     const a = new SeededRandom(5);
     const b = new SeededRandom(5);
-    rollWeather('winter', a);
-    rollWeather('summer', b); // different odds, same number of draws
+    rollWeather('dryLate', a);
+    rollWeather('wetEarly', b); // different odds, same number of draws
     assert.equal(a.getState(), b.getState());
   });
 
@@ -137,7 +199,7 @@ describe('weather: spells', () => {
     assert.equal(changesWithinSpell, 0, 'weather holds for the whole spell');
   });
 
-  test('season and weather turns are announced; temperature drift is not', () => {
+  test('season, phase and weather turns are announced; temperature drift is not', () => {
     const engine = sandbox({ systems: [new WeatherSystem({ ...ENV, spellTicks: 50 })] });
     const before = engine.events.lastSeq;
     engine.step(200);
@@ -146,33 +208,116 @@ describe('weather: spells', () => {
     assert.ok(events.length < 200, 'but not once per tick — temperature drifts silently');
     for (const event of events) {
       assert.ok(SEASONS.includes(event.season));
+      assert.ok(PHASES.includes(event.phase));
       assert.ok(WEATHER.includes(event.weather));
-      assert.ok(event.season !== event.previousSeason || event.weather !== event.previousWeather);
+      assert.ok(
+        event.season !== event.previousSeason ||
+          event.phase !== event.previousPhase ||
+          event.weather !== event.previousWeather,
+      );
     }
+  });
+
+  test('⚠ a phase turning is announced even though the season did not change', () => {
+    // A season is two phases, so `wetEarly → wetLate` changes what the grass
+    // does while `season` still reads `wet`. Watching only the season would drop
+    // half the year's turnovers.
+    const engine = sandbox({ systems: [new WeatherSystem(ENV)] });
+    const quarter = ENV.ticksPerYear / PHASES.length;
+    engine.clock.setTick(quarter - 2);
+    const before = engine.events.lastSeq;
+    engine.step(4);
+    const turned = engine
+      .eventsSince(before)
+      .filter((e) => e.type === 'environment.changed' && e.phase !== e.previousPhase);
+    assert.equal(turned.length, 1, 'exactly one phase turn was announced');
+    assert.equal(turned[0].previousPhase, 'wetEarly');
+    assert.equal(turned[0].phase, 'wetLate');
+    assert.equal(turned[0].season, turned[0].previousSeason, 'and the season did not change with it');
   });
 });
 
 describe('weather: vegetation responds to the season', () => {
-  test('the land browns off in winter and greens up again in spring', () => {
-    const engine = sandbox({
-      size: 32,
-      systems: [new WeatherSystem(ENV), new VegetationSystem({ ...CONFIG.vegetation, updateInterval: 1 })],
-    });
-    // Let it settle at summer capacity first.
-    engine.clock.setTick(Math.floor(0.375 * ENV.ticksPerYear));
+  // Vegetation under a **fixed** phase and a **fixed** weather state. Both tests
+  // below need that: with `WeatherSystem` running, the wet phases draw rain 42–55%
+  // of the time and the dry ones draw drought 30–50%, so a comparison between two
+  // phases would be measuring the weather as much as the season. The weather's own
+  // bite is asserted separately, at the end.
+  const vegetationSandbox = ({ size = 32, progress, weather = 'clear', graze = false }) => {
+    const engine = sandbox({ size, systems: [new VegetationSystem({ ...CONFIG.vegetation, updateInterval: 1 })] });
+    const { vegetation, terrain } = engine.world;
+    if (graze) {
+      for (let y = 0; y < terrain.height; y += 1) {
+        for (let x = 0; x < terrain.width; x += 1) vegetation.consumeAt(x, y, Number.MAX_SAFE_INTEGER);
+      }
+    }
+    engine.world.environment = describeEnvironment(progress * ENV.ticksPerYear, weather, ENV);
+    return engine;
+  };
+
+  test('the wet flush regrows a grazed field faster than the rest of the year does', () => {
+    // ⚠⚠ **This replaced "the land browns off in winter", and the replacement is
+    // the point rather than a rename.** A four-season year browned the whole map
+    // off through a global `capacityModifier`; a wet/dry year deliberately does
+    // not, because its dry season has to leave the riparian strip alone and stop
+    // the open plain regrowing — which one global scalar cannot say. So the only
+    // *global* seasonal signal left is the wet season's flush
+    // (`PHASE_GROWTH.wetEarly` 1.35 against 1.0 everywhere else), and that is what
+    // this pins. The per-cell half arrives with the dry map; until then the dry
+    // season genuinely does very little, and a test claiming otherwise would be
+    // claiming a mechanism that is not built yet.
+    //
+    // ⚠⚠ **30 ticks, and the horizon is load-bearing rather than arbitrary.** The
+    // flush trades a *rate* (1.35) against a *ceiling* (`PHASE_CAPACITY.wetEarly`
+    // 0.9 against 1.0), and which of the two wins depends entirely on how far the
+    // field is from saturating. Measured on this sandbox, seed 3:
+    //
+    //   ticks    10     20     30     50     80    120    200
+    //   ratio  2.06   2.36   2.53   1.87   1.01   0.90   0.90
+    //
+    // — the flush is 2.5× ahead while the field is climbing and 10% *behind* once
+    // both have saturated, because at that point only the ceiling is left. That is
+    // the same rate-versus-ceiling distinction `VegetationGrid.grow` documents,
+    // and it is why "spring grows more grass" has to be measured on a grazed field
+    // rather than a settled one.
+    const regrowth = (progress) => {
+      const engine = vegetationSandbox({ progress, graze: true });
+      engine.step(30);
+      return engine.world.vegetation.totalBiomass();
+    };
+    const flush = regrowth(0.125); // mid `wetEarly`
+    const settled = regrowth(0.625); // mid `dryEarly`
+    assert.ok(flush > settled * 1.5, `the wet flush comes back faster (${Math.round(flush)} vs ${Math.round(settled)})`);
+  });
+
+  test('the dry season does not brown the map off — grass stops growing, it does not die back', () => {
+    // The decision this pins: a field standing at capacity when the dry season
+    // arrives keeps standing there. Nothing removes it but grazing, which is the
+    // requested mechanism — "should not grow at all" rather than "should die".
+    const engine = vegetationSandbox({ size: 24, progress: 0.25 }); // `wetLate`
     engine.step(400);
-    const summer = engine.world.vegetation.totalBiomass();
+    const settled = engine.world.vegetation.totalBiomass();
 
-    // Jump to midwinter and let the dieback run.
-    engine.clock.setTick(Math.floor(0.875 * ENV.ticksPerYear));
+    engine.world.environment = describeEnvironment(0.75 * ENV.ticksPerYear, 'clear', ENV); // `dryLate`
     engine.step(600);
-    const winter = engine.world.vegetation.totalBiomass();
-    assert.ok(winter < summer * 0.75, `winter is visibly sparser (${Math.round(winter)} vs ${Math.round(summer)})`);
+    const dry = engine.world.vegetation.totalBiomass();
+    assert.equal(engine.world.environment.season, 'dry');
+    assert.ok(dry >= settled * 0.99, `the dry season leaves standing grass standing (${Math.round(dry)} vs ${Math.round(settled)})`);
+  });
 
-    // And back around to spring.
-    engine.clock.setTick(Math.floor(1.125 * ENV.ticksPerYear));
-    engine.step(1200);
-    assert.ok(engine.world.vegetation.totalBiomass() > winter, 'spring brings it back');
+  test('⚠ a drought still bites, and that is the division of labour', () => {
+    // The dry season is the floor; a drought spell is a bad patch within it. So
+    // the season alone must not brown the map off (above) while a drought must —
+    // otherwise the two would be the same mechanism wearing different names, and
+    // merging them is what `Environment.js` refuses to do.
+    const engine = vegetationSandbox({ size: 24, progress: 0.75 }); // `dryLate`, clear
+    engine.step(400);
+    const clear = engine.world.vegetation.totalBiomass();
+
+    engine.world.environment = describeEnvironment(0.75 * ENV.ticksPerYear, 'drought', ENV);
+    engine.step(600);
+    const drought = engine.world.vegetation.totalBiomass();
+    assert.ok(drought < clear * 0.8, `a drought shrinks what the land holds (${Math.round(drought)} vs ${Math.round(clear)})`);
   });
 
   test('scaling growth alone would not do it — the seasonal ceiling is what causes dieback', () => {
@@ -401,46 +546,64 @@ describe('weather: protocol, persistence, and the demo', () => {
     assert.deepEqual(applyDeltaSnapshot(first, delta).environment, second.environment, 'and reproduces it exactly');
   });
 
-  test('a full year of the demo shows the vegetation peak and trough in the right seasons', () => {
-    const engine = createDemoSimulation({ seed: 42 });
-    const bySeason = {};
+  test('a full year of the demo passes through both seasons and all four phases, in order', () => {
+    // ⚠ `smallDemo`, not `createDemoSimulation` — and it changed on purpose. The
+    // old version of this test asserted a *vegetation* peak and trough, which is
+    // an ecological claim the full demo had to carry. What survives the wet/dry
+    // conversion is a claim about the **calendar**, which is machinery, and
+    // machinery claims belong in the cheap world (DOCS §14, 3.9× cheaper).
+    //
+    // The vegetation half of it does not simply move here: a wet/dry year has no
+    // global dieback at all, so there is no seasonal biomass swing left to
+    // assert. The per-cell version arrives with the dry map.
+    const engine = smallDemo({ seed: 42 });
+    const phaseOrder = [];
+    const seasonsSeen = new Set();
     for (let tick = 0; tick < ENV.ticksPerYear; tick += 1) {
       engine.step(1);
-      if (tick % 100 !== 0) continue;
-      const season = engine.world.environment.season;
-      (bySeason[season] ??= []).push(engine.world.vegetation.totalBiomass());
+      const { season, phase } = engine.world.environment;
+      seasonsSeen.add(season);
+      if (phaseOrder[phaseOrder.length - 1] !== phase) phaseOrder.push(phase);
     }
-    const mean = (season) => bySeason[season].reduce((a, b) => a + b, 0) / bySeason[season].length;
-    for (const season of SEASONS) assert.ok(bySeason[season]?.length, `the year passed through ${season}`);
-    assert.ok(mean('summer') > mean('winter'), 'summer is the green season');
-    assert.ok(mean('autumn') > mean('winter'), 'and winter the sparse one');
-    assert.ok(mean('winter') < mean('summer') * 0.75, 'by a visible margin');
+    assert.deepEqual(seasonsSeen, new Set(SEASONS), 'the year passed through both seasons');
+    // ⚠ Five entries for four phases, and the fifth is the assertion: the loop
+    // steps *into* tick `ticksPerYear`, which is the first tick of the next year,
+    // so the cycle closing back onto `wetEarly` is observed rather than assumed.
+    assert.deepEqual(phaseOrder, [...PHASES, PHASES[0]], 'through the four phases in order, then the year starts over');
   });
 
-  test('the demo puts animals under real thermal stress, and they take cover', () => {
-    // Deliberately *not* asserting exposure deaths here. A well-fed animal can
-    // pay the thermoregulation bill indefinitely, so whether anyone actually
-    // burns out is a population outcome that shifts with every tuning change
-    // (§1.4 D1). The lethal path is asserted directly in the controlled
-    // sandbox above; what the demo has to show is that the weather bites at
-    // all, and that animals respond to it.
-    const engine = createDemoSimulation({ seed: 42 });
-    let sheltering = 0;
+  test('⚠ the season and the weather never stress an animal — only a storm can', () => {
+    // ⚠⚠ **This assertion is inverted from the one it replaces, deliberately.**
+    // It used to require that the demo "puts animals under real thermal stress".
+    // The wet/dry conversion cut `temperatureAmplitude` 9 → 2 precisely so that
+    // it does not: this world's pressure is water and grass. So the claim worth
+    // holding is now the opposite one, and it is stronger for being exact rather
+    // than emergent — no fishing for a rare event in a fixed window (DOCS §14).
+    //
+    // A storm is a *disturbance*, −10 °C on top of the global temperature, and it
+    // is the only thing left that can push an animal out of band. That is what
+    // keeps the shelter machinery live; the behavioural half is asserted in the
+    // controlled sandbox above, which sets the temperature directly.
+    const engine = smallDemo({ seed: 42 });
     let peakStress = 0;
-    const seasonsSeen = new Set();
-    for (let tick = 0; tick < ENV.ticksPerYear * 2; tick += 1) {
+    let coldest = Infinity;
+    let warmest = -Infinity;
+    for (let tick = 0; tick < ENV.ticksPerYear; tick += 1) {
       engine.step(1);
-      seasonsSeen.add(engine.world.environment.season);
+      const { temperature } = engine.world.environment;
+      coldest = Math.min(coldest, temperature);
+      warmest = Math.max(warmest, temperature);
       if (tick % 50 !== 0) continue;
+      // ⚠ Skip any animal standing in a disturbance — a storm is the exemption
+      // this test exists to carve out, and `thermalStress` folds it in.
       for (const entity of engine.world.entities.all()) {
         if (!entity.alive) continue;
-        if (entity.action === 'shelter') sheltering += 1;
+        if (engine.world.disturbances?.length) continue;
         peakStress = Math.max(peakStress, thermalStress(engine.world, entity, CONFIG.locomotion.shelterRelief));
       }
     }
-    assert.equal(seasonsSeen.size, SEASONS.length, 'two full years passed through every season');
-    assert.ok(peakStress > 0, `the weather pushed animals outside their comfort band (peak ${peakStress.toFixed(1)}°C)`);
-    assert.ok(sheltering > 0, 'and they took cover from it');
+    assert.equal(peakStress, 0, `no animal was stressed by the weather alone (peak ${peakStress.toFixed(2)}°C)`);
+    assert.ok(warmest - coldest > 0, `the temperature does still move (${coldest.toFixed(1)}…${warmest.toFixed(1)}°C)`);
   });
 
   test('the environment survives save/load and the run continues identically', () => {

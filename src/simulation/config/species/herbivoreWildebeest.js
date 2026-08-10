@@ -84,21 +84,47 @@ export const herbivoreWildebeest = Object.freeze({
   hydration: Object.freeze({ dehydrationRate: 0.042, drinkRate: 6 }),
   matePreference: Object.freeze({ trait: 'size', span: 0.25, conditionWeight: 0.45 }),
   reproduction: Object.freeze({
-    gestationTicks: 1400, // 0.175 of a year, so the calving season lands that far
-    // after the rut and nothing has to say where it is
+    // ⚠⚠ **1400 → 2400 with the wet/dry year** (SEASON-PLAN.md §2.4), and the
+    // gestation moved rather than only the window because of an *energy* gate.
+    // `isReproductivelyReady` requires `energy >= 0.8 × maxEnergy`. At 4000 ticks
+    // to the year a 1400-tick gestation is 0.35 of it, so calving at the start of
+    // the wet season would put the rut at 0.65 — the middle of the dry season,
+    // when grass has stopped growing everywhere except the old channels. The rut
+    // would very likely just **never fire**, and the species would lose a year's
+    // recruitment for a reason invisible in this file.
+    //
+    // At 2400 (0.60 of a year) the rut sits at the wet→dry turn, while the herd
+    // is still fat off the wet season, and the calves land at its start. That is
+    // also what the real animal does — Serengeti wildebeest rut at the end of the
+    // rains and calve at the beginning of the next ones — and 0.60 of a year is
+    // ~7 months against a real 8.5.
+    //
+    // ⚠ The cost, stated: a longer gestation is slower recruitment. At
+    // `maxAge: 13000` (3.25 years) an adult female still gets ~5 attempts, but
+    // this is a real reduction and it is one of the first things the balance pass
+    // should look at.
+    gestationTicks: 2400,
     cooldownTicks: 2200,
     // ⚠⚠ **The first breeding window declared in this world** (§3.11, phase 12).
     // Fractions of the year, half-open, and this one does not wrap: conception
-    // runs from early spring to the start of summer, which puts calving in late
-    // spring through midsummer — `SEASON_GROWTH` peaks in spring (1.35) and
-    // capacity in summer (1.0), so calves grow through the two seasons that have
-    // the grass in them and are subadult before winter.
+    // runs from the middle of the wet season into the start of the dry, which
+    // with a 0.60-year gestation puts every calf in the first fifth of the *next*
+    // wet season — the flush, where `PHASE_GROWTH` is 1.35.
     //
-    // ⚠ **Wide on purpose, and it is the number to loosen first if recruitment
-    // fails.** 0.30 of the year is 2400 ticks — §3.11's warning is that a species
-    // missing one window loses a *year*, and a 15 000-tick sweep contains only two
-    // windows, so a narrow rut is a knife edge under a gate that cannot see it.
-    breedingWindow: Object.freeze({ startFraction: 0.85, endFraction: 0.5 }),
+    // ⚠⚠ **The previous value and this comment disagreed, and had for some time.**
+    // It declared `{ 0.85, 0.5 }`, which *wraps*, so its true width was
+    // `(1 − 0.85) + 0.5` = **0.65 of the year** — while the prose beside it
+    // described "early spring to the start of summer" and did the arithmetic for
+    // 0.30. A rut covering two thirds of the year is not compressed, and this
+    // file's whole claim is that birth synchrony *emerges* from a compressed
+    // window. 0.20 of the year is 800 ticks and is a rut.
+    //
+    // ⚠ §3.11's warning still stands and is the reason this is not narrower: a
+    // species that misses one window loses a *year*. If recruitment fails, widen
+    // this before touching anything else — but widen it **backwards** (a smaller
+    // `startFraction`), since the far end is what pushes calves into the dry
+    // season.
+    breedingWindow: Object.freeze({ startFraction: 0.4, endFraction: 0.6 }),
   }),
   territory: Object.freeze({ defends: false, rangeRadius: 22, settleTicks: 1000 }),
   // ⚠ **The label, not the record**, and the deliberate contrast with the zebra
