@@ -1612,8 +1612,8 @@ because a layer's storage should match how densely it is actually populated.
 
 | Layer                            | Storage                                           | Saved?                                            | Notes                                          |
 | -------------------------------- | ------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| `TerrainGrid`                    | `Uint8Array`, row-major                           | **No** — regenerated from seed + `config.terrain` | ⚠ Static and **never mutated**                 |
-| `VegetationGrid`                 | `Float32Array` biomass + static per-cell capacity | **Yes**                                           | Grazed, so not reproducible from the seed      |
+| `TerrainGrid`                    | **two** `Uint8Array`s (wet / dry), row-major      | **No** — regenerated from seed + `config.terrain` | ⚠ Each map is static and **never mutated**; the season picks which is active |
+| `VegetationGrid`                 | `Float32Array` biomass + **two** static per-cell capacity/rate pairs | **Yes** (biomass only)          | Grazed, so not reproducible from the seed; the pairs are derived and swap with the season |
 | `SpatialGrid`                    | uniform hash of buckets                           | **No** — rebuilt from entity positions            | `cellSize: 8`                                  |
 | `ScentGrid` (territorial claims) | coarse cells, 4×4 world cells each                | **Yes**                                           | Two numbers per cell: who claims it, how fresh |
 | `FeatureGrid` (trails/burrows)   | **sparse `Map`**, bounded at 8192 tracked cells   | **Yes**                                           | Most of the map carries nothing                |
@@ -1627,17 +1627,114 @@ edit to terrain would silently vanish the first time anyone reloaded a save.
 Ground changes are expressed as separate layers read through existing world
 methods.
 
+⚠⚠ **The dry season looks like an exception and is not one** _(2026-08-09,
+SEASON-PLAN D5)_. `TerrainGrid` holds **two** maps — the generated one and the
+same world drained — both built at construction as pure functions of the seed, and
+`world.setSeason` points the grid at one of them. Nothing is mutated, nothing new
+is saved, and a restored world recomputes both exactly as it recomputes the first.
+What changed is the *strength* of the promise: terrain is static **per season**
+rather than static, and the difference is a `terrain.revision` counter that
+consumers memoizing anything derived from it must watch.
+
+⚠ **A delta cannot carry a terrain, so it carries the revision.** Terrain rides
+only on full snapshots (`protocol/snapshots.js`), so without a signal a viewer that
+joined in the wet season would keep drawing the wet map for the rest of the run,
+with every other layer correct around it. Every delta therefore carries
+`terrainRevision` **unconditionally** — a client can only notice a *change* if the
+field is always there, and sending it only when it moved would make "absent" mean
+both "nothing changed" and "this host does not report terrain". The renderer store
+reports the mismatch and the app asks for a fresh full snapshot, reusing the
+desync-recovery path rather than adding a second kind. ⚠ Until it lands the old map
+keeps being drawn: a stale shoreline beats a blank grid.
+
+⚠ **Two caches assumed the stronger promise, and one of them broke.** The engine's
+terrain projection is now keyed on `revision`. The `nearestWater` bearing field was
+memoized forever and had to be dropped on a season change — and it presented as a
+*save/load divergence* rather than a wrong bearing, because the original world
+built its field in the wet season and a restored one rebuilt it from the drained
+map. The generalisation, which is the `bandmates` lesson (save v35) in a second
+costume: **a cache keyed on an assumption outlives the assumption.**
+
 ### Terrain
 
-Seven cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
-`COVER (3)`, `DEEP_WATER (4, impassable)`, `THICKET (5)`, `TREE (6)` — generated
+Eight cell codes — `GROUND (0)`, `WATER (1)`, `ROCK (2, impassable)`,
+`COVER (3)`, `DEEP_WATER (4, impassable)`, `THICKET (5)`, `TREE (6)`,
+`DRY_BED (7)` — generated
 deterministically at world init from circular lakes, **irregular rock
 formations**, clumped cover patches, and **thicket stands**, then finished by a
 **connectivity pass**. Out-of-bounds cells report `ROCK`, so passability checks
 are safe without a separate bounds guard.
 
-Per-code traversal speed: ground 1.0, water 0.5, cover 0.6, **tree 0.9**,
-thicket 0.1, rock and deep water 0 (impassable).
+Per-code traversal speed: ground 1.0, **dry bed 1.0**, water 0.5, cover 0.6,
+**tree 0.9**, thicket 0.1, rock and deep water 0 (impassable).
+
+#### The dry bed _(2026-08-09, SEASON-PLAN D4)_
+
+The cracked pan a lake, pond, stream or marsh pool leaves when the dry season
+drains it. Passable at **1.0**, concealment 0, no shelter, and — the one property
+that is a decision rather than a default — **vegetation suitability 1, the same as
+open ground**.
+
+⚠⚠ **A new code, against the standing preference not to add one.** The marsh was
+deliberately composed from existing codes because it *could* be, and the bill above
+is real. A dry bed cannot be composed — it is precisely the thing that is neither
+water nor ordinary ground — and without it **the dry season is invisible**: the
+stream would not dry up, it would cease to have ever existed. Watching the water go
+is the whole feature.
+
+⚠ **Speed is 1.0, and the temptation to discount it for "loose sand" is the trap
+the tree's 0.9 exists to record.** Slow ground is *avoided* ground — the movement
+system treats a slow cell's edge as a wall — and the drained channel is the one
+place in a dry-season world that still grows grass, so a cheaper bed would push
+animals away from exactly where the mechanism needs them.
+
+⚠ **Suitability 1 is what makes the mechanism interesting rather than merely
+subtractive.** The bed sits at wetness 1 in the *wet-season* field — it is by
+definition where the water was — so when the dry season sets the regrowth rate
+equal to the wetness, the drained channel keeps growing while the open plain stops.
+The dried river becomes the last good grazing in the world at the moment everything
+else fails. The literal alternative (bare mud, suitability 0) would have made the
+dry season a map with less food *and* nowhere to go.
+
+⚠ **A79 was handled rather than repeated.** An unnamed terrain resolves to a
+neutral 1, so a new code silently flattens every species that enumerates terrain by
+name — which is what happened to `tree` and is still open for it. The five species
+that name `water` each carry a `dry_bed` weight (buffalo 1.15, zebra 1.2,
+wildebeest 1.2, gazelle 1.1, leopard 0.9); the three that name no water carry none,
+so silence stays silence. `test/terrain.test.js` asserts the biconditional.
+
+#### Water provenance — which feature a water cell came from _(2026-08-09, SEASON-PLAN D3)_
+
+A parallel `Uint8Array` beside the cell grid (`WaterSource`: `NONE`, `LAKE`,
+`LAKE_CORE`, `POND`, `STREAM`, `MARSH`), written by the generation passes as they
+stamp, plus each pond's drawn `(cx, cy, r)`.
+
+⚠ **It exists because the finished grid cannot answer the question and the dry
+season has to.** Once generation returns, a `WATER` cell from the stream, a marsh
+pool, a pond and the lake's shallow ring are the same byte — but the dry season
+treats all four differently. The alternative was to recover provenance afterwards
+by connected components, which is guesswork about something the generator knew for
+certain and discarded.
+
+**Derived, unsaved, and free.** Every value is written beside a cell write that
+already happened, so no RNG stream moved and every seeded world generates exactly
+the terrain it did before. Like `world.wetness`, it regenerates from the seed on
+load.
+
+⚠ **The invariant: a cell is tagged if and only if it is `WATER` or `DEEP_WATER`.**
+It is easy to break in a direction nothing else notices — rock is stamped *over*
+water, so an outcrop on a shore leaves a drowned cell that would still read `LAKE`
+if the tag were written by the callers. The rule is that **whoever writes the cell
+owns the tag**, which is why `#stampDisc` writes it (including the `NONE` of a rock
+stamp) rather than its callers.
+
+⚠⚠ **`#ensureConnectivity` is the one place a water cell legally becomes dry
+ground.** It carves corridors through cells that are not *passable*, and deep water
+is impassable as well as rock — so a corridor can cut through a lake's core. It
+clears the tag when it does.
+
+⚠ Nothing in the tick reads any of this. It is **generation provenance, not a
+terrain property**; behaviour keyed on "is this water" belongs on the terrain code.
 
 #### Trees _(2026-08-03, phase T1)_
 
@@ -2142,6 +2239,51 @@ eaten. The rate-versus-ceiling lesson survives intact and is still pinned by a
 test, which now measures it on a **grazed** field: the wet flush runs 2.5× ahead
 of the settled year while the field is climbing, and 10% *behind* once both have
 saturated, because at that point only the ceiling is left.
+
+#### The dry season's response — per-cell, because a scalar cannot say "here but not there" _(2026-08-09, SEASON-PLAN D7)_
+
+The dry season's whole effect on grass is the two water-proximity knobs below at
+different values, held in a **second precomputed pair of per-cell arrays** that
+`world.setSeason` swaps to. `grow` still reads one array index per cell.
+
+| knob | wet | dry | effect |
+| --- | ---: | ---: | --- |
+| `wetCapacityBonus` | 0.6 | **0** | riparian grass tops out at the *normal* ceiling rather than 1.6× |
+| `dryGrowthScale` | 0.75 | **0** | the regrowth rate becomes `0 + 1 × wetness` — i.e. the rate **is** the wetness |
+
+⚠⚠ **The two seasons differ in their _terrain_, not only in their multipliers.** A
+cell that is `WATER` in the wet season grows nothing; the same cell is `DRY_BED` in
+the dry one and grows grass like open ground. So capacity is keyed on
+`codeAtSeason`, and a drained channel greens up over the dry season.
+
+⚠⚠ **Both arrays read the _wet-season_ wetness field.** The rule is "grass grows
+where the water **was**" — a dried river bed keeps damp soil. A field rebuilt from
+the drained map would move the growing ground to whatever water survived, which is
+the opposite of the request. (The habitat cue reads the *current* field; see §7
+World layers.)
+
+**Measured** (demo seed 4, 5183 riparian cells against 16 623 of plain, each grazed
+bare and given 300 ticks):
+
+| | riparian | plain |
+| --- | ---: | ---: |
+| wet season | 0 → 29 321 | 0 → 78 052 |
+| dry season | 0 → 29 601 | 0 → **12** |
+
+The plain regrows twelve biomass across sixteen thousand cells — zero to any
+reading — while the channel comes back at the rate it always did. ⚠ That the
+riparian figure barely moves between seasons **is** "a normal rate, not the boosted
+one": the boost is a *ceiling*, so it shows up in capacity rather than in 300 ticks
+of regrowth from bare.
+
+⚠ Grass on the plain does not die back, it stops recovering. Nothing removes
+standing crop but grazing — a deliberate choice, and it means the dry season's bite
+depends on grazing pressure rather than on a decay term.
+
+**No draws.** The seasonal arrays are arithmetic over a fertility field drawn once,
+so adding a whole second season shifted no RNG stream: a world with the dry season
+on seeds precisely the biomass a world with it off does. `drySeason.enabled: false`
+is the control — the map still drains, and the grass does not know it.
 
 #### Water proximity — taller by the water, slower on the dry plain _(2026-08-09)_
 

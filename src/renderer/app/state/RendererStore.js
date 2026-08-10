@@ -17,7 +17,7 @@ import { findMissingDeltaEntities, applyDeltaToEntities } from './DeltaApplier.j
 import { isLastingEvent } from './EventCatalog.js';
 
 /** The protocol version this renderer understands. */
-export const SUPPORTED_PROTOCOL_VERSION = 38;
+export const SUPPORTED_PROTOCOL_VERSION = 40;
 
 /** Fatal contract problems (wrong version, malformed message). */
 export class RendererProtocolError extends Error {
@@ -198,6 +198,15 @@ export class RendererStore {
 
   simulationId = null;
   protocolVersion = null;
+  /**
+   * The `terrainRevision` of the map currently decoded into `terrain`, or null
+   * when the host does not report one. Compared against every delta's, because
+   * terrain is static **per season** rather than static: the dry season points
+   * the world at a drained map, and a viewer that joined in the wet season would
+   * otherwise keep drawing the wet one forever.
+   * @type {number | null}
+   */
+  terrainRevision = null;
   tick = -1;
   lastEventSeq = 0;
   /** @type {{width: number, height: number} | null} */
@@ -372,9 +381,12 @@ export class RendererStore {
     this.entities = new Map(snapshot.entities.map((entity) => [entity.id, { ...entity }]));
     for (const entity of this.entities.values()) this.#rememberAnimal(entity);
     this.#trimRememberedAnimals();
-    // Terrain is static and carried by full snapshots; decode it once here.
-    // Deltas never touch it. A snapshot without terrain clears it.
+    // Terrain is carried by full snapshots; decode it once here. Deltas never
+    // touch it — they carry only its **revision**, so the store can tell that the
+    // map it decoded is out of date (see `applyDelta`). A snapshot without
+    // terrain clears it.
     this.terrain = snapshot.terrain ? decodeTerrain(snapshot.terrain) : null;
+    this.terrainRevision = snapshot.terrainRevision ?? null;
     // Vegetation is carried in full by full snapshots and patched by deltas.
     this.vegetation = snapshot.vegetation ? decodeVegetation(snapshot.vegetation) : null;
     this.environment = snapshot.environment ? { ...snapshot.environment } : null;
@@ -474,6 +486,17 @@ export class RendererStore {
     for (const entity of delta.updated) this.#rememberAnimal(entity);
     this.#trimRememberedAnimals();
     this.#applyVegetationChanges(delta.vegetation);
+    // ⚠⚠ **Noticed, not fixed, and deliberately so.** A delta cannot carry a
+    // terrain — it is a diff, and the map is 40 000 cells — so all the store can
+    // do is *report* that the one it decoded is stale and let the app decide.
+    // Recovering here would put a network request inside a pure state
+    // transition; the app already has a path for "ask for a fresh full snapshot"
+    // and this reuses it. Until it arrives the old map keeps being drawn, which
+    // is the honest degradation: a slightly wrong shoreline beats a blank grid.
+    const terrainStale =
+      delta.terrainRevision !== undefined &&
+      this.terrainRevision !== null &&
+      delta.terrainRevision !== this.terrainRevision;
     if (delta.environment) this.environment = { ...delta.environment };
     // `Array.isArray` rather than a truthiness check: an empty list is the
     // message that everything has stopped, and treating it as "no update" would
@@ -489,7 +512,7 @@ export class RendererStore {
       this.#bufferEvents(delta.events);
     }
     this.#emit('delta');
-    return { applied: true, ...counts };
+    return { applied: true, terrainStale, ...counts };
   }
 
   /**

@@ -114,8 +114,10 @@ function publicEntityView(entity, tick) {
 export class SimulationEngine {
   /** @type {Map<string, SeededRandom>} */
   #randomStreams = new Map();
-  /** @type {object | null} memoized terrain projection (terrain is static) */
+  /** @type {object | null} memoized terrain projection (terrain is static *per season*) */
   #terrainProjection = null;
+  /** @type {number} the `terrain.revision` the memo above was built from */
+  #terrainRevision = -1;
   /** @type {object | null} memoized vegetation projection, keyed by revision */
   #vegetationProjection = null;
   #vegetationProjectionRevision = -1;
@@ -293,6 +295,12 @@ export class SimulationEngine {
       world: { width: this.world.width, height: this.world.height },
       entities,
       terrain: this.getTerrainData(),
+      // ⚠ **The one number that tells a client its map went stale.** Terrain rides
+      // only on full snapshots, never on deltas — so without this a viewer that
+      // joined in the wet season would keep drawing the wet map for the rest of
+      // the run, with every other layer correct around it. Carried on deltas too;
+      // it is one integer.
+      terrainRevision: this.world.terrain.revision,
       vegetation: this.getVegetationData(),
       environment: { ...this.world.environment },
       disturbances: projectDisturbances(this.world.disturbances),
@@ -341,14 +349,29 @@ export class SimulationEngine {
   }
 
   /**
-   * Renderer-neutral terrain projection (codes + legend, RLE). Terrain is
-   * static, so this is computed once and shared by reference — attaching it to
-   * every per-tick snapshot costs nothing. Callers must treat it as read-only.
+   * Renderer-neutral terrain projection (codes + legend, RLE). Computed once and
+   * shared by reference — attaching it to every per-tick snapshot costs nothing.
+   * Callers must treat it as read-only.
+   *
+   * ⚠⚠ **Terrain is no longer static, and this memo was the first thing that
+   * assumed it was** (SEASON-PLAN.md D5). It is static *per season*: the wet and
+   * dry maps are both fixed, and the world points at one of them. So the memo is
+   * keyed on `terrain.revision`, which the grid bumps on every season change — a
+   * weaker promise than "computed once", stated in a number rather than in a
+   * comment that can go quietly out of date.
+   *
+   * ⚠ Rebuilding costs one RLE pass over the grid, twice per simulated year. What
+   * it does *not* do is tell a connected client that the terrain moved — a delta
+   * never carries terrain (see `protocol/snapshots.js`), so that needs a signal of
+   * its own. Until then a client that joined in the wet season keeps drawing the
+   * wet map.
    * @returns {object}
    */
   getTerrainData() {
-    if (this.#terrainProjection === null) {
+    const revision = this.world.terrain.revision;
+    if (this.#terrainProjection === null || this.#terrainRevision !== revision) {
       this.#terrainProjection = projectTerrain(this.world.terrain);
+      this.#terrainRevision = revision;
     }
     return this.#terrainProjection;
   }

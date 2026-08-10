@@ -114,6 +114,10 @@ describe('sprite slots: registry coverage', () => {
   // corvid slots went with their species ids, which is exactly the orphaning
   // this test exists to make deliberate: saved configs keyed by the old ids
   // drop those assignments on load.
+  // ⚠ `terrain:dry_bed` added 2026-08-09 (SEASON-PLAN D4). This is the *growing*
+  // case the note above calls fine: no existing slot id moved, so no saved sprite
+  // assignment is orphaned — a persisted config simply has no opinion about the
+  // new one and falls back to its glyph.
   test('the slot vocabulary is stable', () => {
     const expected = [
       'carcass:0', 'carcass:1', 'carcass:2', 'carcass:3',
@@ -143,8 +147,9 @@ describe('sprite slots: registry coverage', () => {
       'species:scavenger.hyena:young:female', 'species:scavenger.hyena:young:male',
       'species:scavenger.vulture:grown:female', 'species:scavenger.vulture:grown:male',
       'species:scavenger.vulture:young:female', 'species:scavenger.vulture:young:male',
-      'terrain:cover', 'terrain:deep_water', 'terrain:ground', 'terrain:outOfBounds',
-      'terrain:rock', 'terrain:thicket', 'terrain:tree', 'terrain:water',
+      'terrain:cover', 'terrain:deep_water', 'terrain:dry_bed', 'terrain:ground',
+      'terrain:outOfBounds', 'terrain:rock', 'terrain:thicket', 'terrain:tree',
+      'terrain:water',
       'unknown',
       'vegetation:1', 'vegetation:2', 'vegetation:3', 'vegetation:4',
     ];

@@ -194,7 +194,13 @@ export const herbivoreBuffalo = Object.freeze({
   // its wetness half over the same cells. Thicket stays the lowest weight it
   // states: a buffalo standing in reeds is real, and a buffalo crossing a stand at
   // speed 0.1 is not something to encourage.
-  habitat: Object.freeze({ ground: 1.1, water: 1.35, cover: 1.15, thicket: 0.6 }),
+  // ⚠ `dry_bed` is the fifth weight and arrived with the dry season (A79, phase
+  // D4). An unnamed terrain resolves to a *neutral* 1, so without it this animal's
+  // 1.35 for water would silently become indifference the moment its water dried —
+  // the same silent-flattening A79 records for `tree`. A water animal follows the
+  // water down: 1.15 keeps it drawn to the bed the lake left without pretending a
+  // dry pan is a drink.
+  habitat: Object.freeze({ ground: 1.1, water: 1.35, cover: 1.15, thicket: 0.6, dry_bed: 1.15 }),
   // ⚠⚠ **The wetland animal of this roster** (2026-08-09). A weight on how *wet*
   // the ground is (`world/wetness.js`, distance to the nearest water), applied
   // through the same long-range cue as the terrain weights above and multiplied

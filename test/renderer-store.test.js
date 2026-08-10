@@ -291,7 +291,11 @@ describe('renderer store: deltas', () => {
     const store = new RendererStore();
     store.applyFullSnapshot(snapshot());
     const result = store.applyDelta(delta({ created: [entity(7, { x: 33 })] }));
-    assert.deepEqual(result, { applied: true, created: 1, updated: 0, removed: 0 });
+    // ⚠ `terrainStale` joined the result at SEASON-PLAN D8: terrain is static
+    // *per season* now, so a delta reports the map's revision and the store says
+    // when the one it decoded went out of date. False here — this fixture never
+    // changes season.
+    assert.deepEqual(result, { applied: true, terrainStale: false, created: 1, updated: 0, removed: 0 });
     assert.equal(store.tick, 6);
     assert.equal(store.getEntity(7).x, 33);
   });

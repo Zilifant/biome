@@ -280,6 +280,17 @@ export class RendererApp {
       if (result.applied) {
         this.#followCamera();
         this.#checkWatchlist(delta.events);
+        // ⚠⚠ **The map itself can change now, and a delta cannot carry one.**
+        // Terrain is static *per season* — the dry season points the world at a
+        // drained map — so a delta reports the terrain's revision and the store
+        // says when the one it decoded went stale. The fix is a fresh full
+        // snapshot, which is the same thing a desync needs, so it reuses that
+        // path rather than adding a second kind of recovery.
+        //
+        // ⚠ Not an error, and it must not be reported as one: the world is
+        // behaving correctly and the viewer is simply a map behind. Twice per
+        // simulated year.
+        if (result.terrainStale) this.#refetchTerrain();
       }
     } catch (error) {
       if (error instanceof StoreDesyncError) {
@@ -287,6 +298,32 @@ export class RendererApp {
       } else {
         this.#reportProtocolProblem(error);
       }
+    }
+  }
+
+  /**
+   * The world changed season and the decoded map is a season behind: fetch a
+   * fresh full snapshot, which is the only message that carries terrain.
+   *
+   * ⚠ **Guarded by the same `#recovering` latch as a desync, and it has to be.**
+   * The revision stays mismatched on *every* delta until the new snapshot lands,
+   * so an unguarded version would fire a request per tick — twenty a second at
+   * the default cadence — for as long as the round trip takes. One flag turns a
+   * standing condition into a single request.
+   */
+  async #refetchTerrain() {
+    if (this.#recovering) return;
+    this.#recovering = true;
+    try {
+      const source = this.#http ?? this.#transport;
+      const snapshot = await source.requestSnapshot();
+      if (snapshot) this.#applySnapshot(snapshot);
+    } catch {
+      // Deliberately silent: the previous season's map keeps being drawn and the
+      // next delta will ask again. A failed refetch is a stale shoreline, not a
+      // broken client, and saying so in the status bar would cry wolf.
+    } finally {
+      this.#recovering = false;
     }
   }
 

@@ -1,6 +1,6 @@
 # Wet / dry seasons — plan
 
-**Status: D0, D1 and D2 are implemented and green. D3 onward is still plan.**
+**Status: D0–D8 are implemented and green. Only D9 (balance) is left.**
 Written 2026-08-09 against `main` @ `eff9148`; §9 records the decisions taken and
 §7 the phase-by-phase state.
 
@@ -380,6 +380,40 @@ already knows the answer to.
 **Cost:** one `Uint8Array` (41 KB), one store per stamped cell, **zero extra RNG
 draws**. It is derived and unsaved like the grid itself.
 
+**Built at D3 (2026-08-09). Three things it turned up that the plan had not
+anticipated:**
+
+- ⚠⚠ **`#ensureConnectivity` can turn a water cell into dry ground.** It carves a
+  corridor through cells that are *not passable* — and `DEEP_WATER` is impassable,
+  not just rock. So the connectivity pass can cut straight through a lake's core,
+  and it is the one place in the whole generator where water legally becomes
+  ground. It has to clear the tag when it does, or the dry-season pass would find
+  `LAKE_CORE` written on a cell of open grass and refill it.
+- ⚠ **The tag is written by `#stampDisc` itself, not by its callers**, and that is
+  load-bearing rather than tidy. Rock is stamped *over* water (an outcrop on a
+  shore clips the lake), so a pass that only wrote cells would leave the drowned
+  cell still tagged `LAKE`. "Whoever writes the cell owns the tag" makes that
+  unrepresentable; the invariant — **tagged if and only if `WATER` or
+  `DEEP_WATER`** — is asserted over five seeds in `test/terrain.test.js`.
+- ⚠ **A pond record is kept even when the pond wrote no cells.** D0 measured one
+  seed in five whose pond lands past the coast or on the lake and leaves nothing.
+  The dry pass shrinks a *disc*, and "no disc" and "an empty disc" are different
+  bugs.
+
+**The `#stampChannel` guard is invisible in the cells.** A stream running into the
+lake writes `WATER` over cells that are already `WATER`, so with one water code
+the cells are byte-identical either way — which is exactly why it was safe to
+leave unguarded until provenance existed, and why D3 could add it without changing
+a single terrain byte. Its effect is entirely on the tag. ⚠ Because an invisible
+rule needs a test that can fail, it is measured against the arm with the guard
+removed: seed 2's lake goes **384 → 340 cells**, seeds 1/3/4 go 273/211/184 →
+253/208/162.
+
+⚠ The first version of that test asserted the wrong thing — that no `STREAM` cell
+may touch the lake's core, assuming the ring wraps it. It does not: rock is
+stamped over the lake *before* the streams run and a stream cuts through rock, so
+an outcrop on the shore can legitimately put a channel next to the core.
+
 ### 4.3 The rules
 
 Applied in a **new terminal generation pass**, `#buildDryMap`, running *after*
@@ -451,6 +485,37 @@ The bill, itemised:
 | `suitabilityFor` (`VegetationGrid`) | **`1`** (Q3) | same as `GROUND`; see §5 for what this produces |
 | `habitat` weights | unnamed by all 8 species → neutral `1` | **A79 recurring**, see below |
 | renderer | one glyph + colour in `TERRAIN_APPEARANCE` | renderer-owned, invariant 20 |
+
+**Built at D4 (2026-08-09).** Everything above landed as written. Four things the
+itemised bill did not mention, each found by a test going red:
+
+- **The renderer needed nothing beyond the glyph.** `Legend.js` and
+  `SpriteSlots.js` both build from `Object.entries(TERRAIN_APPEARANCE)`, and the
+  protocol publishes names and codes rather than appearance — so the new code
+  reached the client through machinery that already existed. That is the payoff
+  of the legend design, and it is worth recording as a *success* of a choice made
+  three phases ago.
+- ⚠ **`test/sprite-slots.test.js` pins the slot vocabulary exactly**, because a
+  persisted sprite config is keyed by those strings and validation drops unknown
+  keys rather than migrating them. Adding `terrain:dry_bed` is the *growing* case
+  that file calls fine — no existing id moved, so no saved assignment is orphaned
+  — but it is a deliberate snapshot and had to be updated by hand.
+- **The bed joins `FADING_LAYERS`** (the layers that dim under an occupant). By
+  that set's own rule — "a reading *of* a cell, not the hard shape of the map" —
+  a dry bed qualifies twice: it says where the water was, and in a dry season it
+  is the ground animals stand on most, because it is the only ground still
+  growing grass. A solid `-` behind a `g` is the smear that set exists to prevent.
+- ⚠ **Speed and suitability could not be tested at D4 and are deferred to D5.**
+  Both are read per *cell* (`speedModifierAt`, `capacityAt`) and terrain is never
+  mutated, so with nothing generating a dry bed there is no honest way to obtain
+  one — asserting them would have meant either mutating terrain in a test or
+  exporting a per-code helper for the test's benefit. They are the two values most
+  worth guarding, and D5 takes them against a real map.
+
+**The glyph is `-` in orange**: water's `~` with the wave taken out, so a drained
+channel reads as the same shape the water traced, gone still — and the one warm
+colour on a map of greens, blues and greys, because the eye should find where the
+water used to be without hunting for it.
 
 ⚠ **A79 bites here, and is handled in the same phase (Q11).** Five of the eight
 species declare a `water` weight (buffalo `1.35`, zebra `1.2`, wildebeest `1.05`,
@@ -586,16 +651,176 @@ Each phase ships with a reproducible off state and its own test, per DOCS §14.
 | **D0** ✅ | Measure the current world: count water cells by feature across 5 seeds on `default-small`. **Done 2026-08-09** — results in §1 and §4.3; found §1.1 | n/a | ablation script, ~2 s |
 | **D1** ✅ | Season model: 4 phases, `wet`/`dry`, `phase` field, `seasonProgress` redefined, new odds, no snow, `ticksPerYear 4000`, `spellTicks 200`, `temperatureAmplitude 2`, the `World.js:158` duplicate. No terrain change. **Done 2026-08-09** | old tables + old constants restored → byte-identical | `test/weather.test.js` |
 | **D2** ✅ | Wildebeest breeding window + gestation (§2.4) and its comment block. **Done 2026-08-09** — verified: all 69 calves over 2 demo years land in `wetEarly`, `yearProgress 0.000…0.183` | previous window restored | `test/breeding.test.js`, `test/reproduction.test.js` |
-| **D3** | Provenance array + pond geometry in `TerrainGrid`; the `#stampChannel` lake guard. No behaviour change except the guard | ⚠ **`test/determinism.test.js` must stay byte-identical** | `test/terrain.test.js` |
-| **D4** | `DRY_BED` code + legend + 5 tables + species weights + renderer glyph + protocol bump + fixtures. Nothing generates one yet | no cell has the code → world unchanged | `test/terrain.test.js`, `test/protocol*.test.js` |
-| **D5** | `#buildDryMap` + the four drying rules + the dry-map pointer, wired to the season | `config.season.dryTerrain: false` → the pointer never moves | new `test/dry-season.test.js` |
-| **D6** | Two wetness fields, two water fields, the `World` swap. Assert the passability invariant (§4.1) | as D5 | `test/wetness.test.js`, `test/water.test.js` |
-| **D7** | `VegetationGrid` two-array pairs, `#seed` split, dry-season knob values | dry values equal to wet values → identical growth | `test/vegetation.test.js` |
-| **D8** | `terrainRevision` on the delta, engine memo invalidation, renderer re-query, ethologist water-cell fix | revision never changes today → clients behave as now | `test/protocol.test.js`, `tests-ui/layers.spec.js` |
+| **D3** ✅ | Provenance array + pond geometry in `TerrainGrid`; the `#stampChannel` lake guard. **Done 2026-08-09** — terrain byte-identical, six new tests, three findings in §4.2 | ⚠ **`test/determinism.test.js` stays byte-identical** — verified | `test/terrain.test.js` |
+| **D4** ✅ | `DRY_BED` code + legend + 5 tables + species weights + renderer glyph + protocol 38 → 39 + save 36 → 37 + fixtures. Nothing generates one yet. **Done 2026-08-09** | no cell has the code → world unchanged, asserted on 5 seeds + the demo | `test/terrain.test.js`, `test/sprite-slots.test.js` |
+| **D5** ✅ | `#buildDryMap` + the four drying rules + the dry-map pointer, wired to the season. **Done 2026-08-09** — 19 tests, measured drawdown matches D0's projection, one real bug found (§7.2) | `terrain.dryTerrain: false` → no dry map allocated, no draws spent, pointer never moves | `test/dry-season.test.js` |
+| **D6** ✅ | Two wetness fields, the `World` swap. **Done 2026-08-09** — the two consumers want *different* fields (§7.3) | no dry map → one field, `setSeason` inert | `test/dry-season.test.js` |
+| **D7** ✅ | `VegetationGrid` two-array pairs, `#seed` split, dry-season knob values. **Done 2026-08-09** — the plain regrows **12 biomass across 16 623 cells** (§7.3) | `vegetation.drySeason.enabled: false` → identical growth, asserted | `test/dry-season.test.js` |
+| **D8** ✅ | `terrainRevision` on the delta, engine memo invalidation, renderer refetch, ethologist water-cell fix. Protocol 39 → 40. **Done 2026-08-10** — §7.4 | a host that omits the field is not treated as permanently stale, asserted | `test/dry-season.test.js`, `test/renderer-store.test.js` |
 | **D9** | Balance pass — see §8 | — | — |
 
 D1, D2 and D3 are independent and can land in any order. D4 depends on D3; D5–D7
 on D4; D8 on D5.
+
+### 7.4 D8: telling the viewer, and a fixture that quietly went empty
+
+**The protocol half is small.** A delta cannot carry a terrain, so it carries
+`terrainRevision` — one integer, on **every** delta, because a client can only
+notice a *change* if the field is always there. The store reports the mismatch and
+the app requests a fresh full snapshot, reusing the desync-recovery path rather
+than adding a second kind of recovery. Sending the RLE on the delta was the
+alternative and was declined: a ~40 000-cell payload on two deltas a year, and a
+branch on every other one, where a scalar costs the same on all of them.
+
+⚠ Guarded by the same `#recovering` latch as a desync, and it needs to be: the
+revision stays mismatched on *every* delta until the new snapshot lands, so an
+unguarded version would fire a request per tick — twenty a second at the default
+cadence — for as long as the round trip takes.
+
+⚠ **The ethologist needed the same fix for a different reason.** Its thirst autopsy
+asks "did this animal die with drinkable water within reach", answered from a list
+of water cells collected once at construction. In the wet season that list counts
+every channel that will later be a dry bed, so **every dry-season thirst death
+would have been reported as "died beside water"** — a flood of false positives at
+the top of the ranked list, in the one detector family the dry season most needs.
+It now keeps both seasons' lists and picks by the season the death happened in.
+D9 depends on this being right.
+
+⚠⚠ **And then four browser tests went red, on something that had nothing to do
+with the protocol.** `tests-ui` serves the app offline from the *committed
+fixtures*, and the protocol bump meant regenerating them. The generator warms up a
+fixed **2400 ticks** and commits the delta from the tick after — a constant chosen
+when the year was 8000 ticks. The halved year moved what tick 2400 *is*, and the
+regenerated delta came out carrying **zero** events the renderer's log keeps
+(it trims `entity.moved` and four other routine types hard). An empty offline event
+log is not a cosmetic fixture problem: `inspector-press.spec.js` reads that log to
+find something to click on, so it failed on a selector with no hint of why.
+
+**The fix is not a better constant.** A fixed tick cannot promise anything about
+what happened on it, so the generator now **searches**: warm up, then walk forward
+until a delta carries at least three log-worthy, entity-naming events, and throw if
+600 ticks produce none. Deterministic, and it fails loudly instead of quietly
+committing a fixture that cannot test what it is for. It settled on tick 2402 with
+4 such events. That is the generator's own rule — *a fixture that cannot show a
+feature cannot test one* — applied to the event log rather than to the species list.
+
+⚠ **Verified rather than assumed, in both directions.** `tests-ui` on the baseline
+commit fails **6 of 72**; before this fix mine failed **10**; after it, **6 —
+the same six, by name**. Those six are recorded in DOCS §14 as pre-existing:
+`status-marks.spec.js`'s three canvas-pixel assertions, two in `sprite-mode.spec.js`
+of the same kind, and `event-filters.spec.js`, which DOCS already predicts will
+"move with the regeneration". **They are not fixed here and D8 does not claim to.**
+
+### 7.3 D6/D7: the dry season starts changing what grows
+
+**The request, measured end to end** (demo seed 4; 5183 riparian cells against
+16 623 of open plain, each grazed bare and given 300 ticks):
+
+| | riparian | plain |
+| --- | ---: | ---: |
+| wet season | 0 → 29 321 | 0 → 78 052 |
+| dry season | 0 → 29 601 | 0 → **12** |
+
+Twelve biomass across sixteen thousand cells is zero to any reading. ⚠ And the
+riparian figure barely moving between seasons **is** the other half of the
+request — "a normal rate, not the boosted one" — because the boost is a *ceiling*
+and shows up in capacity rather than in 300 ticks of regrowth from bare. Measured
+separately over 3456 cells of damp ground that is ground in *both* seasons, the
+wet-season ceiling is **1.588×** the dry one against a `wetCapacityBonus` of 0.6 —
+i.e. 1.6, to the accuracy the wetness ramp allows.
+
+⚠⚠ **The two seasons differ in their _terrain_, not only in their multipliers**,
+and this was the thing most likely to be got wrong. A cell that is `WATER` in the
+wet season grows nothing; the same cell is `DRY_BED` in the dry one and grows
+grass like open ground. So capacity is keyed on a new `codeAtSeason` rather than on
+a single suitability pass — which is what makes the drained channel green up over
+the dry season rather than merely stop being water.
+
+⚠⚠ **Two wetness fields, and the two consumers want different ones** (§5 said so;
+it is worth restating because it reads as a bug on first encounter):
+
+- **Vegetation reads the wet-season field, always.** "Grass grows where the water
+  *was*" — a dried river bed keeps damp soil. A field rebuilt from the drained map
+  would move the growing ground to whatever water survived, which is the opposite
+  of the request.
+- **The habitat cue reads the current season's field**, through `wetnessAt`, so a
+  buffalo's `wetPreference` follows the water down rather than lingering on a bed
+  because the map used to be wet there.
+
+**No draws.** The seasonal arrays are arithmetic over a fertility field drawn
+once — `#seed` was split so the drawn part and the seasonal part are separate — so
+a world with the dry season on seeds precisely the biomass a world with it off
+does, asserted directly.
+
+⚠ **One footgun found and closed by its own test.** `VegetationGrid` initially
+always started on the wet arrays, so a grid built over an already-drained terrain
+silently reported wet-season capacities. It now adopts the terrain's season. `World`
+never hit this — it builds wet and then calls `setSeason` — which is exactly why it
+would have sat there.
+
+⚠ `VegetationGrid` accepts a duck-typed terrain (`{width, height, codeAt}`) that
+the suite uses to hand-paint maps, so `codeAtSeason` is **optional**: a terrain
+that does not know about seasons has one map. That is the honest reading rather
+than a shim.
+
+### 7.2 D5: the map drains, and the one thing that broke
+
+**The drawdown, measured against D0's projection** (demo, 5 seeds, drinkable
+cells):
+
+| seed | wet | dry | ratio |
+| ---: | ---: | ---: | ---: |
+| 4 | 1994 | 644 | 3.10× |
+| 1 | 1227 | 273 | 4.49× |
+| 2 | 1808 | 528 | 3.42× |
+| 3 | 1945 | 541 | 3.60× |
+| 5 | 1779 | 434 | 4.10× |
+| **mean** | **1751** | **484** | **3.63×** |
+
+§4.3 projected a mean of 480 from the census. The rules do what the plan said they
+would, which is the least interesting possible outcome and the one worth stating.
+⚠ Seed 1 — the world with no lake (§1.1) — is the harshest both before and after,
+exactly as predicted.
+
+**The passability invariant holds exactly**: on seed 4, all 31 173 cells passable
+in the wet season are passable in the dry one, and `DEEP_WATER` goes 377 → 0 as the
+lake's core becomes shallows. Nothing that is not water changes.
+
+⚠⚠ **The bug: `nearestWater` memoized a bearing field forever, and the memo
+outlived its assumption.** `World.nearestWater` floods a field from the drinkable
+cells and caches it on first use, on the strength of "terrain never changes". Once
+terrain changes, that cache is wrong — but the way it *presented* was not a wrong
+bearing. It was a **save/load divergence**: the original world built its field
+during the wet season and kept it, while a world restored mid-dry-season built the
+same field lazily from the **drained** map. The two then disagreed about where the
+water was and every animal diverged from there.
+
+It surfaced as three whole test files failing at once (`injury`, `mate-choice`,
+`metrics`) with a `deepStrictEqual` eighty entities deep — which is precisely how
+the `bandmates` stale-read presented at save v35. **The generalisation worth
+keeping: a cache keyed on an assumption outlives the assumption.** Dropping the
+field on a season change fixes it and is also the *right* behaviour — "where can I
+drink" in the dry season should mean the water that is actually there. One BFS,
+twice per simulated year.
+
+⚠ The wetness field is deliberately **not** dropped: vegetation needs "where the
+water *was*". Whether the habitat cue should read the current season's is D6's
+decision, and was left to D6 rather than taken as a side effect here.
+
+⚠ **Two other things assumed terrain was static.** The engine's terrain projection
+memo is now keyed on a new `terrain.revision`; and the restore path sets the season
+explicitly, because a caller is entitled to inspect a restored world without
+stepping it.
+
+**Per-tick cost: no measurable change, but the machine was too noisy for a
+precise claim.** Within a single process, the dry map against `dryTerrain: false`
+at the same tick measured 1568/1705 ms against 1636/1592 ms per 1000 ticks —
+overlapping, so the swap costs nothing, as designed (reads are still one array
+index). Across builds, an ABBA design against the pre-D4 commit gave 1809 ms mean
+against 1834 ms, a 1.4% difference — but the same code drifted **2034 → 1584 ms**
+across four consecutive runs on this machine, so that comparison can exclude a
+large regression and nothing finer. ⚠ A `BENCHMARK.md` entry wants a quiet machine
+and has not been written.
 
 ### 7.1 What D1/D2 actually cost, and the four tests they moved
 
@@ -640,15 +865,38 @@ harder to take" calls `captureChance` directly against a constructed standoff an
 asserts the ordering **deterministically, with no sampling**. A claim about odds
 belongs there; what a demo run can honestly add is that the behaviour occurs.
 
-⚠ Two failures seen along the way are **not** from this work: `presets.test.js`
-fails under the command sandbox with `listen EPERM 0.0.0.0` (it binds an HTTP
-port) and passes 20/20 outside it; and `runner.test.js` → "above the cap one delta
-covers several ticks" is a wall-clock test (100 ticks/s over 400 ms) that flaked
-once under full-suite CPU load, passes 23/23 alone, and did not recur on a second
-full run.
+⚠ Two failures seen along the way are **not** from this work, and both were
+checked rather than assumed:
 
-**Final state: `npm test` → 1519 tests, 1514 pass, 0 fail, 5 cancelled** (the
-sandboxed preset HTTP tests, 20/20 outside the sandbox).
+- `presets.test.js` fails under the command sandbox with `listen EPERM 0.0.0.0`
+  (it binds an HTTP port) and passes **20/20** outside it.
+- `runner.test.js` → "above the cap one delta covers several ticks" is a
+  **wall-clock** test — a real-time runner asked for 100 ticks/s against a 20/s
+  broadcast cap over 400 ms — and it flaked in **2 of 3** full-suite runs while
+  passing **23/23 on three consecutive isolated runs**. `node --test` runs files
+  in parallel, so the full suite is exactly the condition under which a
+  100-ticks-per-second demand is not met.
+
+  ⚠ The suspicion worth ruling out was that this work had made the engine
+  slower. It has not: per-tick cost at a mature world (`smallDemo` seed 5,
+  stepped to 3000 then timed over 1000 ticks, per DOCS §13) is **1053 ms with
+  these changes against 1084 ms on the commit before them**, at an identical
+  population of 93 — a 3% difference in the *faster* direction, which is noise
+  by that section's own rule. Neither D1 nor D3 adds per-tick work: D3's writes
+  all happen during world generation.
+
+**Final state after D8: `npm test` → 1560 tests, 1554 pass, 5 cancelled** (the
+sandboxed preset HTTP tests) **and the one wall-clock flake above**, which has now
+appeared in 3 of 5 full-suite runs while passing 23/23 on every isolated one. It is
+a pre-existing fragility this work exposed rather than caused — the per-tick
+measurement above rules out the only mechanism by which it could have been caused —
+but at that rate it is worth someone deciding whether the assertion should be a
+count at all.
+
+⚠ `tests-ui/` (Playwright) is **not** part of `npm test` and has not been run.
+D4 added a legend row and a sprite slot, so the ground legend and the sprite panel
+each gained an entry; there are no committed screenshot snapshots, so nothing should
+break, but that is reasoned rather than observed.
 
 ---
 

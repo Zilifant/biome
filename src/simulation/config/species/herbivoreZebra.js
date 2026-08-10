@@ -99,7 +99,9 @@ export const herbivoreZebra = Object.freeze({
   // axis and are not meant to be; what separates them is water, mobbing, and 300 kg.
   forage: Object.freeze({ preferredBiomass: 9, span: 5 }),
   // Open plain and water, in that order.
-  habitat: Object.freeze({ ground: 1.15, cover: 0.75, water: 1.2, thicket: 0.3 }),
+  // ⚠ `dry_bed` at 1.2, matching its weight for water: the coarse-grass grazer at
+  // the front of the succession, and a drained bed is where the regrowth is.
+  habitat: Object.freeze({ ground: 1.15, cover: 0.75, water: 1.2, thicket: 0.3, dry_bed: 1.2 }),
   // ⚠ **Dry, but the mildest of the three** (2026-08-09; see `habitat/habitat.js`).
   // 0.8 against the gazelle's and wildebeest's 0.7, for the reason the header
   // above already gives: this is the bulk feeder of the plains

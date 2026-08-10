@@ -57,6 +57,10 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
   // rate term is only asked to model *recovery*, which is the one thing it can do.
   wetCapacityBonus: 0.6, // ceiling at wetness 1 is (1 + this) × the dry ceiling
   dryGrowthScale: 0.75, // regrowth rate at wetness 0, as a fraction of the wet rate
+  // The dry season's values for the two knobs above, held in a second pair of
+  // precomputed arrays the season swaps to. `enabled: false` makes them identical
+  // to the wet season's. See `config/defaultSimulationConfig.js` for the full note.
+  drySeason: Object.freeze({ enabled: true, wetCapacityBonus: 0, dryGrowthScale: 0 }),
 });
 
 /**
@@ -74,9 +78,39 @@ function suitabilityFor(terrainCode, coverSuitability) {
       return coverSuitability;
     case TerrainType.TREE:
       return 0;
+    // ⚠⚠ **A dry bed grows grass exactly as open ground does, and this one line is
+    // the most interesting consequence of the whole dry season** (SEASON-PLAN Q3).
+    // The bed sits at wetness 1 in the *wet-season* field — it is, by definition,
+    // where the water was — so in the dry season, when `dryGrowthScale` makes the
+    // regrowth rate equal to the wetness, the drained channel regrows at the full
+    // rate while the open plain regrows at none. The dried river becomes the last
+    // good grazing in the world at precisely the moment everything else stops.
+    //
+    // ⚠ The alternative reading — bare cracked mud, suitability 0 — is more
+    // literal and was declined: it would make the dry season a map with less food
+    // *and* nowhere to go, where this makes it a map that concentrates the food
+    // somewhere, which is what a dry season does to a savanna.
+    case TerrainType.DRY_BED:
+      return 1;
     default:
       return 0; // water, rock, thicket
   }
+}
+
+/**
+ * A terrain's code at a cell in a named season.
+ *
+ * ⚠ **`codeAtSeason` is optional, deliberately.** This grid accepts a duck-typed
+ * terrain — `{ width, height, codeAt }` — and the suite leans on that to
+ * hand-paint a map without running the generator (`test/wetness.test.js`). A
+ * terrain that does not know about seasons simply has **one** map, which is the
+ * honest reading rather than a compatibility shim: `TerrainGrid` grew a second map
+ * because a dry season drains it, and nothing else has one.
+ *
+ * Read at construction only, never in `grow`, so the branch costs nothing per tick.
+ */
+function codeIn(terrain, cellX, cellY, season) {
+  return terrain.codeAtSeason ? terrain.codeAtSeason(cellX, cellY, season) : terrain.codeAt(cellX, cellY);
 }
 
 function clamp01(value) {
@@ -175,10 +209,27 @@ export class VegetationGrid {
   #height;
   /** @type {Float32Array} biomass per cell */
   #biomass;
-  /** @type {Float32Array} static per-cell carrying capacity (0 where unsuitable) */
+  /**
+   * The **active** per-cell carrying capacity (0 where unsuitable) — one of the
+   * two seasonal arrays below. `grow` reads this, so a season change is a pointer
+   * assignment and the largest cell loop in the simulation costs what it always
+   * did.
+   * @type {Float32Array}
+   */
   #capacityPerCell;
-  /** @type {Float32Array | null} static per-cell growth-rate multiplier, null when uniform */
+  /** @type {Float32Array | null} the active per-cell growth-rate multiplier, null when uniform */
   #growthScalePerCell;
+  /**
+   * The two seasons' precomputed pairs. `dry` is null when the dry season's
+   * vegetation response is switched off, in which case the season cannot change
+   * what grows and `setSeason` does nothing here.
+   * @type {{capacity: Float32Array, growthScale: Float32Array|null}}
+   */
+  #wetArrays;
+  /** @type {{capacity: Float32Array, growthScale: Float32Array|null} | null} */
+  #dryArrays = null;
+  /** @type {'wet'|'dry'} */
+  #season = 'wet';
   #capacity;
   #maxLevel;
   #revision = 0;
@@ -200,21 +251,143 @@ export class VegetationGrid {
     this.#maxLevel = merged.quantizeLevels;
     const total = this.#width * this.#height;
     this.#biomass = new Float32Array(total);
-    this.#capacityPerCell = new Float32Array(total);
-    // ⚠ The dry-growth term is precomputed into its own array rather than derived
-    // from wetness inside `grow`, because `grow` is the largest cell loop in the
-    // simulation (invariant 16) and the arithmetic is the same every time it runs.
-    // Null — not an array of ones — when there is nothing to scale, so a world
-    // without water pays not even the array read.
-    const dryScale = merged.dryGrowthScale ?? 1;
-    this.#growthScalePerCell =
-      wetness !== null && dryScale !== 1
-        ? Float32Array.from(wetness, (w) => dryScale + (1 - dryScale) * w)
-        : null;
     // Built from a dedicated stream so its noise never shifts the per-cell
     // fertility/biomass draws below; null when disabled or the map is too small.
     const taper = buildEdgeTaper({ width: this.#width, height: this.#height, seed, params: merged });
-    this.#seed(new SeededRandom(seed), terrain, merged, taper, wetness);
+
+    // ⚠⚠ **The draws happen exactly once, and everything seasonal is arithmetic on
+    // top of them.** `#seed` spends two values per cell (fertility, initial
+    // biomass) in a fixed order; the seasonal arrays are pure functions of the
+    // fertility it recorded, the terrain in that season, and the wetness field. So
+    // adding a whole second season to this grid **shifts not one draw of any
+    // stream** — the same discipline `wetCapacityBonus` shipped under on
+    // 2026-08-09, which is what lets both of these land without moving any seeded
+    // world.
+    const fertility = new Float32Array(total);
+    this.#seed(new SeededRandom(seed), terrain, merged, fertility);
+
+    this.#wetArrays = this.#buildSeasonArrays({
+      terrain,
+      season: 'wet',
+      fertility,
+      taper,
+      wetness,
+      params: merged,
+      wetCapacityBonus: merged.wetCapacityBonus ?? 0,
+      dryGrowthScale: merged.dryGrowthScale ?? 1,
+    });
+    // ⚠ The dry season's response is per-cell and is the whole of what a dry
+    // season *does* to grass, so it is built here rather than derived in `grow`.
+    // Null when switched off — then the season cannot change what grows, which is
+    // the reproducible control.
+    const drySeason = merged.drySeason ?? null;
+    if (drySeason && drySeason.enabled !== false && terrain.hasDryMap) {
+      this.#dryArrays = this.#buildSeasonArrays({
+        terrain,
+        season: 'dry',
+        fertility,
+        taper,
+        wetness,
+        params: merged,
+        wetCapacityBonus: drySeason.wetCapacityBonus ?? 0,
+        dryGrowthScale: drySeason.dryGrowthScale ?? 0,
+      });
+    }
+    // ⚠ **Adopt the terrain's season rather than assuming wet.** `World` builds
+    // this while the world is wet and then calls `setSeason`, so either would work
+    // there — but a grid built over an already-drained terrain and silently
+    // reporting the wet season's capacities is a trap, and it caught its own test
+    // within the hour. Whatever map the terrain is showing is the map this grows on.
+    const startDry = terrain.season === 'dry' && this.#dryArrays !== null;
+    this.#season = startDry ? 'dry' : 'wet';
+    const active = startDry ? this.#dryArrays : this.#wetArrays;
+    this.#capacityPerCell = active.capacity;
+    this.#growthScalePerCell = active.growthScale;
+    this.#clampBiomassToCapacity();
+  }
+
+  /**
+   * Build one season's `{capacity, growthScale}` pair. **No randomness** — every
+   * value is a function of the recorded fertility, the terrain in that season, and
+   * the wetness field.
+   *
+   * ⚠⚠ **The two seasons differ in their *terrain*, not merely in their
+   * multipliers**, and that is the part it would be easy to get wrong. A cell that
+   * is `WATER` in the wet season grows nothing; the same cell is `DRY_BED` in the
+   * dry season and grows grass like open ground. So the capacity array has to be
+   * keyed on `codeAtSeason`, not on a single suitability pass.
+   *
+   * ⚠⚠ **The wetness field is the *wet-season* one in both cases, and that is the
+   * request rather than an oversight.** The dry season's rule is "grass grows where
+   * the water **was**" — the riparian strip keeps its grass after the channel has
+   * gone, and the open plain does not. A field rebuilt from the drained map would
+   * say something else entirely: it would move the growing ground to whatever water
+   * survived, which is the opposite of a river bed that still has damp soil in it.
+   */
+  #buildSeasonArrays({ terrain, season, fertility, taper, wetness, params, wetCapacityBonus, dryGrowthScale }) {
+    const total = this.#width * this.#height;
+    const capacity = new Float32Array(total);
+    const wet = wetness !== null && wetCapacityBonus !== 0 ? wetness : null;
+    for (let y = 0; y < this.#height; y += 1) {
+      for (let x = 0; x < this.#width; x += 1) {
+        const i = this.#index(x, y);
+        const suitability = suitabilityFor(codeIn(terrain, x, y, season), params.coverSuitability);
+        const base = suitability > 0 ? this.#capacity * suitability * fertility[i] : 0;
+        let value = taper !== null && base > 0 ? base * taper(x, y) : base;
+        if (wet !== null && value > 0) value *= 1 + wetCapacityBonus * wet[i];
+        capacity[i] = value;
+      }
+    }
+    // ⚠ Null rather than an array of ones when there is nothing to scale, so a
+    // world without water pays not even the array read in `grow`.
+    //
+    // ⚠ At the dry season's `dryGrowthScale: 0` this array **is** the wetness: the
+    // regrowth rate beside the old channel is full and on the open plain it is
+    // exactly zero. That one substitution is the whole of "vegetation near where
+    // water was grows at a normal rate, and vegetation far from it does not grow at
+    // all" — no new mechanism, just a second value for a knob that already existed.
+    const growthScale =
+      wetness !== null && dryGrowthScale !== 1
+        ? Float32Array.from(wetness, (w) => dryGrowthScale + (1 - dryGrowthScale) * w)
+        : null;
+    return { capacity, growthScale };
+  }
+
+  /** Initial biomass may not start above the season's ceiling. */
+  #clampBiomassToCapacity() {
+    for (let i = 0; i < this.#biomass.length; i += 1) {
+      const capacity = this.#capacityPerCell[i];
+      if (this.#biomass[i] > capacity) this.#biomass[i] = capacity;
+    }
+  }
+
+  /** Which season's arrays are active. */
+  get season() {
+    return this.#season;
+  }
+
+  /**
+   * Point the grid at a season's capacity and growth-rate arrays. **O(1)** — the
+   * reason both are precomputed rather than derived per tick.
+   *
+   * ⚠ Biomass is deliberately **not** rescaled here. A cell that stops being
+   * suitable keeps its grass for one growth tick and then `grow` zeroes it, which
+   * is the cleanup path that already existed for restored worlds; a cell that
+   * becomes suitable starts from whatever it had (zero, for a cell that was water)
+   * and grows. Doing it here as well would be the same rule in two places.
+   *
+   * @param {'wet'|'dry'} season
+   * @returns {boolean} whether the arrays actually changed
+   */
+  setSeason(season) {
+    const next = season === 'dry' && this.#dryArrays !== null ? 'dry' : 'wet';
+    if (next === this.#season) return false;
+    this.#season = next;
+    const arrays = next === 'dry' ? this.#dryArrays : this.#wetArrays;
+    this.#capacityPerCell = arrays.capacity;
+    this.#growthScalePerCell = arrays.growthScale;
+    this.#revision += 1;
+    return true;
   }
 
   get width() {
@@ -264,20 +437,25 @@ export class VegetationGrid {
    * position, so every seeded world spends exactly the RNG sequence it always did
    * — which is what lets this ship on without moving a single other system.
    */
-  #seed(random, terrain, params, taper, wetness) {
-    const wetBonus = params.wetCapacityBonus ?? 0;
-    const wet = wetness !== null && wetBonus !== 0 ? wetness : null;
+  #seed(random, terrain, params, fertility) {
     for (let y = 0; y < this.#height; y += 1) {
       for (let x = 0; x < this.#width; x += 1) {
         const i = this.#index(x, y);
-        const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability);
-        const fertility = random.float(params.minFertility, 1);
-        const baseCapacity = suitability > 0 ? this.#capacity * suitability * fertility : 0;
-        let capacity = taper !== null && baseCapacity > 0 ? baseCapacity * taper(x, y) : baseCapacity;
-        if (wet !== null && capacity > 0) capacity *= 1 + wetBonus * wet[i];
-        this.#capacityPerCell[i] = capacity;
+        // ⚠ The draw order is the behaviour: fertility then initial biomass, per
+        // cell, row-major, and **both spent unconditionally** — the biomass draw
+        // happens even for an unsuitable cell so that adding a zero-growth terrain
+        // does not shift the values every later cell sees.
+        fertility[i] = random.float(params.minFertility, 1);
         const initialBiomass = random.float(0, params.initialFraction);
-        this.#biomass[i] = baseCapacity > 0 ? Math.min(capacity, baseCapacity * initialBiomass) : 0;
+        // ⚠ Seeded against the **wet season's** suitability and on the *dry*
+        // capacity scale — no wetness bonus, no taper. Both were true before the
+        // seasons existed and both matter: a wet cell starts at the same standing
+        // crop as a dry one and *grows* tall over the first few hundred ticks,
+        // because the claim is that grass beside water gets taller, which has to
+        // be something that happens rather than something the map is born with.
+        // The constructor clamps this to the active season's ceiling afterwards.
+        const suitability = suitabilityFor(codeIn(terrain, x, y, 'wet'), params.coverSuitability);
+        this.#biomass[i] = suitability > 0 ? this.#capacity * suitability * fertility[i] * initialBiomass : 0;
       }
     }
     this.#revision += 1;

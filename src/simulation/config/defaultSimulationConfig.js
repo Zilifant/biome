@@ -127,6 +127,25 @@ export const defaultSimulationConfig = Object.freeze({
     marshMinRadius: 3,
     marshMaxRadius: 7,
     marshDrift: 0.85,
+    // ⚠⚠ **The dry-season map** (SEASON-PLAN.md §4.3). A second `Uint8Array` built
+    // once at construction as a pure function of the generated one; the season
+    // chooses which the world is looking at. `false` allocates nothing and spends
+    // no draws, which is the reproducible off state.
+    //
+    // Four rules, keyed on where each water cell came from: the stream dries
+    // completely, a pond draws down, the lake's shallow ring dries while its
+    // impassable core becomes drinkable shallows, and the marsh keeps a fraction
+    // of its pools.
+    dryTerrain: true,
+    // How much of a pond's **area** survives the dry season — so the radius scales
+    // by √0.75 ≈ 0.866. ⚠ Area rather than radius because "75% of its size" is
+    // about how much water is left, not how wide the disc is; at 0.75 of the
+    // *radius* a pond would lose 44% of itself, which is a different request.
+    dryPondAreaScale: 0.75,
+    // The fraction of marsh pools that hold water through the dry season, drawn
+    // per pool. ⚠ The only rule of the four that spends randomness, and it is free
+    // because the dry map is the last pass in the generator (see #buildDryMap).
+    marshDryRetention: 0.18,
     // The four bands a footprint cell is drawn against, in order; what is left
     // over (here 12%) stays open ground, so the wetland has dry footing in it.
     marshWaterDensity: 0.3,
@@ -278,6 +297,8 @@ export const defaultSimulationConfig = Object.freeze({
     // requested behaviour rather than groundwork — and they can afford to,
     // because both are pure functions of terrain position and spend no draws, so
     // a seeded world's RNG sequence is bit-for-bit what it was.
+    // ⚠⚠ **The dry season's whole effect on grass is these same two knobs at
+    // different values** (SEASON-PLAN.md §0) — see `drySeason` below.
     wetCapacityBonus: 0.6, // ceiling at the water's edge is 1.6× the dry ceiling
     // ⚠⚠ **0.75 rather than the 0.6 this shipped as for an afternoon, and the
     // measurement is the reason** (6 seeds × 4000 ticks, small demo, against a
@@ -297,6 +318,36 @@ export const defaultSimulationConfig = Object.freeze({
     // schedule, and the edge taper's "removing a third of the forage halved grazer
     // carrying capacity" in miniature. A quarter slower is still plainly slower.
     dryGrowthScale: 0.75, // out on the dry plain, regrowth runs at 75% speed
+    // ⚠⚠ **The dry season's whole effect on grass, and it needed no new mechanism**
+    // (SEASON-PLAN.md §0). It is the two knobs above at different values, held in a
+    // second pair of precomputed per-cell arrays that the season swaps to — so
+    // `grow` still reads one array index per cell and the largest loop in the
+    // simulation costs exactly what it did.
+    //
+    //   `wetCapacityBonus: 0` — riparian grass grows to the *normal* ceiling rather
+    //     than 1.6× it: "near where water was, grow at a normal rate".
+    //   `dryGrowthScale: 0`   — the rate becomes `0 + 1 × wetness`, i.e. the rate
+    //     simply **is** the wetness: full beside the old channel and exactly zero
+    //     out on the plain. "Far from it, do not grow at all."
+    //
+    // ⚠ The wetness both read is the **wet season's** field — "where the water
+    // *was*" — not one rebuilt from the drained map. A dried river bed keeps damp
+    // soil, and that is the point: the drained channel is where the grazing goes.
+    //
+    // ⚠ Grass on the plain does not *die back*, it stops recovering — nothing
+    // removes standing crop but grazing. The seasonal capacity scalar
+    // (`PHASE_CAPACITY`) stays neutral through both dry phases for the same reason:
+    // a global scalar cannot say "here but not there".
+    //
+    // `enabled: false` makes the dry arrays identical to the wet ones — the map
+    // still drains, and grass behaves exactly as it always did. That is the
+    // reproducible control for the *vegetation* half, separate from
+    // `terrain.dryTerrain`, which is the control for the map half.
+    drySeason: Object.freeze({
+      enabled: true,
+      wetCapacityBonus: 0,
+      dryGrowthScale: 0,
+    }),
   }),
   // How wet the ground is, as a static distance-to-water field (2026-08-09).
   // See `world/wetness.js`: one flood at world construction, two consumers (the

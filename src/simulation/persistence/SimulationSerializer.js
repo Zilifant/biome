@@ -303,10 +303,20 @@
  *       dry one. A v35 save carries gestating females whose `gestationUntil` was
  *       set on the old clock; they would simply calve early, which is harmless,
  *       but the save is invalidated on the config's account anyway.
+ *  37 — the **dry bed** terrain code (SEASON-PLAN.md D4). `DRY_BED: 7` is an
+ *       eighth entry in `TERRAIN_LEGEND`, with rows in all five terrain-keyed
+ *       tables and a `dry_bed` habitat weight on the five species that name
+ *       `water`.
+ *
+ *       ⚠ **Nothing generates one yet, so no v36 world contained the code** — and
+ *       the bump is still required, because terrain is regenerated from
+ *       `config.terrain` on load and a species block moved. This is the same
+ *       reasoning v30 recorded: a terrain generator change is always a save-format
+ *       change, whether or not the current parameters exercise it.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 36;
+export const SAVE_FORMAT_VERSION = 37;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -427,7 +437,17 @@ export function restoreSimulationState(engine, saved) {
   engine.restoreRandomStreams(saved.randomStreams);
   engine.world.entities.restore(saved.entities);
   engine.world.restoreTombstones(saved.tombstones);
-  if (saved.environment) engine.world.environment = { ...saved.environment };
+  if (saved.environment) {
+    engine.world.environment = { ...saved.environment };
+    // ⚠ A world restored mid-dry-season has a drained map, and it has to have it
+    // *before* anything reads a cell rather than from the first tick onward.
+    // `WeatherSystem` would set this on its next update, but a caller is entitled
+    // to inspect a restored world without stepping it — and a save/load round trip
+    // that reported different terrain for one tick is exactly the kind of drift
+    // §12 exists to prevent. The season is a pure function of the saved tick, so
+    // nothing extra is stored for this.
+    engine.world.setSeason(saved.environment.season);
+  }
   engine.world.disturbances = (saved.disturbances ?? []).map((d) => ({ ...d }));
   engine.world.nextDisturbanceId = saved.nextDisturbanceId ?? 1;
   engine.world.features.restore(saved.features);

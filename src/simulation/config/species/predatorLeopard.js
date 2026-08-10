@@ -190,7 +190,11 @@ export const predatorLeopard = Object.freeze({
   // not in this phase: it would move four species' habitat in the same gate that
   // is measuring one predator's new behaviour, and neither result would be
   // attributable (A12).
-  habitat: Object.freeze({ cover: 1.6, tree: 1.5, thicket: 1.25, ground: 0.85, water: 0.9 }),
+  // ⚠ `dry_bed` at 0.9, the same as its water: an ambush cat wants cover, and a
+  // bare pan is the opposite of cover whether or not there is water in it. Carried
+  // explicitly rather than left to the neutral default so the value is a decision
+  // rather than an omission (A79).
+  habitat: Object.freeze({ cover: 1.6, tree: 1.5, thicket: 1.25, ground: 0.85, water: 0.9, dry_bed: 0.9 }),
   // ⚠⚠ **Vertical refuge, thirteen phases after the file said it was deferred**
   // (A67, phases T1–T3). The header below still describes the deferral; this is
   // what replaced it, and the two halves are worth separating because only one

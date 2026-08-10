@@ -67,14 +67,41 @@ export class World {
     // therefore never serialized: it rebuilds from the regenerated terrain on
     // load, exactly like `_waterField` below. Null on a waterless world, which
     // every consumer reads as "no effect" (see `wetness.js`).
-    /** @type {Float32Array | null} */
-    this.wetness = buildWetnessField(this.terrain, config.wetness ?? {});
+    //
+    // ⚠⚠ **Two fields since the dry season (SEASON-PLAN D6), and the two consumers
+    // want *different ones*.** That looked like a mistake when it first appeared,
+    // so it is written down here rather than left to be rediscovered:
+    //
+    //   - **Vegetation reads the wet-season field**, always. The dry season's rule
+    //     is "grass grows where the water **was**" — a drained channel keeps damp
+    //     soil, and that is what makes the dried river the last good grazing in the
+    //     world. A field rebuilt from the drained map would move the growing ground
+    //     to whatever water survived, which is the opposite of the request.
+    //   - **The habitat cue reads the current season's field**, through
+    //     `wetnessAt`. A buffalo's `wetPreference` is about where it wants to
+    //     *stand*, so it should follow the water down as the map dries rather than
+    //     linger on a bed because the map used to be wet there.
+    //
+    // Both are terrain-derived and therefore never serialized: they rebuild from
+    // the regenerated terrain on load, exactly like `_waterField` below. Null on a
+    // waterless world, which every consumer reads as "no effect" (see `wetness.js`).
+    /** @type {Float32Array | null} the wet-season field — "where the water was" */
+    this.wetnessWet = buildWetnessField(this.terrain, config.wetness ?? {});
+    /** @type {Float32Array | null} the drained map's field, or null with no dry map */
+    this.wetnessDry = this.terrain.hasDryMap
+      ? this.#buildWetnessForSeason('dry', config.wetness ?? {})
+      : null;
+    /** @type {Float32Array | null} the active field; `wetnessAt` reads this */
+    this.wetness = this.wetnessWet;
     // Vegetation suitability is derived from terrain, so terrain comes first.
+    // ⚠ Handed `wetnessWet` explicitly rather than `this.wetness`: the two are the
+    // same object at construction, and relying on that would be a bug waiting for
+    // the day something constructs a world mid-dry-season.
     this.vegetation = new VegetationGrid({
       terrain: this.terrain,
       seed: (config.vegetationSeed ?? 0) >>> 0,
       params: config.vegetation ?? {},
-      wetness: this.wetness,
+      wetness: this.wetnessWet,
     });
     // Transient per-entity perception summaries, rebuilt each tick by the
     // perception system. Derived state — never serialized (like the spatial
@@ -156,6 +183,7 @@ export class World {
     /** @type {object[]} */
     this.metricsHistory = [];
     this.environment = initialEnvironment(config.environment ?? DEFAULT_ENVIRONMENT_PARAMS);
+    this.setSeason(this.environment.season);
     // Active local disturbances (Step 27) — fires, floods, storms. A bounded
     // list of small records, capped by the disturbance system, and the *only*
     // state the mechanism has: every effect (slower ground, colder air, burnt
@@ -384,6 +412,72 @@ export class World {
     const width = this.terrain.width;
     if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= this.terrain.height) return 0;
     return field[cellY * width + cellX];
+  }
+
+  /**
+   * Point the world's spatial layers at a season (SEASON-PLAN.md D5).
+   *
+   * ⚠⚠ **The one place a season becomes a fact about the map**, and it exists as a
+   * single call precisely so the layers cannot get out of step with each other:
+   * the terrain, the wetness field, the drinkable-water bearing field and the
+   * vegetation's per-cell arrays all describe the same world and must all turn at
+   * the same instant. Today it moves the terrain; the other three are precomputed
+   * pairs that join it at D6/D7, and they join it *here* rather than each finding
+   * their own trigger.
+   *
+   * Called by `WeatherSystem` every tick — the season is a pure function of the
+   * tick, so asserting it is cheaper than tracking transitions and cannot drift
+   * across a load. Idempotent: an unchanged season costs one comparison.
+   *
+   * ⚠ **Invalidating anything memoized from the terrain is the caller's problem
+   * only because there is exactly one such consumer** — the engine's terrain
+   * projection, which watches `terrain.revision`. If a second appears, it belongs
+   * on that number too rather than on a callback from here.
+   *
+   * @param {'wet'|'dry'} season
+   * @returns {boolean} whether any layer actually changed
+   */
+  #buildWetnessForSeason(season, params) {
+    // ⚠ The field is a function of *which cells hold water*, and `buildWetnessField`
+    // reads that off the grid's active map — so the only way to build the other
+    // season's field is to stand the grid in that season briefly. Done here, at
+    // construction, behind one private method, rather than letting any caller
+    // discover that terrain has a mutable-looking pointer on it.
+    const restore = this.terrain.season;
+    this.terrain.setSeason(season);
+    const field = buildWetnessField(this.terrain, params);
+    this.terrain.setSeason(restore);
+    return field;
+  }
+
+  setSeason(season) {
+    if (!this.terrain.setSeason(season)) return false;
+    // Every layer that describes the same world turns in the same instant. This
+    // is the reason `setSeason` exists as one call rather than four.
+    this.wetness = this.terrain.season === 'dry' && this.wetnessDry !== null ? this.wetnessDry : this.wetnessWet;
+    this.vegetation.setSeason(this.terrain.season);
+    // ⚠⚠ **Dropping the water field is not an optimization detail — leaving it
+    // stale broke save/load, and did so silently.** `nearestWater` floods a
+    // bearing field from the drinkable cells and memoizes it forever, on the
+    // strength of "terrain never changes". Now it does. The visible failure was a
+    // *round-trip* one: the original world built its field during the wet season
+    // and kept it; a world restored mid-dry-season built the same field lazily
+    // from the **drained** map, so the two disagreed about where the water was and
+    // every animal diverged from there. `test/injury.test.js`'s round-trip caught
+    // it, several thousand entity fields deep, which is exactly how the last
+    // stale-cache bug (`bandmates`, save v35) presented.
+    //
+    // Rebuilding is also the *right* answer rather than merely the consistent one:
+    // "where can I drink" in the dry season should mean the water that is actually
+    // there. One BFS over the grid, twice per simulated year.
+    //
+    // ⚠ The wetness field is deliberately **not** dropped. It is built from the
+    // wet map and stays that way — vegetation needs "where the water *was*" so the
+    // riparian strip keeps its grass after the channel has gone (SEASON-PLAN §5).
+    // The habitat cue arguably wants the current season's, and that is D6's
+    // decision to make, not a side effect of this one.
+    this._waterField = undefined;
+    return true;
   }
 
   /** @param {number} x */

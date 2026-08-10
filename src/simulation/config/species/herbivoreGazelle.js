@@ -170,7 +170,11 @@ export const herbivoreGazelle = Object.freeze({
   // born on sheltering ground. Preferring the open makes that rarer. The named fix
   // is birth-site selection — a female near term wanting cover — which is a
   // preference that changes with state, and this field cannot express one.
-  habitat: Object.freeze({ ground: 1.15, cover: 0.8, water: 0.9, thicket: 0.3 }),
+  // ⚠ `dry_bed` at 1.1 — mildly *above* its 0.9 for water, and deliberately: this
+  // is a short-grass feeder and a drained bed regrows short grass first. Its
+  // `wetPreference: 0.7` still pulls it away from damp ground, so the two axes
+  // disagree here on purpose (they multiply — see habitat/habitat.js).
+  habitat: Object.freeze({ ground: 1.15, cover: 0.8, water: 0.9, thicket: 0.3, dry_bed: 1.1 }),
   // ⚠ **The dry half of the wetland split** (2026-08-09; see `habitat/habitat.js`,
   // and the buffalo file for the wet half). Below 1, so the same cue that pulls a
   // buffalo toward the marsh pushes this animal continuously *down* the wetness

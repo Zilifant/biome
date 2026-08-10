@@ -149,7 +149,11 @@ export const herbivoreWildebeest = Object.freeze({
   forage: Object.freeze({ preferredBiomass: 5, span: 4 }),
   // Open plain, more strongly than the gazelle: this is a species of the short-grass
   // plains and it wants nothing to do with cover.
-  habitat: Object.freeze({ ground: 1.2, cover: 0.7, water: 1.05, thicket: 0.3 }),
+  // ⚠ `dry_bed` at 1.2, its highest weight — the forage-tracker should want the
+  // one ground in a dry-season world that still grows grass, and this is the
+  // species whose whole year is following the grass (`migration.cueRadius: 20`,
+  // the widest in the roster).
+  habitat: Object.freeze({ ground: 1.2, cover: 0.7, water: 1.05, thicket: 0.3, dry_bed: 1.2 }),
   // ⚠ **Dry, and the most strongly so of the three plains grazers** (2026-08-09;
   // the wet half is the buffalo's file, the mechanism is `habitat/habitat.js`).
   // This is the short-grass-plains species — `habitat.ground: 1.2` is already the

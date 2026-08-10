@@ -235,6 +235,12 @@ export const TERRAIN_APPEARANCE = Object.freeze({
   // brighter green. Scattered trees are the sparsest layer on the map, so the
   // glyph has to survive being a single cell in an ocean of grass.
   tree: Object.freeze({ glyph: '♠', colorToken: 'bright-green' }),
+  // The dry season's whole visible signature. `-` against water's `~`: the same
+  // horizontal stroke with the wave taken out of it, so a drained channel reads as
+  // the *same shape* the water traced, gone still. Orange because a dry bed is the
+  // one warm thing on a map of greens, blues and greys — the eye should find where
+  // the water used to be without hunting for it.
+  dry_bed: Object.freeze({ glyph: '-', colorToken: 'orange' }),
   outOfBounds: Object.freeze({ glyph: '#', colorToken: 'background-lighter' }),
   unknown: Object.freeze({ glyph: '.', colorToken: 'selection' }),
 });
@@ -321,6 +327,12 @@ const FADING_LAYERS = new Set([
   TERRAIN_APPEARANCE.deep_water,
   TERRAIN_APPEARANCE.thicket,
   TERRAIN_APPEARANCE.tree,
+  // ⚠ A dry bed fades for both of the reasons above at once. It is a *reading* of
+  // a cell — "the water was here" — rather than any hard shape, and it is the
+  // ground animals will be standing on most in a dry season, because it is the one
+  // place still growing grass. A solid `-` behind a `g` is exactly the smear this
+  // set exists to prevent.
+  TERRAIN_APPEARANCE.dry_bed,
   FEATURE_APPEARANCE.trail,
   FEATURE_APPEARANCE.burrow,
 ]);

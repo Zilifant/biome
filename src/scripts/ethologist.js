@@ -574,7 +574,10 @@ function autopsy(world, entity, tracker, ctx) {
     // stronger claim for a leopard at 12 than for a gazelle at 6, and the old
     // flat 6 quietly held every long-sighted species to the gazelle's standard.
     const nearBound = Math.min(facts.perceptionRadius, D.closeWaterCap);
-    const straight = nearestShallowStraight(ctx.waterCells, entity.x, entity.y);
+    // ⚠ The water that existed **at the moment of death**, not the water the world
+    // was generated with. In the dry season most channels are dry beds.
+    const water = ctx.waterBySeason?.[world.terrain.season] ?? ctx.waterCells;
+    const straight = nearestShallowStraight(water, entity.x, entity.y);
     if (straight <= nearBound) {
       const walled = walledByThicket(world, entity.x, entity.y);
       return {
@@ -582,7 +585,7 @@ function autopsy(world, entity, tracker, ctx) {
         reason: `died of thirst with water ~${straight.toFixed(1)}c away (sees ${facts.perceptionRadius}c)${walled ? ', walled by thicket' : ''}; action=${entity.action}, ${tracker.everDrank ? 'had drunk before' : 'never drank'}`,
       };
     }
-    if (!tracker.everPerceivedWater && ctx.waterCells.length > 0) {
+    if (!tracker.everPerceivedWater && water.length > 0) {
       return {
         suspicion: 5,
         reason: `died of thirst having NEVER perceived water (world has reachable water); roamed ${tracker.bbox()}`,
@@ -1202,19 +1205,32 @@ function analyzeRun({ seed, composition, ticks, onProgress }) {
   const world = engine.world;
   const W = world.terrain.width, H = world.terrain.height;
 
-  // Terrain geography, once.
-  const waterCells = [];
+  // Terrain geography, once — but **once per season**, because the map drains.
+  //
+  // ⚠⚠ **A single list would make this tool lie in exactly the direction it exists
+  // to catch.** The thirst autopsy asks "did this animal die with drinkable water
+  // within reach", and it answers from this list. Collected once in the wet season
+  // it would count every drained channel as water, so every dry-season thirst death
+  // would be reported as "died beside water" — a flood of false positives at the
+  // top of the ranked list, in the one detector family the dry season most needs.
+  const waterBySeason = { wet: [], dry: [] };
   const terrainCounts = {};
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
       const c = world.terrain.codeAt(x, y);
       terrainCounts[c] = (terrainCounts[c] ?? 0) + 1;
-      if (c === TerrainType.WATER) waterCells.push([x, y]);
+      for (const season of ['wet', 'dry']) {
+        if (world.terrain.codeAtSeason(x, y, season) === TerrainType.WATER) waterBySeason[season].push([x, y]);
+      }
     }
   }
+  // The wet season's list is the world's geography for reporting purposes; the
+  // autopsy picks by the season the death actually happened in.
+  const waterCells = waterBySeason.wet;
   const facts = speciesFactsOf(world);
   const ctx = {
     waterCells,
+    waterBySeason,
     facts,
     // ⚠ Both mechanisms have a global off switch by the species-block rule
     // (DOCS §8), and a detector that fires on a switched-off mechanism is

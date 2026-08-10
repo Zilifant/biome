@@ -47,6 +47,62 @@ export const TerrainType = Object.freeze({
   // Static, like thicket: it does not grow, is not eaten, and has no woody floor.
   // The growing, browsable version is still A51.
   TREE: 6,
+  // Dry bed: the cracked pan a lake, pond, stream or marsh pool leaves behind
+  // when the dry season drains it (SEASON-PLAN.md §4.4, 2026-08-09). Ordinary
+  // walkable ground in every mechanical respect — it is the *visibility* of the
+  // dry season, not a new behaviour.
+  //
+  // ⚠⚠ **A new code, against the standing preference not to add one.** The marsh
+  // (TERRAIN-PLAN §2) was deliberately composed from existing codes because it
+  // could be, and DOCS §7 records the bill a new code carries: a protocol bump, an
+  // entry in all five terrain-keyed tables, a renderer glyph, and one habitat
+  // weight per species. A dry bed cannot be composed — it is precisely the thing
+  // that is neither water nor ordinary ground — and without it **the dry season is
+  // invisible on the map**: the stream would not dry up, it would cease to have
+  // ever existed. Watching the water go is the whole feature.
+  //
+  // ⚠ It is *not* the mechanism. What drains the map is the dry-season terrain
+  // map; this is the code that map writes.
+  DRY_BED: 7,
+});
+
+/**
+ * **Which feature a water cell came from** (SEASON-PLAN.md D3, 2026-08-09) — a
+ * parallel `Uint8Array` beside `#cells`, written by the generation passes as they
+ * stamp.
+ *
+ * ⚠⚠ **This exists because the finished grid cannot answer the question, and the
+ * dry season has to.** Once `#generate` returns, a `WATER` cell from the stream, a
+ * marsh pool, a pond and the lake's shallow ring are the same byte — but the dry
+ * season treats all four differently (the stream dries completely, a pond shrinks,
+ * the lake inverts, the marsh mostly dries). The alternative was to recover
+ * provenance after the fact by connected components and distance transforms, which
+ * is guesswork about something the generator knew for certain and threw away.
+ *
+ * ⚠ **It costs no randomness and no draws.** Every value here is written beside a
+ * cell write that already happens, so every seeded world generates precisely the
+ * terrain it did before this existed — which is what `test/determinism.test.js`
+ * holds it to.
+ *
+ * ⚠ **Derived and never serialized**, like the grid it shadows and like
+ * `world.wetness`. It regenerates from the seed on load (DOCS §7).
+ *
+ * **The invariant, asserted in `test/terrain.test.js`:** a cell's source is
+ * non-`NONE` *if and only if* the cell is `WATER` or `DEEP_WATER`. Every pass that
+ * can overwrite water with something else — rock is the one that does — must clear
+ * it, which is why the tag is written by `#stampDisc` itself rather than by its
+ * callers.
+ */
+export const WaterSource = Object.freeze({
+  NONE: 0,
+  /** The lake's shallow ring — what dries first, leaving a pan. */
+  LAKE: 1,
+  /** The lake's impassable core — what survives, and becomes the dry season's water. */
+  LAKE_CORE: 2,
+  POND: 3,
+  STREAM: 4,
+  /** A marsh pool. */
+  MARSH: 5,
 });
 
 /**
@@ -63,6 +119,7 @@ export const TERRAIN_LEGEND = Object.freeze([
   Object.freeze({ code: TerrainType.DEEP_WATER, name: 'deep_water', passable: false }),
   Object.freeze({ code: TerrainType.THICKET, name: 'thicket', passable: true }),
   Object.freeze({ code: TerrainType.TREE, name: 'tree', passable: true }),
+  Object.freeze({ code: TerrainType.DRY_BED, name: 'dry_bed', passable: true }),
 ]);
 
 const PASSABLE_BY_CODE = TERRAIN_LEGEND.map((entry) => entry.passable);
@@ -124,6 +181,12 @@ const CONCEALMENT_BY_CODE = Object.freeze([
   0, //    deep water — see across it
   1, //    thicket — tall, dense; opaque
   0.4, //  tree — a canopy and a trunk break an outline; you still see straight past
+  // ⚠ Dry bed is 0, and staying **under 1** is the load-bearing part, exactly as
+  // it is for the tree: `SIGHT_BLOCKING_BY_CODE` is derived as `>= 1`, so any
+  // value below it leaves the raycast's boolean array byte-identical and
+  // `hasLineOfSight` costs precisely what it did. A drained channel is open
+  // ground — there is nothing in it to hide behind.
+  0, //    dry bed — a bare pan hides nothing
 ]);
 
 /**
@@ -202,6 +265,14 @@ const SPEED_MODIFIER_BY_CODE = Object.freeze([
   // must not be, or the same machinery would make animals turn away from the
   // canopy this layer exists to put them under. Walking under a tree is walking.
   0.9, // tree — open woodland floor: roots and shade, not an obstacle
+  // ⚠⚠ **Dry bed is 1.0, and the temptation to make it 0.8 for "loose sand" is
+  // the trap the tree's own 0.9 exists to record: slow ground is *avoided*
+  // ground.** The movement system treats a slow cell's edge as a wall, so a
+  // cheaper dry bed would make animals turn away from the drained channel — which
+  // is the one place in the dry-season world that still grows grass, and therefore
+  // the exact place the mechanism needs them to walk to. A dried river bed is
+  // walkable; it is water's *absence*, not an obstacle.
+  1, // dry bed — walking on a dry bed is walking
 ]);
 
 /**
@@ -323,8 +394,48 @@ export function isOutsideShape(cellX, cellY, width, height, roundness) {
 export class TerrainGrid {
   #width;
   #height;
-  /** @type {Uint8Array} row-major, length width*height */
+  /**
+   * The **active** map, row-major, length width*height — whichever of
+   * `#cellsWet` / `#cellsDry` the current season points at. Every read below
+   * indexes this, so a season change is a pointer assignment and the hot loops
+   * cost exactly what they always did.
+   * @type {Uint8Array}
+   */
   #cells;
+  /** The generated map: the world with water in it. @type {Uint8Array} */
+  #cellsWet;
+  /**
+   * The same world drained, or **null** when `terrain.dryTerrain` is off — in
+   * which case no second array is allocated, no draws are spent building it, and
+   * `setSeason` can do nothing. That is the reproducible off state.
+   * @type {Uint8Array|null}
+   */
+  #cellsDry = null;
+  /** Which map is active. @type {'wet'|'dry'} */
+  #season = 'wet';
+  /**
+   * Bumped whenever the active map changes, so a consumer that memoized a
+   * projection of it (the engine does) can tell that it is stale. ⚠ Terrain used
+   * to be memoizable forever on the strength of "terrain is static"; it is still
+   * static *per season*, which is a weaker promise and needs a number.
+   */
+  #revision = 0;
+  /**
+   * Which water feature each cell came from, in `WaterSource` values, row-major
+   * beside `#cells`. `NONE` everywhere that is not water. See `WaterSource`.
+   * @type {Uint8Array}
+   */
+  #waterSource;
+  /**
+   * Every pond's drawn geometry, in the order `#carveSmallLakes` placed them.
+   *
+   * ⚠ **Recorded rather than recovered.** A pond dries to a smaller pond, which
+   * needs its *centre* and *radius* — and a disc's centre is not something you can
+   * read back off a grid where the disc has been clipped by a coast, a lake, or an
+   * outcrop. The generator has both numbers for free at the moment it draws them.
+   * @type {Array<{cx: number, cy: number, r: number}>}
+   */
+  #ponds = [];
   /**
    * Cells outside the rounded outline (1 = outside), or null at roundness 0
    * where the world is the full rectangle and there is nothing to mask. Kept
@@ -347,6 +458,8 @@ export class TerrainGrid {
     this.#width = width;
     this.#height = height;
     this.#cells = new Uint8Array(width * height); // all GROUND (0)
+    this.#cellsWet = this.#cells;
+    this.#waterSource = new Uint8Array(width * height); // all NONE (0)
     this.#generate(new SeededRandom(seed), { ...DEFAULT_TERRAIN_PARAMS, ...params });
   }
 
@@ -356,6 +469,47 @@ export class TerrainGrid {
 
   get height() {
     return this.#height;
+  }
+
+  /** Which seasonal map is active, `'wet'` or `'dry'`. */
+  get season() {
+    return this.#season;
+  }
+
+  /** Bumped on every season change; `0` for a world that has never changed season. */
+  get revision() {
+    return this.#revision;
+  }
+
+  /** Whether this world has a dry map at all (`terrain.dryTerrain`). */
+  get hasDryMap() {
+    return this.#cellsDry !== null;
+  }
+
+  /**
+   * Point the grid at a season's map. **O(1)** — one comparison and one pointer
+   * assignment — which is the whole reason the dry map is precomputed rather than
+   * derived on the fly.
+   *
+   * ⚠ Idempotent and safe to call every tick, which is what `WeatherSystem` does:
+   * the season is a pure function of the tick, so having the one system that owns
+   * the environment assert it each tick is cheaper than tracking transitions and
+   * cannot drift after a load.
+   *
+   * ⚠ A world with no dry map (the off state, or any sandbox that never asked for
+   * one) silently stays wet. That is deliberate: "drain the map" is a thing a
+   * world opts into, and a caller should not have to check first.
+   *
+   * @param {'wet'|'dry'} season
+   * @returns {boolean} whether the active map actually changed
+   */
+  setSeason(season) {
+    const next = season === 'dry' && this.#cellsDry !== null ? 'dry' : 'wet';
+    if (next === this.#season) return false;
+    this.#season = next;
+    this.#cells = next === 'dry' ? this.#cellsDry : this.#cellsWet;
+    this.#revision += 1;
+    return true;
   }
 
   #index(cellX, cellY) {
@@ -419,6 +573,59 @@ export class TerrainGrid {
   concealmentAt(cellX, cellY) {
     if (!this.#inBounds(cellX, cellY)) return 1;
     return CONCEALMENT_BY_CODE[this.#cells[this.#index(cellX, cellY)]];
+  }
+
+  /**
+   * Terrain code at a cell **in a named season**, whichever season is active.
+   *
+   * ⚠ Built for one caller and worth naming it: `VegetationGrid` has to know what
+   * a cell will be in *both* seasons at construction time, because a drained
+   * channel grows grass and the water it replaces does not — so the two capacity
+   * arrays are keyed on different terrain, not merely on different multipliers.
+   * Asking it to flip the world's season and flip it back would have been the
+   * alternative, and a constructor that mutates the thing it is reading is a worse
+   * trade than one small accessor.
+   *
+   * Out of bounds is ROCK, exactly as `codeAt` reports it.
+   * @param {number} cellX @param {number} cellY @param {'wet'|'dry'} season
+   * @returns {number}
+   */
+  codeAtSeason(cellX, cellY, season) {
+    if (!this.#inBounds(cellX, cellY)) return TerrainType.ROCK;
+    const cells = season === 'dry' && this.#cellsDry !== null ? this.#cellsDry : this.#cellsWet;
+    return cells[this.#index(cellX, cellY)];
+  }
+
+  /**
+   * Which water feature this cell came from, as a `WaterSource` value.
+   * `WaterSource.NONE` for anything that is not water, and for out of bounds.
+   *
+   * ⚠ This is **generation provenance, not a terrain property**. Nothing in the
+   * tick reads it — it exists so the dry-season map can apply a different rule to
+   * a stream than to a lake shore (SEASON-PLAN.md §4.3). Behaviour keyed on "is
+   * this water" belongs on the terrain code.
+   * @param {number} cellX @param {number} cellY
+   * @returns {number}
+   */
+  waterSourceAt(cellX, cellY) {
+    if (!this.#inBounds(cellX, cellY)) return WaterSource.NONE;
+    return this.#waterSource[this.#index(cellX, cellY)];
+  }
+
+  /** Count of cells per `WaterSource`, for tests and metrics. @returns {number[]} */
+  countByWaterSource() {
+    const counts = new Array(Object.keys(WaterSource).length).fill(0);
+    for (let i = 0; i < this.#waterSource.length; i += 1) counts[this.#waterSource[i]] += 1;
+    return counts;
+  }
+
+  /**
+   * Every pond's drawn centre and radius, in placement order — a copy, so a
+   * caller cannot reach into generation state.
+   * @returns {Array<{cx: number, cy: number, r: number}>}
+   */
+  ponds() {
+    return this.#ponds.map((pond) => ({ ...pond }));
   }
 
   /** Count of cells per code, for tests and metrics. @returns {number[]} */
@@ -505,6 +712,107 @@ export class TerrainGrid {
     // cell reaches every other passable cell without crossing rock. Thicket is
     // passable, so it neither strands ground nor is carved through.
     this.#ensureConnectivity();
+    // ⚠⚠ **After connectivity, not before**, and the ordering is a consequence
+    // rather than a preference: `#ensureConnectivity` carves rock into ground, and
+    // a dry map copied before it would be missing those corridors. Copying after
+    // means the dry map inherits a world that is already connected — and since
+    // drying only ever *adds* connectivity (shallow water → passable bed, deep
+    // water → passable shallows), the guarantee holds on the dry map without
+    // running the pass a second time. `test/dry-season.test.js` asserts exactly
+    // that rather than trusting it.
+    this.#buildDryMap(water, params);
+  }
+
+  /**
+   * The dry-season map: the same world with the water drawn down, built once at
+   * construction as a **pure deterministic function of the wet map** and never
+   * touched again.
+   *
+   * ⚠⚠ **This is what lets a season change a `Uint8Array` without violating "terrain
+   * is derived and unsaved, so nothing may mutate it" (DOCS §7).** Nothing here is
+   * a mutation of the generated world — it is a second reading of it, computed from
+   * the seed exactly as the first was, and regenerated identically on load. What a
+   * season does is choose which of the two the world is currently looking at.
+   *
+   * **The four rules** (SEASON-PLAN.md §4.3), each keyed on the provenance tag
+   * because the finished grid cannot tell one kind of water from another:
+   *
+   *   1. **The stream dries completely** — a channel is the first thing to go.
+   *   2. **A pond shrinks to `dryPondAreaScale` of its area**, so the radius is
+   *      scaled by its square root. It draws down, it does not vanish.
+   *   3. **The lake inverts**: the shallow ring dries to a pan and the impassable
+   *      core becomes shallow water. The one water in this world an animal cannot
+   *      currently reach becomes the only one it can.
+   *   4. **The marsh keeps `marshDryRetention` of its pools**, drawn per cell.
+   *
+   * ⚠ **The one pass that spends draws is the marsh, and it is free because this
+   * runs last.** `#generate` documents that only the final pass can promise to
+   * change nothing else; that promise used to belong to the marsh and now belongs
+   * here. So every existing seed generates precisely the wet map it always did,
+   * however many values this spends — which is what `test/determinism.test.js` and
+   * the D3 byte-identity test hold it to.
+   *
+   * ⚠ **At `dryTerrain: false` it returns before allocating anything**, so the off
+   * state costs neither the array nor the draws.
+   *
+   * @param {import('../random/SeededRandom.js').SeededRandom} random
+   * @param {object} params
+   */
+  #buildDryMap(random, params) {
+    if (params.dryTerrain === false) return; // the off state: no map, no draws, no trace
+
+    const dry = Uint8Array.from(this.#cellsWet);
+    // Pond cells inside a shrunk disc survive. ⚠ **Area, not radius** — "75% of its
+    // size" is 75% of the water left, so the radius scales by √0.75 ≈ 0.866. The
+    // masks are built first because ponds may overlap: a cell survives if it is
+    // inside *any* pond's shrunk disc, which a per-pond loop over cells could not
+    // express without re-checking every pond per cell.
+    const areaScale = clamp01(params.dryPondAreaScale ?? 0);
+    const radiusScale = Math.sqrt(areaScale);
+    const keepPond = new Uint8Array(this.#cellsWet.length);
+    for (const pond of this.#ponds) {
+      const r = pond.r * radiusScale;
+      if (!(r > 0)) continue;
+      const rSquared = r * r;
+      const minX = Math.max(0, Math.floor(pond.cx - r));
+      const maxX = Math.min(this.#width - 1, Math.ceil(pond.cx + r));
+      const minY = Math.max(0, Math.floor(pond.cy - r));
+      const maxY = Math.min(this.#height - 1, Math.ceil(pond.cy + r));
+      for (let y = minY; y <= maxY; y += 1) {
+        for (let x = minX; x <= maxX; x += 1) {
+          const dx = x - pond.cx;
+          const dy = y - pond.cy;
+          if (dx * dx + dy * dy <= rSquared) keepPond[this.#index(x, y)] = 1;
+        }
+      }
+    }
+
+    // ⚠ One draw per **marsh pool**, in row-major order, and only for marsh pools —
+    // so the number of values spent is a property of the map rather than of the
+    // rules, and the three deterministic features cost nothing.
+    const retention = clamp01(params.marshDryRetention ?? 0);
+    for (let i = 0; i < dry.length; i += 1) {
+      switch (this.#waterSource[i]) {
+        case WaterSource.STREAM:
+          dry[i] = TerrainType.DRY_BED;
+          break;
+        case WaterSource.POND:
+          dry[i] = keepPond[i] === 1 ? TerrainType.WATER : TerrainType.DRY_BED;
+          break;
+        case WaterSource.LAKE:
+          dry[i] = TerrainType.DRY_BED;
+          break;
+        case WaterSource.LAKE_CORE:
+          dry[i] = TerrainType.WATER;
+          break;
+        case WaterSource.MARSH:
+          dry[i] = random.next() < retention ? TerrainType.WATER : TerrainType.DRY_BED;
+          break;
+        default:
+          break; // not water: the dry map is the wet map here
+      }
+    }
+    this.#cellsDry = dry;
   }
 
   /**
@@ -538,8 +846,15 @@ export class TerrainGrid {
    * Fill a disc of `code` centered on (cx, cy) with radius r. When `onlyGround`
    * is set, only GROUND cells are overwritten (so cover never buries lakes or
    * rock). Shared by lakes, rock formations, and cover patches.
+   *
+   * ⚠ **`source` is written on every cell this writes, including the `NONE` of a
+   * rock or cover stamp**, and that is the whole reason the tag lives here rather
+   * than in the callers. Rock is stamped *over* water — an outcrop on a shore
+   * clips the lake — so a rock pass that only wrote cells would leave the drowned
+   * cell still tagged `LAKE`, and the dry season would try to dry an outcrop. The
+   * rule "whoever writes the cell owns the tag" makes that unrepresentable.
    */
-  #stampDisc(cx, cy, r, code, onlyGround = false) {
+  #stampDisc(cx, cy, r, code, onlyGround = false, source = WaterSource.NONE) {
     const rSquared = r * r;
     const minX = Math.max(0, Math.floor(cx - r));
     const maxX = Math.min(this.#width - 1, Math.ceil(cx + r));
@@ -552,7 +867,10 @@ export class TerrainGrid {
         if (dx * dx + dy * dy <= rSquared) {
           const idx = this.#index(x, y);
           if (this.#exterior !== null && this.#exterior[idx] === 1) continue; // past the coast
-          if (!onlyGround || this.#cells[idx] === TerrainType.GROUND) this.#cells[idx] = code;
+          if (!onlyGround || this.#cells[idx] === TerrainType.GROUND) {
+            this.#cells[idx] = code;
+            this.#waterSource[idx] = source;
+          }
         }
       }
     }
@@ -565,13 +883,19 @@ export class TerrainGrid {
       const cx = random.int(0, this.#width - 1);
       const cy = random.int(0, this.#height - 1);
       const r = radius * random.float(0.7, 1.15);
-      this.#stampDisc(cx, cy, r, TerrainType.WATER);
+      this.#stampDisc(cx, cy, r, TerrainType.WATER, false, WaterSource.LAKE);
       // A deep, impassable core leaves a shallow ring at the water's edge — the
       // only reach an animal has to drink. Stamped with the same centre and the
       // already-drawn radius, so it adds no draw and shifts nothing downstream;
       // only the cells change. `onlyGround` is false so it overwrites the
       // shallow water it sits inside.
-      if (deepFraction > 0) this.#stampDisc(cx, cy, r * deepFraction, TerrainType.DEEP_WATER);
+      //
+      // ⚠ The core is tagged apart from the ring because the dry season **inverts
+      // them**: the ring dries to a pan and the core — the one water in this world
+      // an animal cannot currently reach — becomes shallow enough to drink from.
+      if (deepFraction > 0) {
+        this.#stampDisc(cx, cy, r * deepFraction, TerrainType.DEEP_WATER, false, WaterSource.LAKE_CORE);
+      }
     }
   }
 
@@ -601,7 +925,13 @@ export class TerrainGrid {
       const cx = random.int(0, this.#width - 1);
       const cy = random.int(0, this.#height - 1);
       const r = radius * random.float(0.7, 1.15);
-      this.#stampDisc(cx, cy, r, TerrainType.WATER, true);
+      this.#stampDisc(cx, cy, r, TerrainType.WATER, true, WaterSource.POND);
+      // ⚠ Recorded even when the stamp wrote nothing — a pond drawn entirely past
+      // the coast or on top of the lake leaves no cells at all, and the dry pass
+      // must find no pond cells inside its disc rather than find no disc. Keeping
+      // the record makes "this pond contributed nothing" a measurable outcome
+      // instead of an absence. Measured at D0: 1 seed in 5 has a pond of 0 cells.
+      this.#ponds.push({ cx, cy, r });
     }
   }
 
@@ -922,6 +1252,15 @@ export class TerrainGrid {
   /**
    * Stamp one disc of the stream bed. `#stampDisc`'s walk and exterior guard,
    * with the one rule that is the stream's own: deep water is left alone.
+   *
+   * ⚠⚠ **The channel also refuses to re-tag the lake's shallow ring, and that
+   * guard is invisible on today's map.** A stream running into the lake walks over
+   * cells that are already `WATER`, so writing `WATER` over them changes no cell —
+   * which is exactly why this was safe to leave unguarded until provenance
+   * existed. It is not safe now: retagging that strip `STREAM` would make it dry
+   * *completely* in the dry season, punching a dry channel straight through a lake
+   * shore that should merely have receded. **The cells are byte-identical either
+   * way**, which is what lets D3 claim it changed no terrain.
    */
   #stampChannel(cx, cy, r) {
     const rSquared = r * r;
@@ -937,7 +1276,9 @@ export class TerrainGrid {
         const idx = this.#index(x, y);
         if (this.#exterior !== null && this.#exterior[idx] === 1) continue; // past the coast
         if (this.#cells[idx] === TerrainType.DEEP_WATER) continue; // a lake core is not a ford
+        if (this.#waterSource[idx] === WaterSource.LAKE) continue; // arriving at the lake, not carving it
         this.#cells[idx] = TerrainType.WATER;
+        this.#waterSource[idx] = WaterSource.STREAM;
       }
     }
   }
@@ -1085,8 +1426,10 @@ export class TerrainGrid {
         const code = this.#cells[idx];
         if (code !== TerrainType.GROUND && code !== TerrainType.COVER) continue;
         const roll = random.next();
-        if (roll < water) this.#cells[idx] = TerrainType.WATER;
-        else if (roll < grass) this.#cells[idx] = TerrainType.COVER;
+        if (roll < water) {
+          this.#cells[idx] = TerrainType.WATER;
+          this.#waterSource[idx] = WaterSource.MARSH;
+        } else if (roll < grass) this.#cells[idx] = TerrainType.COVER;
         else if (roll < thicket) this.#cells[idx] = TerrainType.THICKET;
         // ⚠ Marsh timber obeys the same spacing rule as every other tree, so a
         // wetland cannot do what groves are forbidden from doing. A cell whose
@@ -1243,7 +1586,15 @@ export class TerrainGrid {
       }
       if (best === -1) continue;
       for (let cur = best; cur !== -1 && dist[cur] > 0; cur = parent[cur]) {
-        if (!PASSABLE_BY_CODE[cells[cur]]) cells[cur] = TerrainType.GROUND;
+        if (PASSABLE_BY_CODE[cells[cur]]) continue;
+        // ⚠ **"Impassable" is rock *or deep water*, so this can carve a corridor
+        // straight through a lake's core** — rare, but reachable, and it is the one
+        // place in the generator where a water cell becomes dry ground. The tag has
+        // to be cleared with it or the dry-season pass would find a `LAKE_CORE`
+        // tag on a cell of open grass and refill it. Same rule as `#stampDisc`:
+        // whoever writes the cell owns the tag.
+        cells[cur] = TerrainType.GROUND;
+        this.#waterSource[cur] = WaterSource.NONE;
       }
     }
   }

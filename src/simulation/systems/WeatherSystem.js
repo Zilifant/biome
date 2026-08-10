@@ -62,6 +62,16 @@ export class WeatherSystem extends SimulationSystem {
     const next = describeEnvironment(context.tick, weather, this.params);
     world.environment = next;
 
+    // ⚠⚠ **The dry season becomes a fact about the map here**, and it is asserted
+    // every tick rather than only on the turn. The season is a pure function of the
+    // tick, so `setSeason` is one comparison when nothing changed — and stating it
+    // unconditionally means a world that has just been *restored* mid-dry-season
+    // gets its map on the first tick without the loader having to know about
+    // terrain. ⚠ This system runs at priority −10 of the `environment` phase, which
+    // is the first phase, so the map is settled before anything in the tick reads
+    // a cell.
+    world.setSeason(next.season);
+
     // ⚠ The **phase** turning is announced as well as the season, and it has to
     // be: a season is two phases, so `wetEarly → wetLate` changes what the grass
     // does without changing the season's name. Watching only the season would

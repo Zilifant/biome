@@ -162,12 +162,24 @@ export function buildFullSnapshot(data) {
     world: { width: data.world.width, height: data.world.height },
     entities: data.entities.map(cloneEntity),
   };
-  // Terrain is static: carried by full snapshots (and the terrain query), never
-  // by deltas. Cloned so each snapshot owns its terrain (the engine memoizes a
+  // Terrain is carried by full snapshots (and the terrain query), never by
+  // deltas. Cloned so each snapshot owns its terrain (the engine memoizes a
   // single projection and shares it by reference); no internal Uint8Array
   // leaks. Omitted when the producer supplies none.
+  //
+  // ⚠⚠ **Terrain is static *per season*, not static** (SEASON-PLAN D5): the dry
+  // season points the world at a drained map. Since a delta cannot carry a whole
+  // terrain, it carries the **revision** instead — one integer that a client
+  // compares against the one it decoded, and asks for a fresh full snapshot when
+  // they differ. Sending the RLE on the delta was the alternative and was
+  // declined: it would put a ~40 000-cell payload on two deltas a year and leave
+  // every other delta paying a branch for it, where a scalar costs the same on
+  // all of them and reuses the desync-recovery path a client already has.
   if (data.terrain) {
     snapshot.terrain = structuredClone(data.terrain);
+  }
+  if (data.terrainRevision !== undefined) {
+    snapshot.terrainRevision = data.terrainRevision;
   }
   // Vegetation biomass, quantized to integer levels and RLE-encoded. Carried in
   // full by full snapshots; deltas carry only changed cells (see below).
@@ -391,6 +403,13 @@ export function buildDeltaSnapshot(previous, next, events = []) {
     events: events.map((event) => structuredClone(event)),
     lastEventSeq: next.lastEventSeq,
   };
+  // ⚠ Unconditional, unlike every other optional block on a delta: a client can
+  // only notice a *change* if the field is always there to compare. Sending it
+  // only when it moved would mean "absent" had two meanings — nothing changed, or
+  // this producer does not report terrain — and the client cannot tell them apart.
+  if (next.terrainRevision !== undefined) {
+    delta.terrainRevision = next.terrainRevision;
+  }
   const vegetation = diffVegetation(previous.vegetation, next.vegetation);
   if (vegetation) {
     delta.vegetation = vegetation;
@@ -451,6 +470,13 @@ export function applyDeltaSnapshot(fullSnapshot, delta) {
     world: { ...fullSnapshot.world },
     entities,
   };
+  // The terrain the reconstruction describes is still the base snapshot's, but
+  // the revision is the delta's — so a reconstructed snapshot reports honestly
+  // that its map may be out of date rather than silently claiming the base's.
+  const terrainRevision = delta.terrainRevision ?? fullSnapshot.terrainRevision;
+  if (terrainRevision !== undefined) {
+    reconstructed.terrainRevision = terrainRevision;
+  }
   // Season and weather ride whole on the delta, so the reconstruction simply
   // takes the newer one (falling back to the base when a delta omits it).
   if (delta.environment || fullSnapshot.environment) {
