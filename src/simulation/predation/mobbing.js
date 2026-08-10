@@ -74,10 +74,33 @@ export const DEFAULT_MOBBING = Object.freeze({
    * dead buffalo — so this is the threshold that makes it collective rather than
    * suicidal. Counted from the social summary the sociality system already built
    * (`adults`, excluding this animal), so it costs no walk.
+   *
+   * ⚠⚠ **2 → 1 on 2026-08-09** (A100), and the reason is a measurement rather than
+   * a change of mind about the principle. The count **excludes the animal itself**,
+   * so 2 meant *three* buffalo before any of them would face a lion — and the
+   * decisive fact is that **a hunt isolates its target**. Buffalo herds here are
+   * tight (mean 12–15 adults within 6 units at t3000, 96–100% of adults clearing
+   * the old threshold), but at the moment a lion's attempt actually lands, the
+   * buffalo under it had `social.adults` of **0 or 1** in most cases. The threshold
+   * was therefore being evaluated at precisely the instant it could not be met, and
+   * it was blocking the animal from even *standing its ground*.
+   *
+   * ⚠ 1 is still collective — a pair, not a lone animal — so the principle in the
+   * paragraph above is intact rather than abandoned. What changed is the
+   * recognition that "the herd is nearby" and "the herd is nearby *when the lion
+   * arrives*" are different claims, and only the second one gates a mob.
    */
-  minMobbers: 2,
-  /** How close the animal under attack must be to be worth going to. */
-  range: 6,
+  minMobbers: 1,
+  /**
+   * How close the animal under attack must be to be worth going to.
+   *
+   * ⚠ 6 → 9 on 2026-08-09 (A100). Measured: it is worth ~3 points of mobbing rate
+   * on its own, and **9 → 12 is worth exactly nothing** — the same 20%, the same
+   * counts — so this is the saturation point rather than a knob to keep turning.
+   * Past 9 the binding constraint is the mobber's own `behavior.defendRange`, which
+   * is in turn bounded by its perception radius.
+   */
+  range: 9,
 });
 
 /**

@@ -435,7 +435,7 @@ export class SimulationEngine {
         const species = this.world.species.get(entity.speciesId);
         if (!species?.preySpeciesIds?.length) return null;
         const block = species.predation ?? null;
-        const backing = groupBackingFor(this.world, entityId, block);
+        const backing = groupBackingFor(entity, block);
         const solo = maxPreyMassFor(entity, block ? { ...block, groupPreyMassRatio: null } : null);
         return {
           backing,

@@ -586,6 +586,10 @@ export class SocialSystem extends SimulationSystem {
       // and the inspector reports `null`. An animal standing alone has nobody to
       // hold to, and the honest value for that is the unit.
       const pullScale = pulls === null || weight === 0 ? CONSPECIFIC_PULL : pullSum / weight;
+      // ⚠ The one field of this summary that outlives the tick, so it is written
+      // to the animal before the summary is published (A99). Everything else here
+      // is rebuilt from scratch every tick and is read within it.
+      entity.bandmates = bandmates;
       world.social.set(entity.id, {
         groupId,
         groupmates,
@@ -615,7 +619,15 @@ export class SocialSystem extends SimulationSystem {
         // How many of this animal's own **band** are in the centre it steers at
         // (P7). 0 for every animal that belongs to no record, which is most of
         // them, and the one number `GroupSystem`'s rally drift gates on.
-        bandmates,
+        //
+        // ⚠⚠ **Read back off the entity, which is now this number's one home**
+        // (2026-08-09, A99). It had to be persisted — `predation/groupBackingFor`
+        // reads it from the `perception` phase, a phase *before* this system runs,
+        // so after a load the transient map is empty and every hunter's prey
+        // ceiling silently collapses for a tick. Publishing `entity.bandmates`
+        // rather than the local keeps one computation and one store (D11), so this
+        // summary and the protocol projection both keep working unchanged.
+        bandmates: entity.bandmates,
         // ⚠ **The one number here that is not spent inside the centroid.** The
         // decision system divides `behavior.herdDistance` by it, so a species that
         // holds loosely to another's herd tolerates proportionally more drift from

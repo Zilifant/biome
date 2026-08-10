@@ -852,6 +852,130 @@ does not need.** Every row is a decision, not a backlog item.
 
 ### 1.4 Structural and configuration debt
 
+**A100 — ✅ Buffalo mobbed lion attacks 11% of the time; they now do it 20%**
+_(2026-08-09)_. Recorded because the *diagnosis* is the transferable part: three
+gates, and the two everyone reaches for first were not the problem.
+
+⚠⚠ **`behavior.mobWeight` was never the constraint, and raising it does literally
+nothing.** Measured 2.4 → 3.2 over 6 seeds × 6000 ticks: **identical** counts, to
+the attempt. Once `mobWardFor` returns a ward, `defend` already wins the utility
+contest comfortably — so the weight was set correctly and the mechanism was being
+starved *upstream* of it. This is the mirror image of A34's failure mode: not a
+mechanism that never fires because it cannot win, but one that never gets asked.
+
+**What was actually blocking it**, in order of effect:
+
+- ⚠⚠ **`behavior.defendRange: 6.0` sat below the buffalo's own `perception.radius`
+  of 7.** A one-unit ring in which a buffalo could *see* a lion committing to a
+  herdmate and was structurally forbidden from reacting — and that ring is where
+  the hunt is decided, because the decision is taken a tick or more before contact
+  while the lion is still closing. Now 7.0, which is the **maximum useful value**
+  rather than a tuned one: `threat` comes from perception, so anything above the
+  radius is unreachable. ⚠ **A reach shorter than a sense is almost always a bug**,
+  and it is invisible in both files — each number is reasonable alone.
+- ⚠⚠ **`mobbing.minMobbers: 2` was being evaluated at the one instant it could not
+  be met.** It excludes the animal itself, so 2 meant three buffalo. Herds here are
+  tight — mean **12–15 adults within 6 units** at t3000, 96–100% of adults clearing
+  the threshold — but at the moment an attempt lands the animal under it had
+  `social.adults` of **0 or 1** in most cases, because **a hunt isolates its
+  target**. The gate blocked the target from even standing its ground. Now 1, which
+  is a pair and still collective. ⚠ The general shape: *"the herd is nearby"* and
+  *"the herd is nearby when the predator arrives"* are different claims, and only
+  the second one gates a mob.
+- `mobbing.range: 6 → 9`, worth ~3 points. ⚠ **9 → 12 is worth exactly nothing** —
+  identical counts — so 9 is the saturation point, not a knob to keep turning.
+
+_Measured, 6 seeds × 6000 ticks, lion attacks on buffalo:_ mobbed **11% → 20%**,
+a herdmate coming to the aid **4% → 15%**, prey standing its ground **11% → 20%**.
+Buffalo population 371 → 361 across the six seeds and losses to lions 6 → 7 — a
+change well inside noise at this sample size, and in the direction the mechanism
+predicts (an animal that stands is reached sooner; what it buys is that its herd is
+still there).
+
+⚠ **The estimate is n=20 attacks and should be read as "the low end of 20–30%",
+not as 20%.** Lion-on-buffalo attempts are genuinely rare in this demo (~3 per seed
+per 6000 ticks), so the confidence interval is wide either side. A ten-seed sweep
+is what would tighten it.
+
+⛔ **This does *not* fix `cooperation.test.js`'s `soloMobbed` cell**, and that is
+worth stating because it was the symptom that started the investigation. That cell
+needs the mob **and** a solitary lion, and lions hunt in prides — it measured 2/15
+before and 2/14 after, because the extra mobbing landed on pride attacks. The
+mobbing rate was a real defect and is fixed; the test's thin cell is a separate
+problem and still wants the fix §14 describes (a sandbox for the mechanism, plus a
+demo reading that is recorded rather than asserted).
+
+**A99 — ✅ Closed 2026-08-09. Save/load did not round-trip, and the assertion that
+caught it took the suite down for two days.** Three fixes shipped together (save
+format **34 → 35**); the lessons are kept because each recurs.
+
+**The bug, and the one number it came down to.** `captureSimulationState` →
+`restore` → `step(10)` on both sides diverged: an animal 0.8 world units from its
+twin, an `alarmedUntil` off by exactly one tick, a `homeRange` drifting in the 7th
+decimal. ⚠⚠ **At the moment of restore the two states were byte-identical** — the
+save was never lossy. The whole divergence was created by the *first tick after
+load*, and bisecting the transient maps put it on **one field: `bandmates`.**
+
+`SocialSystem` publishes it into `world.social`, which is transient and never
+serialized — while `predation/groupBackingFor` reads it from the **`perception`
+phase**, which runs *earlier in the tick*. A restored world's map is empty, so every
+hunter counted 0 for one tick, the cooperative prey ceiling collapsed to the solo
+ceiling, and prey a clan could take was briefly ineligible. Measured on seed 11: a
+hyena at distance 4.83 was `nearestThreat` in the original and `null` in the
+restored — then no flee, an alarm arriving relayed rather than first-hand,
+`alarmedUntil` a tick late, and headings and positions from there.
+
+⚠⚠ **The generalisation, which the code had half-written for months: transient
+state read across a phase boundary is not transient.** `predation.js`'s own header
+already said in bold that the read is always one tick stale — it simply never
+followed that to "…so it must survive a tick boundary, and a load is one". The fix
+is v24's and v26's precedent one notch sharper (`migrationHeading`,
+`trailHeading` were persisted for the *staggered* version of this): `bandmates`
+lives on the entity, `SocialSystem` writes it there and publishes it back into the
+summary so there is still one home (D11), and `groupBackingFor` reads the entity —
+which is also **cheaper**, two property reads and no `Map.get`, in the hottest loop
+in the engine.
+
+⚠ **Two things it was not**, both A/B'd rather than reasoned about, because both
+looked damning: it is **not** command replay (comment out the `submitCommand` and
+seed 11 still diverges), and it is **not** the stale `demo.grazer` id that test
+spawned. That id was not the cause — it was the *evidence*, sitting unread in the
+suite, that the third fix below was needed.
+
+**Also fixed, same version.** ⚠ `FeatureGrid.decay` returned demotions in `Map`
+**insertion order** — the order animals wore the ground — while `restore()`
+re-inserts sorted by index, so a restored world emitted the same events in a
+different sequence. `features()` directly beside it already sorted and its comment
+states the rule verbatim; this was the rule applied in one of the two places that
+needed it. ⚠ And `assertKnownSpecies` checked entities and `pendingSpawns` but not
+**`pendingCommands`** — the third place a `speciesId` hides, and the one door left
+open by the guard whose entire purpose is refusing an unknown species. Three
+spellings of one concept is how it went unnoticed.
+
+**Verified**: seeds 11/99/7/42 × warm {5, 137} × +60 ticks, all eight cells 0 diffs.
+Regression tests are a hand-built sandbox in `predation.test.js` (the *mechanism*
+claim — ~6 ticks, and confirmed to fail against a reintroduced bug), a zero-tick
+`FeatureGrid` ordering test, and a `pendingCommands` guard test.
+
+⚠⚠ **The second finding, which cost far more than the bug: `assert.deepEqual` on
+two whole captured states is a 4 GB out-of-memory crash.** A state is ~2.5 MB of
+JSON. The comparison is cheap; the **diff `node:assert` renders when it fails** is
+not — 4 GB in ~3 s, measured. On a machine already under memory pressure the dying
+process then wedged in an uninterruptible exit that `SIGKILL` could not clear, and
+`node --test` waited forever for a result that never came. **`npm test` did not run
+slowly, it never terminated** — 21 unkillable processes accumulated over two days
+and only a reboot removed them. ⚠ The generalisation: **an assertion whose failure
+message is unbounded is a denial of service on the suite, and it only fires on the
+day the assertion is right.** This one had presumably been correct-and-green for
+months. `test/persistence.test.js` now uses a local `assertSameState` that compares
+serialized forms and reports the first 12 differing paths; the file went from
+never-completing to **1.3 s, 6 passing and 1 legibly red**. ⚠ `assert.equal` on two
+stringified states is *not* the fix and is the obvious thing to reach for —
+`assert` diffs long strings too. The output has to be bounded by construction.
+⚠ The suite also now runs under `--max-old-space-size=1024` (`package.json`), so a
+future runaway allocation dies at ~1 GB in ~0.4 s rather than 4 GB in ~1.8 s —
+eight times less for the kernel to reclaim, which is what the wedge needed.
+
 **A97 — The wetland has a six-seed reading, not a ten-seed gate** _(2026-08-09)_.
 Water proximity now scales the vegetation ceiling and rate (§7 Vegetation) and
 carries a wet-versus-dry habitat axis (§9 Migration), both **on by default**, and
@@ -899,26 +1023,31 @@ kill caching at the same time, in a region that is by construction next to water
 control, per the discipline **A81** establishes: a sweep is a reading to record,
 not a bar to pass.
 
-⚠⚠ **Two batch-2 tests in `cooperation.test.js` are red at `8e005a8`, and they
+⚠⚠ **Two batch-2 tests in `cooperation.test.js` went red at `8e005a8`, and they
 were found by unrelated work rather than by anyone checking** _(2026-08-09)_.
-Verified against a clean HEAD worktree, so neither belongs to the wetland change
-that found them:
+Verified against a clean HEAD worktree, so neither belonged to the wetland change
+that found them. One is fixed; one is open.
 
-- **"lions and hyenas partition the prey base by mass"** — the lion took **27
-  gazelle** where the test asserts it takes none. ⚠ The assertion was never
-  structural: the lion's `preySpeciesIds` *does* list gazelle, and the test's own
-  comment describes a narrowing that is not in the file. It has always rested on
-  **emergent spatial separation** between a water-tied buffalo and a plains
-  gazelle — which is exactly the thing three new water features move. **An
-  assertion that reads as a partition but measures an accident is the failure mode
-  here**, and the fix is to say which one it means before re-tuning anything.
-- **"a buffalo herd stands its ground"** — `soloMobbed.n` is 2 against a threshold
-  of 3, which is §14's *fifth* recorded instance of that cell going first. It is
-  the rarest cell of a 2×2 fished out of a fixed window, and §14 already says so.
-
-⚠ For the record, the wetland moved the first number **27 → 20**, i.e. slightly
-*toward* the assertion. Neither test is a wetland regression, and neither should be
-"fixed" by tuning until A96's sweep says what the water features did.
+- ✅ **"lions and hyenas partition the prey base by mass"** — **fixed by rewriting
+  the assertion, which had never guarded what it claimed.** It asserted the lion
+  kills no gazelle, on the strength of a comment saying "the lion lists only
+  buffalo". The lion's `preySpeciesIds` has always named all four grazers, so the
+  assertion measured an **accident of geography** — a water-tied buffalo and a
+  plains gazelle happening not to put a gazelle nearest a lion — and went red the
+  moment anything moved the grazers. ⚠⚠ **An assertion that reads as a partition
+  but measures a coincidence is worse than none**: it is green for years, then
+  fails for an unrelated reason, and the natural response is to tune the thing that
+  moved. That is exactly what happened — a terrain change got the blame. **The
+  partition is real and is by mass**, which is what the test's own name says: over
+  6 seeds × 6000 ticks the lion takes 73 kills at a mean **159.2 kg** against the
+  hyena's 70 at **34.4 kg** — fully overlapping species lists, a **4.6×** mass
+  separation. The test now weighs prey instead of counting species.
+- ⛔ **"a buffalo herd stands its ground"** — still open. `soloMobbed.n` is 2
+  against a threshold of 3: §14's *fifth* recorded instance of that cell going
+  first. It is the rarest cell of a 2×2 fished out of a fixed window, and §14
+  already says so. Widening the seed list again buys one run of margin and the next
+  phase takes it back; **the honest fix is a sandbox for the mechanism plus a demo
+  reading that is recorded rather than asserted.**
 
 **A81 — Three species did not persist in the crater demo, and the demo is no
 longer held to a knife edge** _(2026-08-04)_. The demo became the
@@ -6524,28 +6653,46 @@ had been polluted by a `git stash` issued mid-flight for an unrelated control �
 swapped the fixtures underneath a live browser. **Do not read a Playwright run's
 outcome from its artefact directory, and do not touch the working tree while one is
 running.** The suite has to be run somewhere it can tear a browser down before
-`test:ui` can be called green. It is the same class of environment limit as the 5
-cancelled `presets.test.js` HTTP suites, which the sandbox cannot bind a port for —
-but unlike those, this one is **not** safe to ignore, because real assertions are
-inside it.
+`test:ui` can be called green. It is the same class of environment limit as the
+`presets.test.js` HTTP suites — but unlike those, this one is **not** safe to
+ignore, because real assertions are inside it.
 
-⚠⚠ **`persistence.test.js` runs out of memory and never finishes** _(found
-2026-08-08)_. Node dies ~3 s in with `Reached heap limit — JavaScript heap out of
-memory` at the default 4 GB, and ⚠ **the runner then leaves a worker hung rather
-than exiting**, so the file reads as *slow* rather than as *crashed*: a run left
-alone sat for **75 minutes** producing no output at all before anyone looked at
-the log. That is the whole trap — `| tail` buffers, so the stack trace is
-invisible until an exit that never comes. **Redirect to a file and read the head
-of it.**
+⚠ **The `presets.test.js` HTTP block is an agent-sandbox limit and nothing else**,
+confirmed rather than assumed _(2026-08-09)_. The sandbox denies `bind()`, so
+`server.listen(0)` throws `EPERM: operation not permitted` in the `before` hook and
+every test in the block reports the same `'Promise resolution is still pending but
+the event loop has already resolved'` — an error that names the symptom and hides
+the cause. **Run outside the sandbox it is 20/20 green**, so there is nothing to fix
+in the repo and nothing to skip. ⚠ Worth knowing because the failure text looks like
+an async bug in the preset store and is not: the tell is that the *whole describe*
+fails together, including the block itself, which is what a broken `before` looks
+like.
 
-⚠ **Pre-existing, and verified rather than assumed** — run at a clean `HEAD`
-worktree it produces a byte-identical 58-line crash. So it is the machine or the
-suite, not a change. The consequence for anyone reading this: **`npm test` cannot
-complete here**, which is why the ladder in `CLAUDE.md` matters more than usual.
-What the claim layer's save format needed is covered anyway, in
-`territory.test.js` (`the layer round-trips through a save`, and the
-`captureSimulationState(...).scent` comparisons) — worth knowing before assuming a
-serializer change is untested because this file is red.
+✅⚠⚠ **`persistence.test.js` ran out of memory and never finished** _(found
+2026-08-08, **root-caused and fixed 2026-08-09** — see **A99**)_. Node died ~3 s in
+with `Reached heap limit — JavaScript heap out of memory` at the default 4 GB, and
+⚠ **the runner then left a worker hung rather than exiting**, so the file read as
+*slow* rather than as *crashed*: a run left alone sat for **75 minutes** producing
+no output before anyone looked at the log. That trap is worth keeping — `| tail`
+buffers, so the stack trace is invisible until an exit that never comes.
+**Redirect to a file and read the head of it.**
+
+⚠⚠ **The cause was not the machine and not the suite's size, which is what the
+first two days of investigation assumed.** It was one `assert.deepEqual` on two
+~2.5 MB captured states. The comparison is cheap; the **diff `node:assert` renders
+when it fails** is not — and it was failing, on a real save/load bug (A99). So the
+suite was being taken down by *the error message for a correct assertion*.
+**An assertion whose failure output is unbounded is a denial of service on the
+suite, and it only fires on the day the assertion is right.**
+
+⚠ Two things followed from the fix, both worth knowing. `persistence.test.js` runs
+in **1.3 s**, and **`npm test` completes** — in **~4.5 minutes**, against the 47
+that `CLAUDE.md` still quotes. ⚠ That figure predates a machine change and possibly
+this bug; **re-time it before trusting the "never run the full suite" rule built on
+top of it.** Second: the wedged worker was never killable (`kill -9` on a process in
+uninterruptible exit does nothing), so each attempt leaked one until a reboot —
+21 had accumulated. The suite now also runs under `--max-old-space-size=1024`, so a
+future runaway dies at ~1 GB in ~0.4 s rather than 4 GB in ~1.8 s.
 
 Layers:
 

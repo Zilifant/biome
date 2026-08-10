@@ -196,6 +196,50 @@ describe('engineering: the feature grid', () => {
     wearIn(g, 4, 4);
     assert.ok(g.revision > quiet, 'forming a trail does');
   });
+
+  test('⚠⚠ decay reports demotions in cell order, not in the order the ground was worn (A99)', () => {
+    // ⚠⚠ **A determinism bug with no wrong value anywhere in it.** `decay` walks
+    // `#cells`, which is a `Map` and therefore iterates in **insertion order** —
+    // the order animals happened to wear the ground. `EngineeringSystem` emits one
+    // domain event per entry in that order. But `serialize()` writes the cells
+    // sorted by index and `restore()` re-inserts them that way, so a *restored*
+    // world emits the same demotions in a different sequence: a save/load
+    // divergence made entirely of ordering.
+    //
+    // ⚠ `features()` right beside it already sorts, and its comment states the
+    // rule verbatim — "iteration order everywhere in this engine is deterministic
+    // by rule" — so this was the rule applied in one of the two places that needed
+    // it. Worth a test because the next `Map` walk added here will be tempting to
+    // leave unsorted for exactly the same reason: it looks local.
+    //
+    // Zero simulation ticks.
+    const worn = [
+      [9, 9],
+      [1, 1],
+      [30, 2],
+      [4, 4],
+    ];
+    const live = grid();
+    for (const [x, y] of worn) wearIn(live, x, y); // insertion order is walk order
+    assert.equal(live.featureCount, worn.length, 'four trails, worn in a jumbled order');
+
+    const reloaded = new FeatureGrid({ width: 32, height: 32, params: ENG });
+    reloaded.restore(JSON.parse(JSON.stringify(live.serialize())));
+
+    const demote = (g) => g.decay(ENG.maxWear * 2, ENG.threshold, ENG.floor).map((c) => `${c.cellX},${c.cellY}`);
+    const fromLive = demote(live);
+    const fromReloaded = demote(reloaded);
+
+    assert.equal(fromLive.length, worn.length, 'every trail is demoted in one sweep');
+    assert.deepEqual(fromLive, fromReloaded, 'a restored grid reports them in the same order as the live one');
+    // ⚠ And state the order positively, so the guarantee is the assertion rather
+    // than "the two happen to agree" — two grids sharing one wrong order would
+    // pass the check above.
+    const ascending = [...fromLive].sort(
+      (a, b) => Number(a.split(',')[1]) * 32 + Number(a.split(',')[0]) - (Number(b.split(',')[1]) * 32 + Number(b.split(',')[0])),
+    );
+    assert.deepEqual(fromLive, ascending, 'and the order is ascending cell index');
+  });
 });
 
 describe('engineering: what a feature does', () => {

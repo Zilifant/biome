@@ -234,7 +234,7 @@ export class PerceptionSystem extends SimulationSystem {
     // rather than the neighbour-loop change A59 priced it at. `bandmates` is a
     // number `SocialSystem` already publishes for every animal, and it is *last
     // tick's* — this phase runs before that one. See `predation/predation.js`.
-    const maxPreyMass = maxPreyMassFor(entity, predation, groupBackingFor(world, entity.id, predation));
+    const maxPreyMass = maxPreyMassFor(entity, predation, groupBackingFor(entity, predation));
     const minPreyMass = minPreyMassFor(entity, predation);
 
     // --- Animals: sub-quadratic via the spatial grid (already radius-filtered).

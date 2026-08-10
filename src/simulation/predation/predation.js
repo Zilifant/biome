@@ -64,7 +64,7 @@ export function predationOf(species) {
  * ⚠⚠ **It is *last tick's* count when perception asks, and that is stated rather
  * than discovered.** `PerceptionSystem` runs in the `perception` phase and
  * `SocialSystem` at priority −10 of `decision`, which is later in the same tick —
- * so the summary perception reads was written on the previous tick. Harmless in
+ * so the count perception reads was written on the previous tick. Harmless in
  * steady state and precedented (the band affinity reads last tick's
  * `groupRecordId` for exactly the same reason, DOCS §9), but **any test that
  * assembles a group and asserts on eligibility must step ≥ 2 ticks**. Resolving
@@ -72,19 +72,29 @@ export function predationOf(species) {
  * *filters* `nearestPrey`, so a ceiling applied later would be a ceiling on an
  * animal already discarded.
  *
- * ⚠ **Gated on the species declaring a group ceiling**, so a roster with none
- * pays one property read and never touches the map — the D16 identity rule that
- * every mechanism here ships with.
+ * ⚠⚠ **That cross-phase read is exactly why the count is on the entity and not in
+ * `world.social`** (2026-08-09, **A99**, save format 35). The note above stopped one
+ * step short for months: a value read a phase *before* its writer runs is a value
+ * that must survive a tick boundary, and `world.social` is transient and never
+ * serialized. A restored world's map is empty, so every hunter read 0 for one tick,
+ * the cooperative ceiling collapsed to the solo ceiling, and prey a clan could take
+ * became ineligible — for one tick, on the tick after every load. The symptom was a
+ * save/load divergence that looked like float drift in a position field. **The
+ * generalisation: transient state read across a phase boundary is not transient.**
  *
- * @param {import('../world/World.js').World} world
- * @param {number} hunterId
+ * ⚠ **Gated on the species declaring a group ceiling**, so a roster with none pays
+ * one property read and nothing else — the D16 identity rule that every mechanism
+ * here ships with. It is now two property reads and no `Map.get` at all, which is
+ * strictly cheaper than the version it replaces, in the hottest loop in the engine.
+ *
+ * @param {{bandmates?: number}} hunter the hunting entity
  * @param {object|null} predation the hunter's resolved block
  * @returns {number}
  */
-export function groupBackingFor(world, hunterId, predation) {
+export function groupBackingFor(hunter, predation) {
   const ratio = predation?.groupPreyMassRatio;
   if (ratio === null || ratio === undefined) return 0;
-  return world.social.get(hunterId)?.bandmates ?? 0;
+  return hunter.bandmates ?? 0;
 }
 
 /**
@@ -191,7 +201,7 @@ export function isEligiblePrey(hunter, prey, predation, backing = 0) {
  */
 export function threatens(world, hunter, prey) {
   const predation = world.species.get(hunter.speciesId)?.predation;
-  return isEligiblePrey(hunter, prey, predation, groupBackingFor(world, hunter.id, predation));
+  return isEligiblePrey(hunter, prey, predation, groupBackingFor(hunter, predation));
 }
 
 /**

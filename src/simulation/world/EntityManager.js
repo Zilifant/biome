@@ -53,6 +53,9 @@ import { NEUTRAL_GENOME } from '../traits/genetics.js';
  * @property {number | null} groupHops distance in hops to the herd's root
  * @property {number | null} groupRecordId persistent-group membership — a
  *   reference into `world.groups`, not a herd label (see world/GroupRegistry.js)
+ * @property {number} bandmates own-band animals inside the herd radius, written
+ *   by `SocialSystem` and read a phase earlier by `predation/groupBackingFor` —
+ *   persisted since it is read across a tick boundary (A99, save format 35)
  * @property {number | null} alarmedUntil tick this animal stops being alarmed
  * @property {{x: number, y: number} | null} alarmSource where the threat was
  * @property {number | null} lastContestTick tick of the last dominance contest
@@ -223,6 +226,29 @@ function createEntity(id, definition) {
     // keeps its last membership, as it keeps its `deathCause`: both are facts
     // about who it was.
     groupRecordId: definition.groupRecordId ?? null,
+    // ⚠⚠ **How many of this animal's own band are inside its herd radius, and it
+    // lives here rather than only in `world.social` because a save has to carry
+    // it** (2026-08-09, **A99**, save format 35). `SocialSystem` computes it and
+    // publishes it in the transient summary as it always did; this is the same
+    // number's one home, so the summary reads it back off the entity rather than
+    // being a second store (D11).
+    //
+    // ⚠ The reason it could not stay transient: `predation/groupBackingFor` reads
+    // it from **`perception` phase**, and `SocialSystem` writes it at priority −10
+    // of `decision` — later in the same tick. So the read is *always* one tick
+    // behind, which is harmless in a running world and fatal across a load: a
+    // restored world's `world.social` is empty, every hunter reads 0 for one tick,
+    // the cooperative prey ceiling collapses to the solo one, and prey a clan could
+    // take becomes ineligible for exactly one tick. That one missed decision
+    // cascades into headings, alarm hops and positions — a divergence that read
+    // like float drift 400 fields deep.
+    //
+    // ⚠ Precedented twice in the serializer's own header: v24 persisted
+    // `migrationHeading`/`migrationStrength` because a staggered evaluation would
+    // "run up to `updateInterval` ticks on a stale null and diverge", and v26 did
+    // the same for `trailHeading`/`trailStrength`. This is that argument one notch
+    // sharper — the read is cross-*phase* every tick, not merely on a stagger.
+    bandmates: definition.bandmates ?? 0,
     alarmedUntil: definition.alarmedUntil ?? null,
     alarmSource: definition.alarmSource ?? null,
     lastContestTick: definition.lastContestTick ?? null,

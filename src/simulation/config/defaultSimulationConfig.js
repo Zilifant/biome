@@ -1599,8 +1599,17 @@ export const defaultSimulationConfig = Object.freeze({
     // predator. One buffalo facing a lion is a dead buffalo; a mob is a *number*
     // of animals, and this is the threshold that makes it collective. Read off
     // the social summary, so it costs no walk.
-    minMobbers: 2,
-    range: 6, // how close the animal under attack must be to be worth going to
+    //
+    // ⚠⚠ **2 → 1 on 2026-08-09** (A100). It excludes the animal itself, so 2 meant
+    // three buffalo — and **a hunt isolates its target**, so at the instant an
+    // attempt lands the animal under it usually has 0–1 adults beside it however
+    // tight the herd was a moment earlier. The threshold was being evaluated
+    // exactly where it could not be met, and it blocked the target from even
+    // standing its ground. 1 is a pair, which is still collective. See
+    // `predation/mobbing.js` for the measurement.
+    minMobbers: 1,
+    range: 9, // how close the animal under attack must be to be worth going to
+    // ⚠ 6 → 9 (A100), and 9 is the saturation point: 12 measured identically.
   }),
   // ⚠⚠ **The charge, and the pursuit after it** (BEHAVIOR-PLAN P9) — mobbing seen a
   // step later. See `predation/charge.js` for the argument; the short version is

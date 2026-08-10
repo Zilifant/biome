@@ -299,7 +299,21 @@ export const herbivoreBuffalo = Object.freeze({
     // Water is the need this animal organizes its life around.
     thirstWeight: 1.35,
     // A big animal reaches further to put itself between a predator and a calf.
-    defendRange: 6.0,
+    //
+    // ⚠⚠ **6.0 → 7.0 on 2026-08-09, and it is the single most effective of the
+    // three levers that raised the mobbing rate** (A100). This is the distance at
+    // which a *perceived* predator is close enough to turn on, and at 6.0 it sat
+    // **below this species' own `perception.radius` of 7** — so there was a ring
+    // one unit wide in which a buffalo could see a lion committing to a herdmate
+    // and was structurally forbidden from reacting to it. That ring is where a
+    // hunt is decided: the decision is taken a tick or more before contact, while
+    // the lion is still closing.
+    //
+    // ⚠ 7.0 rather than higher because `threat` comes from perception, so anything
+    // above the perception radius is unreachable by construction — this is the
+    // *maximum useful value*, not a tuned one. If the radius ever moves, this
+    // should move with it, and the pairing is the point rather than the number.
+    defendRange: 7.0,
   }),
   initialEnergyFraction: Object.freeze({ min: 0.6, max: 1.0 }),
 });

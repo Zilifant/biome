@@ -25,6 +25,7 @@ import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../src/simulatio
 import { backedDominanceOf, holderOf, isAvailableTo, mayFeedFreely, outranks } from '../src/simulation/predation/possession.js';
 import { dominanceOf, resolveContest } from '../src/simulation/social/dominance.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
+import { captureSimulationState, restoreSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 const CONFIG = new SimulationEngine().config;
@@ -723,6 +724,66 @@ describe('predation: the cooperative prey ceiling (PREDATOR-PLAN P3, closing A59
       'the trio is a clan the social summary can see',
     );
     assert.ok(engine.world.perception.get(lone).nearestPrey !== null, 'and the clan commits to the wildebeest');
+  });
+
+  test('⚠⚠ the lifted ceiling survives a save, because the count is on the animal (A99)', () => {
+    // ⚠⚠ **This is the regression test for the bug that made `npm test`
+    // unrunnable for two days**, and the distance between cause and symptom is the
+    // reason it is worth having. `bandmates` used to live only in `world.social`,
+    // which is transient and never serialized — while `groupBackingFor` reads it
+    // from the `perception` phase, a phase *before* `SocialSystem` writes it. A
+    // read that is always one tick behind is a read across a tick boundary, and
+    // across a **load** there is nothing on the far side: every hunter counted 0
+    // for one tick and the cooperative ceiling silently collapsed to the solo one.
+    //
+    // ⚠ **What that looked like from the outside**: not "a hyena forgot its clan",
+    // but a demo save/load round trip diverging in an animal's `x` four hundred
+    // fields deep, which read as float noise. The claim is asserted *here*, on the
+    // mechanism, in a hand-built sandbox — a demo round-trip guard can only tell
+    // you that something diverged (CLAUDE.md's rule about choosing the world by
+    // the claim; this is machinery, not ecology).
+    //
+    // ~6 ticks, sandbox, no demo world.
+    const build = () => {
+      const e = sandbox({ seed: 3 });
+      e.registerSystem(new PerceptionSystem(e.config.perception));
+      e.registerSystem(new SocialSystem(e.config.social));
+      e.registerSystem(new GroupSystem(e.config.groups));
+      return e;
+    };
+    const engine = build();
+    const hyena = engine.species.require('scavenger.hyena');
+    const lone = spawnOf(engine, 'scavenger.hyena', { x: 20, y: 20 });
+    spawnOf(engine, 'scavenger.hyena', { x: 21, y: 20 });
+    spawnOf(engine, 'scavenger.hyena', { x: 20, y: 21 });
+    spawnOf(engine, 'herbivore.wildebeest', { x: 22, y: 20 });
+    engine.step(5);
+    assert.ok(engine.world.perception.get(lone).nearestPrey !== null, 'the clan sees its prey before the save');
+    const backing = engine.world.entities.get(lone).bandmates;
+    assert.ok(backing >= hyena.predation.backingForLargePrey, `the count is on the entity (${backing})`);
+
+    const saved = JSON.parse(JSON.stringify(captureSimulationState(engine)));
+    // ⚠ The count has to ride in the *save*, not merely in the live entity — the
+    // JSON round trip above is what proves it, and is what a transient map fails.
+    const savedHunter = saved.entities.entities.find((e) => e.id === lone);
+    assert.equal(savedHunter.bandmates, backing, 'and it is in the save');
+
+    const restored = restoreSimulationState(build(), saved);
+    assert.equal(restored.world.entities.get(lone).bandmates, backing, 'and comes back intact');
+    // ⚠ **One tick, and one tick is the whole test.** The divergence was a single
+    // tick wide: `SocialSystem` repopulates the map at the end of this very tick,
+    // so a two-tick assertion would pass against the bug.
+    restored.step(1);
+    engine.step(1);
+    assert.ok(
+      restored.world.perception.get(lone).nearestPrey !== null,
+      'the restored clan still commits to the wildebeest on its first tick back',
+    );
+    assert.equal(
+      restored.world.perception.get(lone).nearestPrey?.id,
+      engine.world.perception.get(lone).nearestPrey?.id,
+      'and it is the same quarry the uninterrupted run picked',
+    );
   });
 
   test('⚠ prey fears a group it would not fear alone, which is the other half', () => {

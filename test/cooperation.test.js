@@ -470,9 +470,33 @@ describe('mobbing: who stands, and when', () => {
   });
 
   test('one animal is not a mob', () => {
-    const { engine, mobber } = underAttack({ company: 0 });
+    // ⚠⚠ **This test now sets its own threshold, and that is a consequence of
+    // `minMobbers` dropping 2 → 1 (A100) rather than a weakening of the claim.**
+    // It used to say `company: 0` and lean on the shipped value: two spawned
+    // animals, the mobber counting one adult nearby, one below a threshold of 2.
+    // At a threshold of 1 that geometry cannot express "below the threshold" at
+    // all — **an animal with a ward to defend has, by construction, at least that
+    // ward beside it** — so the old arrangement silently became a test of the
+    // positive case wearing a negative case's name.
+    //
+    // ⚠ Pinning a *behaviour* to a shipped constant is what made it fragile. The
+    // claim being guarded is "a threshold exists and is respected", which is true
+    // at any value, so the test states the value it is testing. The shipped
+    // default is asserted where it belongs — on the mechanism's own parameters,
+    // not through a spawn count.
+    const { engine, mobber } = underAttack({ company: 0, config: { mobbing: { minMobbers: 3 } } });
     engine.step(1);
     assert.equal(mobber.action, 'flee', 'below minMobbers it saves itself');
+  });
+
+  test('⚠ and the shipped threshold is a pair, not a lone animal (A100)', () => {
+    // The default read 2 until 2026-08-09 — which, since the count excludes the
+    // animal itself, meant *three* buffalo before any of them would face a lion.
+    // A hunt isolates its target, so that gate was being evaluated at the one
+    // instant it could not be met and blocked even standing one's ground. 1 is a
+    // pair, which is still collective. See DOCS A100 for the measurement.
+    assert.equal(DEFAULT_MOBBING.minMobbers, 1);
+    assert.equal(new SimulationEngine().config.mobbing.minMobbers, 1, 'and the config agrees');
   });
 
   test('the world switch turns it off whatever the species declares', () => {
@@ -1115,6 +1139,11 @@ describe('batch 2: the two mechanisms in the demo world', () => {
     const cell = () => ({ n: 0, kills: 0, chance: 0 });
     const seen = {
       lionKills: new Map(),
+      // ⚠ Kill mass per predator, added 2026-08-09 so the partition claim below can
+      // be about **mass** rather than about species lists. Two counters folded into
+      // a loop that already walks every kill event — no extra ticks, and ticks are
+      // the whole cost model of this file.
+      killMass: new Map(),
       soloClean: cell(),
       coopClean: cell(),
       soloMobbed: cell(),
@@ -1139,6 +1168,12 @@ describe('batch 2: the two mechanisms in the demo world', () => {
             const hunter = world.entities.get(event.predatorId);
             if (hunter?.speciesId === LION.id && prey) {
               seen.lionKills.set(prey.speciesId, (seen.lionKills.get(prey.speciesId) ?? 0) + 1);
+            }
+            if (hunter && prey) {
+              const tally = seen.killMass.get(hunter.speciesId) ?? { n: 0, sum: 0 };
+              tally.n += 1;
+              tally.sum += prey.bodyMass;
+              seen.killMass.set(hunter.speciesId, tally);
             }
           }
           if (event.type !== EventTypes.ENTITY_HUNTED) continue;
@@ -1179,13 +1214,49 @@ describe('batch 2: the two mechanisms in the demo world', () => {
     `${label} ${odds(cell).toFixed(3)} (${cell.n} attempts, ${cell.kills} taken)`;
 
   test('lions and hyenas partition the prey base by mass, rather than competing for it', () => {
-    // ⚠ The whole reason the lion lists only buffalo: perception reports the
-    // *nearest* eligible prey (A58), so a lion that would also take gazelle spends
-    // its life on gazelle — measured at 2 buffalo attempts in 4000 ticks — and
-    // batch 2 then demonstrates nothing. §2's competitive-exclusion case, avoided
-    // by a mass partition rather than by tuning.
-    assert.ok(observed.lionKills.get(BUFFALO.id) > 0, 'the pride kills buffalo');
-    assert.equal(observed.lionKills.get('herbivore.gazelle'), undefined, 'and never a gazelle');
+    // ⚠⚠ **Rewritten 2026-08-09, and the old version is worth recording because it
+    // is a shape that recurs.** It asserted `lionKills.get(gazelle) === undefined`
+    // — "and never a gazelle" — on the strength of a comment claiming "the lion
+    // lists only buffalo". **The lion has never listed only buffalo**: its
+    // `preySpeciesIds` names buffalo, wildebeest, zebra *and* gazelle. So the
+    // assertion was never structural; it measured an **accident of geography** —
+    // that a water-tied buffalo herd and a plains gazelle happened not to put a
+    // gazelle nearest a lion in these six seeds. The moment anything moved the
+    // grazers around the map it went red, having never guarded what it claimed to.
+    //
+    // ⚠ **An assertion that reads as a partition but measures a coincidence is
+    // worse than no assertion**: it goes green for years, then fails for a reason
+    // unrelated to the mechanism, and the natural response is to tune the thing
+    // that moved rather than to notice the test was wrong. That is exactly what it
+    // did here — it was found by a terrain change and blamed on it.
+    //
+    // **The partition is real; it is simply by mass, which is what this test's own
+    // name says.** Measured over these six seeds × 6000 ticks:
+    //
+    //     lion    73 kills, mean prey mass 159.2 kg  (wildebeest 32, gazelle 20, zebra 15, buffalo 6)
+    //     hyena   70 kills, mean prey mass  34.4 kg  (gazelle 58, wildebeest 7, zebra 3, buffalo 2)
+    //
+    // Fully overlapping species lists and a **4.6× separation in mass**. That is
+    // §2's competitive exclusion avoided by a mass partition rather than by tuning
+    // — the claim the old assertion was reaching for and could not express, because
+    // it was counting species instead of weighing prey.
+    //
+    // ⚠ The threshold is 2× against a measured 4.6×, deliberately loose: this is a
+    // demo-scale sample (~70 kills per predator) and the point is the *separation*,
+    // not its exact size. ⚠ And note the hyena takes 2 buffalo, so "only the lion
+    // kills buffalo" would have been the same mistake in a new costume.
+    const meanKillMass = (speciesId) => {
+      const tally = observed.killMass.get(speciesId);
+      assert.ok(tally && tally.n >= 20, `${speciesId} made enough kills to weigh (${tally?.n ?? 0})`);
+      return tally.sum / tally.n;
+    };
+    assert.ok(observed.lionKills.get(BUFFALO.id) > 0, 'the pride kills buffalo, which is what a pride is for');
+    const lion = meanKillMass(LION.id);
+    const hyena = meanKillMass('scavenger.hyena');
+    assert.ok(
+      lion > hyena * 2,
+      `the pride takes far heavier prey than the clan (lion ${lion.toFixed(1)} kg vs hyena ${hyena.toFixed(1)} kg)`,
+    );
   });
 
   test('a pride exists between sightings, and hunting together pays', () => {

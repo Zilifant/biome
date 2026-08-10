@@ -248,10 +248,44 @@
  *       charge is not a system, it is two lines inside `DecisionSystem` — so unlike
  *       v33 the *only* things invalidating a v33 save are the fields and the config,
  *       which is exactly the case §12 says to bump for anyway.
+ *  35 — `bandmates` becomes a per-entity field (**A99**), and this bump is a
+ *       **repair** rather than a feature — the second one, after v32's.
+ *
+ *       ⚠⚠ **A save/load round trip did not reproduce, and the cause was one
+ *       number that lived only in a transient map.** `SocialSystem` publishes
+ *       `bandmates` into `world.social`, which is never serialized; but
+ *       `predation/groupBackingFor` reads it from the **`perception` phase**, which
+ *       runs *before* `SocialSystem` every tick. A read that is always one tick
+ *       behind is a read across a tick boundary, and across a *load* that boundary
+ *       has nothing on the far side: the restored map is empty, every hunter's
+ *       count reads 0 for one tick, the cooperative prey ceiling collapses to the
+ *       solo ceiling, and prey a clan could take is briefly ineligible. Measured on
+ *       seed 11: a hyena at distance 4.83 was `nearestThreat` in the original and
+ *       `null` in the restored, and everything downstream — no flee, an alarm
+ *       arriving relayed instead of first-hand, `alarmedUntil` one tick late,
+ *       headings, positions, and the `homeRange` running average — drifted from
+ *       there. It read like float noise 400 fields deep.
+ *
+ *       ⚠ **This is v24's and v26's argument, one notch sharper.** Those persisted
+ *       `migrationHeading`/`migrationStrength` and `trailHeading`/`trailStrength`
+ *       because a *staggered* evaluation would run up to `updateInterval` ticks on a
+ *       stale null. This read is stale across a **phase** boundary on *every* tick,
+ *       not merely on a stagger. **The generalisation worth keeping: transient state
+ *       read across a phase boundary is not transient.**
+ *
+ *       ⚠ A v34 save carries no `bandmates`, `createEntity` defaults it to 0, and
+ *       that is exactly the bug — so v34 saves are invalidated rather than
+ *       defaulted, the same call v32 made.
+ *
+ *       ⚠ Also in this version, and neither one changes the format: `FeatureGrid`
+ *       returns its demotions in ascending cell order (they were emitted in `Map`
+ *       insertion order, which a restore re-sorts — same events, different
+ *       sequence), and `assertKnownSpecies` now checks `pendingCommands`, the third
+ *       place a `speciesId` can hide and the one it was not looking in.
  */
 import { SimulationEngine } from '../engine/SimulationEngine.js';
 
-export const SAVE_FORMAT_VERSION = 34;
+export const SAVE_FORMAT_VERSION = 35;
 
 /**
  * Capture a deep, plain-data save of the engine's complete state.
@@ -327,6 +361,19 @@ function assertKnownSpecies(engine, saved) {
   // captured lives there), so they are checked too.
   for (const entity of saved.entities?.entities ?? []) check(entity?.speciesId);
   for (const spawn of saved.entities?.pendingSpawns ?? []) check(spawn?.definition?.speciesId);
+  // ⚠⚠ **And the third place a species id can hide: a queued `entity.spawn`
+  // command** (2026-08-09, **A99**). This guard checked two of the three and the
+  // gap was invisible because it fails the way the guard exists to prevent — a
+  // save whose *pending command* names an unknown species restored without a
+  // murmur, then spawned an animal with no biology on the next tick. That is
+  // precisely the "different physics and no error anywhere" this function is
+  // written to refuse, arriving through the one door it did not check.
+  //
+  // ⚠ The queue entry is `{ command, entityId }` and the id sits at
+  // `command.entity.speciesId` — a different shape from `pendingSpawns` above,
+  // which is `{ id, definition }`. Two shapes for one concept is exactly how the
+  // third door went unnoticed.
+  for (const entry of saved.pendingCommands ?? []) check(entry?.command?.entity?.speciesId);
   if (unknown.size > 0) {
     throw new Error(
       `save references unknown species: ${[...unknown].sort().join(', ')} ` +

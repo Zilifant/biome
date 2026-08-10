@@ -174,10 +174,32 @@ export class FeatureGrid {
    * to "derive rather than store" — with hysteresis the state genuinely depends
    * on history, and that is exactly what a derived value cannot express.
    *
+   * ⚠⚠ **The returned list is sorted by cell index, and that is a determinism
+   * fix rather than tidiness** (2026-08-09, **A99**). `EngineeringSystem` emits one
+   * domain event per entry in this order, and this loop walks `#cells` in **`Map`
+   * insertion order** — the order animals happened to wear the ground. But
+   * `serialize()` writes the cells sorted by index and `restore()` re-inserts them
+   * in that order, so a *restored* world iterates in index order while the original
+   * iterates in walk-history order. Same events, different sequence: a save/load
+   * divergence with no wrong values in it at all.
+   *
+   * ⚠ `features()` directly below already sorts, and its comment states the rule
+   * this method was quietly breaking: "iteration order everywhere in this engine is
+   * deterministic by rule. A `Map` iterates in insertion order, which would make
+   * the payload depend on the history of who walked where first." **The rule was
+   * right and applied in one of the two places it was needed.**
+   *
+   * ⚠ Sorting the *result* rather than the iteration: `lost` is empty on the vast
+   * majority of decay ticks and 0–4 entries when it is not, so this costs nothing
+   * on the common path — where sorting the key list would allocate across every
+   * worn cell on every tick. Mutation order within the loop is unaffected, and
+   * `record.wear` arithmetic is per-cell and order-independent.
+   *
    * @param {number} amount wear to remove
    * @param {number} demoteBelow wear at which a feature stops being one
    * @param {number} [floor] wear below which a cell is forgotten entirely
-   * @returns {Array<{cellX: number, cellY: number, kind: string}>} cells that stopped being features
+   * @returns {Array<{cellX: number, cellY: number, kind: string}>} cells that
+   *   stopped being features, in ascending cell order
    */
   decay(amount, demoteBelow, floor = DEFAULT_FEATURE_PARAMS.floor) {
     if (!(amount > 0) || this.#cells.size === 0) return [];
@@ -190,10 +212,11 @@ export class FeatureGrid {
         record.feature = false;
         this.#promoted -= 1;
         this.#revision += 1;
-        lost.push({ cellX: index % this.#width, cellY: Math.floor(index / this.#width), kind: record.kind });
+        lost.push({ index, cellX: index % this.#width, cellY: Math.floor(index / this.#width), kind: record.kind });
       }
     }
-    return lost;
+    if (lost.length > 1) lost.sort((a, b) => a.index - b.index);
+    return lost.map(({ cellX, cellY, kind }) => ({ cellX, cellY, kind }));
   }
 
   /**
