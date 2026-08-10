@@ -119,7 +119,7 @@ describe('weather: the seasonal cycle', () => {
     // world's pressure is water and grass, not cold. That is a *claim about every
     // species at once*, so it is asserted against the roster rather than against
     // one animal — the intersection of every comfort band is what the amplitude
-    // was chosen against (SEASON-PLAN.md §2.3).
+    // was chosen against (DOCS.md §9 *Metabolism*).
     const registry = new SpeciesRegistry(SPECIES_DEFINITIONS, CONFIG);
     let warmestFloor = -Infinity;
     let coolestCeiling = Infinity;

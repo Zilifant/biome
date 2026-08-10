@@ -450,6 +450,24 @@ the current tick are dropped as stale (reconnect protection). On desync
 `RendererApp` requests a fresh **full** snapshot (HTTP in live mode, the recorded
 snapshot in fixture mode) rather than guessing.
 
+⚠⚠ **The terrain can now go stale without a desync, and it uses the same
+recovery** _(2026-08-10, SEASON-PLAN D8)_. Terrain rides only on full snapshots,
+because it never changed — and since the wet/dry conversion it changes twice a
+simulated year, when the dry season drains the map. So every delta carries a
+`terrainRevision` scalar; the store compares it against the revision it last drew
+and reports `terrainStale`, and the app re-issues the `terrain` query. **A client
+that saw the wet map would otherwise keep drawing the wet map forever.**
+
+⚠ **Guarded by the same `#recovering` latch as a desync, and it has to be.** The
+revision stays mismatched on *every* delta until the new snapshot lands, so an
+unguarded version fires a request per tick — twenty a second at the default cadence
+— for as long as the round trip takes. ⚠ An **absent** `terrainRevision` means
+"this producer does not report terrain changes", never "refetch forever": an older
+or simpler host must not be treated as permanently stale, and
+`test/renderer-store.test.js` asserts exactly that. ⛔ Whether re-fetching a
+~41 000-cell RLE terrain twice a simulated year is *noticeable* in the UI is
+untested — only the mechanism for signalling it is built.
+
 Bounded region snapshots (`/api/snapshot?minX=…`) exist in the protocol but are
 not used to hydrate the store, because v1 deltas are world-global — a partial
 store would immediately desync. Viewport-bounded subscription is isolated in
@@ -1706,6 +1724,38 @@ hangs for three 30 s teardowns against these, and the suite's sandbox failure
 count went **9 → 14** — all of it that same hang, with the three real assertion
 failures in `status-marks.spec.js` unchanged. Attributed by regenerating at 10
 ticks with the *current* code rather than by reasoning about it (DOCS §14).
+
+### ⚠⚠ A fixed warm-up tick promises nothing about what happened on it _(2026-08-10, SEASON-PLAN D8)_
+
+The warm-up above was a **constant** — 2400 ticks, then commit the delta from the
+tick after — and that constant was chosen when the simulation year was 8000 ticks
+long. The wet/dry conversion halved it to 4000, which moved what tick 2400 *is*, and
+the regenerated delta came out carrying **zero** events the renderer's log keeps
+(it trims `entity.moved` and four other routine types hard).
+
+An empty offline event log is not a cosmetic fixture problem. `inspector-press.spec.js`
+reads that log to find something to click on, so **four browser tests failed on a
+selector with no hint of why** — and the protocol bump that forced the regeneration
+had nothing to do with any of it.
+
+**The fix is not a better constant.** `scripts/generateRendererFixtures.js` now
+**searches**: warm up, then walk forward until a delta carries at least three
+log-worthy, entity-naming events, and **throw** if 600 ticks produce none. It is
+deterministic, and it fails loudly instead of quietly committing a fixture that
+cannot test what it is for. It settled on tick 2402 with 4 such events.
+
+That is the section above's own rule — *a fixture that cannot show a feature cannot
+test one* — applied to the **event log** rather than to the world. ⚠ The general
+form is worth carrying: **a fixture generator may not assert a tick number; it must
+assert the property it needs and search for a tick that has it.** Anything else is a
+constant coupled to every calendar in the engine.
+
+⚠ **Verified in both directions rather than assumed.** `tests-ui` fails **6 of 72**
+on the baseline commit; before this fix the same suite failed **10**; after it, **6
+— the same six, by name**. Those six are the pre-existing canvas-pixel failures
+DOCS §14 already records (`status-marks.spec.js` ×3, `sprite-mode.spec.js` ×2, and
+`event-filters.spec.js`, which that section predicts "will move with the
+regeneration"). They are **not fixed here** and no claim is made that they are.
 
 ---
 

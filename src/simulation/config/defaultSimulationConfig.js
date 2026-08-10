@@ -127,7 +127,8 @@ export const defaultSimulationConfig = Object.freeze({
     marshMinRadius: 3,
     marshMaxRadius: 7,
     marshDrift: 0.85,
-    // ⚠⚠ **The dry-season map** (SEASON-PLAN.md §4.3). A second `Uint8Array` built
+    // ⚠⚠ **The dry-season map** (DOCS.md §7 *Terrain*, the four drying rules). A
+    // second `Uint8Array` built
     // once at construction as a pure function of the generated one; the season
     // chooses which the world is looking at. `false` allocates nothing and spends
     // no draws, which is the reproducible off state.
@@ -298,7 +299,7 @@ export const defaultSimulationConfig = Object.freeze({
     // because both are pure functions of terrain position and spend no draws, so
     // a seeded world's RNG sequence is bit-for-bit what it was.
     // ⚠⚠ **The dry season's whole effect on grass is these same two knobs at
-    // different values** (SEASON-PLAN.md §0) — see `drySeason` below.
+    // different values** (DOCS.md §7 *Vegetation*) — see `drySeason` below.
     wetCapacityBonus: 0.6, // ceiling at the water's edge is 1.6× the dry ceiling
     // ⚠⚠ **0.75 rather than the 0.6 this shipped as for an afternoon, and the
     // measurement is the reason** (6 seeds × 4000 ticks, small demo, against a
@@ -319,7 +320,7 @@ export const defaultSimulationConfig = Object.freeze({
     // carrying capacity" in miniature. A quarter slower is still plainly slower.
     dryGrowthScale: 0.75, // out on the dry plain, regrowth runs at 75% speed
     // ⚠⚠ **The dry season's whole effect on grass, and it needed no new mechanism**
-    // (SEASON-PLAN.md §0). It is the two knobs above at different values, held in a
+    // (DOCS.md §7 *Vegetation*). It is the two knobs above at different values, held in a
     // second pair of precomputed per-cell arrays that the season swaps to — so
     // `grow` still reads one array index per cell and the largest loop in the
     // simulation costs exactly what it did.
@@ -399,6 +400,15 @@ export const defaultSimulationConfig = Object.freeze({
     // sensed — the basis of terrain concealment. Applied to animals/carcasses
     // only, not the hot cell-feature scan. False sees through everything.
     lineOfSight: true,
+    // ⚠⚠ **How far this animal detects a *carcass*, as opposed to how far it
+    // sees** (**A102**, 2026-08-10). `null` means "no further than sight", which
+    // is what every species did before the field existed, so the whole roster is
+    // byte-identical until one declares a number. A species that declares one also
+    // stops applying `lineOfSight` to carcasses — it is a nose, and smell goes
+    // around a rock. Both halves are one field on purpose: setting it equal to the
+    // species' `radius` is the honest off-state to measure against.
+    // See `perception/carrion.js`.
+    carrionRadius: null,
     updateInterval: 1,
   }),
   // Reproduction and mate choice (see systems/ReproductionSystem.js and
@@ -1335,7 +1345,7 @@ export const defaultSimulationConfig = Object.freeze({
   // so a literal year would be 525,600 ticks and no demo run would ever reach
   // the dry season.
   //
-  // ⚠ **8000 → 4000 with the wet/dry conversion** (SEASON-PLAN.md §2.2). At 4000
+  // ⚠ **8000 → 4000 with the wet/dry conversion** (DOCS.md §5 *Clocks*). At 4000
   // a season is 2000 ticks, a phase 1000, and a wildebeest lives ~3.25 years
   // against the compressed `aging.maxAge` — so a lifetime now contains enough
   // wet/dry cycles for the seasons to be something an animal lives through
@@ -1398,7 +1408,7 @@ export const defaultSimulationConfig = Object.freeze({
     // is known is the direction — A67 measured thermoregulation at 40.1% of the
     // leopard's energy budget at amplitude 11, so this makes every animal in the
     // world materially cheaper to run, and some of the dry season's cost will be
-    // paid for out of that. See SEASON-PLAN.md §2.3 and §10.
+    // paid for out of that. See DOCS.md §9 *Metabolism* for what flattening it cost.
     temperatureAmplitude: 2,
   }),
   // Carcasses and decay (see systems/CarcassSystem.js). A body is a resource on
@@ -2274,6 +2284,20 @@ export const defaultSimulationConfig = Object.freeze({
     stalkDiscount: 0.8, // stalking is worth slightly less than committing
     chaseRange: 4.0, // inside this, stalking becomes a sprint
     minHungerToHunt: 0.25,
+    // ⚠⚠ **The same bar, for a hunter that has its band beside it** (**A102**,
+    // 2026-08-10). `null` means "no second bar", so a species that says nothing
+    // behaves exactly as it did and pays one property read. "Beside it" is
+    // `predation.backingForLargePrey` clanmates within `social.groupRadius` —
+    // the *same* predicate the cooperative prey-mass ceiling uses (`hasBacking`),
+    // never a second opinion about what a group is.
+    //
+    // ⚠ It exists because lowering `minHungerToHunt` outright re-opens the
+    // apparent-competition failure that number was raised to fix: a
+    // carrion-subsidised predator whose numbers do not depend on its prey can eat
+    // that prey out. Conditioning the loosening on company keeps the lone animal
+    // conservative and is a bounded change — an adult hyena has ≥2 clanmates in
+    // range on 28% of its ticks.
+    groupMinHungerToHunt: null,
     minHuntStamina: 15,
     // Memory (Step 15) is a fallback for what the animal cannot see, so it is
     // weighted below the senses: a remembered patch may already be grazed out.

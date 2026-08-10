@@ -395,7 +395,7 @@ describe('the dry map in the demo world', () => {
     // from the census, so the rules do what §4.3 said they would.
     //
     // ⚠ **n=5, and the spread is the interesting part rather than the mean.** Seed
-    // 1 is the world with no lake at all (SEASON-PLAN §1.1), and it is the harshest
+    // 1 is the world with no lake at all (ACTION-ITEMS.md A93), and it is the harshest
     // both before and after. The bar below is loose because this is a description
     // of the shipped map, not a tuning target.
     const ratios = [];

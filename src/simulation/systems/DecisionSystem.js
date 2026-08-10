@@ -81,6 +81,7 @@ import { CONSPECIFIC_PULL } from '../social/association.js';
 import { holdsClaim, territoryOf } from './TerritorySystem.js';
 import { blendHeadings } from '../migration/migration.js';
 import { DEFAULT_POSSESSION, isAvailableTo, reachesCarcass } from '../predation/possession.js';
+import { hasBacking } from '../predation/predation.js';
 import { canClimb, isAloft } from '../locomotion/climbing.js';
 import { flyingFor } from '../locomotion/flight.js';
 import { DEFAULT_COOPERATION, adoptedPrey, approachPoint } from '../predation/cooperation.js';
@@ -839,8 +840,34 @@ export class DecisionSystem extends SimulationSystem {
       // hunt, never take one off a hunt it could have won alone.
       const prey = perceived?.nearestPrey ?? this.#joinedHunt(world, entity, context, carnivore ? species : null);
       const recovering = entity.lastHuntTick !== null && context.tick - entity.lastHuntTick < this.huntCooldownTicks;
+      // ⚠⚠ **A hunter with its band beside it commits sooner** (**A102**,
+      // 2026-08-10). `behavior.minHungerToHunt` is a *fraction of the tank*, and
+      // that is what made it lethal for the hyena: 0.75 of a 130-energy tank
+      // leaves 32.5 to hunt on, against the lion's 209 at 0.45 of 380 — roughly a
+      // third of the runway, so the animal was allowed to start hunting only once
+      // it was nearly out of time. Measured: its own gate shut on **84.6–90.6%**
+      // of the ticks it could see prey, and starvation was **77–94%** of every
+      // hyena death.
+      //
+      // ⚠ **Lowering the number outright was the obvious fix and is the wrong
+      // one.** 0.75 exists because a carrion-subsidised predator that also hunts
+      // is not limited by its own prey — at 0.35 the gazelle went extinct in 7 of
+      // 10 seeds (`scavengerHyena.js`). So the loosening is *conditional on
+      // company*: a lone hyena stays as conservative as it ever was and a clan
+      // hunts like a predator, which is both the real animal and a bounded change
+      // — clanmates are within `social.groupRadius` on a minority of ticks
+      // (measured: ≥2 in 28% of an adult hyena's).
+      //
+      // ⚠ `hasBacking` is the same predicate `maxPreyMassFor` uses for the
+      // cooperative mass ceiling, not a second opinion about what a group is (D11).
+      // Absent `groupMinHungerToHunt` ⇒ this is exactly the old expression.
+      const backedGate = behavior.groupMinHungerToHunt;
+      const huntGate =
+        backedGate !== null && backedGate !== undefined && hasBacking(entity, species?.predation)
+          ? backedGate
+          : behavior.minHungerToHunt;
       const willHunt =
-        prey !== null && !recovering && hunger >= behavior.minHungerToHunt && entity.stamina > behavior.minHuntStamina;
+        prey !== null && !recovering && hunger >= huntGate && entity.stamina > behavior.minHuntStamina;
       // Two stages, both visible in `action`: close quietly, then commit. The
       // moment the prey bolts, stalking is pointless — a walking predator can
       // never catch a sprinting grazer — so a fleeing target forces the sprint

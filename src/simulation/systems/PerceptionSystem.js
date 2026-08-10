@@ -41,6 +41,7 @@ import { TerrainType, isPassableCode, SHELTERING_BY_CODE } from '../world/Terrai
 import { groupBackingFor, isReachablePrey, maxPreyMassFor, minPreyMassFor, threatens } from '../predation/predation.js';
 import { isConcealed } from '../parenting/hiding.js';
 import { DEFAULT_CONCEALMENT, crypticSpeciesIn, visibleRange } from '../perception/concealment.js';
+import { carrionRadiiIn } from '../perception/carrion.js';
 import { flightVisionMultiplier } from '../locomotion/flight.js';
 import { herdRadiiIn } from '../social/herding.js';
 
@@ -62,6 +63,13 @@ export class PerceptionSystem extends SimulationSystem {
    * @type {Map<string, number>}
    */
   #herdRadii = new Map();
+  /**
+   * Per-species carrion radii (**A102**, 2026-08-10), cached against the same
+   * registry and for the same reason. Empty for a roster where nobody declares
+   * one, and then the carcass branch is exactly the branch it always was.
+   * @type {Map<string, number>}
+   */
+  #carrionRadii = new Map();
 
   /**
    * @param {object} [options]
@@ -136,6 +144,11 @@ export class PerceptionSystem extends SimulationSystem {
       this.#crypticFrom = world.species;
       this.#cryptic = this.coverConcealment ? crypticSpeciesIn(world.species) : new Map();
       this.#herdRadii = this.perSpeciesRadius ? herdRadiiIn(world.species) : new Map();
+      // ⚠ Deliberately **not** gated on `perSpeciesRadius`, which is the herd
+      // mechanism's switch. A scavenger's nose is its own mechanism with its own
+      // off state (declare no `carrionRadius`), and hanging it on somebody else's
+      // switch is how two things become impossible to measure apart.
+      this.#carrionRadii = carrionRadiiIn(world.species);
     }
     perception.clear();
     world.neighbourhood.clear();
@@ -213,7 +226,15 @@ export class PerceptionSystem extends SimulationSystem {
     // the quadratic loop is untouched, and the linear one grows only for a species
     // that asked for it.
     const herd = this.#herdRadii.size === 0 ? 0 : (this.#herdRadii.get(entity.speciesId) ?? 0);
-    const neighbourRadius = Math.max(radius, herd, this.minNeighbourRadius);
+    // ⚠⚠ **A scavenger's nose reaches further than its eyes** (A102). Resolved
+    // exactly as `herd` is, one `Map.get` per animal behind a `size` check, and it
+    // widens the same linear walk — the quadratic cell scan below stays on
+    // `radius`. `carrion > radius` is also the flag for "this animal smells rather
+    // than sees a body", which is what drops the line-of-sight test on the carcass
+    // branch: smell goes around a rock. See `perception/carrion.js`.
+    const carrion = this.#carrionRadii.size === 0 ? radius : (this.#carrionRadii.get(entity.speciesId) ?? radius);
+    const scentsCarrion = carrion > radius;
+    const neighbourRadius = Math.max(radius, herd, carrion, this.minNeighbourRadius);
     const foodMinLevel = sensing?.foodMinLevel ?? this.foodMinLevel;
     const radiusSquared = radius * radius;
     const los = this.lineOfSight;
@@ -269,10 +290,10 @@ export class PerceptionSystem extends SimulationSystem {
       if (other.kind === 'carcass') {
         const distance = Math.hypot(other.x - entity.x, other.y - entity.y);
         if (
-          distance <= radius &&
+          distance <= carrion &&
           other.edibleMass > 0 &&
           (nearestCarcass === null || distance < nearestCarcass.distance) &&
-          (!los || hasLineOfSight(world, entity.x, entity.y, other.x, other.y))
+          (scentsCarrion || !los || hasLineOfSight(world, entity.x, entity.y, other.x, other.y))
         ) {
           const cell = world.cellOf(other.x, other.y);
           nearestCarcass = {

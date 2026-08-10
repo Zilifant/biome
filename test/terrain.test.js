@@ -256,9 +256,12 @@ describe('water provenance: which feature a water cell came from (SEASON-PLAN D3
   });
 
   test('the demo world tags every one of its water features, and the counts are the D0 census', () => {
-    // ⚠ These are the numbers §1 of SEASON-PLAN.md was rewritten around, and they
-    // are the whole reason provenance exists: the four features are wildly
-    // different sizes and the dry season treats each differently.
+    // ⚠ These are the numbers the whole dry-season design was rewritten around —
+    // the first draft estimated ~3100 drinkable cells from the config's geometry
+    // and the real figure is 1751, off by 1.8×, because every disc is clipped by
+    // the coast and by whatever rock was stamped over it. They are also the whole
+    // reason provenance exists: the four features are wildly different sizes and
+    // the dry season treats each differently (DOCS.md §7 *The four drying rules*).
     const counts = demoGrid().countByWaterSource();
     for (const [name, value] of Object.entries(WaterSource)) {
       if (name === 'NONE') continue;

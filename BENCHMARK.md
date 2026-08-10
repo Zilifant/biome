@@ -1055,6 +1055,48 @@ That is why the suite's hand-built sandboxes pay literally nothing rather than
 paying one array read per cell per regrowth, and it is worth stating because the
 "ones" version is the obvious one to write.
 
+### A scavenger's nose (2026-08-10, A102 — `perception.carrionRadius`)
+
+The hyena's carcass detection goes 13 → **26**, which widens `grid.queryRadius` —
+the linear bounding-box cell walk — to 2× radius / 4× area, for that species only
+(~12–20 animals in a ~255-animal world). The (2r+1)² cell scan is untouched. That
+is the same bargain BEHAVIOR-PLAN P1's herd radii struck, and the hot-path change
+this section exists to price.
+
+⚠⚠ **Measured at a mature world per DOCS §13** — `createDemoSimulation` seed 42,
+step 3000, then time 1000 ticks — and interleaved, two readings per arm. The
+control is the species field removed, not a `git stash`: it isolates *this* line
+rather than the session.
+
+| arm | mature (t3000→4000) | animals at t3000 |
+| --- | ---: | ---: |
+| nose on | 3.353, 3.353 ms/tick | 255 |
+| nose off | 3.206, 3.247 ms/tick | 241 |
+
+⚠⚠ **The ranges do not overlap, and the reading is still not a cost.** The two
+arms are not measuring the same world: the mechanism *works*, so the nose-on arm
+carries **5.8% more animals** at t3000, and animals are what a tick costs. Per
+animal it is **0.01315 vs 0.01347 ms** — the nose-on arm is 2.4% *cheaper*. **A
+mechanism that changes the population cannot be priced against a population it
+changed**, which is a trap this file has not had to state before and should.
+
+So the isolating arm is a cold one, where both arms hold an identical roster:
+
+| arm | cold (t50→1050) | animals at t50 |
+| --- | ---: | ---: |
+| nose on | 2.976, 2.957 ms/tick | 262 |
+| nose off | 2.890, 2.980 ms/tick | 262 |
+
+Fully overlapping: **flat**. ⚠ A cold reading is the weaker instrument by this
+file's own rules — it misses cost that only appears once groups form — so the
+honest summary is *"not separable from the population it created, and invisible
+where it can be isolated"*, not *"free"*.
+
+⛔ **`behavior.groupMinHungerToHunt` was not measured and is not measurable
+here.** It is two property reads and a comparison already inside the decision
+loop, against a per-tick cost of ~3 ms; there is no arm that would show it. Stated
+rather than implied, per §"Re-baseline in the same session".
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

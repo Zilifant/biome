@@ -128,6 +128,34 @@ export function groupBackingFor(hunter, predation) {
  * @param {number} [backing] band-mates at hand (`groupBackingFor`)
  * @returns {number}
  */
+/**
+ * Whether this hunter has enough of its own band beside it to count as *backed*
+ * — the one definition of "in a group" the predation rules share.
+ *
+ * ⚠⚠ **One home, two readers, on purpose.** `maxPreyMassFor` already asks this
+ * question to decide what a clan will take on; `DecisionSystem` now asks it to
+ * decide whether the clan is bolder about hunting at all
+ * (`behavior.groupMinHungerToHunt`, **A102**). Spelling the comparison out twice
+ * is D11's shape — `drinkRange`, `foodMinLevel` and `carcassRange` are the three
+ * this project has already paid for — so "a pair or more is a group" moves in one
+ * place or not at all.
+ *
+ * ⚠ `bandmates` is clanmates within `social.groupRadius`, published by
+ * `SocialSystem`. It reads *this* tick's value here, because `SocialSystem` runs
+ * at `decision`/−10 and the decision system at `decision`/0 — unlike the
+ * perception system, which runs a phase earlier and deliberately reads last
+ * tick's (see `maxPreyMassFor`).
+ *
+ * @param {{bandmates?: number}} hunter
+ * @param {object|null} predation the hunter's resolved block
+ * @returns {boolean}
+ */
+export function hasBacking(hunter, predation) {
+  const needed = predation?.backingForLargePrey;
+  if (needed === null || needed === undefined) return false;
+  return (hunter.bandmates ?? 0) >= needed;
+}
+
 export function maxPreyMassFor(hunter, predation, backing = 0) {
   const group = predation?.groupPreyMassRatio;
   if (group !== null && group !== undefined && backing >= (predation.backingForLargePrey ?? Infinity)) {

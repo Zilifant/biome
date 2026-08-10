@@ -98,7 +98,33 @@ export const scavengerHyena = Object.freeze({
   // is lower
   // Sees well but not as far as an obligate scavenger, which lives or dies on
   // spotting a body first. Between the stalker's 12 and the vulture's 14.
-  perception: Object.freeze({ radius: 13 }),
+  //
+  // ⚠⚠ **`carrionRadius` is the first nose in this world** (**A102**, 2026-08-10),
+  // and it closes a gap that was invisible until the ethologist named it. A
+  // scavenger here could reach a carcass only three ways: see it inside `radius`,
+  // remember a place *it personally* had fed, or join a **conspecific's** hunt.
+  // There is no fourth — a hyena cannot perceive a lion in any actionable way
+  // (no cat hunts hyena, so `threatens` is false; the hyena hunts no cat, so the
+  // species relation is false the other way; `nearestAnimal` is read by nothing),
+  // so it has no way to know a hunt is even happening. A body simply appeared, and
+  // the hyena learned of it only if it was standing within 13 cells with clear
+  // sight at that moment. Measured: carrion was in perception on **14.8–23.3%** of
+  // hyena-ticks, and the animal could do nothing at all to raise that.
+  //
+  // That is what made `behavior.minHungerToHunt: 0.75` lethal — the threshold
+  // assumes a scavenging income the animal had no means to go and get.
+  //
+  // ⚠ **26 is `territory.rangeRadius` (24) rounded up, not a round multiple of
+  // sight.** The anchor is deliberate: a hyena should detect a body anywhere in
+  // the ground its clan actually ranges over. It is 2× its eyes, so the detection
+  // disc is 4× the area.
+  //
+  // ⚠ A declared carrion radius also stops line of sight applying to carcasses,
+  // for this species only — smell goes around a rock and sight does not. Living
+  // animals, mates, threats and prey are untouched, which matters: the shared
+  // perception gate is **A63**, and a condition added there gates reproduction
+  // three subsystems away. See `perception/carrion.js`.
+  perception: Object.freeze({ radius: 13, carrionRadius: 26 }),
   comfortMin: 0,
   comfortMax: 30, // a hot-climate animal, more heat-tolerant than the stalker
   aging: Object.freeze({
@@ -233,6 +259,41 @@ export const scavengerHyena = Object.freeze({
     // *not* work and was tried: the population recovers to whatever carrion
     // supports regardless of how many are founded.
     minHungerToHunt: 0.75,
+    // ⚠⚠ **What changes when the clan is standing with it** (**A102**,
+    // 2026-08-10), and the whole reason 0.75 above did not simply come down.
+    //
+    // **The defect.** `minHungerToHunt` is a *fraction of the tank*, and this
+    // animal's tank is small: 0.75 of 130 leaves **32.5 energy** to hunt on, where
+    // the lion's 0.45 of 380 leaves **209** — roughly a third of the runway
+    // against its own basal burn. So the hyena was permitted to start hunting only
+    // once it was nearly out of time. Measured over 5 seeds × 8000 ticks, every
+    // living hyena, every tick: prey was in perception on 13.8–16.5% of its ticks
+    // and **this number shut the gate on 84.6–90.6% of them**; the post-attempt
+    // cooldown accounted for 3.1–4.5% and `minHuntStamina` for 0.1–0.4%, so
+    // neither of those is the constraint. Starvation was **77–94% of every hyena
+    // death**, against 0–2 starvations for the lion. A hyena that starved had seen
+    // prey for 248–366 ticks of a ~2200-tick life and had the gate open for 42–68.
+    //
+    // ⚠⚠ **Lowering 0.75 was the obvious fix and it is the one this file already
+    // argues against.** The paragraph above it is the record of three failed
+    // sweeps: at 0.35 the gazelle went extinct in 7 of 10 seeds, because a
+    // carrion-subsidised predator is not limited by the prey it hunts and can eat
+    // that prey out without ever going hungry. That argument is not withdrawn.
+    //
+    // So the loosening is **conditional on company**, which is both the real
+    // animal and a bounded change: a lone hyena stays exactly as conservative as
+    // it was, and a clan hunts like a pride. **0.45 is the lion's number**, chosen
+    // as an anchor rather than invented — a backed clan should be as willing to
+    // commit as the other large social hunter in this world. Backed means
+    // `predation.backingForLargePrey` (2) clanmates within `social.groupRadius`,
+    // the *same* predicate the cooperative prey-mass ceiling below already uses.
+    //
+    // ⚠ **How often it can fire is known and is a minority of ticks.** The
+    // measurement recorded under `groupPreyMassRatio` below: an adult hyena has ≥1
+    // clanmate in range on 67% of its ticks, **≥2 on 28%**, ≥3 on 9%. So this
+    // roughly doubles the runway on about a quarter of the animal's life rather
+    // than on all of it.
+    groupMinHungerToHunt: 0.45,
     retreatWeight: 0.5, // gives ground less readily than the default 0.7
     // ⚠⚠ **What a clan is worth at a carcass** (PREDATOR-PLAN P7) — the brief's
     // "many hyenas should be able to contest and possibly displace a solo healthy

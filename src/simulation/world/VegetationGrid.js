@@ -79,7 +79,8 @@ function suitabilityFor(terrainCode, coverSuitability) {
     case TerrainType.TREE:
       return 0;
     // ⚠⚠ **A dry bed grows grass exactly as open ground does, and this one line is
-    // the most interesting consequence of the whole dry season** (SEASON-PLAN Q3).
+    // the most interesting consequence of the whole dry season** (DOCS.md §7
+    // *Vegetation*).
     // The bed sits at wetness 1 in the *wet-season* field — it is, by definition,
     // where the water was — so in the dry season, when `dryGrowthScale` makes the
     // regrowth rate equal to the wetness, the drained channel regrows at the full

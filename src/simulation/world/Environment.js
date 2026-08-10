@@ -34,7 +34,7 @@
  * ⚠ **The dry season does almost nothing here, and that is deliberate.** Its
  * vegetation effect is *per-cell* — grass keeps growing where the water was and
  * stops where it was not — which a global scalar cannot express. That lives in
- * `VegetationGrid` (SEASON-PLAN.md §5), so `PHASE_GROWTH` and `PHASE_CAPACITY`
+ * `VegetationGrid` (DOCS.md §7 *Vegetation*), so `PHASE_GROWTH` and `PHASE_CAPACITY`
  * are neutral through both dry phases rather than carrying a season's worth of
  * meaning they would have to say wrongly.
  */
@@ -130,7 +130,7 @@ const PHASE_GROWTH = Object.freeze({ wetEarly: 1.35, wetLate: 1.0, dryEarly: 1.0
  * here: the dry season is supposed to leave the riparian strip alone and stop the
  * open plain regrowing, and a single scalar cannot say "here but not there".
  * Grass on the plain therefore does not die back — it simply never recovers from
- * being eaten. See `VegetationGrid` and SEASON-PLAN.md §5.
+ * being eaten. See `VegetationGrid` and DOCS.md §7 *Vegetation*.
  */
 const PHASE_CAPACITY = Object.freeze({ wetEarly: 0.9, wetLate: 1.0, dryEarly: 1.0, dryLate: 1.0 });
 

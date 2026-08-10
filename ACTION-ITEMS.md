@@ -66,6 +66,58 @@ they are not re-opened by accident.
   30 → 7–13 on three of five seeds, with **zero** starvation and 33 predation deaths
   on seed 1. ⛔ **No control arm was run**, so that is a hypothesis. See DOCS §1.1
   A102.
+  ✅ **Two mechanisms shipped 2026-08-10, and neither is a lower `minHungerToHunt`.**
+  (1) **`perception.carrionRadius: 26`** — the first nose in this world
+  (`perception/carrion.js`), because a scavenger could previously reach a carcass
+  only by seeing it inside 13 cells, remembering where *it* had fed, or joining a
+  **conspecific's** hunt; a hyena cannot perceive a cat in any actionable way, so
+  **the gate assumed a scavenging income the animal had no means to go and get**.
+  (2) **`behavior.groupMinHungerToHunt: 0.45`** — the lion's number, applied only
+  when `hasBacking` says clanmates are present (12.3–29.3% of hyena-ticks). Carrion
+  in perception **14.8–23.3% → 38.1–46.9%**; hyena at t8000 summed over 5 seeds
+  **48 → 77**; starvation as a share of hyena deaths **77–94% → 56–83%**; the
+  vulture stops going extinct (**2 of 5 seeds → 0**). ⚠⚠ **The decomposition is
+  the item to remember: the nose carries the benefit (48 → 67 with the gazelle
+  unchanged) and the gate carries the risk** (67 → 77 with the gazelle 127 → 104).
+  ⬜ Open: the gazelle needs watching — seed 3 runs 57 → 51 → 19 across the three
+  arms — and no `npm run sweep` control arm has been run, so there is still no
+  population *claim*. 10 tests in `test/perception.test.js` and
+  `test/predation.test.js`, eight mutations each caught. Per-tick cost in
+  `BENCHMARK.md`: flat where it can be isolated.
+
+- **⚠ A103 — The wet/dry world has never been balanced, and four of its questions
+  are still unmeasured** _(opened 2026-08-10, the open half of SEASON-PLAN D9)_. The
+  mechanics work and are tested; the ecology is a reading nobody has taken. Four
+  named gaps, in the order they would change a decision:
+  1. **Does grazing actually empty the plain in 2000 dry ticks?** Q7 chose "merely
+     stop regrowing" over a forced dieback, so standing grass stays standing and
+     the plain only fails to *recover*. If the herds cannot strip it inside one dry
+     season, **the dry season is cosmetic** — and this is the single question that
+     decides whether the feature does anything.
+  2. **Nobody has run this world with ~4× less water concentrated into one place.**
+     The drawdown is measured (1751 → 484 drinkable cells, 3.63× over 5 seeds) and
+     the knobs are identified; their working range is not known.
+  3. **The wildebeest calendar is arithmetic that has been spot-checked, not swept.**
+     D2 verified all 69 calves over two demo years land in `wetEarly`
+     (`yearProgress 0.000…0.183`), but whether the rut reliably fires against
+     `minEnergyFraction: 0.8` at the wet→dry turn, every year, is a D9 question.
+     ⚠ `wildebeest barren-season` fires 4–13 times per seed in the ethologist
+     sweep, which is the arithmetic of an 800-tick window against a ~1550-tick
+     adult life rather than obviously a defect — **somebody should decide that on
+     purpose** rather than leave it reading as noise.
+  4. **`temperatureAmplitude 9 → 2` removed a large energy sink** (40.1% of the
+     leopard's budget at amplitude 11) in the same phase as everything else, so it
+     cannot be told apart afterwards and will partly mask the dry season's cost.
+  ⚠ **The knobs, in rough order of bluntness**, when something is collapsing:
+  `terrain.marshDryRetention` (0.18 →), `terrain.dryPondAreaScale` (0.75 →), fixing
+  **A93**'s lake clipping, `terrain.lakeDeepFraction` (how much lake survives as
+  the dry core), then the dry season's `PHASE_CAPACITY`. ⛔ **`npm run sweep` with a
+  control arm is what turns any of this into a population claim**, and it has not
+  been run — the ethologist pass that opened **A101** and **A102** is a shortlist of
+  individuals, not a population reading. ⚠ Also flagged by that pass and not
+  investigated: the vulture goes locally extinct on 2 of 5 seeds with **100% of its
+  deaths by `age`** — failing to recruit rather than starving, and pointing at
+  **A63**/**A91**'s mate-perception shape rather than at food.
 
 - **⚠ A66 — Obstacle deflection leaves a residual, and its ecological effect is
   not established.** Three things left open by the A65 fix (DOCS §1.1). (1) Seven
@@ -534,6 +586,21 @@ they are not re-opened by accident.
   should keep a drought world in its seed set (a legitimate stressor) or whether
   water placement needs a floor; either is defensible, but the reading should not
   keep being taken without knowing. Related: **A86**, **A81**.
+  ⚠⚠ **The mechanism was found on 2026-08-09 (SEASON-PLAN D0) and it is a one-line
+  defect.** `#carveLakes` draws its centre uniformly over the full rectangle
+  (`random.int(0, width - 1)`) and **never consults the exterior mask**, so on a
+  `roundness: 4` world a centre near a corner is clipped away entirely by
+  `#stampDisc`'s coast guard. Seed 1 draws its centre at (27, 172) — outside the
+  ellipse — and gets **0 deep-water cells and no lake at all**; the same seed at
+  `roundness: 0` has a normal lake (329 deep, 1885 shallow). Seed 7, centred at
+  (10, 74), loses part of its core the same way (448 vs 487). The obvious fix is to
+  draw the centre inside the playable shape.
+  ⚠⚠ **The wet/dry season promotes this from a bias to a collapse.** The dry season
+  removes the stream and most of the marsh — the two most dependable water features
+  — and makes the lake's deep core the map's principal water, so a lakeless seed
+  keeps almost nothing: measured, seed 1 goes **1227 → 267** drinkable cells with
+  zero contribution from the lake, against seed 4's 1994 → 644. **A dry-season
+  collapse on seed 1 will look like a dry-season bug and is not one.**
 
 - **⚠ A94 — `npm test` does not complete in a sandboxed shell, so the persistence
   and determinism tiers are unverified** _(opened 2026-08-07)_. Two full runs hung

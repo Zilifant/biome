@@ -1,5 +1,5 @@
 /**
- * Getting animals out of terrain that closed over them (SEASON-PLAN D9, 2026-08-10).
+ * Getting animals out of terrain that closed over them (**A101**, 2026-08-10).
  *
  * ⚠⚠ **The dry season opens a hole and the wet season fills it back in with the
  * animals still inside.** `TerrainGrid#buildDryMap` turns the lake's `LAKE_CORE`

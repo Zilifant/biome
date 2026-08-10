@@ -48,8 +48,17 @@ lesson it is most worth reading for. What it built is `DOCS.md` §9 and §11; it
 structurally inexpressible asks (encirclement, and a genuine pride-level decision)
 are §1.3; its lessons are §16 **D55–D59**; what it left open is `ACTION-ITEMS.md`
 **A91**–**A94**.
+[`legacy-docs/SEASON-PLAN.md`](legacy-docs/SEASON-PLAN.md) is the sixth and retires
+on the same terms (2026-08-10): nine phases converting the four-season temperate
+year into a two-season tropical one, where the dry season **physically drains the
+map** — the stream dries, ponds shrink, the lake inverts to its core, and grass
+grows only where the water used to be. **D0–D8 shipped**; D9, the balance pass, is
+open as `ACTION-ITEMS.md` **A103**. What it built is `DOCS.md` §7 *Terrain* and
+*Vegetation* and §9 *Season and weather*; its lesson — a comment that claimed a
+symmetric invariant while the assertion under it covered only the safe half — is
+§16 **D60**; what it left open is **A101**–**A103**.
 
-All five plans' "As built" blocks — where each phase's own prediction turned out
+All six plans' "As built" blocks — where each phase's own prediction turned out
 wrong — are the part worth reading; everything they built is described in `DOCS.md`.
 [`legacy-docs/HANDOFF-2026-08-06.md`](legacy-docs/HANDOFF-2026-08-06.md) is the
 archived session handoff for the behaviour phases and

@@ -14,24 +14,37 @@ session-handoff summary) as the place to look things up. Those remain as the
 historical record — every measurement in this document is traceable to a dated
 completion note there — but nothing in this document depends on reading them.
 
-⚠ **Three plans have been retired to `legacy-docs/` on the same terms** — their
+⚠ **Five plans have been retired to `legacy-docs/` on the same terms** — their
 implemented work folded into this file and their open work into §1:
 [`PLAN-SPECIES.md`](legacy-docs/PLAN-SPECIES.md) (2026-07-31, phases 0–14 shipped,
 15–17 deferred),
 [`TREES-FLIGHT-VULTURE-PLAN.md`](legacy-docs/TREES-FLIGHT-VULTURE-PLAN.md)
 (2026-08-04, phases T1–T3/F1/F2/V1 shipped, V2 and V3 unbuilt → **A77** and
-**A78**), and
+**A78**),
 [`BEHAVIOR-PLAN.md`](legacy-docs/BEHAVIOR-PLAN.md) (2026-08-06, phases P0–P5 and
 P7–P10 shipped, P6 skipped by decision → **A43** narrowed and **A82** opened), whose
 session handoff is
-[`HANDOFF-2026-08-06.md`](legacy-docs/HANDOFF-2026-08-06.md). All three are worth
+[`HANDOFF-2026-08-06.md`](legacy-docs/HANDOFF-2026-08-06.md),
+[`PREDATOR-PLAN.md`](legacy-docs/PREDATOR-PLAN.md) (2026-08-07, P1–P8 shipped →
+**A91**–**A94**), and
+[`SEASON-PLAN.md`](legacy-docs/SEASON-PLAN.md) (2026-08-10, D0–D8 shipped and D9
+open → **A101**–**A103**). All five are worth
 opening for one thing: each shipped section carries an
 **"As built"** block recording where that phase's own prediction turned out wrong,
 and those blocks are provenance this file summarizes rather than reproduces — the
 plans were consistently right about *shape* and wrong about *consequence*. Source
-comments and tests cite all three by bare name (`PLAN-SPECIES.md §3.12`,
-`TREES-FLIGHT-VULTURE-PLAN.md phase T1`, `BEHAVIOR-PLAN.md P8`); the files are in
-`legacy-docs/`.
+comments and tests cite them all by bare name (`PLAN-SPECIES.md §3.12`,
+`TREES-FLIGHT-VULTURE-PLAN.md phase T1`, `BEHAVIOR-PLAN.md P8`, `SEASON-PLAN.md D5`);
+the files are in `legacy-docs/`.
+
+⚠ **A citation in code should name the *phase*, not a section** — `SEASON-PLAN.md
+D5`, not `SEASON-PLAN.md §4.3`. A phase tag is provenance and stays true forever: it
+says *which piece of work changed this and when*. A section number is a **pointer to
+an explanation**, and once a plan is retired that explanation lives here instead, so
+the pointer sends a reader to a file whose own header tells them not to read it for
+current state. When SEASON-PLAN retired on 2026-08-10 its fifteen section-pointers
+in `src/` and `test/` were repointed at the sections of this document that took the
+content over; its phase tags were left alone. **Do the same for the next one.**
 
 ⚠ **The behaviour plan is the one whose *lessons* outweigh its features**, and they
 are folded in rather than left there: §16 **D43–D48**, §15's measurement discipline
@@ -152,6 +165,31 @@ The test now asserts what the fixture genuinely shows and claims **no
 direction** — it has not been papered over. Closing this means _building_ a
 world that demonstrates selection, not tuning the existing one.
 
+**⚠ A103 — The wet/dry world has never been balanced** _(from 2026-08-10, the open
+half of SEASON-PLAN D9)_
+
+The mechanics work and are tested (§7 *Terrain*, §7 *Vegetation*, §9 *Season and
+weather*). The **ecology is a reading nobody has taken**, and the plan that built
+the feature said so from the first line: *the goal is that the mechanics function,
+not that the world stays balanced*.
+
+The one question that decides whether the feature does anything: **does grazing
+actually empty the plain in 2000 dry ticks?** Q7 chose "merely stop regrowing" over
+a forced dieback, so standing grass stays standing and the plain only fails to
+*recover*. Measured regrowth over 300 ticks from bare is **12 biomass across 16 623
+plain cells** against 29 601 in the riparian strip — the growth side is emphatically
+off. What is unmeasured is the *consumption* side: if the herds cannot strip the
+plain inside one dry season, the dry season is cosmetic.
+
+Three more, each unmeasured rather than merely uncertain: nobody has run this world
+with ~4× less water concentrated into one place (drawdown 1751 → 484 drinkable
+cells, 3.63× over 5 seeds); the wildebeest's new calendar is arithmetic that has
+been spot-checked (all 69 calves over two demo years land in `wetEarly`) but not
+swept against the 80% energy bar its rut has to clear; and `temperatureAmplitude
+9 → 2` removed a large energy sink in the same phase as everything else, so the two
+cannot be told apart. See `ACTION-ITEMS.md` **A103** for the knob order and the
+things the ethologist flagged and nobody chased.
+
 **⚠ A101 — A dry map may still open a cell the wet map closes, and only the
 symptom is fixed** _(from 2026-08-10, SEASON-PLAN D9)_
 
@@ -239,6 +277,64 @@ The hyena opens its gate at `minHungerToHunt: 0.75` on a `maxEnergy: 130` tank, 
 it has **32.5 energy** left when it is first allowed to hunt; the lion opens at
 0.45 on 380 and has **209**. Against each species' own basal burn that is roughly
 **~280 ticks of runway against ~800** — arithmetic off the config, not measured.
+
+**Two mechanisms shipped 2026-08-10, and neither is the obvious one.** Lowering
+0.75 was declined for the reason the species file already gives — a
+carrion-subsidised predator that also hunts can eat its prey out. Instead:
+
+1. **`perception.carrionRadius: 26`** (`perception/carrion.js`) — the first nose in
+   this world, and the discovery that motivated it is worth keeping. A scavenger
+   here could reach a carcass exactly three ways: see it inside `radius`, remember
+   a place *it personally* fed, or join a **conspecific's** hunt. There is no
+   fourth — no cat hunts hyena so `threatens` is false, the hyena hunts no cat so
+   the relation is false the other way, and `nearestAnimal` is written by
+   perception and **read by nothing**. So a hyena had no way to know a hunt was
+   even happening. **The gate assumed a scavenging income the animal had no means
+   to go and get.** 26 is `territory.rangeRadius` (24) rounded up, so it detects a
+   body anywhere in the ground its clan ranges over. ⚠ A declared carrion radius
+   also drops line-of-sight *on carcasses only* — it is a nose, and smell goes
+   round a rock. Living animals, mates, threats and prey are untouched (A63).
+2. **`behavior.groupMinHungerToHunt: 0.45`** — the lone bar is unchanged and a
+   **backed** hyena is held to the lion's number instead. "Backed" is
+   `predation.backingForLargePrey` clanmates in `social.groupRadius`, resolved by
+   `hasBacking`, the *same* predicate the cooperative prey-mass ceiling uses.
+   Measured after: it applies on **12.3–29.3%** of hyena-ticks, so a minority of
+   the animal's life, by design.
+
+**Measured, 5 seeds × 8000 ticks, against the eviction-only arm** (⚠ n=1 per seed;
+read the per-seed spread, not the totals — A73's lesson):
+
+| | eviction only | + nose | + nose + gate |
+| --- | ---: | ---: | ---: |
+| hyena at t8000, summed over 5 seeds | 48 | **67** | **77** |
+| gazelle at t8000, summed | 121 | 127 | **104** |
+| carrion in a hyena's perception | 14.8–23.3% | — | **38.1–46.9%** |
+| starvation as a share of hyena deaths | 77–94% | — | **56–83%** |
+| hyena deaths by `age` (3 probed seeds) | 1 / 4 / 3 | — | **3 / 8 / 5** |
+| starved hyenas that never ate at all | 7/16, 5/13, 6/16 | — | **5/15, 0/10, 0/10** |
+| world starvation deaths | 35/20/22/18/24 | — | **30/14/14/15/17** |
+| world predation deaths | 40/46/28/44/46 | — | **45/54/47/59/56** |
+| seeds where the vulture goes extinct | 2 of 5 | — | **0 of 5** |
+
+⚠⚠ **The decomposition is the useful part: the nose carries the hyena and the
+gate carries the risk.** The nose alone takes the hyena 48 → 67 with the gazelle
+*unchanged* in total (121 → 127); the gate adds 67 → 77 and the gazelle falls to
+104. That is the apparent-competition trade the 0.75 exists to prevent, arriving
+in the arm that loosens hunting and not in the arm that improves scavenging — so
+if the gazelle ever has to be defended, `groupMinHungerToHunt` is the line to move
+and `carrionRadius` is not.
+
+⚠ **Per-seed the spread dwarfs the totals** and no claim here is stronger than
+directional: gazelle on seed 2 runs 7 → 33 → 14 across the three arms and on seed
+3 runs 57 → 51 → 19. There were **no gazelle extinctions in any arm**. The
+starvation-to-predation shift is the one result that holds on every seed
+individually: the world moved from animals starving to animals being eaten, which
+is what a working predator does.
+
+⛔ **Still not established.** No `npm run sweep` with a control arm, so there is no
+population *claim* here — only a reading. Nobody has measured a lower flat
+`minHungerToHunt` on this world either, so the original hypothesis below is
+untested; it is now less urgent rather than answered.
 
 ⚠ **The stated reason for 0.75 may no longer hold.** `scavengerHyena.js` records
 that 0.35 drove gazelle extinct in 7 of 10 seeds and that 0.75 was the fix. In this
@@ -1766,6 +1862,49 @@ are safe without a separate bounds guard.
 Per-code traversal speed: ground 1.0, **dry bed 1.0**, water 0.5, cover 0.6,
 **tree 0.9**, thicket 0.1, rock and deep water 0 (impassable).
 
+#### The four drying rules _(2026-08-09, SEASON-PLAN D5)_
+
+`#buildDryMap` is a **terminal generation pass** — it runs after `#growMarsh`,
+which is what makes it free: `#generate` documents that only the last pass in the
+pipeline can promise to change nothing else, so a pass appended at the end may
+spend as many draws as it likes and **every existing seed still generates precisely
+the map it did before**. Each rule is keyed on the water-provenance tag below.
+
+| # | rule | tag | becomes |
+| --- | --- | --- | --- |
+| 1 | **The stream dries completely** | `STREAM` | `DRY_BED` |
+| 2 | **A pond shrinks to 75% of its _area_** — `terrain.dryPondAreaScale: 0.75`, so the recorded radius is scaled by `√0.75 ≈ 0.866`; the annulus outside dries | `POND` | inner `WATER`, outer `DRY_BED` |
+| 3 | **The lake inverts** — the shallow ring dries and the impassable core becomes drinkable shallows | `LAKE` → `DRY_BED`<br>`LAKE_CORE` → `WATER` | the lake shrinks to its core, and that core becomes the map's principal water |
+| 4 | **The marsh mostly dries** — `terrain.marshDryRetention: 0.18` of its pools survive, drawn **per pool cell** in row-major order | `MARSH` | mostly `DRY_BED`, some `WATER` |
+
+Rule 3 is the ecological heart of it: the lake's impassable middle — the one place
+in the world an animal could never reach — becomes the one place it can drink.
+⚠ It is also the source of **A101**: a cell that is impassable when wet and passable
+when dry is a cell an animal can be sealed inside.
+
+**Measured drawdown, 5 seeds** (drinkable cells — everything except the deep core):
+
+| seed | wet | dry | ratio |
+| ---: | ---: | ---: | ---: |
+| 4 | 1994 | 644 | 3.10× |
+| 1 | 1227 | 273 | 4.49× |
+| 2 | 1808 | 528 | 3.42× |
+| 3 | 1945 | 541 | 3.60× |
+| 5 | 1779 | 434 | 4.10× |
+| **mean** | **1751** | **484** | **3.63×** |
+
+⚠⚠ **The two features the dry season removes most completely are the two that are
+reliably there.** Across seeds the stream spans [382..493] cells and the marsh
+[475..499] — they barely vary — while the lake is [13..984] and the pond [0..241].
+So drying deletes the *dependable* water and keeps the *seed-dependent* water,
+which is why a lakeless seed (**A93**) ends at 273 cells while seed 4 keeps 644.
+Mechanically fine; ecologically it is the first thing a balance pass meets.
+
+⚠ `dryPondAreaScale`, `marshDryRetention` and `lakeDeepFraction` are the knobs, and
+they are **not tuned** — see **A103**. ⚠ The off state is `terrain.dryTerrain:
+false`: no second array is allocated, no draws are spent, and `setSeason` can never
+move the pointer.
+
 #### The dry bed _(2026-08-09, SEASON-PLAN D4)_
 
 The cracked pan a lake, pond, stream or marsh pool leaves when the dry season
@@ -1830,6 +1969,27 @@ stamp) rather than its callers.
 ground.** It carves corridors through cells that are not *passable*, and deep water
 is impassable as well as rock — so a corridor can cut through a lake's core. It
 clears the tag when it does.
+
+⚠⚠ **`#stampChannel` refuses to retag the lake's shallow ring, and the rule is
+invisible in the cells.** A stream running into the lake used to overwrite any cell
+that was not `DEEP_WATER` — including the ring — so a strip of lake shore was
+tagged `STREAM`. With one water code that is byte-identical either way, which is
+exactly why it was safe to leave unguarded until provenance existed and why the
+guard could be added without changing a single terrain byte. Under the dry rules it
+would matter a great deal: rule 1 dries a stream *completely*, so the strip would
+punch a dry channel through a shore that should behave like shore.
+
+⚠ **An invisible rule needs a test that can fail**, so the guard is measured
+against the arm with it removed rather than asserted in the abstract: seed 2's lake
+goes **384 → 340** tagged cells, and seeds 1/3/4 go 273/211/184 → 253/208/162.
+⚠ The first version of that test asserted the wrong thing — that no `STREAM` cell
+may touch the core, assuming the ring wraps it. It does not: rock is stamped over
+the lake *before* the streams run and a stream cuts through rock, so an outcrop on
+the shore can legitimately put a channel beside the core.
+
+⚠ **A pond record is kept even when the pond wrote no cells.** One seed in five
+lands its pond past the coast or on the lake and leaves nothing behind; the dry
+pass shrinks a *disc*, and "no disc" and "an empty disc" are different bugs.
 
 ⚠ Nothing in the tick reads any of this. It is **generation provenance, not a
 terrain property**; behaviour keyed on "is this water" belongs on the terrain code.
@@ -2331,7 +2491,8 @@ nothing browns the map off uniformly any more. That is deliberate rather than a
 regression — the dry season has to leave the riparian strip alone while stopping
 the open plain regrowing, and **one global scalar cannot say "here but not
 there"**. The dry season's vegetation effect is therefore entirely *per-cell*
-(`wetCapacityBonus 0.6 → 0`, `dryGrowthScale 0.75 → 0`; see SEASON-PLAN.md §5),
+(`wetCapacityBonus 0.6 → 0`, `dryGrowthScale 0.75 → 0`; the per-cell mechanism is
+below),
 and grass on the plain does not die back — it simply never recovers from being
 eaten. The rate-versus-ceiling lesson survives intact and is still pinned by a
 test, which now measures it on a **grazed** field: the wet flush runs 2.5× ahead
@@ -3362,10 +3523,18 @@ temperature as a mechanism rather than retuning it: the bare year now runs
 **no animal is stressed by the season at all** and a drought reaches only 21 °C.
 A storm (−10 °C on a disturbance) is the only thing left that can push an animal
 out of band. The thermoregulation share of every species' energy budget is
-therefore near zero and every animal in the world got materially cheaper to run —
-⚠ which has **not been swept**, landed in the same phase as the whole season
-conversion, and will partly mask the dry season's cost. See SEASON-PLAN.md §2.3
-and §10.
+therefore near zero and every animal in the world got materially cheaper to run.
+
+⚠⚠ **Flattening it was a decision, not a side effect, and it has an unmeasured
+consequence that is easy to mistake for the seasons working.** Temperature was
+taken out of play deliberately: the wet/dry world is about *water*, and a
+thermal cycle on top of it would be a second stressor nobody asked for, so the
+sinusoid's phase shift stopped mattering and needed no change. But the same edit
+**removed an energy sink measured at 40.1% of the leopard's entire budget**, and it
+landed in the same phase as the whole season conversion — so the two cannot be told
+apart afterwards, and the world getting cheaper to run will partly mask the dry
+season's cost. Nobody has swept it. ⚠ If that distinction ever matters, the arm to
+run is the season model *alone*, before and after.
 
 ⚠ **Check whether a per-tick field is consumed before you read it.**
 `lastMoveDistance` is an accumulator that metabolism _consumes and zeroes_ in
@@ -4000,6 +4169,34 @@ Four boundaries, each stated rather than left to be found:
   is covered by unit tests alone (`test/breeding.test.js`).
 - **Conception only.** A pregnancy carried past the window's end is delivered
   normally, and nothing about gestation, birth, or parenting is seasonal.
+
+⚠⚠ **The wildebeest's calendar was wrong before the wet/dry conversion, and the
+comment beside it was wronger** _(2026-08-09, SEASON-PLAN D2)_. It declared
+`{ startFraction: 0.85, endFraction: 0.5 }` — a **wrapping** window **0.65 of the
+year** wide — while the prose three lines above described "0.30 of the year… from
+early spring to the start of summer", i.e. `{0.0, 0.30}`. The declared value was
+**2.2× wider than its own documentation**, and a rut covering two-thirds of the year
+is barely compressed at all, which quietly undercut the predator-swamping claim the
+whole feature exists to produce. **A window and the sentence describing it drifted,
+and only the sentence was read.**
+
+**The fix moved the gestation as well as the window** — `gestationTicks 1400 →
+2400` (0.60 of a 4000-tick year) with the window at `{0.40, 0.60}` — and the reason
+is mechanical rather than aesthetic. The minimal alternative (leave gestation, shift
+the window to `{0.65, 0.90}`) puts the **rut in the middle of the dry season**, and
+`isReproductivelyReady` gates on `energy >= minEnergyFraction × maxEnergy` at
+**0.8**. In a season where grass has stopped growing everywhere but the old
+channels, that bar may simply never be cleared — the species would lose a year's
+recruitment for a reason invisible in the config. At `{0.40, 0.60}` the rut sits on
+the **wet→dry turn**, while the animals are still fat. Calves then land at
+`yearProgress 0.00–0.20`, the start of the wet season, and D2 verified it: **all 69
+calves over two demo years fall in `wetEarly`**, `yearProgress 0.000…0.183`.
+
+⚠ **The cost, stated:** a longer gestation is a real reduction in recruitment. At
+`maxAge: 13000` (3.25 years) an adult female still gets ~5 attempts, so it is not
+obviously fatal — but whether the rut reliably fires against that 80% bar *every*
+year is unswept, and `wildebeest barren-season` fires 4–13 times per ethologist seed.
+See **A103**.
 
 ⚠ **A degenerate window is year-round, not a sterile species.** Equal ends, or
 non-numeric ones, read as no window. "Breeds on exactly one instant of the year" is
@@ -5591,8 +5788,10 @@ the quarter's progress before it.
 never snows, but the string stays so older saves load and no protocol enum
 shrinks. Temperature is likewise no longer a mechanism — see §9 Metabolism.
 
-**The dry season's real work is not here.** Draining the map and the per-cell
-vegetation response are terrain and vegetation concerns; see SEASON-PLAN.md.
+**The dry season's real work is not here.** Draining the map is §7 *Terrain*
+(the two-map design, the four drying rules, `DRY_BED`, water provenance) and the
+per-cell growth response is §7 *Vegetation*. This section owns only the calendar
+that tells them which season it is.
 
 ### Disturbances
 
@@ -6298,7 +6497,19 @@ rendering fault.
 domain events of the window. `applyDeltaSnapshot` is the reference application
 algorithm.
 
-- Deltas **never** carry terrain (it is static).
+- Deltas **never** carry terrain — but ⚠⚠ **"because it is static" stopped being
+  the reason on 2026-08-09** (SEASON-PLAN D5/D8). Terrain is static *per season*
+  and the map now drains twice a simulated year, so a delta carries
+  **`terrainRevision`**, a single integer, **on every delta**. A client can only
+  notice a *change* if the field is always there, so it is unconditional rather
+  than gated like the four revisions below. On a mismatch the store reports it and
+  the app re-issues the `terrain` query, reusing the desync-recovery path rather
+  than adding a second kind of recovery. ⚠ Sending the RLE on the delta was the
+  alternative and was declined: a ~40 000-cell payload on two deltas a year, and a
+  branch on every other one, where a scalar costs the same on all of them.
+  ⚠ **A host that omits the field is not stale forever** — absent reads as "this
+  producer does not report terrain changes", never as "refetch on every tick", and
+  that is asserted.
 - Vegetation rides as a sparse `{ revision, changes: [[cellIndex, level]] }`
   list, gated by the revision so unchanged ticks cost nothing.
 - **Disturbances** are carried **whole** rather than diffed, because there are

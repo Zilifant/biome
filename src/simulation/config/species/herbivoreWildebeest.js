@@ -84,7 +84,7 @@ export const herbivoreWildebeest = Object.freeze({
   hydration: Object.freeze({ dehydrationRate: 0.042, drinkRate: 6 }),
   matePreference: Object.freeze({ trait: 'size', span: 0.25, conditionWeight: 0.45 }),
   reproduction: Object.freeze({
-    // ⚠⚠ **1400 → 2400 with the wet/dry year** (SEASON-PLAN.md §2.4), and the
+    // ⚠⚠ **1400 → 2400 with the wet/dry year** (DOCS.md §9 *Reproduction*), and the
     // gestation moved rather than only the window because of an *energy* gate.
     // `isReproductivelyReady` requires `energy >= 0.8 × maxEnergy`. At 4000 ticks
     // to the year a 1400-tick gestation is 0.35 of it, so calving at the start of

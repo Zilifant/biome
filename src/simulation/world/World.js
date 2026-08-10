@@ -473,7 +473,8 @@ export class World {
     //
     // ⚠ The wetness field is deliberately **not** dropped. It is built from the
     // wet map and stays that way — vegetation needs "where the water *was*" so the
-    // riparian strip keeps its grass after the channel has gone (SEASON-PLAN §5).
+    // riparian strip keeps its grass after the channel has gone (DOCS.md §7
+    // *Vegetation*).
     // The habitat cue arguably wants the current season's, and that is D6's
     // decision to make, not a side effect of this one.
     this._waterField = undefined;

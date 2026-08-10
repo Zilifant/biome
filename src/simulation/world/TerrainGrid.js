@@ -48,7 +48,7 @@ export const TerrainType = Object.freeze({
   // The growing, browsable version is still A51.
   TREE: 6,
   // Dry bed: the cracked pan a lake, pond, stream or marsh pool leaves behind
-  // when the dry season drains it (SEASON-PLAN.md §4.4, 2026-08-09). Ordinary
+  // when the dry season drains it (DOCS.md §7 *The dry bed*, 2026-08-09). Ordinary
   // walkable ground in every mechanical respect — it is the *visibility* of the
   // dry season, not a new behaviour.
   //
@@ -602,7 +602,7 @@ export class TerrainGrid {
    *
    * ⚠ This is **generation provenance, not a terrain property**. Nothing in the
    * tick reads it — it exists so the dry-season map can apply a different rule to
-   * a stream than to a lake shore (SEASON-PLAN.md §4.3). Behaviour keyed on "is
+   * a stream than to a lake shore (DOCS.md §7 *The four drying rules*). Behaviour keyed on "is
    * this water" belongs on the terrain code.
    * @param {number} cellX @param {number} cellY
    * @returns {number}
@@ -734,7 +734,7 @@ export class TerrainGrid {
    * the seed exactly as the first was, and regenerated identically on load. What a
    * season does is choose which of the two the world is currently looking at.
    *
-   * **The four rules** (SEASON-PLAN.md §4.3), each keyed on the provenance tag
+   * **The four rules** (DOCS.md §7 *The four drying rules*), each keyed on the provenance tag
    * because the finished grid cannot tell one kind of water from another:
    *
    *   1. **The stream dries completely** — a channel is the first thing to go.

@@ -1,6 +1,46 @@
 # Wet / dry seasons — plan
 
-**Status: D0–D8 are implemented and green. Only D9 (balance) is left.**
+⚠⚠ **RETIRED 2026-08-10. Everything in this file that is still true has been folded
+into the living documentation, and this copy is kept for provenance only** — the
+same terms as the plans beside it. Read it for *why* a decision was made, and for
+the phase notes (§7.1–§7.5) where a phase's own prediction turned out wrong. Do not
+read it for current state: it describes line numbers and a codebase that have moved.
+
+✅ **Mechanically complete.** D0–D8 shipped. ⬜ **D9 (balance) is the open half**,
+and it is now `ACTION-ITEMS.md` **A103** rather than a phase of this plan.
+
+**Where its content lives now:**
+
+| what | where |
+| --- | --- |
+| The season model — two seasons, four phases, the odds table, `seasonProgress`, snow at zero, drought-is-weather | [`DOCS.md`](../DOCS.md) §9 *Season and weather* |
+| The two-map design, the four drying rules, `DRY_BED`, water provenance, the `#stampChannel` guard | [`DOCS.md`](../DOCS.md) §7 *Terrain* |
+| The per-cell dry response, the two wetness fields and which consumer reads which | [`DOCS.md`](../DOCS.md) §7 *Vegetation* |
+| The shorter year (`ticksPerYear 8000 → 4000`) and why `ticksPerYear` is the lever | [`DOCS.md`](../DOCS.md) §5 *Clocks* and §9 *Reproduction* |
+| Temperature flattened to `amplitude 2`, and the energy sink that went with it | [`DOCS.md`](../DOCS.md) §9 *Metabolism* |
+| `terrainRevision` on the delta, and why it is unconditional | [`DOCS.md`](../DOCS.md) §11 *Deltas* |
+| The client's refetch, and the `#recovering` latch it shares with a desync | [`DOCS-RENDERER.md`](../src/renderer/DOCS-RENDERER.md) §4 *The store and transports* |
+| The fixture generator that searches for a log-worthy delta | [`DOCS-RENDERER.md`](../src/renderer/DOCS-RENDERER.md) §9b |
+| The lake-core strand and its eviction | [`DOCS.md`](../DOCS.md) §1.1 **A101** |
+| The hyena's starvation, the nose, and the backed hunting gate | [`DOCS.md`](../DOCS.md) §1.1 **A102** |
+| What balance still needs, and the knob order | [`ACTION-ITEMS.md`](../ACTION-ITEMS.md) **A103** |
+| The lakeless-seed generator defect (`#carveLakes`) | [`ACTION-ITEMS.md`](../ACTION-ITEMS.md) **A93**, sharpened |
+| The lessons — a comment that claimed more than its assertion, and the third A83 | [`DOCS.md`](../DOCS.md) §16 **D60** |
+| Per-tick and per-phase cost | [`BENCHMARK.md`](../BENCHMARK.md) |
+
+**Opened by this plan:** **A101** (a dry map may still open a cell the wet map
+closes — symptom fixed, structure open), **A102** (the hyena's hunting threshold —
+two mechanisms shipped, the gazelle still to watch), **A103** (the world has never
+been balanced), and a sharpening of **A93** (the mechanism behind the lakeless
+seed). **Closed by it:** nothing — it added a feature rather than fixing an item.
+
+⚠ Source comments and tests cite this plan by bare name (`SEASON-PLAN.md §5`,
+`SEASON-PLAN D3`), as they do the other retired plans; the file is in
+`legacy-docs/`.
+
+---
+
+**Status when written: D0–D8 are implemented and green. Only D9 (balance) is left.**
 Written 2026-08-09 against `main` @ `eff9148`; §9 records the decisions taken and
 §7 the phase-by-phase state.
 
@@ -970,6 +1010,35 @@ them. ⚠ It is not hyena-specific: seed 3's `#236` is a **lion**, refused on 64
 779 prey-in-sight ticks by its own 0.45. ⚠ It flags 4–10 of the 17–21 hyena deaths
 per seed, not all of them — the rest fall under `huntDeniedTicks: 150`, which is
 the deliberate bar. **This is the third time A83's rule has been paid for** (D60).
+
+**2b. What was done about the hyena, 2026-08-10.** Not a lower
+`minHungerToHunt` — that re-opens the apparent-competition failure it was raised
+to fix. Two mechanisms instead, and the surprise is which one mattered:
+
+- **`perception.carrionRadius: 26`**, the first nose in this world. The gap it
+  closes is the finding: a scavenger could reach a carcass only by seeing it
+  inside 13 cells, remembering where *it* had fed, or joining a **conspecific's**
+  hunt. A hyena cannot perceive a cat in any actionable way, so it had no way to
+  know a hunt was happening — **the hunger gate assumed a scavenging income the
+  animal had no means to go and get.**
+- **`behavior.groupMinHungerToHunt: 0.45`**, the lion's number, applied only when
+  clanmates are present (12.3–29.3% of hyena-ticks).
+
+| | eviction only | + nose | + nose + gate |
+| --- | ---: | ---: | ---: |
+| hyena at t8000, 5 seeds summed | 48 | **67** | **77** |
+| gazelle at t8000, summed | 121 | 127 | **104** |
+| carrion in a hyena's perception | 14.8–23.3% | — | **38.1–46.9%** |
+| starvation share of hyena deaths | 77–94% | — | **56–83%** |
+| seeds where the vulture goes extinct | 2 | — | **0** |
+
+⚠⚠ **The nose carries the benefit and the gate carries the risk** — the nose alone
+takes the hyena 48 → 67 with the gazelle unchanged; the gate adds the last 10 and
+costs the gazelle 127 → 104. If the prey base ever needs defending, that is the
+line to move. ⚠ n=1 per seed and the spread dwarfs the totals (gazelle on seed 3:
+57 → 51 → 19); no gazelle went extinct in any arm. The one result that holds
+seed-by-seed is the shift from starvation to predation — world starvation deaths
+fell on all five seeds and predation rose on all five.
 
 **Also flagged, not investigated:** the vulture goes locally extinct on 2 of 5
 seeds with **100% of its deaths by `age`** — it is not starving, it is failing to

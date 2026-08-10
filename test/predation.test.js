@@ -21,7 +21,7 @@ import { GroupSystem } from '../src/simulation/systems/GroupSystem.js';
 import { SocialSystem } from '../src/simulation/systems/SocialSystem.js';
 import { SpeciesRegistry } from '../src/simulation/config/species/schema.js';
 import { SPECIES_DEFINITIONS, getSpecies } from '../src/simulation/config/species/index.js';
-import { isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../src/simulation/predation/predation.js';
+import { hasBacking, isEligiblePrey, maxPreyMassFor, minPreyMassFor } from '../src/simulation/predation/predation.js';
 import { backedDominanceOf, holderOf, isAvailableTo, mayFeedFreely, outranks } from '../src/simulation/predation/possession.js';
 import { dominanceOf, resolveContest } from '../src/simulation/social/dominance.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
@@ -944,5 +944,133 @@ describe('predation: numbers at a carcass (PREDATOR-PLAN P7)', () => {
     });
     assert.equal(plain.winner.id, explicit.winner.id);
     assert.equal(plain.escalated, explicit.escalated);
+  });
+});
+
+/**
+ * ⚠⚠ **A hunter that has its band beside it commits sooner** (**A102**,
+ * 2026-08-10) — `behavior.groupMinHungerToHunt`.
+ *
+ * **The defect it answers.** `behavior.minHungerToHunt` is a fraction of the
+ * tank, and the hyena's tank is small: 0.75 of 130 leaves **32.5 energy** to hunt
+ * on, against the lion's 0.45 of 380 leaving **209** — about a third of the
+ * runway. Measured over 5 seeds × 8000 ticks: the hyena's own gate shut on
+ * **84.6–90.6%** of the ticks it could see prey, and starvation was **77–94% of
+ * every hyena death** against 0–2 starvations for the lion.
+ *
+ * ⚠ Lowering 0.75 outright re-opens the failure it was raised to fix (gazelle
+ * extinct in 7 of 10 seeds at 0.35), so the loosening is conditional on company:
+ * a lone hyena is unchanged, a clan hunts like a pride.
+ */
+describe('predation: a clan hunts sooner than a lone animal', () => {
+  /** ⚠ The **resolved** roster — `getSpecies` returns raw definitions, which have
+   *  no `behavior` block at all for a species that overrides nothing in it. */
+  const RESOLVED = new SimulationEngine().world.species;
+  const LION = RESOLVED.get('predator.lion');
+  const HYENA = RESOLVED.get('scavenger.hyena');
+
+  test('hasBacking is the same "is it in a group" the mass ceiling uses', () => {
+    // ⚠ One home, two readers. If these ever disagree, `maxPreyMassFor` and the
+    // hunger gate mean different things by "a group" and only one of them says so.
+    const predation = { backingForLargePrey: 2, groupPreyMassRatio: 5, maxPreyMassRatio: 1 };
+    const hunter = (bandmates) => ({ bodyMass: 60, bandmates });
+    for (const n of [0, 1, 2, 3]) {
+      const backed = hasBacking(hunter(n), predation);
+      const liftedCeiling = maxPreyMassFor(hunter(n), predation, n) > hunter(n).bodyMass * predation.maxPreyMassRatio;
+      assert.equal(backed, liftedCeiling, `they disagree at ${n} bandmates`);
+    }
+  });
+
+  test('a species that states no backing requirement is never backed', () => {
+    assert.equal(hasBacking({ bandmates: 99 }, { maxPreyMassRatio: 1 }), false);
+    assert.equal(hasBacking({ bandmates: 99 }, null), false);
+    assert.equal(hasBacking({}, { backingForLargePrey: 0 }), true, 'a stated 0 means "always", not "never"');
+  });
+
+  test('⚠⚠ the shipped hyena is unchanged alone and as willing as a lion when backed', () => {
+    // ⚠ Derived from the roster, never restated: 0.45 is *the lion's number*,
+    // chosen as an anchor rather than invented, and a fixture that hardcoded it
+    // would pass while the anchor silently drifted (D31).
+    assert.equal(HYENA.behavior.groupMinHungerToHunt, LION.behavior.minHungerToHunt);
+    assert.ok(
+      HYENA.behavior.groupMinHungerToHunt < HYENA.behavior.minHungerToHunt,
+      'the backed bar must be the looser one, or the field does nothing',
+    );
+    // And the gate can actually fire for this species: it needs a backing count.
+    assert.equal(typeof HYENA.predation.backingForLargePrey, 'number');
+  });
+
+  test('every other species leaves the field null, so nothing else changed', () => {
+    for (const species of RESOLVED.all()) {
+      if (species.id === HYENA.id) continue;
+      assert.equal(
+        species.behavior.groupMinHungerToHunt,
+        null,
+        `${species.id} picked up a backed hunting bar without anybody deciding to give it one`,
+      );
+    }
+  });
+
+  test('⚠⚠ the gate actually moves in a running world — backed hunts, alone does not', () => {
+    // The claim as behaviour rather than as arithmetic. Two identical hungry
+    // hyenas with identical prey in front of them; the only difference is that one
+    // has clanmates. Hunger sits **between** the two bars, so the lone animal must
+    // refuse and the backed one must commit — and neither result is available to a
+    // fixture that got the arithmetic right and the wiring wrong.
+    const between = (HYENA.behavior.minHungerToHunt + HYENA.behavior.groupMinHungerToHunt) / 2;
+    const run = (withClan) => {
+      const engine = new SimulationEngine({
+        seed: 4,
+        config: { world: { width: 64, height: 64 }, terrain: { ...FLAT_TERRAIN } },
+      });
+      engine.registerSystem(new PerceptionSystem({ ...engine.config.perception }));
+      // ⚠ `GroupSystem` is not optional here: `bandmates` counts clanmates sharing
+      // a **persistent group record**, not merely animals standing nearby, so
+      // without it a crowd of hyenas has a backing of zero.
+      engine.registerSystem(new GroupSystem(engine.config.groups));
+      engine.registerSystem(new SocialSystem({ ...engine.config.social }));
+      engine.registerSystem(new DecisionSystem({ ...engine.config.decision, ...engine.config.behavior }));
+      const spawnAt = (speciesId, x, y) => {
+        const species = RESOLVED.get(speciesId);
+        const id = engine.world.entities.queueSpawn({
+          kind: 'animal',
+          speciesId,
+          x,
+          y,
+          lifeStage: 'adult',
+          bodyMass: species.bodyMass,
+          adultMass: species.bodyMass,
+          speed: species.baseSpeed,
+          maxEnergy: species.maxEnergy,
+          energy: species.maxEnergy * (1 - between),
+          maxHealth: species.maxHealth,
+          health: species.maxHealth,
+          maxHydration: species.maxHydration,
+          hydration: species.maxHydration,
+          maxStamina: species.maxStamina,
+          stamina: species.maxStamina,
+        });
+        engine.applyDeferredEntityChanges(0);
+        return engine.world.entities.get(id);
+      };
+      const hunter = spawnAt('scavenger.hyena', 30, 30);
+      spawnAt('herbivore.gazelle', 32, 30); // inside sight and inside chase range
+      if (withClan) {
+        for (let i = 0; i < HYENA.predation.backingForLargePrey; i += 1) spawnAt('scavenger.hyena', 29 - i * 0.5, 30.5);
+      }
+      // ⚠ Several ticks, not one. The record is founded on tick 1; `SocialSystem`
+      // counts `bandmates` off *last* tick's membership; the decision system reads
+      // the count `SocialSystem` wrote earlier in the same phase. No movement
+      // system is registered, so nothing drifts while that settles.
+      engine.step(4);
+      return { action: hunter.action, bandmates: hunter.bandmates ?? 0 };
+    };
+
+    const alone = run(false);
+    const backed = run(true);
+    assert.equal(alone.bandmates, 0);
+    assert.ok(backed.bandmates >= HYENA.predation.backingForLargePrey, `backed had ${backed.bandmates} bandmates`);
+    assert.ok(!['stalk', 'chase'].includes(alone.action), `a lone hyena refused the hunt (was ${alone.action})`);
+    assert.ok(['stalk', 'chase'].includes(backed.action), `a backed hyena committed (was ${backed.action})`);
   });
 });

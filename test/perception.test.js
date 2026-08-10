@@ -1,10 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationEngine } from '../src/simulation/engine/SimulationEngine.js';
-import { PerceptionSystem } from '../src/simulation/systems/PerceptionSystem.js';
+import { PerceptionSystem, hasLineOfSight } from '../src/simulation/systems/PerceptionSystem.js';
 import { createDemoSimulation } from '../src/fixtures/createDemoSimulation.js';
 import { captureSimulationState } from '../src/simulation/persistence/SimulationSerializer.js';
 import { TerrainType } from '../src/simulation/world/TerrainGrid.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
 
 /** Engine with only the perception system, for controlled scenarios. */
 function perceptionEngine(radius = 5) {
@@ -172,5 +173,138 @@ describe('perception in inspection', () => {
     assert.ok(details.perception, 'inspection should include perception');
     assert.equal(typeof details.perception.animalCount, 'number');
     assert.ok('nearestFood' in details.perception && 'nearestWater' in details.perception);
+  });
+});
+
+/**
+ * ⚠⚠ **A scavenger's nose reaches further than its eyes** (**A102**, 2026-08-10)
+ * — `perception.carrionRadius`.
+ *
+ * **The gap it closes.** A scavenger in this world could reach a carcass exactly
+ * three ways: see it inside its own `radius`, remember a place *it personally*
+ * had fed, or join a **conspecific's** hunt. There was no fourth. A hyena cannot
+ * perceive a lion in any actionable way — no cat has `scavenger.hyena` on its
+ * prey list so `threatens` is false, the hyena hunts no cat so the species
+ * relation is false the other way, and `nearestAnimal` is written by this system
+ * and read by nothing. So it had no way to know a hunt was even happening: a body
+ * appeared, and it learned of it only if it happened to be standing within 13
+ * cells with clear sight. Measured: carrion was in a hyena's perception on
+ * **14.8–23.3%** of its ticks and it could do nothing to raise that.
+ *
+ * ⚠ The most important test here is the **negative** one: a nose must not extend
+ * anything else. The shared perception gate is A63 — prey, threats, mates and a
+ * juvenile's guardian all pass through it — so a change made carelessly there
+ * shows up as a population number three subsystems away.
+ */
+describe('perception: finding a body by smell', () => {
+  const RESOLVED = new SimulationEngine().world.species;
+  const HYENA = RESOLVED.get('scavenger.hyena');
+  const LEOPARD = RESOLVED.get('predator.leopard');
+
+  /** A flat world with the real roster and the real perception wiring. */
+  function scentEngine() {
+    const engine = new SimulationEngine({
+      seed: 7,
+      config: { world: { width: 128, height: 128 }, terrain: { ...FLAT_TERRAIN } },
+    });
+    engine.registerSystem(new PerceptionSystem({ ...engine.config.perception }));
+    return engine;
+  }
+
+  function place(engine, speciesId, x, y) {
+    const species = RESOLVED.get(speciesId);
+    const id = engine.world.entities.queueSpawn({
+      kind: 'animal',
+      speciesId,
+      x,
+      y,
+      lifeStage: 'adult',
+      bodyMass: species.bodyMass,
+      adultMass: species.bodyMass,
+    });
+    engine.applyDeferredEntityChanges(0);
+    return id;
+  }
+
+  function placeCarcass(engine, x, y) {
+    const id = engine.world.entities.queueSpawn({ kind: 'carcass', speciesId: 'herbivore.gazelle', x, y, edibleMass: 20 });
+    engine.applyDeferredEntityChanges(0);
+    return id;
+  }
+
+  test('the shipped hyena declares a nose and nothing else in the roster does', () => {
+    assert.ok(HYENA.perception.carrionRadius > HYENA.perception.radius, 'the nose must beat the eyes to do anything');
+    for (const species of RESOLVED.all()) {
+      if (species.id === HYENA.id) continue;
+      assert.equal(species.perception.carrionRadius, null, `${species.id} grew a nose without anybody deciding to`);
+    }
+  });
+
+  test('⚠⚠ a body past sight but inside the nose is found — and the same body is invisible without one', () => {
+    // The two animals are the same mass and nearly the same eyesight, so the only
+    // thing separating them is the declared field. Distance sits deliberately
+    // between the two species' sight radii and the hyena's carrion radius.
+    const engine = scentEngine();
+    const beyondSight = Math.max(HYENA.perception.radius, LEOPARD.perception.radius) + 4;
+    assert.ok(beyondSight < HYENA.perception.carrionRadius, 'the fixture must sit inside the nose to test it');
+    const hyena = place(engine, 'scavenger.hyena', 40, 40);
+    const leopard = place(engine, 'predator.leopard', 40, 80);
+    placeCarcass(engine, 40 + beyondSight, 40);
+    placeCarcass(engine, 40 + beyondSight, 80);
+    engine.step(1);
+    assert.ok(engine.world.perception.get(hyena).nearestCarcass, 'the hyena smells it');
+    assert.equal(engine.world.perception.get(leopard).nearestCarcass, null, 'the leopard, at the same range, does not');
+  });
+
+  test('the nose has an edge — a body past `carrionRadius` is still not found', () => {
+    const engine = scentEngine();
+    const hyena = place(engine, 'scavenger.hyena', 40, 40);
+    placeCarcass(engine, 40 + HYENA.perception.carrionRadius + 2, 40);
+    engine.step(1);
+    assert.equal(engine.world.perception.get(hyena).nearestCarcass, null);
+  });
+
+  test('⚠⚠ it extends carrion and nothing else — the A63 guard', () => {
+    // A live gazelle is prey to a hyena and a mate candidate is its own kind;
+    // both come through the shared gate that the carcass branch sits beside. At a
+    // range the nose reaches and the eyes do not, both must still be unseen.
+    const engine = scentEngine();
+    const hyena = place(engine, 'scavenger.hyena', 40, 40);
+    const beyondSight = HYENA.perception.radius + 5;
+    place(engine, 'herbivore.gazelle', 40 + beyondSight, 40); // prey
+    place(engine, 'scavenger.hyena', 40, 40 + beyondSight); // conspecific / mate candidate
+    place(engine, 'predator.lion', 40 - beyondSight, 40); // the biggest thing around
+    engine.step(1);
+    const p = engine.world.perception.get(hyena);
+    assert.equal(p.nearestPrey, null, 'prey is not smelled');
+    assert.equal(p.animalCount, 0, 'and no living animal is sensed at all past the eyes');
+    assert.equal(p.mateCandidates.length, 0);
+  });
+
+  test('⚠ smell goes around a rock, and sight does not', () => {
+    // The second half of the one field, asserted rather than assumed — and the
+    // fixture proves its own premise first, or it would pass on a clear line.
+    const engine = new SimulationEngine({ seed: 11, config: { world: { width: 128, height: 128 } } });
+    engine.registerSystem(new PerceptionSystem({ ...engine.config.perception }));
+    assert.equal(engine.config.perception.lineOfSight, true, 'this test is meaningless with sight lines off');
+    const world = engine.world;
+    let rock = null;
+    for (let y = 6; y < world.terrain.height - 6 && rock === null; y += 1) {
+      for (let x = 6; x < world.terrain.width - 6; x += 1) {
+        if (world.terrain.codeAt(x, y) === TerrainType.ROCK) { rock = [x, y]; break; }
+      }
+    }
+    assert.ok(rock, 'the generated world has rock to hide behind');
+    const [rx, ry] = rock;
+    const near = [rx - 4 + 0.5, ry + 0.5];
+    const far = [rx + 4 + 0.5, ry + 0.5];
+    assert.equal(hasLineOfSight(world, ...near, ...far), false, 'the rock really is between them');
+
+    const hyena = place(engine, 'scavenger.hyena', ...near);
+    const leopard = place(engine, 'predator.leopard', ...near);
+    placeCarcass(engine, ...far);
+    engine.step(1);
+    assert.ok(engine.world.perception.get(hyena).nearestCarcass, 'the hyena smells through the rock');
+    assert.equal(engine.world.perception.get(leopard).nearestCarcass, null, 'the leopard, beside it, cannot see it');
   });
 });
