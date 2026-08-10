@@ -31,12 +31,6 @@ fixed it." A confident summary that hides its own sample size is the failure mod
 this section exists to prevent — this project's documentation is unusually honest
 about what it has not measured, and a report should match.
 
-⚠ **Lead with the surprise when there is one.** If the obvious suspect was
-innocent, say so first and say it cost nothing: "`mobWeight` was never the
-constraint — 2.4 → 3.2 changed nothing, to the individual attempt." That is
-usually the most valuable sentence in the report, and it is the one most easily
-lost in a tidy summary of what shipped.
-
 ## Know what a run costs — and it is not what this file used to say
 
 ⚠⚠ **Re-measured 2026-08-09 and the old numbers were wrong by ~10×.** This file
@@ -47,15 +41,15 @@ both matter: the 47 min predates a machine change, and `persistence.test.js` use
 to OOM and hang forever, so for the two days before A99 **no full-suite timing was
 even obtainable**.
 
-| rung                        | command                                                                |     measured |
-| --------------------------- | ---------------------------------------------------------------------- | -----------: |
-| one test                    | `node --test --test-name-pattern="the exact name" test/x.test.js`      |       ~0.3 s |
-| one file (sandbox tests)    | `node --test test/wetness.test.js`                                     |       ~0.2 s |
-| one file (typical)          | `node --test test/engineering.test.js`                                 |       ~2.5 s |
-| a file minus its demo block | `node --test --test-skip-pattern='(demo\|persistence)' test/x.test.js` |         ~1 s |
-| ⚠ a demo-backed file        | `node --test test/cooperation.test.js`                                 |      **2m05s** |
-| the fast tier               | `npm run test:fast`                                                    |        2m35s |
-| everything                  | `npm test`                                                             |      **4m20s** |
+| rung                        | command                                                                |  measured |
+| --------------------------- | ---------------------------------------------------------------------- | --------: |
+| one test                    | `node --test --test-name-pattern="the exact name" test/x.test.js`      |    ~0.3 s |
+| one file (sandbox tests)    | `node --test test/wetness.test.js`                                     |    ~0.2 s |
+| one file (typical)          | `node --test test/engineering.test.js`                                 |    ~2.5 s |
+| a file minus its demo block | `node --test --test-skip-pattern='(demo\|persistence)' test/x.test.js` |      ~1 s |
+| ⚠ a demo-backed file        | `node --test test/cooperation.test.js`                                 | **2m05s** |
+| the fast tier               | `npm run test:fast`                                                    |     2m35s |
+| everything                  | `npm test`                                                             | **4m20s** |
 
 ✅ **The rule, loosened.** Iterate on rungs 1–4 while editing. Beyond that,
 **`npm test` is now cheap enough to just run** — it is only ~1.7× the fast tier,
@@ -132,7 +126,7 @@ in the test, and in the DOCS entry for the phase.
 
 ⚠ **Re-measured 2026-08-09: that sweep is ~2m05s, not the ~4 min this line used
 to claim** — the same ~2× overstatement as the suite timings above, and from the
-same stale baseline. The *decision* it describes is unchanged; only the price is.
+same stale baseline. The _decision_ it describes is unchanged; only the price is.
 
 ## ⚠ A change to the engine's per-tick cost is a change to the whole suite
 
