@@ -34,6 +34,10 @@ import {
   accumulateHold,
   accumulateBand,
   accumulateBlocked,
+  accumulateHuntGate,
+  deniedHunt,
+  autopsy,
+  speciesFactsOf,
   lifeReview,
   D,
   HOLD_ACTIONS,
@@ -161,6 +165,13 @@ function tracker(overrides = {}) {
     blockedRun: 0,
     blockedRunMax: 0,
     crowdLockedTicks: 0,
+    // Detector 1d's counters (2026-08-10), here for the same reason — a missing
+    // `preyInSightTicks` makes the detector's `denied / seen` be `NaN`, every
+    // comparison against it false, and every "does not fire" test below pass
+    // while the detector is broken.
+    preyInSightTicks: 0,
+    huntDeniedTicks: 0,
+    huntAllowedTicks: 0,
     ...overrides,
   };
 }
@@ -754,5 +765,209 @@ describe('ethologist: what counts as searching', () => {
     for (const action of ['patrol', 'herd', 'tend', 'rest', 'stalk', 'chase', 'defend', 'eat', 'drink']) {
       assert.equal(SEARCH_ACTIONS.has(action), false, `${action} is not a search`);
     }
+  });
+});
+
+/**
+ * ⚠⚠ **Detector 1d — starved with prey in sight it was not allowed to chase.**
+ *
+ * This exists because the tool reported **nothing** about the largest cause of
+ * death in a species, five seeds running. A 5 × 8000-tick sweep of the shipped
+ * demo killed **13–16 hyenas per seed by starvation — 77–94% of every hyena
+ * death** — and produced zero flagged hyena deaths. The carnivore branch of
+ * `autopsy` asked two questions, "was there a carcass right here" and "did it
+ * ever see food at all", and a hyena that had watched prey walk past for hundreds
+ * of ticks answers the second one *yes*. A83's rule for the third time: a clean
+ * report from a detector that cannot see the mechanism is not evidence about the
+ * mechanism.
+ *
+ * The mechanism is `behavior.minHungerToHunt`. Measured over the same worlds,
+ * every living hyena, every tick: prey was in perception on **13.8–16.5%** of
+ * hyena-ticks and the hunger gate was shut on **84.6–90.6%** of those; the hyenas
+ * that starved saw prey for **248–366** ticks of a ~2200-tick life and had the
+ * gate open for **42–68**.
+ *
+ * ⚠ Every threshold here is read from `D` or from the shipped species, never
+ * restated — D31, and the file header's own warning about a fixture that asserts
+ * against itself.
+ */
+describe('ethologist: starved past its own hunting threshold', () => {
+  /** The real resolved roster, so no gate value in this suite is a literal. */
+  const FACTS = speciesFactsOf(new SimulationEngine().world);
+  const HYENA = FACTS.get('scavenger.hyena');
+  const GRAZER = FACTS.get('herbivore.wildebeest');
+
+  /** A carnivore at a stated fraction of its tank. */
+  const predator = (energyFraction, overrides = {}) =>
+    animal({
+      speciesId: HYENA.id,
+      maxEnergy: 130,
+      energy: 130 * energyFraction,
+      bodyMass: HYENA.bodyMass,
+      action: 'wander',
+      ...overrides,
+    });
+
+  const seeingPrey = { nearestPrey: { id: 9, distance: 4 } };
+
+  /** The minimum counters that make `deniedHunt` fire, derived from `D`. */
+  const denied = (extra = {}) =>
+    tracker({
+      preyInSightTicks: D.huntDeniedTicks,
+      huntDeniedTicks: D.huntDeniedTicks,
+      huntAllowedTicks: 0,
+      ...extra,
+    });
+
+  test('the shipped hyena really does declare a gate, and it is what the detector reads', () => {
+    // If this species ever stops declaring one the detector stands down rather
+    // than firing on a default nobody chose — so the premise is worth pinning.
+    assert.equal(typeof HYENA.minHungerToHunt, 'number');
+    assert.equal(HYENA.huntsAnything, true);
+    assert.equal(GRAZER.huntsAnything, false, 'and a grazer cannot reach this detector at all');
+  });
+
+  test('the accumulator counts a refused chance apart from a taken one', () => {
+    const tr = tracker();
+    // Comfortably fed: hunger is below the bar, so this is a chance refused.
+    accumulateHuntGate(tr, predator(1 - HYENA.minHungerToHunt / 2), seeingPrey, HYENA);
+    assert.deepEqual(
+      { seen: tr.preyInSightTicks, denied: tr.huntDeniedTicks, allowed: tr.huntAllowedTicks },
+      { seen: 1, denied: 1, allowed: 0 },
+    );
+    // Hungrier than the bar: the gate is open, and that is not a refusal.
+    accumulateHuntGate(tr, predator(1 - HYENA.minHungerToHunt - 0.05), seeingPrey, HYENA);
+    assert.deepEqual(
+      { seen: tr.preyInSightTicks, denied: tr.huntDeniedTicks, allowed: tr.huntAllowedTicks },
+      { seen: 2, denied: 1, allowed: 1 },
+    );
+  });
+
+  test('⚠ nothing in sight is not a chance, refused or otherwise', () => {
+    const tr = tracker();
+    accumulateHuntGate(tr, predator(0.9), { nearestPrey: null, nearestCarcass: { id: 4 } }, HYENA);
+    accumulateHuntGate(tr, predator(0.9), null, HYENA);
+    assert.equal(tr.preyInSightTicks, 0);
+    assert.equal(tr.huntDeniedTicks, 0);
+  });
+
+  test('a species that hunts nothing never accrues a refusal', () => {
+    const tr = tracker();
+    accumulateHuntGate(tr, animal({ speciesId: GRAZER.id }), seeingPrey, GRAZER);
+    assert.equal(tr.preyInSightTicks, 0, 'a grazer with prey in its perception is not being refused a hunt');
+  });
+
+  test('⚠⚠ the gate value comes from the species, not from a constant in the tool', () => {
+    // Same animal, same tick, two species-declared bars: one refuses it and the
+    // other lets it go. A hardcoded threshold would make these agree.
+    const lenient = { ...HYENA, minHungerToHunt: 0.1 };
+    const strict = { ...HYENA, minHungerToHunt: 0.9 };
+    const half = predator(0.5); // hunger 0.5, between the two
+    const a = tracker();
+    const b = tracker();
+    accumulateHuntGate(a, half, seeingPrey, lenient);
+    accumulateHuntGate(b, half, seeingPrey, strict);
+    assert.equal(a.huntAllowedTicks, 1);
+    assert.equal(b.huntDeniedTicks, 1);
+  });
+
+  test('the finding fires on the shape the hyenas died in, and says the numbers out loud', () => {
+    const found = deniedHunt(predator(0), denied({ preyInSightTicks: 300, huntDeniedTicks: 270, huntAllowedTicks: 30 }));
+    assert.equal(found, null, 'without facts it cannot know what the gate was');
+
+    const real = deniedHunt(
+      predator(0),
+      denied({ preyInSightTicks: 300, huntDeniedTicks: 270, huntAllowedTicks: 30 }),
+      HYENA,
+    );
+    assert.ok(real);
+    assert.ok(real.suspicion > 5);
+    assert.match(real.reason, /300 ticks/);
+    assert.match(real.reason, /270 of them/);
+    assert.match(real.reason, /open for only 30/, 'the "did it get chances" half is reported beside the refusals');
+    assert.match(real.reason, new RegExp(String(HYENA.minHungerToHunt)), 'and it names the number to go and change');
+  });
+
+  test('⚠⚠ it is a conjunction, and each half alone is ordinary', () => {
+    // Half one: plenty of refusals, but they are a small share of what this animal
+    // saw. That is a predator that was hunting and failing — a capture-odds
+    // finding, not this one.
+    const busy = tracker({
+      preyInSightTicks: D.huntDeniedTicks * 10,
+      huntDeniedTicks: D.huntDeniedTicks,
+      huntAllowedTicks: D.huntDeniedTicks * 9,
+    });
+    assert.equal(deniedHunt(predator(0), busy, HYENA), null);
+
+    // Half two: refused nearly everything, but "everything" was a handful of
+    // chances. A predator that saw prey twice is not evidence about a threshold.
+    const few = tracker({ preyInSightTicks: 20, huntDeniedTicks: 20, huntAllowedTicks: 0 });
+    assert.equal(deniedHunt(predator(0), few, HYENA), null);
+
+    // Both together fire.
+    assert.ok(deniedHunt(predator(0), denied(), HYENA));
+  });
+
+  test('an animal that never saw prey at all is a different finding', () => {
+    assert.equal(deniedHunt(predator(0), tracker(), HYENA), null);
+  });
+
+  test('severity rises with the refusals and saturates, so one animal cannot own the shortlist', () => {
+    const at = (n) => deniedHunt(predator(0), tracker({ preyInSightTicks: n, huntDeniedTicks: n }), HYENA).suspicion;
+    const low = at(D.huntDeniedTicks);
+    const mid = at(D.huntDeniedTicks * 3);
+    const absurd = at(D.huntDeniedTicks * 500);
+    assert.ok(low < mid, 'more refusals is a stronger case');
+    assert.ok(absurd <= 9, `capped rather than unbounded (${absurd})`);
+    assert.equal(mid, at(D.huntDeniedTicks * 3), 'and it is a pure function of the counters');
+  });
+
+  /**
+   * `autopsy` needs a world only for its carcass scan. These are the two shapes
+   * that scan can return, and nothing else about the world is read on the
+   * starvation path.
+   */
+  const worldWith = (carcass) => ({
+    grid: { queryRadius: () => (carcass ? [carcass.id] : []) },
+    entities: { get: (id) => (carcass && id === carcass.id ? carcass : null) },
+  });
+  const CTX_1D = { facts: FACTS, waterCells: [], waterBySeason: { wet: [], dry: [] } };
+
+  test('⚠⚠ the autopsy actually reaches it — the wiring, not just the detector', () => {
+    // The detector can be right and never called. This is the path the sweep takes.
+    const dead = predator(0, { deathCause: 'starvation', action: 'wander' });
+    const verdict = autopsy(worldWith(null), dead, denied(), CTX_1D);
+    assert.ok(verdict.suspicion >= D.minFlag);
+    assert.match(verdict.reason, /minHungerToHunt/);
+  });
+
+  test('⚠ a lifetime of refusals outranks a carcass somebody else was standing on', () => {
+    // Kleptoparasitism is documented as "not a bug" and scores 1. A carcass held
+    // at the moment of death is a fact about one tick; being refused hunts is a
+    // fact about a whole life, and it is the better explanation when both are
+    // true. ⚠ The order is load-bearing: below this line the hyena deaths score 1
+    // and sink under every other species' findings.
+    const dead = predator(0, { deathCause: 'starvation', x: 20, y: 30 });
+    const held = { id: 77, kind: 'carcass', x: 20.5, y: 30.5, possessorId: 42 };
+    const verdict = autopsy(worldWith(held), dead, denied(), CTX_1D);
+    assert.match(verdict.reason, /minHungerToHunt/);
+    assert.ok(verdict.suspicion > 1);
+  });
+
+  test('⚠ but food it could actually have eaten, two cells away, still outranks it', () => {
+    // An unclaimed carcass within reach is the stronger and more local claim: the
+    // fix for the thing that killed it was *right there* and needed no hunt.
+    const dead = predator(0, { deathCause: 'starvation', x: 20, y: 30 });
+    const free = { id: 78, kind: 'carcass', x: 20.5, y: 30.5, possessorId: null };
+    const verdict = autopsy(worldWith(free), dead, denied(), CTX_1D);
+    assert.match(verdict.reason, /unclaimed carcass/);
+  });
+
+  test('a healthy predator that starved with no refusals behind it scores nothing', () => {
+    // The negative the file header requires of every detector here: a detector
+    // that fires on everything is as useless as one that never fires.
+    const dead = predator(0, { deathCause: 'starvation' });
+    const ordinary = tracker({ preyInSightTicks: 40, huntDeniedTicks: 10, huntAllowedTicks: 30, everPerceivedFood: true });
+    assert.equal(autopsy(worldWith(null), dead, ordinary, CTX_1D).suspicion, 0);
   });
 });

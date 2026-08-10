@@ -657,7 +657,7 @@ Each phase ships with a reproducible off state and its own test, per DOCS §14.
 | **D6** ✅ | Two wetness fields, the `World` swap. **Done 2026-08-09** — the two consumers want *different* fields (§7.3) | no dry map → one field, `setSeason` inert | `test/dry-season.test.js` |
 | **D7** ✅ | `VegetationGrid` two-array pairs, `#seed` split, dry-season knob values. **Done 2026-08-09** — the plain regrows **12 biomass across 16 623 cells** (§7.3) | `vegetation.drySeason.enabled: false` → identical growth, asserted | `test/dry-season.test.js` |
 | **D8** ✅ | `terrainRevision` on the delta, engine memo invalidation, renderer refetch, ethologist water-cell fix. Protocol 39 → 40. **Done 2026-08-10** — §7.4 | a host that omits the field is not treated as permanently stale, asserted | `test/dry-season.test.js`, `test/renderer-store.test.js` |
-| **D9** | Balance pass — see §8 | — | — |
+| **D9** ⏳ | Balance pass — see §8. **Started 2026-08-10**: the first ethologist sweep is run and §7.5 records what it found. Two items opened (**A101**, **A102**), one of them fixed as a symptom; no population knob has been turned yet, so the balance half is still open | — | `test/dry-season.test.js`, `test/ethologist.test.js` |
 
 D1, D2 and D3 are independent and can land in any order. D4 depends on D3; D5–D7
 on D4; D8 on D5.
@@ -897,6 +897,94 @@ count at all.
 D4 added a legend row and a sprite slot, so the ground legend and the sprite panel
 each gained an entry; there are no committed screenshot snapshots, so nothing should
 break, but that is reasoned rather than observed.
+
+### 7.5 D9, first pass: what the ethologist found, and the one it could not
+
+Run 2026-08-10: `npm run ethologist -- --seeds=1,2,3,4,5 --ticks=8000 --top=15`,
+**5m30s** — five worlds, two full years each, the horizon §8 asked for.
+
+⚠⚠ **Lead with the surprise: the largest finding is a mechanical bug, not a
+balance problem, and the second largest was invisible to the instrument.**
+
+**1. The lake core is a pit trap (A101).** §1's own design note — "the impassable
+core survives as the dry season's water" — is a cell that is *impassable when wet
+and passable when dry*. Nothing in D0–D8 asked what happens to an animal standing
+in it when the season turns back. The answer is that it cannot move, for ~2000
+ticks. **30 and 39 animals** caught at one turn on two seeds; **24 and 20** dead
+before the map released them, 21 and 18 by starvation. On seed 3 that accounts for
+**14–17 of the seed's 17 wildebeest starvations**, and it is what the top-ranked
+`movement-denied` anomalies were describing: immobile runs of 1999, 1999, 1985 and
+1884 ticks, all within fifteen ticks of one season.
+
+✅ Fixed as a symptom the same day (`world/stranding.js`, evicting on the turn):
+0 caught, 0 dead, long immobile runs 60 → 12 and 72 → 13. The same 5-seed sweep,
+re-run after (5m28s), with the detector below also live:
+
+| seed | deaths | starvations | anomalies | flagged deaths | wildebeest | hyena |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 138 → 138 | 35 → 35 | 133 → 133 | 1 → **9** | 112 → 112 | 12 → 12 |
+| 2 | 119 → 119 | 20 → 20 | 91 → 91 | 0 → **6** | 125 → 125 | 13 → 13 |
+| 3 | 113 → **101** | 42 → **22** | 131 → **56** | 0 → **11** | 117 → **138** | 6 → 8 |
+| 4 | 117 → 117 | 18 → 18 | 65 → 65 | 0 → **6** | 126 → 126 | 7 → 7 |
+| 5 | 136 → **125** | 36 → **24** | 195 → **118** | 1 → **5** | 117 → **141** | 12 → 8 |
+
+⚠⚠ **Seeds 1, 2 and 4 are byte-identical**, which is the shape of the finding
+rather than a disappointment: the trap fires only where the lake core is both
+large and reachable, so **three of five seeds never had it**. A two-seed reading
+would have missed it entirely, and a two-seed reading of the *fix* would have
+concluded it does nothing. `movement-denied` findings across the sweep: **27 → 12**.
+
+⛔ **The population columns are a different trajectory, not an improvement.**
+Thirty to forty animals released mid-run is a large perturbation and n=1 per seed;
+seed 5's vulture goes 25 → 13 and its leopard 2 → 1 in the same run. Nothing here
+says the world is healthier, only that the mechanical failure is gone.
+
+⬜ The structural fix —
+never let a dry map open a cell the wet map closes; keep the core deep and shrink
+the lake's shallow **ring** instead — is open and is where §8's
+`lakeDeepFraction` lever now points.
+
+⚠ **The check that should have caught it is in this repo and asserts the safe
+direction.** See D60. ⚠ It is also **seed-dependent**: seed 1 runs byte-identically
+before and after the fix, so a two-seed reading would have missed it entirely.
+
+**2. The hyena starves in front of a full prey base (A102)**, and this is the one
+§8 asked for. Starvation is **77–94% of every hyena death**; its own
+`behavior.minHungerToHunt: 0.75` shuts the hunt gate on **84.6–90.6%** of the ticks
+it can see prey, and it is first allowed to hunt with **32.5** of 130 energy left
+against the lion's 209 of 380. ⛔ **Not a dry-season effect** — the deaths split
+wet 10/dry 6, 7/6, 9/7 across three seeds — so it is a pre-existing balance
+question this pass surfaced rather than caused, and the knobs in §8's list do not
+address it.
+
+**3. ⚠⚠ The tool reported none of §2 for five seeds running.** Its carnivore
+starvation autopsy asked "was there a carcass right here" and "did it ever see food
+at all", and a hyena that had watched prey walk past for hundreds of ticks answers
+the second one *yes* — so the leading cause of death in a species scored 0. Fixed:
+detector **1d**, `starved having seen prey on N ticks and been refused by its own
+behavior.minHungerToHunt`, 13 tests and six mutations in `test/ethologist.test.js`.
+Across the five seeds it flags **34 hyena starvations** where the tool previously
+flagged none, at the top of every ranked list (worst 9.0 on four of five seeds) —
+including `#258`, which saw prey on 734 ticks and had the gate open on **zero** of
+them. ⚠ It is not hyena-specific: seed 3's `#236` is a **lion**, refused on 64% of
+779 prey-in-sight ticks by its own 0.45. ⚠ It flags 4–10 of the 17–21 hyena deaths
+per seed, not all of them — the rest fall under `huntDeniedTicks: 150`, which is
+the deliberate bar. **This is the third time A83's rule has been paid for** (D60).
+
+**Also flagged, not investigated:** the vulture goes locally extinct on 2 of 5
+seeds with **100% of its deaths by `age`** — it is not starving, it is failing to
+recruit, and seed 3 carries two `never-saw-a-mate` findings at severity 9.1, the
+highest anomaly in the run. The leopard ends at 0/2/2/2/3 from 3 founders. The
+gazelle falls 30 → 7–13 on three of five seeds, to predation. `wildebeest
+barren-season` fires 4–13 times per seed, which is the arithmetic of Q9's 800-tick
+window against a ~1550-tick adult life rather than obviously a defect — but
+somebody should decide that on purpose.
+
+**What this pass has not established.** No control arm was run against `main`, and
+`ticksPerYear` halved on this branch, so nothing here is attributed to the wet/dry
+work rather than to the world it landed on. No knob has been turned and no
+population claim has been made: `npm run sweep` with a control arm, per §8 step 3,
+is still ahead.
 
 ---
 

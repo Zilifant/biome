@@ -32,6 +32,41 @@ they are not re-opened by accident.
   extinct. Closing it means building a world that demonstrates selection, not
   tuning the existing one.
 
+- **⚠ A101 — A dry map may still open a cell the wet map closes; only the symptom
+  is fixed** _(opened 2026-08-10, found by `npm run ethologist` during
+  SEASON-PLAN D9)_. `#buildDryMap` turns the lake's impassable `LAKE_CORE` into
+  shallow drinkable `WATER` for the dry season — the feature — so animals walk in
+  to drink, and the returning wet season restores `DEEP_WATER` over them.
+  `stepRefused` gates on the destination, so there is no way out: the animal stands
+  still for the ~2000 ticks to the next dry season or starves in the lake. Measured,
+  2 seeds × 8000 ticks: **30 and 39** animals caught at one turn, **24 and 20** dead
+  before the map let go (21 and 18 by starvation), held a mean of ~1490 ticks;
+  **82%/81%** of every immobile run over 200 ticks. On seed 3 that is **14–17 of the
+  seed's 17 wildebeest starvations**. ✅ **Symptom closed the same day** —
+  `evictStranded` (`src/simulation/world/stranding.js`), called by `WeatherSystem`
+  on a season turn, moves stranded animals to the nearest passable cell with room
+  under `locomotion.maxOccupantsPerCell`; after, **0 and 0** caught and long
+  immobile runs **60 → 12** and **72 → 13**. ⬜ **Open is the structural half:** a
+  dry map must never make an impassable cell passable. Keep the core deep all year
+  and shrink the lake's shallow **ring** instead, the way `dryPondAreaScale` already
+  shrinks a pond. See DOCS §1.1 A101 and D60.
+
+- **⚠ A102 — The hyena starves in front of a full prey base, and
+  `behavior.minHungerToHunt` is the number that does it** _(opened 2026-08-10, found
+  by `npm run ethologist` during SEASON-PLAN D9)_. Starvation is **77–94% of every
+  hyena death** across five seeds, against 0–2 for the lion. Prey is in perception
+  on **13.8–16.5%** of hyena-ticks and its own hunger gate is shut on **84.6–90.6%**
+  of those; the post-attempt cooldown accounts for 3.1–4.5% and `minHuntStamina` for
+  0.1–0.4%, so neither is the constraint. A hyena that starves saw prey for 248–366
+  ticks of a ~2200-tick life and had the gate open for **42–68**. The arithmetic: at
+  `minHungerToHunt: 0.75` on `maxEnergy: 130` it is first allowed to hunt with
+  **32.5** energy left, against the lion's **209** at 0.45 on 380 — roughly **280
+  ticks of runway against ~800**. ⚠ The stated reason for 0.75 (0.35 drove gazelle
+  extinct in 7 of 10 seeds) may no longer hold: the gazelle is collapsing anyway,
+  30 → 7–13 on three of five seeds, with **zero** starvation and 33 predation deaths
+  on seed 1. ⛔ **No control arm was run**, so that is a hypothesis. See DOCS §1.1
+  A102.
+
 - **⚠ A66 — Obstacle deflection leaves a residual, and its ecological effect is
   not established.** Three things left open by the A65 fix (DOCS §1.1). (1) Seven
   animals at `rocks=6 thickets=8` are still pinned for 50+ ticks (longest 114,

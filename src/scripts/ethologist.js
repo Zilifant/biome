@@ -22,6 +22,22 @@
  *      reachable water; a starvation on forage; an exposure death beside cover.
  *      "Died of X while the fix for X was right there" is the shape both the
  *      thicket-walled-lake deaths and the corner-lake stalker took.
+ *
+ *      ⚠⚠ **A fifth case joined this family on 2026-08-10 — "starved having been
+ *      refused by its own hunting threshold" — because the family had a hole the
+ *      size of a species.** ⚠ It is a *case of the death autopsy*, not a new
+ *      anomaly kind: it reaches the report through `flaggedDeaths` with a
+ *      suspicion score, the way "died of thirst beside water" does. A 5-seed ×
+ *      8000-tick sweep of the shipped demo killed **13–16 hyenas per seed by
+ *      starvation, 77–94% of every hyena death**, and this tool flagged **zero**
+ *      of them. The carnivore branch asked only "was there a carcass right here"
+ *      and "did it ever see food at all", and a hyena that had watched prey walk
+ *      past for hundreds of ticks answers the second one *yes* — so the largest
+ *      cause of death in a species scored 0 and never reached the report. The
+ *      mechanism it could not see is `behavior.minHungerToHunt`, which is the
+ *      hyena's own declared refusal to hunt until it is three-quarters starving.
+ *      A83's rule, arriving for the third time: **a clean report from a detector
+ *      that cannot see the mechanism is not evidence about the mechanism.**
  *   2. **Unresolved intent / circling.** Not every bug ends in death. An animal
  *      stuck in `seekWater` for scores of ticks without ever getting closer (the
  *      thicket-edge pacing), or one milling in a tight area while genuinely
@@ -245,6 +261,35 @@ const D = Object.freeze({
   // ...over at least this many committed steps, so a juvenile that spent forty
   // ticks wedged behind a rock is not evidence about anything.
   blockedMinCommitted: 300,
+  // --- Starved with prey in sight it was not allowed to chase (2026-08-10,
+  // detector 1d). ⚠⚠ **This tool reported nothing about the largest cause of
+  // death in a species, five seeds running.** A sweep of 5 × 8000 ticks on the
+  // shipped demo killed **13–16 hyenas per seed by starvation — 77–94% of every
+  // hyena death** — and produced **zero** flagged hyena deaths, because the
+  // carnivore branch of `autopsy` asks only two questions ("was there a carcass
+  // right here" and "did it ever see food at all") and a hyena that had watched
+  // prey walk past for hundreds of ticks answers the second one yes. A83 again:
+  // a clean report from a detector that cannot see the mechanism is not evidence
+  // about the mechanism.
+  //
+  // The mechanism it could not see is `behavior.minHungerToHunt` — a predator
+  // will not commit to a hunt until its own hunger is above that bar, so an
+  // animal can spend its life walking past food it is forbidden to take and then
+  // starve. Measured over the same worlds, every living hyena, every tick:
+  // prey was in perception on **13.8–16.5%** of hyena-ticks and the hunger gate
+  // was shut on **84.6–90.6%** of those. The hyenas that starved had a mean of
+  // **248–366** prey-in-sight ticks in a ~2200-tick life and only **42–68** ticks
+  // where the gate was open.
+  //
+  // ⚠ 150 rather than the ~250 typical of the deaths above, so the detector has
+  // headroom below the case it was calibrated on rather than sitting exactly on
+  // it. It is a count of *opportunities refused*, not of ticks lived.
+  huntDeniedTicks: 150,
+  // ...and it must be most of what this animal ever saw. A predator that was
+  // denied 150 chances out of 3000 was not being held back by its threshold; it
+  // was hunting and failing, which is `hunting.captureChance`'s business and a
+  // different finding. ⚠ The starved hyenas ran 0.85–0.91 here.
+  huntDeniedFraction: 0.6,
 });
 
 // ⚠ `hide` belongs here: lying still *is* the behaviour of a concealed neonate
@@ -453,6 +498,13 @@ function speciesFactsOf(world) {
       breedingWindow: window,
       formsGroups: species.groups?.forms === true,
       huntsAnything: (species.preySpeciesIds?.length ?? 0) > 0,
+      // ⚠ The hunger bar this animal's own species sets before it will commit to
+      // a hunt. Every resolved species carries one (`resolveSpecies` merges
+      // `config.behavior` under the species block), so unlike the three weights
+      // below a missing value here means the *tool* is reading a world it does
+      // not understand — hence `null` and a detector that stands down, rather
+      // than a 0 that would read as "no gate" and quietly never fire.
+      minHungerToHunt: typeof species.behavior?.minHungerToHunt === 'number' ? species.behavior.minHungerToHunt : null,
       // --- The behaviour plan's per-species weights (2026-08-06). All three are
       // 0 for most of the roster, and 0 means "this species never has the field
       // written at all" — so a detector reading them must treat 0 as *exempt*
@@ -601,6 +653,14 @@ function autopsy(world, entity, tracker, ctx) {
       if (carcass && !carcass.heldByOther) {
         return { suspicion: 6, reason: `carnivore starved with an unclaimed carcass ${carcass.distance.toFixed(1)}c away; action=${entity.action}` };
       }
+      // ⚠⚠ **Ordered above the kleptoparasitism line deliberately.** A carcass
+      // held by somebody else is a fact about the animal's last tick; a life spent
+      // being refused hunts is a fact about its whole life, and the second is the
+      // better explanation of a death whenever both are true. Below the unclaimed
+      // carcass, though — food it could have eaten, two cells away, outranks food
+      // it was not allowed to chase.
+      const denied = deniedHunt(entity, tracker, facts);
+      if (denied) return denied;
       if (carcass) {
         // Ordinary ecology since §3.9, and worth one line rather than six points:
         // it says "this animal lost a carcass contest", which is a tuning
@@ -715,6 +775,12 @@ function newTracker(tick, entity) {
     blockedRun: 0, //        consecutive blocked ticks right now
     blockedRunMax: 0, //     the longest such run in this life
     crowdLockedTicks: 0, //  ...of which the engine named bodies as the cause
+    // --- Starved with prey in sight (2026-08-10, detector 1d). Three counters
+    // over the same denominator, so the finding can say which of "it never got a
+    // chance" and "it got chances and blew them" actually happened.
+    preyInSightTicks: 0, //  ticks with a prey animal in the perception summary
+    huntDeniedTicks: 0, //   ...of which its own minHungerToHunt shut the gate
+    huntAllowedTicks: 0, //  ...and of which it was hungry enough to commit
     // P7's premise, counted: how long this animal has belonged to a record, and
     // how much of that it spent with any of its own band in the centre it steers
     // at. A member of a band it never once meets is a rally that never worked.
@@ -1026,6 +1092,88 @@ export function accumulateBlocked(tracker, entity, moved, stationaryAction) {
 }
 
 /**
+ * Count one tick of "there was prey in front of it, and was it allowed to go".
+ *
+ * ⚠⚠ **This reads exactly one of the four terms in the engine's `willHunt`, on
+ * purpose, and the finding it feeds must say so.** `DecisionSystem` commits to a
+ * hunt when `prey !== null && !recovering && hunger >= behavior.minHungerToHunt
+ * && entity.stamina > behavior.minHuntStamina`. Restating all four here would be
+ * D11 — two copies of one rule, guaranteed to drift — and would also make the
+ * detector claim something it cannot know, that the animal *would* have caught
+ * the thing. What it can honestly claim is narrower and is the whole point: this
+ * animal's own species-declared hunger threshold refused it a chance it could
+ * see. The other three terms were measured on the calibration worlds and are not
+ * where the refusals are: over 46 000 prey-in-sight hyena-ticks, the post-attempt
+ * cooldown accounted for **3.1–4.5%** and `minHuntStamina` for **0.1–0.4%**,
+ * against **84.6–90.6%** for the hunger bar.
+ *
+ * ⚠ A species with no prey list never accrues anything here, so a grazer and an
+ * obligate scavenger carry three zeroes and the detector cannot reach them.
+ *
+ * @param {object} tracker mutated in place
+ * @param {object} entity
+ * @param {object|null} perception this tick's perception summary
+ * @param {object} facts the species facts record
+ */
+export function accumulateHuntGate(tracker, entity, perception, facts) {
+  if (!facts?.huntsAnything || facts.minHungerToHunt === null) return;
+  if (!perception?.nearestPrey) return;
+  tracker.preyInSightTicks += 1;
+  const { hunger } = needOf(entity);
+  if (hunger >= facts.minHungerToHunt) tracker.huntAllowedTicks += 1;
+  else tracker.huntDeniedTicks += 1;
+}
+
+/**
+ * Starved to death having repeatedly watched prey it was not hungry enough to
+ * chase — detector 1d (2026-08-10), and the one this tool was missing while a
+ * fifth of a species starved in front of it.
+ *
+ * The counterfactual is the same shape as every other autopsy here: *the fix for
+ * the thing that killed it was within reach*. For a carnivore that fix is a
+ * hunt, and `behavior.minHungerToHunt` is what stood between the animal and it.
+ *
+ * ⚠⚠ **Not a tautology, and it is worth being explicit about why**, because "the
+ * gate was shut below the threshold" is true by definition. The finding is a
+ * conjunction with *starvation*: hunger rises monotonically without food, so an
+ * animal that starves necessarily crossed its own bar at some point and was
+ * allowed to hunt at the end. What the counters show is that all its chances came
+ * **earlier**, while it still had reserves — and by the time the threshold let it
+ * go, the prey was no longer in front of it. `huntAllowedTicks` is reported
+ * beside the refusals precisely so the reader can tell that case apart from a
+ * predator that got its chances and could not convert them, which is a capture-odds
+ * finding and not this one.
+ *
+ * ⚠ **A tuning lead, not an invariant.** Unlike family 4, nothing here is
+ * *wrong* — the threshold is doing what it says. The severity is scaled so it
+ * outranks ordinary ecology and sits alongside the other death autopsies rather
+ * than above the corruption detectors.
+ *
+ * @param {object} entity the dead animal
+ * @param {object} tracker its life counters
+ * @param {object} facts the species facts record
+ * @returns {{suspicion: number, reason: string} | null}
+ */
+export function deniedHunt(entity, tracker, facts) {
+  if (!facts?.huntsAnything || facts.minHungerToHunt === null) return null;
+  const seen = tracker.preyInSightTicks;
+  if (seen <= 0) return null;
+  const denied = tracker.huntDeniedTicks;
+  const share = denied / seen;
+  if (denied < D.huntDeniedTicks || share < D.huntDeniedFraction) return null;
+  return {
+    // Capped, like the forage counterfactual: the interesting fact is that it
+    // happened at all, not the exact size of the number.
+    suspicion: 5 + Math.min(4, denied / D.huntDeniedTicks),
+    reason:
+      `starved having seen prey on ${seen} ticks and been refused by its own ` +
+      `behavior.minHungerToHunt (${facts.minHungerToHunt}) on ${denied} of them ` +
+      `(${(share * 100).toFixed(0)}%); the gate was open for only ${tracker.huntAllowedTicks} ` +
+      `prey-in-sight ticks in its whole life; action=${entity.action}`,
+  };
+}
+
+/**
  * Findings that can only be made about a *whole life*, run once per animal — at
  * its death, or at the end of the run for a survivor.
  *
@@ -1279,6 +1427,10 @@ function analyzeRun({ seed, composition, ticks, onProgress }) {
         // summary as prey and threats, which is exactly why a change to that
         // gate silently gates reproduction too.
         if (perc?.mateCandidates?.length > 0) tr.everSawMate = true;
+        // Detector 1d's counters — prey seen, and whether its own hunger gate let
+        // it go. Accumulated per tick because "how many chances did it refuse" is
+        // not a fact any single tick knows, and read once at the autopsy.
+        accumulateHuntGate(tr, e, perc ?? null, facts.get(e.speciesId));
         if (e.action === 'drink') { tr.everDrank = true; tr.lastResolvedTick = tick; }
         if (e.action === 'eat') { tr.lastResolvedTick = tick; }
         // Life review counters.
@@ -1645,4 +1797,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   main();
 }
 
-export { nonFiniteState, commitmentPastCeiling, lifeReview, D, HOLD_ACTIONS };
+export { nonFiniteState, commitmentPastCeiling, lifeReview, autopsy, speciesFactsOf, D, HOLD_ACTIONS };

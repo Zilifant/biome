@@ -155,6 +155,12 @@ export class SimulationEngine {
       vegetationSeed: deriveSeed(this.seed, 'vegetation'),
       vegetation: this.config.vegetation,
       wetness: this.config.wetness,
+      // ⚠ Carried so the world knows its own crowding cap. The one reader is the
+      // season-turn eviction (`world/stranding.js`), which has to place animals
+      // under the same rule the movement system refuses steps by — passing it
+      // through `WeatherSystem`'s constructor instead would mean seven call sites
+      // restating a number the world already owns.
+      locomotion: this.config.locomotion,
       territory: this.config.territory,
       engineering: this.config.engineering,
       groups: this.config.groups,

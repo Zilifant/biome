@@ -28,6 +28,8 @@ import { PHASES as SYSTEM_PHASES } from '../src/simulation/engine/SystemSchedule
 import { buildFullSnapshot, buildDeltaSnapshot } from '../src/protocol/snapshots.js';
 import { RendererStore } from '../src/renderer/app/state/RendererStore.js';
 import { smallDemo } from './helpers/smallDemo.js';
+import { FLAT_TERRAIN } from './helpers/flatTerrain.js';
+import { evictStranded } from '../src/simulation/world/stranding.js';
 
 const CONFIG = new SimulationEngine().config;
 const ENV = CONFIG.environment;
@@ -149,8 +151,20 @@ describe('the dry map: the invariants that make it safe', () => {
   test('⚠⚠ every cell passable in the wet season is passable in the dry one', () => {
     // Drying only ever *adds* connectivity — shallow water becomes a passable bed,
     // deep water becomes passable shallows — so `#ensureConnectivity`'s guarantee
-    // holds on the dry map without running the pass twice, and **no animal can be
-    // stranded by a season change**. That is the claim; this is the check.
+    // holds on the dry map without running the pass twice.
+    //
+    // ⚠⚠ **This comment used to end "and no animal can be stranded by a season
+    // change. That is the claim; this is the check." It was not the check.** This
+    // asserts the *safe* direction. The dangerous one is its converse — a cell the
+    // dry map opens and the wet map closes again — and the lake core is exactly
+    // that: `LAKE_CORE` is `DEEP_WATER` when wet and shallow `WATER` when dry, so
+    // animals walk in to drink and the returning wet season seals them inside.
+    // Measured on the demo before anything was done about it: 30 and 39 animals
+    // caught at one turn on two seeds, 24 and 20 of them dead before the map let
+    // go. The converse now has its own suite below, and the strand has a fix
+    // (`world/stranding.js`) — but the pair is the lesson: **a stated claim and
+    // the assertion under it drifted apart, and the comment was the confident
+    // half.**
     for (const seed of [1, 2, 3, 5, 7]) {
       const grid = watery(seed);
       const wetPassable = [];
@@ -716,5 +730,261 @@ describe('telling a connected viewer that the map changed (D8)', () => {
     store.applyFullSnapshot(base);
     assert.equal(store.terrainRevision, null);
     assert.equal(store.applyDelta(delta).terrainStale, false);
+  });
+});
+
+/**
+ * ⚠⚠ **The converse invariant, and the one the feature actually violates.**
+ *
+ * The suite above proves the dry map never *removes* passability. Nobody checked
+ * whether it *adds* it — and `LAKE_CORE` does exactly that: `DEEP_WATER` and
+ * impassable in the wet season, shallow drinkable `WATER` in the dry one. In a
+ * drained world that core is often the only lake water left, so it pulls thirsty
+ * animals in; then the season turns and every animal in it is standing on a cell
+ * it cannot step off, because `stepRefused` gates on the destination and there is
+ * no destination. It waits ~2000 ticks for the next dry season or it starves.
+ *
+ * Measured on the shipped demo before `world/stranding.js` existed, 2 seeds ×
+ * 8000 ticks: **30 and 39** animals caught at the first `dry→wet` turn, **24 and
+ * 20** dead before the map released them, held a mean of ~1490 ticks; **82% and
+ * 81%** of every immobile run over 200 ticks was an animal standing in wet-season
+ * deep water. After: **0 and 0** caught, 0 dead, and the only animals left over
+ * the core are vultures, which fly.
+ *
+ * ⚠ These are sandbox-tier: a 96×96 world with one lake and nothing else, and
+ * animals placed by hand rather than walked in. The strand is a property of the
+ * terrain and the placement rule, not of the ecology.
+ */
+describe('a season change that closes terrain over an animal', () => {
+  const CAP = CONFIG.locomotion.maxOccupantsPerCell;
+
+  /** A world with one lake big enough to have a deep core, and no other terrain. */
+  function laked(seed = 3) {
+    return new SimulationEngine({
+      seed,
+      config: {
+        world: { width: 96, height: 96 },
+        terrain: { ...FLAT_TERRAIN, lakes: 1, lakeDeepFraction: 0.55 },
+      },
+    });
+  }
+
+  /** Every cell the lake's impassable core occupies. */
+  function coreCells(world) {
+    const found = [];
+    for (let y = 0; y < world.terrain.height; y += 1) {
+      for (let x = 0; x < world.terrain.width; x += 1) {
+        if (world.terrain.waterSourceAt(x, y) === WaterSource.LAKE_CORE) found.push([x, y]);
+      }
+    }
+    return found;
+  }
+
+  function place(engine, cellX, cellY, overrides = {}) {
+    const id = engine.world.entities.queueSpawn({
+      kind: 'animal',
+      speciesId: 'herbivore.gazelle',
+      x: cellX + 0.5,
+      y: cellY + 0.5,
+      heading: 0,
+      lifeStage: 'adult',
+      ...overrides,
+    });
+    engine.applyDeferredEntityChanges(0);
+    return engine.world.entities.get(id);
+  }
+
+  /** How many living animals stand in each cell, keyed `x,y`. */
+  function occupancy(world) {
+    const counts = new Map();
+    for (const entity of world.entities.all()) {
+      if (entity.kind !== 'animal' || !entity.alive) continue;
+      const { cellX, cellY } = world.cellOf(entity.x, entity.y);
+      const key = `${cellX},${cellY}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  test('⚠⚠ the dry map opens cells the wet map closes — the converse the suite above does not cover', () => {
+    // The cause, stated as terrain rather than as behaviour. If this ever stops
+    // being true the eviction below is dead code and should go with it.
+    //
+    // ⚠ The claim is an equality, not "some cell opens": the cells the dry map
+    // opens are **exactly** the lake core, every seed. Rock stays rock, and there
+    // is no other impassable code — so if a second inverting feature is ever added
+    // this fails, which is the point. ⚠ Seed 7's lake is small enough to have no
+    // core at all (0 cells), so the equality is 0 = 0 there and the run needs the
+    // total to prove it measured anything.
+    let opened = 0;
+    for (const seed of [1, 2, 3, 5, 7]) {
+      const grid = watery(seed);
+      const closed = [];
+      for (let y = 0; y < grid.height; y += 1) {
+        for (let x = 0; x < grid.width; x += 1) if (!grid.isPassable(x, y)) closed.push([x, y]);
+      }
+      const core = cellsFrom(grid, WaterSource.LAKE_CORE);
+      grid.setSeason('dry');
+      const nowPassable = closed.filter(([x, y]) => grid.isPassable(x, y));
+      assert.equal(
+        nowPassable.length,
+        core.length,
+        `seed ${seed}: the cells the dry map opens are not exactly the lake core`,
+      );
+      opened += nowPassable.length;
+    }
+    assert.ok(opened > 0, 'no seed in this list has a lake core — the case has stopped being measured');
+  });
+
+  test('an animal the wet season closed over is put back on passable ground', () => {
+    const engine = laked();
+    const world = engine.world;
+    const core = coreCells(world);
+    assert.ok(core.length > 20, `the lake has a core worth standing in (${core.length} cells)`);
+
+    world.setSeason('dry');
+    const [cellX, cellY] = core[Math.floor(core.length / 2)];
+    const animal = place(engine, cellX, cellY);
+    assert.equal(world.isPassableAt(animal.x, animal.y), true, 'it could stand there while the map was drained');
+
+    world.setSeason('wet');
+    assert.equal(world.isPassableAt(animal.x, animal.y), false, 'and the returning water closed over it');
+
+    assert.equal(evictStranded(world), 1);
+    assert.equal(world.isPassableAt(animal.x, animal.y), true, 'now it is somewhere it can walk from');
+  });
+
+  test('⚠⚠ a core empties onto its rim without stacking more than the cap into a cell', () => {
+    // **The reason this is a search rather than a clamp.** A lake core drains onto
+    // the handful of shore cells nearest it, so evicting thirty animals to "the
+    // closest passable cell" would put six or eight of them in one cell — trading
+    // a trap for a jam, against the same `maxOccupantsPerCell` the movement system
+    // would then have to unpick. Each eviction must see the occupancy the ones
+    // before it created.
+    const engine = laked();
+    const world = engine.world;
+    world.setSeason('dry');
+    const core = coreCells(world);
+    const placed = core.slice(0, 30).map(([cellX, cellY]) => place(engine, cellX, cellY));
+    assert.equal(placed.length, 30);
+
+    world.setSeason('wet');
+    assert.equal(evictStranded(world), 30, 'every one of them was stranded and every one was moved');
+
+    for (const animal of placed) {
+      assert.equal(world.isPassableAt(animal.x, animal.y), true, `#${animal.id} is still in the lake`);
+    }
+    for (const [cell, count] of occupancy(world)) {
+      assert.ok(count <= CAP, `cell ${cell} holds ${count} animals against a cap of ${CAP}`);
+    }
+  });
+
+  test('⚠ a flier is left where it is, because it was never stuck', () => {
+    // `flyingFor` puts a flier in the air whenever the cell under it is
+    // impassable, so a vulture over the core can leave under its own power. The
+    // trap probe recorded 704 vulture-ticks in the core and zero vulture deaths
+    // there. Moving one would be a teleport that fixes nothing.
+    const engine = laked();
+    const world = engine.world;
+    world.setSeason('dry');
+    const [cellX, cellY] = coreCells(world)[5];
+    const bird = place(engine, cellX, cellY, { speciesId: 'scavenger.vulture', flying: true });
+    const where = { x: bird.x, y: bird.y };
+
+    world.setSeason('wet');
+    assert.equal(evictStranded(world), 0);
+    assert.deepEqual({ x: bird.x, y: bird.y }, where);
+  });
+
+  test('an animal on ground it can walk from is not touched', () => {
+    const engine = laked();
+    const world = engine.world;
+    // A corner of a `roundness: 0` world with one lake in it is open ground.
+    const animal = place(engine, 2, 2);
+    assert.equal(world.isPassableAt(animal.x, animal.y), true);
+    world.setSeason('dry');
+    world.setSeason('wet');
+    assert.equal(evictStranded(world), 0, 'a season turn is not a reason to move anybody');
+    assert.deepEqual({ x: animal.x, y: animal.y }, { x: 2.5, y: 2.5 });
+  });
+
+  test('⚠ over the cap beats walled in, when there is nowhere with room', () => {
+    // Occupancy gates *entry* to a cell and never departure from it, so an
+    // overfull cell drains on its own within a few ticks — while an animal left in
+    // the water is the bug this exists to fix. So the search prefers room and
+    // accepts a crowd rather than giving up. Forced here with a cap of 1 and every
+    // cell within reach already taken.
+    const engine = laked();
+    const world = engine.world;
+    const core = coreCells(world);
+    // The core's rightmost cell, so its rim is inside a 3-cell scan. Taking the
+    // middle instead would test something else entirely — nothing passable within
+    // reach at all, which is the `null` case, not the crowded one.
+    const [edgeX, edgeY] = core.reduce((best, cell) => (cell[0] > best[0] ? cell : best));
+    const blocked = [];
+    for (let dy = -3; dy <= 3; dy += 1) {
+      for (let dx = -3; dx <= 3; dx += 1) {
+        if (world.isPassableAt(edgeX + dx + 0.5, edgeY + dy + 0.5)) blocked.push(place(engine, edgeX + dx, edgeY + dy));
+      }
+    }
+    assert.ok(blocked.length > 0, 'the scan has somewhere to look, and it is full');
+
+    world.setSeason('dry');
+    const stuck = place(engine, edgeX, edgeY);
+    world.setSeason('wet');
+    assert.equal(world.isPassableAt(stuck.x, stuck.y), false);
+
+    assert.equal(evictStranded(world, 1, 3), 1, 'it got out');
+    assert.equal(world.isPassableAt(stuck.x, stuck.y), true);
+    // ...and it is genuinely sharing, which is what "accepts a crowd" means.
+    const { cellX, cellY } = world.cellOf(stuck.x, stuck.y);
+    assert.ok(
+      blocked.some((other) => {
+        const cell = world.cellOf(other.x, other.y);
+        return cell.cellX === cellX && cell.cellY === cellY;
+      }),
+      'it should have landed on top of a blocker, not found free ground the test meant to remove',
+    );
+  });
+
+  test('two identical worlds evict identically', () => {
+    // No draw is spent here and the scan order is fixed, so this is a property of
+    // the code rather than of the streams — which is what lets the eviction sit in
+    // a tick without `test/determinism.test.js` having anything to say about it.
+    const positions = [3, 3].map((seed) => {
+      const engine = laked(seed);
+      const world = engine.world;
+      world.setSeason('dry');
+      for (const [cellX, cellY] of coreCells(world).slice(0, 20)) place(engine, cellX, cellY);
+      world.setSeason('wet');
+      evictStranded(world);
+      return [...world.entities.all()].map((e) => `${e.id}:${e.x},${e.y}`);
+    });
+    assert.deepEqual(positions[0], positions[1]);
+    assert.ok(positions[0].length === 20);
+  });
+
+  test('⚠⚠ the season turn itself does the evicting — the wiring, not just the function', () => {
+    // The function above can be right and never called. This runs the real
+    // `WeatherSystem` across a genuine `dry→wet` turn, which is the only thing
+    // that proves an animal in a running world is ever looked at.
+    const engine = laked();
+    engine.registerSystem(new WeatherSystem(ENV));
+    const world = engine.world;
+
+    engine.clock.setTick(Math.floor(0.6 * ENV.ticksPerYear));
+    engine.step(1);
+    assert.equal(world.terrain.season, 'dry');
+    const placed = coreCells(world).slice(0, 12).map(([cellX, cellY]) => place(engine, cellX, cellY));
+
+    engine.clock.setTick(ENV.ticksPerYear + 10);
+    engine.step(1);
+    assert.equal(world.terrain.season, 'wet', 'the map filled back in');
+    for (const animal of placed) {
+      assert.equal(world.isPassableAt(animal.x, animal.y), true, `#${animal.id} was left in the lake by the turn`);
+    }
+    for (const [cell, count] of occupancy(world)) {
+      assert.ok(count <= CAP, `cell ${cell} holds ${count} animals against a cap of ${CAP}`);
+    }
   });
 });

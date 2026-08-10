@@ -17,7 +17,8 @@
  * schedule (`spellTicks`), so the weather stream advances on a clock rather
  * than in response to anything that happened in the world.
  *
- * Ownership: writes `world.environment` and nothing else. Emits
+ * Ownership: writes `world.environment`, and — **only on a season turn** —
+ * entity positions, through `evictStranded` (see below). Emits
  * `environment.changed` when the season, the **phase** or the weather turns
  * over — not every tick, since temperature drifts continuously and would flood
  * the log.
@@ -25,6 +26,7 @@
 import { SimulationSystem } from './SimulationSystem.js';
 import { EventTypes } from '../events/EventTypes.js';
 import { describeEnvironment, rollWeather, phaseAt, DEFAULT_ENVIRONMENT_PARAMS } from '../world/Environment.js';
+import { evictStranded } from '../world/stranding.js';
 
 export class WeatherSystem extends SimulationSystem {
   /**
@@ -70,7 +72,25 @@ export class WeatherSystem extends SimulationSystem {
     // terrain. ⚠ This system runs at priority −10 of the `environment` phase, which
     // is the first phase, so the map is settled before anything in the tick reads
     // a cell.
-    world.setSeason(next.season);
+    // ⚠⚠ **The wet season refills the lake core with animals still standing in
+    // it.** The dry map makes `LAKE_CORE` shallow and walkable — that is the
+    // feature — so animals drink there; restoring `DEEP_WATER` then leaves them on
+    // an impassable cell with no way off, for the ~2000 ticks until the next dry
+    // season. Measured before this line: 30 and 39 animals caught per turn on two
+    // demo seeds, 24 and 20 of them dead before the map released them. See
+    // `world/stranding.js` for the whole finding and for why the fix is a
+    // relocation rather than a rule about where animals may walk.
+    //
+    // ⚠ Gated on the turn rather than asserted every tick, and that is a
+    // performance decision with a stated cost: scanning every animal's passability
+    // each tick is a hot-path price for a state that can only be created by a turn.
+    // The one thing it misses is a save written by a *pre-fix* engine, which keeps
+    // its stranded animals until the following season change frees them anyway.
+    //
+    // ⚠ It runs here rather than inside `World.setSeason` because the loader calls
+    // that with the entities restored and the spatial index not yet rebuilt — an
+    // eviction there would query a stale grid. A system runs only on a live world.
+    if (world.setSeason(next.season)) evictStranded(world);
 
     // ⚠ The **phase** turning is announced as well as the season, and it has to
     // be: a season is two phases, so `wetEarly → wetLate` changes what the grass

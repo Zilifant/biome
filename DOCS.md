@@ -152,6 +152,104 @@ The test now asserts what the fixture genuinely shows and claims **no
 direction** — it has not been papered over. Closing this means _building_ a
 world that demonstrates selection, not tuning the existing one.
 
+**⚠ A101 — A dry map may still open a cell the wet map closes, and only the
+symptom is fixed** _(from 2026-08-10, SEASON-PLAN D9)_
+
+`TerrainGrid#buildDryMap` maps `WaterSource.LAKE_CORE` → `WATER`, so the lake's
+impassable deep core becomes shallow, drinkable and walkable for the dry season.
+That is the feature — "the one water an animal cannot reach becomes the only one
+it can" — and in a drained world the core is often the only lake water left, so
+it *pulls animals in*. The wet season then restores `DEEP_WATER` under whoever is
+standing there. `stepRefused` gates on the destination cell, so a stranded animal
+has no way out and no mechanism could ever give it one: it stands still for the
+~2000 ticks until the next dry season, or it starves in the lake.
+
+Measured on the shipped demo, 2 seeds × 8000 ticks, before the fix:
+
+| | seed 3 | seed 5 |
+| --- | ---: | ---: |
+| cells deep when wet, shallow when dry | 429 | 336 |
+| animals caught at the `dry→wet` turn (t4000) | 30 | 39 |
+| deaths while trapped | 24 | 20 |
+| — of them starvation | 21 | 18 |
+| held for (min / mean / max ticks) | 1031 / 1486 / 1985 | 782 / 1499 / 1979 |
+| share of ≥200-tick immobile runs that are this | 82% | 81% |
+
+On seed 3, **14–17 of the seed's 17 wildebeest starvations** are trap deaths
+(species and cause were not cross-tabulated inside the trapped set, hence the
+range). It is also what the ethologist's top `movement-denied` anomalies were
+pointing at without naming: unbroken immobile runs of **1999, 1999, 1985, 1884**
+ticks — a run length within fifteen ticks of exactly one season is the tell.
+
+**Closed as a symptom on 2026-08-10** — `world/stranding.js`'s `evictStranded`,
+called by `WeatherSystem` when `world.setSeason` reports a turn, moves any
+grounded animal on an impassable cell to the nearest passable cell that is not
+already at `locomotion.maxOccupantsPerCell`. After: **0 and 0** animals caught,
+0 deaths, long immobile runs **60 → 12** and **72 → 13**, and the only animals
+left over the core are vultures, which fly and were never stuck. Eight tests in
+`test/dry-season.test.js`, four mutations each failing exactly the test that
+names the behaviour.
+
+⚠⚠ **What is still open is the structural half, and it is the reason this is a
+defect rather than a closed item.** The invariant that should hold is *a dry map
+must never make an impassable cell passable* — the same shape as the one the
+suite already asserts in the safe direction. The honest fix keeps the core
+`DEEP_WATER` all year and shrinks the lake's shallow **ring** instead (the way
+`dryPondAreaScale` already shrinks a pond), so the dry season still has lake water
+to drink and nothing ever opens and re-closes. Until then the engine still creates
+the state every year and `evictStranded` cleans up after it. ⚠ The eviction is also
+a **teleport**: it is gated on the season turn and never runs on load, so a save
+written by a pre-fix engine keeps its stranded animals until the next turn.
+
+⚠ **The test that should have caught this asserted the converse.**
+`test/dry-season.test.js`'s "every cell passable in the wet season is passable in
+the dry one" carried the comment *"and no animal can be stranded by a season
+change. That is the claim; this is the check."* It was not the check — drying only
+ever adds connectivity, so that direction is the safe one. **A stated claim and
+the assertion under it drifted apart, and the comment was the confident half.**
+See D60.
+
+**⚠ A102 — The hyena starves in front of a full prey base, and the number that
+does it is `behavior.minHungerToHunt`** _(from 2026-08-10, SEASON-PLAN D9)_
+
+Not a code defect — the threshold does exactly what it says — but an unbalanced
+number large enough to be the leading cause of death in a species, and it is
+recorded here because the sweep that found it also found that this project's own
+instrument could not see it (D60).
+
+A 5-seed × 8000-tick sweep of the shipped demo: **hyena starvation is 77–94% of
+every hyena death** (16/17, 13/17, 16/19 on the three seeds broken down), against
+0–2 starvations for the lion. Measured over every living hyena, every tick:
+
+| | seed 1 | seed 2 | seed 3 |
+| --- | ---: | ---: | ---: |
+| ticks with prey in perception | 16.5% | 13.8% | 14.5% |
+| **of those, gate open** | **6.1%** | **11.4%** | **7.6%** |
+| of those, blocked by `minHungerToHunt` | **90.6%** | **84.6%** | **87.7%** |
+| of those, blocked by the post-attempt cooldown | 3.1% | 3.6% | 4.5% |
+| of those, blocked by `minHuntStamina` | 0.1% | 0.4% | 0.1% |
+| mean prey-in-sight ticks, hyenas that starved | 304 | 248 | 366 |
+| mean gate-**open** ticks, same animals | **42** | **68** | **46** |
+
+⚠ Stamina and the cooldown are not the constraint and it costs nothing to stop
+looking at them. The gate is, at 85–91% of every chance.
+
+**The arithmetic that makes it a threshold problem rather than a prey problem.**
+The hyena opens its gate at `minHungerToHunt: 0.75` on a `maxEnergy: 130` tank, so
+it has **32.5 energy** left when it is first allowed to hunt; the lion opens at
+0.45 on 380 and has **209**. Against each species' own basal burn that is roughly
+**~280 ticks of runway against ~800** — arithmetic off the config, not measured.
+
+⚠ **The stated reason for 0.75 may no longer hold.** `scavengerHyena.js` records
+that 0.35 drove gazelle extinct in 7 of 10 seeds and that 0.75 was the fix. In this
+sweep the gazelle is collapsing anyway — 30 founders → 13, 7 and 11 at t8000 on
+three of five seeds — and on seed 1 its deaths are **predation 33, age 18,
+starvation 0**. So the gate may be starving the hyena without protecting the
+gazelle. ⛔ **No control arm was run**, so that is a hypothesis, not a result:
+nobody has measured what the gazelle does at a lower gate on *this* world.
+`behavior.minHungerToHunt` is a species field frozen at import, so each value costs
+one process (CLAUDE.md's measurement-sweep rules apply).
+
 **⚠ A66 — Obstacle deflection leaves a residual, and its ecological effect is
 not established** _(from 2026-08-01, A65)_
 
@@ -7342,6 +7440,7 @@ Every one of these cost real time. They are recorded as patterns, not anecdotes.
 | ⚠⚠ D57 | **`dominanceOf` scales with condition, so comparing two animals by body mass alone is wrong wherever their conditions differ systematically.** A carcass-contest weight was derived from lion 180 kg against hyena 60 kg and shipped a cap that could never displace anything: the holder at a kill it made is *full* and the challenger that came to take it is *hungry* — which is why it is there — so the real comparison was ≈49.5 against 180, a ~1.2× term invisible in the masses | **Wherever a contest pairs animals whose condition is correlated with their role, derive the number from `dominanceOf` at realistic conditions rather than from the species table.** Holder-versus-challenger, resident-versus-intruder and fed-versus-starving are all such pairings |
 | ⚠⚠ D58 | **A mechanism whose arms live in a species block cannot be A/B'd from config, and working around it corrupted an edit.** `--set/--controlSet` reach `config`, and a species block *beats* config (§8) — so prey lists, mass ratios and `territory.defends` have no off switch. Measuring them meant swapping species files under running jobs, which lost a write silently: two tests then failed against code that was never on disk, and the first instinct was to debug the tests | **Put every mechanism's switch in a global config section — the rule §8 already states — and treat "can this be measured without editing the tree?" as part of the design.** ⚠ Where biology genuinely must live in a species block, measure the control arm **before** applying the change rather than swapping files; population counts are deterministic in seed and code, so there is no drift to correct for. ⚠ And verify an edit by *running* it, never by re-reading the diff you believe you applied |
 | ⚠⚠ D59 | **The fast tier cannot see the failures a roster change causes, and eight consecutive "green" reports rested on it.** `--test-skip-pattern='(demo\|batch)'` skips exactly the blocks that assert ecological claims; when a phase deliberately overturned one ("a lion never kills a gazelle"), the fast tier stayed green through the whole plan and the stale assertions surfaced only in a full run | **CLAUDE.md's "treat a green fast tier as *not yet done*" is not advice about thoroughness, it is a statement about what that tier structurally cannot observe.** After any change to a species' `preySpeciesIds`, ratios, or weights, run the `demo`/`batch` blocks specifically — they are where the claims about that species live |
+| ⚠⚠ D60 | **A test's comment claimed the invariant; its assertion covered only the safe half of it — and the dangerous half was the one the feature broke.** `test/dry-season.test.js` asserts "every cell passable in the wet season is passable in the dry one" and its comment read *"and no animal can be stranded by a season change. That is the claim; this is the check."* Drying only ever *adds* connectivity, so that direction cannot strand anybody. The converse — a cell the dry map opens and the wet map closes — is the lake core, and it drowned 24 and 20 animals per 8000-tick seed (A101). ⚠ The same run showed the second half of the pattern: `npm run ethologist` reported **zero** flagged hyena deaths across five seeds while starvation was killing **77–94% of every hyena** (A102), because its carnivore autopsy asked "did it ever see food" and a hyena that watched prey walk past for hundreds of ticks answers yes | **Two rules, and they are the same rule.** (1) When a comment states a symmetric claim, check that the assertion is symmetric — write the converse as its own test or delete the half-claim from the comment; a stated invariant and the code under it drift, and the comment is always the confident half (D31's shape, in prose rather than in a fixture). (2) **A83, third occurrence: a clean report from a detector that cannot see the mechanism is not evidence about the mechanism.** A phase that adds a mechanism must extend `src/scripts/ethologist.js` or record that it did not — and "extend" means asking the question the *deaths* raise, not the question the tool already knew how to ask |
 | D4    | Twelve completed steps still read `Status: Not started` until a review caught it                                                                                                                                                                                  | Update the status line, not just the checkboxes                                                                                                                                                                              |
 
 ---
