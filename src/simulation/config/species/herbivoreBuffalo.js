@@ -168,11 +168,51 @@ export const herbivoreBuffalo = Object.freeze({
   // ⚠ This is the middle tier by accident rather than by design — the succession
   // is a three-way one (zebra → wildebeest → gazelle) and both of those arrive in
   // batch 3, where this number is re-tuned alongside the gazelle's.
-  forage: Object.freeze({ preferredBiomass: 8, span: 4 }),
+  //
+  // ⚠⚠ **8 → 13 when the wetland arrived (2026-08-09), and this is a correction
+  // rather than a re-tune.** Wet ground now carries a 1.6× ceiling, so marsh cover
+  // stands at up to 8 × 1.35 × 1.6 ≈ **17 biomass** where the dry plain tops out
+  // near 8. At the old 8 the one-sided falloff put the tall wet sward at the
+  // quality *floor* — the buffalo would have been pushed into the marsh by its
+  // habitat preference and then discounted every cell it found there, which is the
+  // two-halves-disagreeing failure the forage module's own history is made of. 13
+  // with a span of 6 says what a 600 kg bulk grazer means: nothing standing in this
+  // world is too rank to live on. ⚠ It also makes the tall wet sward *effectively
+  // buffalo-only* food, because the other three keep the numbers they were tuned
+  // with (3 / 5 / 9) and all three bottom out well below 17 — which is the
+  // separation this whole wetland split exists to create, arriving through the
+  // succession that was already there rather than through a new mechanism.
+  forage: Object.freeze({ preferredBiomass: 13, span: 6 }),
   // Water-associated open-country grazer. ⚠ It acts through the long-range cue,
   // which this species has because it already carries a `cueRadius` for forage
   // (§3.4) — the reason three of the four earlier species could declare nothing.
-  habitat: Object.freeze({ ground: 1.1, water: 1.35, cover: 0.9, thicket: 0.4 }),
+  //
+  // ⚠ **`cover` and `thicket` moved up with the marsh** (0.9 → 1.15, 0.4 → 0.6).
+  // Those two codes *are* the wetland's tall grass and reed beds
+  // (`TERRAIN-PLAN.md` §2), so the old weights — written for a world where cover
+  // meant a dry scrub patch — would have had this animal's terrain half fighting
+  // its wetness half over the same cells. Thicket stays the lowest weight it
+  // states: a buffalo standing in reeds is real, and a buffalo crossing a stand at
+  // speed 0.1 is not something to encourage.
+  habitat: Object.freeze({ ground: 1.1, water: 1.35, cover: 1.15, thicket: 0.6 }),
+  // ⚠⚠ **The wetland animal of this roster** (2026-08-09). A weight on how *wet*
+  // the ground is (`world/wetness.js`, distance to the nearest water), applied
+  // through the same long-range cue as the terrain weights above and multiplied
+  // into them — see `habitat/habitat.js` for why it is a field beside `habitat`
+  // rather than a key inside it.
+  //
+  // ⚠ **This is a different claim from `water: 1.35`, and the difference is the
+  // point.** The terrain weight can only ask to stand *in* the water; a marsh, a
+  // lake shore and a stream bank are `ground`, `cover` and `thicket` like anywhere
+  // else, and until this field existed nothing in the roster could tell them from
+  // the arid plain twenty cells away. `tracksWater: true` cannot either — that is
+  // thirst, it falls silent the moment the animal has drunk, and where an animal
+  // *lives* is precisely what it chooses when nothing is urgent.
+  //
+  // 1.5 against the grazers' 0.7–0.8: this is the strongest habitat statement in
+  // the roster, because separating the buffalo from the plains grazers is what it
+  // is for.
+  wetPreference: 1.5,
   behavior: Object.freeze({
     // ⚠⚠ **The whole point of this species, and the first declaration of it in the
     // world** (A33, phase 10). Above `fleeWeight` below, or the animal would

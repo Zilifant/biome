@@ -272,6 +272,54 @@ export const defaultSimulationConfig = Object.freeze({
     edgeTaperIrregularity: 0.4, // coastline wobble as a fraction of the band width
     edgeTaperCornerBoost: 1.5, // carve corners back ~1.5 band widths (rounds them)
     edgeTaperMinDimension: 96, // no taper below this size — keeps test sandboxes uniform
+    // Water proximity (2026-08-09, see world/VegetationGrid.js and world/wetness.js).
+    // Grass beside water grows taller; grass far from it grows back slower.
+    // ⚠ Unlike the edge taper above these ship **on**, because they are the
+    // requested behaviour rather than groundwork — and they can afford to,
+    // because both are pure functions of terrain position and spend no draws, so
+    // a seeded world's RNG sequence is bit-for-bit what it was.
+    wetCapacityBonus: 0.6, // ceiling at the water's edge is 1.6× the dry ceiling
+    // ⚠⚠ **0.75 rather than the 0.6 this shipped as for an afternoon, and the
+    // measurement is the reason** (6 seeds × 4000 ticks, small demo, against a
+    // `wetness.enabled: false` control on the same seeds). The dry-growth term
+    // lands almost entirely on **the gazelle**, because it is the species most
+    // confined to the dry plain and the one most dependent on fresh regrowth
+    // (`forage.preferredBiomass: 3` — it eats the flush, not the standing crop):
+    //
+    //     dryGrowthScale   buffalo  zebra  wildebeest  gazelle
+    //     off (control)        103    101         248       80
+    //     0.60                 105    101         247       67   ⚠ −16% gazelle
+    //     0.75                 104    110         249       92
+    //
+    // ⚠ The wet/dry *split* is identical at both values (buffalo 0.90 vs 0.93 mean
+    // wetness, gazelle 0.46 vs 0.45), so 0.6 bought no extra separation and cost a
+    // species 16% of itself — which is DOCS §13's knife-edge warning arriving on
+    // schedule, and the edge taper's "removing a third of the forage halved grazer
+    // carrying capacity" in miniature. A quarter slower is still plainly slower.
+    dryGrowthScale: 0.75, // out on the dry plain, regrowth runs at 75% speed
+  }),
+  // How wet the ground is, as a static distance-to-water field (2026-08-09).
+  // See `world/wetness.js`: one flood at world construction, two consumers (the
+  // vegetation ceiling/rate above, and the habitat cue's wet-versus-dry axis).
+  //
+  // ⚠ Its own section rather than a corner of `vegetation`, because the *shape of
+  // the field* is a fact about the world and the *response to it* is a fact about
+  // grass — and a species' `wetPreference` reads the field without going anywhere
+  // near the vegetation config. Same split as `terrain` beside `vegetation`.
+  //
+  // ⚠⚠ A world with no water has no wetness field at all, which is what keeps
+  // every `FLAT_TERRAIN` sandbox in the suite exactly unaffected.
+  wetness: Object.freeze({
+    enabled: true, // false = no field, so both consumers are inert (the control)
+    // "Within 2–3 tiles of water", which is how the behaviour was asked for. At 3
+    // the fully-wet band covers the whole of a marsh (it is 30% pools), the lake
+    // shore, and a strip about 9 cells across around a 3-cell stream.
+    fullDistance: 3,
+    // How far the wetland gradient reaches before the ground is simply dry. Set
+    // against the grazers' `migration.cueRadius` of 18–20: a cue that cannot see
+    // from one end of the gradient to the other cannot climb it, which is the
+    // trap habitat/habitat.js records for `cueRadius: 0`.
+    range: 18,
   }),
   events: Object.freeze({
     maxBufferedEvents: 5000,

@@ -171,6 +171,23 @@ export const herbivoreGazelle = Object.freeze({
   // is birth-site selection — a female near term wanting cover — which is a
   // preference that changes with state, and this field cannot express one.
   habitat: Object.freeze({ ground: 1.15, cover: 0.8, water: 0.9, thicket: 0.3 }),
+  // ⚠ **The dry half of the wetland split** (2026-08-09; see `habitat/habitat.js`,
+  // and the buffalo file for the wet half). Below 1, so the same cue that pulls a
+  // buffalo toward the marsh pushes this animal continuously *down* the wetness
+  // gradient toward the arid plain — not merely out of the water, which
+  // `water: 0.9` already said, but out of the damp country around it.
+  //
+  // ⚠ **It needs no forage change to mean "shorter grass", and that is the whole
+  // economy of the design.** Wet ground now grows a taller sward (a 1.6× ceiling),
+  // and `forage.preferredBiomass: 3` is the tightest tolerance of coarse growth in
+  // the roster — so the flush this animal already wanted is, from 2026-08-09,
+  // found out on the dry plain. The habitat cue and the forage cue point the same
+  // way for the first time, rather than being two separately tuned opinions.
+  //
+  // 0.7 rather than something sharper: the falloff is a *discount on a
+  // preference*, and a gazelle driven off every damp cell in a drought would be
+  // exactly the cliff §3.3's two-sided window was rejected for.
+  wetPreference: 0.7,
   // ⚠ **Heterospecific association** (§3.16, phase 12), and the first declaration
   // of it in this world — the mechanism shipped inert one phase ago waiting for
   // exactly these two species. A gazelle stands with wildebeest and zebra for

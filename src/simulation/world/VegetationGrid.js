@@ -35,6 +35,28 @@ export const DEFAULT_VEGETATION_PARAMS = Object.freeze({
   edgeTaperIrregularity: 0.4, // coastline wobble, as a fraction of the band width
   edgeTaperCornerBoost: 1.5, // extra corner-rounding radius (× band width); 0 = square corners
   edgeTaperMinDimension: 96, // maps smaller than this get no taper (keeps test sandboxes untouched)
+  // ⚠ **Water proximity — the two halves of "wet ground grows better"**
+  // (2026-08-09). Both read the same static wetness field (`world/wetness.js`),
+  // and they are deliberately *different* levers rather than one:
+  //
+  //   `wetCapacityBonus`  scales the **ceiling**, so grass beside water grows
+  //                       TALLER. Standing crop is grass height (see the note on
+  //                       `biomassAt`), so this is the only way to say "tall
+  //                       grass" in this engine, and it is what the forage guild
+  //                       reads to tell a bulk feeder from a short-grass grazer.
+  //   `dryGrowthScale`    scales the **rate**, so grass far from water grows
+  //                       SLOWER — the same height eventually, but a grazed dry
+  //                       patch takes far longer to come back, which is what
+  //                       makes the arid part of the map support fewer animals
+  //                       without making it look barren.
+  //
+  // ⚠ Season already taught this distinction the hard way and in the other
+  // direction: scaling the rate alone moved total biomass 91k↔96k across a year
+  // because logistic growth toward a fixed ceiling simply stops. That is the
+  // reason "taller" is a capacity term here rather than a rate one, and why the
+  // rate term is only asked to model *recovery*, which is the one thing it can do.
+  wetCapacityBonus: 0.6, // ceiling at wetness 1 is (1 + this) × the dry ceiling
+  dryGrowthScale: 0.75, // regrowth rate at wetness 0, as a fraction of the wet rate
 });
 
 /**
@@ -155,6 +177,8 @@ export class VegetationGrid {
   #biomass;
   /** @type {Float32Array} static per-cell carrying capacity (0 where unsuitable) */
   #capacityPerCell;
+  /** @type {Float32Array | null} static per-cell growth-rate multiplier, null when uniform */
+  #growthScalePerCell;
   #capacity;
   #maxLevel;
   #revision = 0;
@@ -164,8 +188,11 @@ export class VegetationGrid {
    * @param {import('./TerrainGrid.js').TerrainGrid} options.terrain
    * @param {number} options.seed deterministic vegetation seed
    * @param {object} [options.params]
+   * @param {Float32Array | null} [options.wetness] per-cell wetness in [0,1], from
+   *   `world/wetness.js`. Omitted or null → the water-proximity terms are inert,
+   *   which is also what a waterless world produces.
    */
-  constructor({ terrain, seed, params = {} }) {
+  constructor({ terrain, seed, params = {}, wetness = null }) {
     const merged = { ...DEFAULT_VEGETATION_PARAMS, ...params };
     this.#width = terrain.width;
     this.#height = terrain.height;
@@ -174,10 +201,20 @@ export class VegetationGrid {
     const total = this.#width * this.#height;
     this.#biomass = new Float32Array(total);
     this.#capacityPerCell = new Float32Array(total);
+    // ⚠ The dry-growth term is precomputed into its own array rather than derived
+    // from wetness inside `grow`, because `grow` is the largest cell loop in the
+    // simulation (invariant 16) and the arithmetic is the same every time it runs.
+    // Null — not an array of ones — when there is nothing to scale, so a world
+    // without water pays not even the array read.
+    const dryScale = merged.dryGrowthScale ?? 1;
+    this.#growthScalePerCell =
+      wetness !== null && dryScale !== 1
+        ? Float32Array.from(wetness, (w) => dryScale + (1 - dryScale) * w)
+        : null;
     // Built from a dedicated stream so its noise never shifts the per-cell
     // fertility/biomass draws below; null when disabled or the map is too small.
     const taper = buildEdgeTaper({ width: this.#width, height: this.#height, seed, params: merged });
-    this.#seed(new SeededRandom(seed), terrain, merged, taper);
+    this.#seed(new SeededRandom(seed), terrain, merged, taper, wetness);
   }
 
   get width() {
@@ -214,15 +251,30 @@ export class VegetationGrid {
    * The taper multiplies the *stored* capacity but not the draw decision. Initial
    * biomass is clamped to the tapered capacity so an edge cell never starts above
    * what it can sustain.
+   *
+   * ⚠ **Wetness multiplies the stored capacity too, and the initial biomass is
+   * deliberately left on the dry scale** — a wet cell starts at the same standing
+   * crop as a dry one and *grows* to be tall over the first few hundred ticks.
+   * Seeding it tall instead would have been a free gift of biomass at tick 0 and,
+   * worse, would have hidden the mechanism: the whole claim is that grass beside
+   * water gets taller, which is a thing that has to happen rather than a thing the
+   * map is born with.
+   *
+   * ⚠ Neither multiplier touches the **draws**. Both are pure functions of terrain
+   * position, so every seeded world spends exactly the RNG sequence it always did
+   * — which is what lets this ship on without moving a single other system.
    */
-  #seed(random, terrain, params, taper) {
+  #seed(random, terrain, params, taper, wetness) {
+    const wetBonus = params.wetCapacityBonus ?? 0;
+    const wet = wetness !== null && wetBonus !== 0 ? wetness : null;
     for (let y = 0; y < this.#height; y += 1) {
       for (let x = 0; x < this.#width; x += 1) {
         const i = this.#index(x, y);
         const suitability = suitabilityFor(terrain.codeAt(x, y), params.coverSuitability);
         const fertility = random.float(params.minFertility, 1);
         const baseCapacity = suitability > 0 ? this.#capacity * suitability * fertility : 0;
-        const capacity = taper !== null && baseCapacity > 0 ? baseCapacity * taper(x, y) : baseCapacity;
+        let capacity = taper !== null && baseCapacity > 0 ? baseCapacity * taper(x, y) : baseCapacity;
+        if (wet !== null && capacity > 0) capacity *= 1 + wetBonus * wet[i];
         this.#capacityPerCell[i] = capacity;
         const initialBiomass = random.float(0, params.initialFraction);
         this.#biomass[i] = baseCapacity > 0 ? Math.min(capacity, baseCapacity * initialBiomass) : 0;
@@ -249,6 +301,16 @@ export class VegetationGrid {
   capacityAt(cellX, cellY) {
     if (!this.#inBounds(cellX, cellY)) return 0;
     return this.#capacityPerCell[this.#index(cellX, cellY)];
+  }
+
+  /**
+   * Static regrowth-rate multiplier at a cell — 1 on wet ground and on every cell
+   * of a world where the term is inert, `dryGrowthScale` out on the dry plain.
+   * Exists so the mechanism is assertable without reaching into the field.
+   */
+  growthScaleAt(cellX, cellY) {
+    if (this.#growthScalePerCell === null || !this.#inBounds(cellX, cellY)) return 1;
+    return this.#growthScalePerCell[this.#index(cellX, cellY)];
   }
 
   /**
@@ -285,6 +347,14 @@ export class VegetationGrid {
    * @param {number} [params.diebackRate] how fast biomass above the ceiling falls
    */
   grow({ growthRate, seedFloor, capacityScale = 1, diebackRate = 0.04 }) {
+    // Per-cell regrowth rate (2026-08-09): dry ground comes back slowly. Null when
+    // the world has no water or the term is off, in which case the ternary below
+    // is the only cost and the loop is arithmetically what it always was.
+    // ⚠ Dieback is deliberately NOT scaled — how fast the season browns a field
+    // off is a property of the season, not of the ground it stands on, and
+    // scaling both would have made dry cells simply slower to change in either
+    // direction rather than harder to make a living on.
+    const scales = this.#growthScalePerCell;
     for (let i = 0; i < this.#biomass.length; i += 1) {
       const fullCapacity = this.#capacityPerCell[i];
       if (fullCapacity <= 0) {
@@ -302,7 +372,8 @@ export class VegetationGrid {
         continue;
       }
       if (capacity <= 0 || biomass >= capacity) continue;
-      const next = biomass + growthRate * (biomass + seedFloor) * (1 - biomass / capacity);
+      const rate = scales === null ? growthRate : growthRate * scales[i];
+      const next = biomass + rate * (biomass + seedFloor) * (1 - biomass / capacity);
       this.#biomass[i] = Math.min(capacity, next);
     }
     this.#revision += 1;

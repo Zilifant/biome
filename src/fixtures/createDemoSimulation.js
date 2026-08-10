@@ -144,6 +144,11 @@ export function registerDemoSystems(engine) {
         habitatPreference: engine.config.habitat.enabled,
         habitatBiasWeight: engine.config.habitat.biasWeight,
         habitatCueReference: engine.config.habitat.cueReference,
+        // The wet-versus-dry axis of the habitat cue (2026-08-09). Its switch is
+        // `config.wetness.enabled`, the same one that decides whether the field
+        // exists at all — so turning wetness off restores the pre-wetland world in
+        // one place rather than two, for the vegetation and the animals alike.
+        wetnessPreference: engine.config.wetness.enabled,
       }),
     );
   }

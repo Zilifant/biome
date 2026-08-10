@@ -124,6 +124,14 @@ export const herbivoreWildebeest = Object.freeze({
   // Open plain, more strongly than the gazelle: this is a species of the short-grass
   // plains and it wants nothing to do with cover.
   habitat: Object.freeze({ ground: 1.2, cover: 0.7, water: 1.05, thicket: 0.3 }),
+  // ⚠ **Dry, and the most strongly so of the three plains grazers** (2026-08-09;
+  // the wet half is the buffalo's file, the mechanism is `habitat/habitat.js`).
+  // This is the short-grass-plains species — `habitat.ground: 1.2` is already the
+  // highest open-ground weight in the roster and `cover: 0.7` the lowest — so the
+  // wetness axis says the same thing on the axis the terrain codes cannot reach.
+  // `water: 1.05` stays: it still drinks, and a bearing to the lake is not a wish
+  // to live beside it.
+  wetPreference: 0.7,
   // ⚠ **The second association declared in this world** (BEHAVIOR-PLAN P3), and the
   // one the succession above implies: the zebra opens the tall coarse sward and
   // this animal takes the regrowth behind it (`forage.preferredBiomass` 9 → 5), so

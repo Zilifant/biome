@@ -100,3 +100,51 @@ export function habitatWeightForCode(code, weights) {
   const weight = weights[NAME_BY_CODE[code]];
   return typeof weight === 'number' ? weight : NEUTRAL_WEIGHT;
 }
+
+/**
+ * **Wet ground or dry** — the second axis of habitat preference (2026-08-09).
+ *
+ * A terrain weight can only say "on the water" or "not on the water", and the
+ * ground an animal actually chooses between is neither: a marsh, a lake shore and
+ * a stream bank are all *ground*, and so is the arid plain twenty cells away. The
+ * distinction the roster needs — a buffalo in the wetland, a gazelle out on the
+ * short-grass plain — is a gradient over the same terrain code, which is exactly
+ * what `world.wetnessAt` is.
+ *
+ * ⚠⚠ **A field beside `habitat`, not a key inside it**, and this is the
+ * `associationPull` rule (schema.js) applying a second time for the same reason:
+ * `habitat` is read as a flat map keyed by **the terrain legend's own names**, so
+ * a `wetness` key in it would be a non-terrain entry in a terrain-keyed map —
+ * silently accepted by `habitatWeightForCode`, silently ignored, and impossible to
+ * tell from a typo'd terrain name.
+ *
+ * @param {{wetPreference?: number}} [species]
+ * @returns {number} 1 when the species states nothing — exactly neutral
+ */
+export function wetPreferenceOf(species) {
+  const preference = species?.wetPreference;
+  return typeof preference === 'number' && preference >= 0 ? preference : NEUTRAL_WEIGHT;
+}
+
+/**
+ * The habitat weight of a cell's *wetness*, as a multiplier on its terrain weight.
+ *
+ * **Interpolated by wetness rather than applied as a step**, so the preference is
+ * a gradient the cue can climb: at wetness 0 (the dry plain) it is exactly 1
+ * whatever the species says, and at wetness 1 (in the marsh, on the shore) it is
+ * the full `wetPreference`. A dry-country animal therefore does not merely avoid
+ * the marsh — it is pushed *down* the gradient continuously, which is what turns a
+ * preference into movement across a landscape rather than a fence around one.
+ *
+ * ⚠ It **multiplies** the terrain weight rather than being averaged with it, so
+ * the two axes compose without either needing to know the other's scale: a buffalo
+ * that likes water (terrain) and likes wet ground (this) wants a marsh pool more
+ * than either fact alone says, which is right.
+ *
+ * @param {number} wetness `world.wetnessAt` for the cell, in [0, 1]
+ * @param {number} preference the species' `wetPreference`
+ * @returns {number}
+ */
+export function wetnessWeight(wetness, preference) {
+  return NEUTRAL_WEIGHT + (preference - NEUTRAL_WEIGHT) * wetness;
+}

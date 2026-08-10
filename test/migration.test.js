@@ -400,7 +400,18 @@ describe('migration: what steers a wander', () => {
       // One lake, nothing else, so the wander has water and only water to follow.
       config: { world: { width: 64, height: 64 }, terrain: { ...FLAT_TERRAIN, lakes: 1 } },
     });
-    engine.registerSystem(new MigrationSystem({ ...CONFIG.migration, updateInterval: 1 }));
+    // ⚠ **The isolation this test claims in its first line, stated rather than
+    // assumed** (2026-08-09). "No forage" was spelled out below and "no habitat"
+    // never was — it was merely true, because the gazelle's terrain weights are
+    // silent out of sight of the shore. Putting a lake in a world now also puts a
+    // *wetness gradient* around it reaching `wetness.range` cells inland, and the
+    // gazelle prefers dry ground (`wetPreference: 0.7`), so a sated animal parked
+    // well away from the water is legitimately pulled further away from it. That
+    // is the wetland mechanism working; it is not the water cue, which is what
+    // this test is about, so both habitat axes are switched off here.
+    engine.registerSystem(
+      new MigrationSystem({ ...CONFIG.migration, updateInterval: 1, habitatPreference: false, wetnessPreference: false }),
+    );
     clearVegetation(engine); // no forage signal at all
     const world = engine.world;
 

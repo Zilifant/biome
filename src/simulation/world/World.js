@@ -9,6 +9,7 @@ import { FeatureGrid } from './FeatureGrid.js';
 import { SpeciesRegistry } from '../config/species/schema.js';
 import { GroupRegistry } from './GroupRegistry.js';
 import { speedScaleAt as featureSpeedScaleAt, sheltersAt } from '../engineering/features.js';
+import { buildWetnessField } from './wetness.js';
 
 /**
  * The world aggregates entity storage, the spatial index, the static terrain
@@ -58,11 +59,22 @@ export class World {
       worldHeight: config.height,
       params: config.territory ?? {},
     });
+    // How wet each cell is, from its distance to the nearest water (2026-08-09).
+    // Built here rather than inside either consumer because there are two of
+    // them — the vegetation field grows taller and faster on wet ground, and a
+    // species' habitat cue can prefer wet ground or dry — and one O(cells) flood
+    // at construction should not become two. Static, terrain-derived, and
+    // therefore never serialized: it rebuilds from the regenerated terrain on
+    // load, exactly like `_waterField` below. Null on a waterless world, which
+    // every consumer reads as "no effect" (see `wetness.js`).
+    /** @type {Float32Array | null} */
+    this.wetness = buildWetnessField(this.terrain, config.wetness ?? {});
     // Vegetation suitability is derived from terrain, so terrain comes first.
     this.vegetation = new VegetationGrid({
       terrain: this.terrain,
       seed: (config.vegetationSeed ?? 0) >>> 0,
       params: config.vegetation ?? {},
+      wetness: this.wetness,
     });
     // Transient per-entity perception summaries, rebuilt each tick by the
     // perception system. Derived state — never serialized (like the spatial
@@ -351,6 +363,27 @@ export class World {
     const dx = sx + 0.5 - x;
     const dy = field.srcY[i] + 0.5 - y;
     return { heading: Math.atan2(dy, dx), distance: Math.hypot(dx, dy) };
+  }
+
+  /**
+   * How wet a cell is, 1 at the water's edge down to 0 out on the dry plain, and
+   * **exactly 0 everywhere in a world with no water** (2026-08-09).
+   *
+   * A chokepoint in the sense §7 means: the one place anything asks "how near
+   * water is this", so a future reader — a wallow, a mosquito-borne disease, a
+   * species that only breeds in wetland — needs no second field and no second
+   * flood. Its two readers today are the vegetation field (built with the array
+   * directly, since it walks every cell in order) and `habitatGradient`.
+   *
+   * @param {number} cellX @param {number} cellY
+   * @returns {number} wetness in [0, 1]
+   */
+  wetnessAt(cellX, cellY) {
+    const field = this.wetness;
+    if (field === null) return 0;
+    const width = this.terrain.width;
+    if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= this.terrain.height) return 0;
+    return field[cellY * width + cellX];
   }
 
   /** @param {number} x */

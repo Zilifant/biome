@@ -55,7 +55,7 @@ import { EventTypes } from '../events/EventTypes.js';
 import { blendHeadings, forageGradient, habitatGradient, isDispersing, migrationOf } from '../migration/migration.js';
 import { territoryOf } from './TerritorySystem.js';
 import { forageOf } from '../habitat/forage.js';
-import { habitatOf } from '../habitat/habitat.js';
+import { NEUTRAL_WEIGHT, habitatOf, wetPreferenceOf } from '../habitat/habitat.js';
 
 export class MigrationSystem extends SimulationSystem {
   /**
@@ -80,6 +80,11 @@ export class MigrationSystem extends SimulationSystem {
     habitatPreference = true,
     habitatBiasWeight = 0.35,
     habitatCueReference = 0.3,
+    // Wet-versus-dry ground (2026-08-09), the second axis of the same cue and its
+    // own world-level switch, for the same reason the two above have one: the
+    // measurable control for "the roster now splits across the wetland" is a run
+    // with `wetness.enabled: false`, and that switch cannot live in a species block.
+    wetnessPreference = true,
     updateInterval = 10,
   } = {}) {
     super({ id: 'migration', phase: 'decision', priority: -5, updateInterval });
@@ -92,6 +97,7 @@ export class MigrationSystem extends SimulationSystem {
     this.habitatPreference = habitatPreference;
     this.habitatBiasWeight = habitatBiasWeight;
     this.habitatCueReference = habitatCueReference;
+    this.wetnessPreference = wetnessPreference;
   }
 
   update(world, context) {
@@ -166,13 +172,21 @@ export class MigrationSystem extends SimulationSystem {
         // if they declared one, would have nowhere to act — stated in
         // `habitat/habitat.js` rather than left to be discovered.
         const weights = this.habitatPreference ? habitatOf(resolved) : null;
+        // ⚠ Wet-versus-dry is a *second* axis of the same cue, and it is gated
+        // separately: `habitat.enabled: false` still leaves the terrain half off
+        // while this one can be off on its own, which is the control the wetland
+        // work needs. A species stating neither is skipped entirely, exactly as
+        // before — `NEUTRAL_WEIGHT` here means "reads no wetness at all", not
+        // "reads it and shrugs".
+        const wetPreference = this.wetnessPreference ? wetPreferenceOf(resolved) : NEUTRAL_WEIGHT;
         const habitat =
-          weights === null
+          weights === null && wetPreference === NEUTRAL_WEIGHT
             ? null
             : habitatGradient(world, entity, {
                 cueRadius: species.cueRadius,
                 reference: this.habitatCueReference,
                 weights,
+                wetPreference,
               });
         const habitatStrength = habitat ? habitat.strength * this.habitatBiasWeight : 0;
 

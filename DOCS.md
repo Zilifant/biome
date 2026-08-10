@@ -98,7 +98,7 @@ npm run sweep -- --set=forage.enabled=true --controlSet=forage.enabled=false  # 
 | Demo world            | **`default-small`** _(2026-08-07)_ — 230×180, `terrain.roundness: 4`, terrain formation counts 18/18/24/180, and a **263-animal roster** (gazelle 30, wildebeest 100, zebra 50, buffalo 50, leopard 3, lion 5, vulture 5, hyena 20). ⚠ **One world for everything**: the server boots it, `npm run benchmark`'s `demo-default` scenario measures it, `npm run ethologist` sweeps it, and every test calling `createDemoSimulation()` gets it. The server's `SIM_SEED` default is **4** (the seed the preset names); everything else still builds on seed 42, sharing the *composition* and deliberately not the seed. Booting the demo and loading `presets/default-small.json` are byte-identical at 50 ticks. Terrain mix, 5 seeds: ground 66.3%, rock 23.9%, tree 2.61%, cover 2.57%, thicket 2.20%, water 1.59%, deep water 0.77%. ✅⚠ **Swept 2026-08-07 (PREDATOR-PLAN P8), 10 seeds × 15 000 ticks — the first §20 gate this world has had.** Seven species clear the ≥6/10 bar and the **leopard does not, at 4/10, mean 1.6** (**A91**: the cause is `never-saw-a-mate`, not competition). Means at t15000: buffalo 69.4 (10/10), zebra 88.7 (10/10), wildebeest 98.7 (10/10), gazelle 25.2 (8/10), **lion 9.5 (10/10, grown from 5 founders)**, hyena 11.2 (10/10), vulture 21.0 (6/10, range 0–75 — bimodal, it either takes off or dies out), leopard 1.6 (4/10). Carrion split: lion 45.7%, hyena 37.6%, vulture 9.5%, leopard 7.3%. Persistent groups: peak 27 concurrent, 636 founded / 96 dissolved. ⚠⚠ **Seed 1 of those ten is a drought world** (**A93**: 13 water cells against 712–1085 elsewhere), so it drags every mean and accounts for one of the two gazelle extinctions. ⚠ There is **no pre-plan baseline on this world**, so the sweep cannot attribute the leopard's 4/10 to PREDATOR-PLAN rather than to the world change that preceded it. The paragraph that follows was written before this sweep and its warning still holds for every *older* reading quoted in this document: ⚠⚠ **the crater's readings do not transfer** — the map is 0.37× the area against 0.53× the headcount (density up ~1.4×), the terrain is denser again, and three counts moved *against* the trend (hyena 9 → 20, vulture held at 5 while every grazer fell). The crater sweep's headline was that the leopard and vulture were effectively gone; every input to it has moved. `npm run sweep` on ten seeds is the reading to take, and A81's doctrine still holds — it is a reading to record, not a bar to pass. ⚠ Two structural facts of this roster, both asserted in `test/cohorts.test.js`: **every lion in the world is founded into one pride** (PREDATOR-PLAN P1, 2026-08-07 — `cohort.groupSize` exceeds any roster, so there is one cluster and no remainder; it read "5 lions at `cohort.groupSize: 4` found one pride and strand a fifth animal" until then), and **the hyena's 20 found two clans of ten** (PREDATOR-PLAN P2, 2026-08-07 — clan size is now solved from the founder count, `clusters = clamp(round(count / 10), 1, 5)`, and the clans are pushed 60 units apart; it read "the hyena's 20 leave a remainder pair that starts on the dissolve-grace clock" until then, and there is no remainder now). Was `ngorongoro-500-10x` _(2026-08-04 – 2026-08-07)_ — 332×280 and ~500 animals at the real caldera's herbivore ratios (gazelle 60, wildebeest 219, zebra 97, buffalo 97, leopard 3, lion 10, vulture 5, hyena 9), swept 10 × 15 000 with the four grazers and the lion on **10/10** seeds, the hyena on 7/10 and the **leopard and vulture on 1/10**. Was 160×120 with 222 animals (gazelle 120, leopard 8, vulture 10, hyena 6, buffalo 35, lion 8, wildebeest 30, zebra 15), a swept knife edge. Survival readings elsewhere in this document describe one of those two worlds, never this one |
 | Terrain prevalence    | ⚠⚠ **The 0–10 `rocks`/`thickets`/`trees` scale was pinned to fixed formation counts on 2026-08-07** (`FORMATION_COUNT_AT_DEFAULT` in `src/fixtures/createDemoSimulation.js`): level 4 is 10 ridges / 10 thickets / 16 groves / 120 singles, permanently. It used to be *derived* from `defaultSimulationConfig.terrain`, which made "level 4 reproduces the demo's own terrain" true by construction — but that rule and "a stored preset keeps the terrain it was saved with" are only compatible while the demo's four counts move by one uniform factor. They did in 2026-08-04's doubling (and the anchor moved 2 → 4 with them); `default-small` moved rock and thicket ×1.8 and the tree counts ×1.5, so no anchor could absorb both. The demo-equality rule was dropped in favour of the fixed scale, because a scale whose units shift under stored files measures nothing. ⚠ **Consequence**: the demo's own terrain is level **7/7/6**, not the dropdowns' default, so restarting from the renderer with the terrain controls untouched gives a sparser world than the one that booted. `test/runner.test.js` asserts the fixed mapping against literals — deliberately, since the claim is now that these values *do not move* |
 | Species               | **8** (gazelle, wildebeest, zebra, buffalo, **leopard**, lion, vulture, hyena) — all pure config, spanning **6 kg to 600 kg**. ⚠ Batch 3 (2026-07-30) added **no engine code at all**: two species files, four config lines, and three edits to existing species' data |
-| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **fifteen** always-per-species **fields**: `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`, `forage`, `habitat`, `association`, `associationPull` (2026-08-05), `crypsis`, `climbs`, `flight`, `cohort`, and `initialEnergyFraction`. ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all fifteen fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association` / `associationPull`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
+| Species blocks        | **12** — `feeding`, `hunting`, `behavior`, `predation` joined 2026-07-28. Plus **sixteen** always-per-species **fields**: `matePreference`, `territory`, `migration`, `diet`, `preySpeciesIds`, `groups`, `forage`, `habitat`, `wetPreference` (2026-08-09), `association`, `associationPull` (2026-08-05), `crypsis`, `climbs`, `flight`, `cohort`, and `initialEnergyFraction`. ⚠ `flight` is an object and therefore *looks* like a block; it is a field, because the test is not "is it an object" but **"does the section hold a switch"** — `config.flight.enabled` could not be switched off by a species that declared a block. ⚠ **Eight of the twelve blocks and all sixteen fields are used by a shipped species**: the hyena was first to use `predation` and `groups`, the gazelle `aging.hiddenUntil` / `forage` / `habitat` / `association` / `associationPull`, the lion `hunting.cooperationWeight`, the buffalo `behavior.mobWeight` and `wetPreference`, the wildebeest `reproduction.breedingWindow`, the **leopard `crypsis`** (phase 14) and **`climbs`** (phase T3), and the **vulture `flight`** (phase F2) plus `habitat` / `climbs` (V1). ⚠ **`traits`, `genetics`, `disease`, and `feeding` are still inherited unchanged by every species** — A38's shape, four blocks deep |
 | Elevation             | **A flag, not a coordinate** — `entity.elevation` is 0 (ground) or 1 (canopy), added 2026-08-03 (phase T2, closing **A67**). It gates predation eligibility (both directions) and access to a cached carcass, and ⚠ **nothing in perception's visibility gate** (A63). **Two climbers**: the leopard, which caches kills (T3), and the vulture, which roosts (V1) — ⚠ and because `climbs` is also the cached-carcass key, the second one means **a cache is proof against the ground, not against the air**. See §7 Terrain |
 | Flight                | **A pace on the intent, not a simulation of flight** — `entity.flying`, added 2026-08-04 (phase F1). Faster travel with the terrain modifier bypassed, a wider sight radius, cheaper distance, nothing refusing the step, and out of reach of predation and fire. No altitude, no thermals, no takeoff cost. The **vulture** is the only flier (phase F2), and its ground radius dropped 14 → 9 so that flying restores exactly the 14 it had — the world's widest radius does not move. See §9 Movement |
 | Terrain codes         | **7** — `tree` joined on 2026-08-03 (phase T1): scattered canopy over open ground, shade + light concealment + near-open going. ⚠⚠ **Tree, thicket and rock formations are absolute counts, not densities**, which is why this row has been rewritten twice: the same counts on a different map are a different world. Measured 2026-08-07 on `default-small` (230×180, counts 18/18/24/180), with the crater (332×280, 10/10/16/120) and the 160×120 world in brackets, 5 seeds each: ground **66.3** [71.1, 87.8], rock **23.9** [22.1, 1.9] — almost all of it the rim — tree **2.61** [0.98, 2.48], cover **2.57** [2.60, 3.35], thicket **2.20** [0.56, 1.69], water **1.59** [1.83, 1.87], deep water **0.77** [0.78, 0.85]. ⚠ Tree and thicket are back to roughly their 160×120 shares after nearly vanishing in the crater — raising the counts 1.8×/1.5× onto a map with 0.37 the cells is a ~4–5× density change, and it is the single largest difference between this world and the one before it. `coverPatchDensity` is the one quantity expressed per-area, and it is the one that has held across all three. ⚠ Trees were proved **byte-identical** at counts 0 before being raised, and the ten-seed gate passed 10/10 on every species but the gazelle (9/10, mean −15.4) — on the 160×120 world. See §7 Terrain |
@@ -852,6 +852,36 @@ does not need.** Every row is a decision, not a backlog item.
 
 ### 1.4 Structural and configuration debt
 
+**A97 — The wetland has a six-seed reading, not a ten-seed gate** _(2026-08-09)_.
+Water proximity now scales the vegetation ceiling and rate (§7 Vegetation) and
+carries a wet-versus-dry habitat axis (§9 Migration), both **on by default**, and
+what was measured is **6 seeds × 4000 ticks on the small demo** against a
+`wetness.enabled: false` control — enough to retune `dryGrowthScale` off a real
+gazelle regression (0.6 cost 16% of the species; 0.75 costs nothing) and *not*
+enough to be the §20 gate. All eight species survived 6/6 in both arms and the
+four grazers moved as intended, but ⚠ **nothing was measured about the predators
+at all**, and the wetland concentrates grazers, which is exactly the kind of
+second-order move a ten-seed sweep exists to catch. The instrument is
+`npm run sweep` on ten seeds with `wetness: { enabled: false }` as the control,
+per **A81**'s doctrine: a reading to record, not a bar to pass. ⚠ It shares
+**A96**'s subject and should be swept with it — the marsh is what makes the
+wetness field interesting, and one sweep can carry both controls.
+
+**A98 — The buffalo was already in the wetland, and the gazelle will not leave
+it** _(2026-08-09)_. Two limits of the wet/dry habitat axis, both measured and
+neither a defect in it. The buffalo's mean wetness moved 0.889 → 0.896: it was
+already at the top of the field on `habitat.water: 1.35` and `tracksWater`, so its
+`wetPreference: 1.5` is largely redundant and the separation this axis produced is
+the *plains grazers moving out* (zebra 0.759 → 0.649, wildebeest 0.728 → 0.594).
+The gazelle did not move at all (0.461 → 0.460), because wet cells produce the
+short flush it lives on faster than the dry plain does and habitat only **bends** a
+need-cue rather than competing with it — so a rarely-satisfied grazer's preference
+is the weaker term by construction. ⚠ **Lowering its 0.7 cannot fix this**: the cue
+saturates at a weight difference of `habitat.cueReference` (0.3), which 0.7 already
+reaches. The levers are `habitat.biasWeight` (global, and it would move every
+species) or a state-dependent preference — the same answer **A57**'s birth-site
+tension gets, and the same reason.
+
 **A96 — The three water features are unmeasured, and the marsh is the one that
 matters** _(2026-08-08, TERRAIN-PLAN.md)_. Ponds, a stream and a marsh ship on by
 default (`smallLakes: 1`, `streams: 1`, `marshFraction: 0.05`) and **no
@@ -868,6 +898,27 @@ kill caching at the same time, in a region that is by construction next to water
 ⚠ The honest instrument is `npm run sweep` on ten seeds with `marsh: 0` as the
 control, per the discipline **A81** establishes: a sweep is a reading to record,
 not a bar to pass.
+
+⚠⚠ **Two batch-2 tests in `cooperation.test.js` are red at `8e005a8`, and they
+were found by unrelated work rather than by anyone checking** _(2026-08-09)_.
+Verified against a clean HEAD worktree, so neither belongs to the wetland change
+that found them:
+
+- **"lions and hyenas partition the prey base by mass"** — the lion took **27
+  gazelle** where the test asserts it takes none. ⚠ The assertion was never
+  structural: the lion's `preySpeciesIds` *does* list gazelle, and the test's own
+  comment describes a narrowing that is not in the file. It has always rested on
+  **emergent spatial separation** between a water-tied buffalo and a plains
+  gazelle — which is exactly the thing three new water features move. **An
+  assertion that reads as a partition but measures an accident is the failure mode
+  here**, and the fix is to say which one it means before re-tuning anything.
+- **"a buffalo herd stands its ground"** — `soloMobbed.n` is 2 against a threshold
+  of 3, which is §14's *fifth* recorded instance of that cell going first. It is
+  the rarest cell of a 2×2 fished out of a fixed window, and §14 already says so.
+
+⚠ For the record, the wetland moved the first number **27 → 20**, i.e. slightly
+*toward* the assertion. Neither test is a wetland regression, and neither should be
+"fixed" by tuning until A96's sweep says what the water features did.
 
 **A81 — Three species did not persist in the crater demo, and the demo is no
 longer held to a knife edge** _(2026-08-04)_. The demo became the
@@ -1937,6 +1988,44 @@ capacity simply stops growing, and a slower rate cannot brown it off. Scaling
 `capacityScale` plus a dieback term made the swing real: **85.8k in summer
 against 30.4k in winter**. A test pins the distinction directly.
 
+#### Water proximity — taller by the water, slower on the dry plain _(2026-08-09)_
+
+A static per-cell **wetness** field in `[0, 1]`, `world/wetness.js`: an exact
+Euclidean distance transform from every `WATER` and `DEEP_WATER` cell, full out to
+`wetness.fullDistance` (3 cells) and ramping to 0 over `wetness.range` (18 more).
+Built once at world construction, read through `world.wetnessAt`, never
+serialized — terrain regenerates from the seed on load, and so does this.
+
+⚠ **Two levers, deliberately different ones**, and the split is the same lesson
+season taught in the other direction (scaling a rate cannot brown off a field
+already at its ceiling):
+
+| | scales | means |
+| --- | --- | --- |
+| `vegetation.wetCapacityBonus` (0.6) | the **ceiling** | grass beside water grows **taller** — and standing crop *is* grass height, so this is the only way this engine can say "tall grass" |
+| `vegetation.dryGrowthScale` (0.75) | the **rate** | grass far from water grows **back slower** — the same height eventually, but a grazed dry patch takes a quarter longer to return |
+
+⚠⚠ **This is how a marsh became addressable without a `MARSH` terrain code**, and
+it does not re-open `TERRAIN-PLAN.md` §2, which refused one. A marsh is 30% pools
+by construction, so every cell of one sits a tile or two from standing water and
+reads at wetness 1 — and so does a lake shore and a stream bank, which is the
+ecologically right grouping anyway. The field says "near water"; nothing in the
+engine had to learn what a marsh is. On the demo map ~16% of passable ground is
+fully wet and ~48% is bone dry (3 seeds).
+
+⚠ **It spends no draws**, being a pure function of terrain position, so turning it
+on shifted no RNG stream: every seeded world seeds the same initial biomass out of
+the same sequence, and only the ceiling that biomass grows toward moved. Initial
+biomass is deliberately left on the *dry* scale — a wet cell starts level with a
+dry one and grows tall over the first few hundred ticks, because the claim is that
+grass by the water gets taller rather than that the map is born that way.
+
+⚠⚠ **A world with no water has no field at all — `null`, not zeros.** "Everywhere
+is maximally dry" would have slowed regrowth in every hand-built sandbox in the
+suite, none of which asked for a wetland. This is the fourth time that failure
+mode has been available (trees, roundness, the water features, this) and the first
+time it was designed out in advance rather than found by seven red suites.
+
 **Edge forage taper (`buildEdgeTaper`, off by default).** A static per-cell
 capacity multiplier that ramps forage from 0 at the map boundary up to full over
 an inland band — gradual, slightly irregular (a coherent-noise coastline), and
@@ -1973,6 +2062,11 @@ problem, not a forage one.
 - `isOffGround` (in `locomotion/flight.js`) carries **both** ways of being out of
   reach of the ground — up a tree and on the wing. Its reader is the disturbance
   system, which therefore knows about neither.
+- `world.wetnessAt` (2026-08-09) carries how near water a cell is, and is the one
+  place anything asks — so a future wallow, a mosquito-borne vector, or a species
+  that only breeds in wetland needs no second field and no second flood. Its two
+  readers today are the vegetation ceiling/rate and the habitat cue's wet-versus-dry
+  axis.
 
 This is why the movement system and the thermoregulation code never learned that
 features exist: a burrow simply _is_ sheltering.
@@ -2110,10 +2204,10 @@ half the test suite runs engines with different configs in one process.
 
 | Species                | Role                  | Mass | Perception radius | Notes                                                                                                      |
 | ---------------------- | --------------------- | ---: | ----------------: | ---------------------------------------------------------------------------------------------------------- |
-| `herbivore.gazelle`    | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; short-grass tier; the only species to declare an **`associationPull`** — how hard it holds to company of another kind, as opposed to how much of a body one of them is worth (P3) |
+| `herbivore.gazelle`    | prey, herbivore       |   30 |                 6 | Displays **size** in mate choice; short-grass tier; **driest** of the roster (`wetPreference: 0.7`, though see §9 — its food holds it damper than its preference asks); the only species to declare an **`associationPull`** — how hard it holds to company of another kind, as opposed to how much of a body one of them is worth (P3) |
 | `herbivore.wildebeest` | prey, herbivore       |  200 |                 7 | The only species with a **breeding window** — a rut, and a calving season that emerges from it; mid tier. Declares an **`association`** with the zebra and deliberately no pull, which makes it P3’s in-roster control |
 | `herbivore.zebra`      | prey, herbivore       |  300 |                 8 | Coarse-grass tier; the first **prey animal** on the persistent group registry (a band, not a harem)        |
-| `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass. ⚠ From 2026-08-05 the only species running **both** sociality mechanisms — a cow–calf group record inside a fission–fusion herd label |
+| `herbivore.buffalo`    | prey, herbivore       |  600 |                 7 | **Mobs predators** (`behavior.mobWeight`, the only species that does); water-tied; tolerates coarse grass. ⚠ From 2026-08-05 the only species running **both** sociality mechanisms — a cow–calf group record inside a fission–fusion herd label. ⚠ From 2026-08-09 the **wetland** animal: the only `wetPreference` above 1 (1.5), and the only grazer whose `forage.preferredBiomass` (13) reaches the tall sward wet ground grows |
 | `predator.leopard`     | predator, carnivore   |   60 |                12 | **Ambush**: the only species with `crypsis`, and the only one that wants cover. Solitary and the only one that can hold territory. ⚠ From 2026-08-03 the only species that **climbs** — it caches kills in trees, which is what finally closes the limitation its own file has stated since phase 14 |
 | `predator.lion`        | predator, carnivore   |  180 |                13 | **Hunts cooperatively** (`hunting.cooperationWeight`, the only species that does); pride-forming           |
 | `scavenger.vulture`    | obligate scavenger    |    6 |     9 (14 flying) | **Empty `preySpeciesIds`** — an entire trophic level expressed by leaving a field empty. ⚠ From 2026-08-04 the only species that **flies** (phase F2), and the radius drop is the point of the edit rather than a cost of it: 9 × 1.55 restores the 14 it always had, so the world's widest radius never moves. ⚠ Also **climbs** (V1) — for a roost that is inert by construction (**A75**) and a leopard's larder that is not |
@@ -3182,6 +3276,19 @@ habitat.
 
 ✅ **All three tiers exist as of 2026-07-30** (phase 13): gazelle 3, wildebeest 5,
 buffalo 8, zebra 9 — and the succession was measured rather than assumed.
+
+⚠⚠ **The buffalo went 8 → 13 on 2026-08-09, and it is a correction the *world*
+forced rather than a re-tune of the succession.** Water proximity gave wet ground a
+1.6× ceiling (§7 Vegetation), so marsh cover now stands at up to `8 × 1.35 × 1.6 ≈
+17` biomass where the dry plain still tops out near 8 — and at 8 the one-sided
+falloff put the tall wet sward at the quality **floor** for the one species whose
+habitat preference walks it into the marsh. The two halves of one animal would have
+disagreed: its `wetPreference` pulling it in, its `forage` discounting everything it
+found there, which is the exact failure this section's own history is made of. ⚠
+The other three keep the numbers they were tuned with, and that is the point rather
+than an omission: 3 + 4, 5 + 4 and 9 + 5 all bottom out below 17, so **the tall wet
+sward is effectively buffalo-only food** — a fourth tier arriving through the
+succession that already existed rather than through a new mechanism.
 
 ⚠⚠ **Measure the *shift* a preference causes, never the biomass an animal is
 standing on.** The raw number reads the succession backwards: the gazelle feeds at
@@ -4893,6 +5000,61 @@ preference makes that rarer. The named fix stays birth-site selection — a pref
 that changes with the animal's state, which a flat per-terrain weight cannot
 express.
 
+##### The second axis: wet ground or dry _(2026-08-09)_
+
+A species may also state a bare `wetPreference` — 1 neutral, above seeks wet
+ground, below seeks dry — and the same ring multiplies it into each sample's
+terrain weight, interpolated by `world.wetnessAt` so that **dry ground is exactly
+neutral for everybody** and only the wetland end of the gradient carries an
+opinion. A species stating nothing reads no wetness at all and costs nothing, the
+same identity discipline `forage` and `habitat` already keep.
+
+⚠⚠ **A field beside `habitat`, not a key inside it** — the `associationPull` rule
+(§8) landing a second time for the same reason. `habitat` is keyed by *the terrain
+legend's own names*, so a `wetness` entry in it would be a non-terrain key in a
+terrain-keyed map: accepted by `habitatWeightForCode`, silently ignored, and
+indistinguishable from a typo'd terrain name.
+
+**Why a terrain weight could not do this.** A marsh, a lake shore, a stream bank
+and the arid plain twenty cells away are all `ground`, `cover` and `thicket`. The
+distinction the roster needed is a *gradient over one terrain code*, and there is
+no weight that expresses it. ⚠ Nor could `tracksWater`, which is thirst: it falls
+silent the moment the animal has drunk, and where an animal lives is precisely
+what it chooses when nothing is urgent.
+
+The roster: **buffalo 1.5**, zebra 0.8, wildebeest 0.7, gazelle 0.7.
+
+_Measured 2026-08-09, 6 seeds × 4000 ticks on the small demo, against a
+`wetness.enabled: false` control on the same seeds — mean wetness of the cell each
+animal is standing on, sampled over the back half of each run. Map mean is 0.43._
+
+| species | control | with the axis | |
+| --- | ---: | ---: | --- |
+| buffalo | 0.889 | **0.896** | already at the top; see below |
+| zebra | 0.759 | **0.649** | |
+| wildebeest | 0.728 | **0.594** | |
+| gazelle | 0.461 | **0.460** | flat; see below |
+
+**It is not inert** (§1.2, A34) — the buffalo/wildebeest separation roughly doubles,
+0.16 → 0.30 — but ⚠⚠ **almost all of that is the plains grazers moving out, not the
+buffalo moving in, and two of the four species barely moved at all.** Both facts
+have the same cause and it is worth stating because it bounds what this axis can
+ever do:
+
+- **The buffalo was already there.** `habitat.water: 1.35` plus `tracksWater` had it
+  at 0.889 before this existed. Its 1.5 is mostly redundant with what it had, and
+  the honest reading is that this axis *widened* a separation the buffalo end of
+  which was already won.
+- ⚠ **The gazelle is held on damp ground by its own food, and the preference loses.**
+  Wet cells have a higher ceiling *and* full-rate regrowth, so they produce the short
+  flush a `preferredBiomass: 3` grazer lives on faster than the dry plain does — and
+  habitat only *bends* a need-cue rather than competing with it, so a rarely-satisfied
+  grazer's preference is the weaker term by construction. ⚠ **Lowering the gazelle's
+  0.7 further would not help**: the cue saturates at a weight difference of
+  `habitat.cueReference` (0.3), which 0.7 already reaches. The lever, if this is ever
+  wanted, is `habitat.biasWeight` or a state-dependent preference — the same answer
+  A57's birth-site tension gets, and for the same reason.
+
 **The same channel carries a thirst cue** (`tracksWater`). Water is one lake,
 too far to perceive (radius 6) or even recall (`recallRange` 60) across most of
 the map — measured, 39–72% of grazers sit beyond recall of it at any moment — so
@@ -6574,6 +6736,26 @@ against the **lake's** centroid — the reading was right and the yardstick was
 wrong. **Composing a feature from existing codes is cheap in engine code and is
 paid for in every test that assumed a code had one source.**
 
+✅ **The wetland (2026-08-09) is the first mechanism of this kind that cost the
+suite nothing**, and the reason is one design decision rather than diligence: a
+world with no water gets **`null` for the wetness field, not an array of zeros**,
+so every `FLAT_TERRAIN` sandbox is inert by construction rather than by having been
+remembered. Exactly one existing test moved — `migration.test.js`'s thirst case,
+whose first line claims "the only drift available is water" while its world has a
+lake in it and therefore now has a wetness gradient around that lake. ⚠ **That test
+was not wrong; it was under-specified**, and had been since the habitat cue shipped:
+"no forage" was spelled out and "no habitat" was merely true. Its repair is two
+constructor flags, and the general form is **an isolation a test relies on must be
+switched off explicitly, not left true by luck** — the same lesson `FLAT_TERRAIN`
+teaches about terrain, applied to mechanisms.
+
+⚠ `test/wetness.test.js` hand-builds a **stub** terrain (`{ width, height, codeAt }`)
+rather than a `TerrainGrid`, because a real grid is generated from a seed and has no
+public writer — which is right, and useless for pinning the shape of a distance ramp
+where the whole claim is knowing exactly where the water is. The generated-terrain
+cases (the marsh, the engine-level drift) use the real thing. The whole file is
+**0.14 s and boots no demo**.
+
 ### Permanent invariant tests
 
 Living entities in bounds · impassable cells never occupied **by a grounded
@@ -6931,8 +7113,17 @@ ASCII glyphs, Dracula colors, or presentation-only UI labels.
 `breeding`,
 `association`, `groups`, `consensus`, `charge`, `environment`, `carcass`, `lineage`, `injury`, `hunting`,
 `cooperation`, `mobbing`, `locomotion`, `memory`, `metrics`, `genetics`, `traits`,
-`parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `behavior`,
-`decision`, `predation`, `climbing`, `flight`, `demo`.
+`parenting`, `aging`, `hydration`, `feeding`, `forage`, `habitat`, `wetness`,
+`behavior`, `decision`, `predation`, `climbing`, `flight`, `demo`.
+
+⚠ **`wetness` (2026-08-09) is a section about *the world*, not about grass**, which
+is why it sits beside `vegetation` rather than inside it: it holds the shape of the
+distance-to-water field (`enabled`, `fullDistance`, `range`) and has two unrelated
+consumers, while the *response* to that field is split between `vegetation`
+(`wetCapacityBonus`, `dryGrowthScale`) and a species' `wetPreference`. The same
+split `terrain` beside `vegetation` already makes. Its `enabled` is the single
+control: false means no field at all, so both consumers go inert together and there
+is one control arm rather than two.
 
 ⚠ **`climbing` and `flight` (2026-08-03/04) are sections that hold a *switch* and
 nothing else** — the standing shape since phase 8, and by now the majority of the
@@ -7040,11 +7231,14 @@ ever want to state; `breeding` holds the switch and *nothing else*, which is the
 shape reduced to its point. Same shape as `forage` and `habitat`, and by now the
 standing pattern rather than a one-off.
 
-⚠ **`groups`, `migration`, `territory`, `forage`, `habitat`, and `association` are
-the six sections that are half-global and half-per-species**, and none of them is a
-species block. Each has a same-named field on the species record holding that
+⚠ **`groups`, `migration`, `territory`, `forage`, `habitat`, `wetness`, and
+`association` are the seven sections that are half-global and half-per-species**,
+and none of them is a species block. Each has a same-named field on the species record holding that
 animal's biology (`groups.forms`, `migration.tracksForage`, `territory.defends`,
-`forage.preferredBiomass`, `habitat.cover`, and a weight per partner species in
+`forage.preferredBiomass`, `habitat.cover`, the bare `wetPreference` beside
+`habitat` — a *field* rather than a key inside it, for the `associationPull` reason:
+`habitat` is keyed by terrain names and a `wetness` entry in it would be
+indistinguishable from a typo'd one — and a weight per partner species in
 `association` — beside which sits `associationPull`, a *second* field rather than a
 key inside the first, because the two are the same shape over the same species ids
 and mean different things), while the config section holds world-level machinery — for `groups`

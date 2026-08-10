@@ -1009,6 +1009,52 @@ pass). Territory traces at claim resolution, so it walks a sixteenth of the cell
 a world-space trace of the same ground would; `DOCS-RENDERER.md` §9b records the
 reasoning, and nobody has put a stopwatch on it.
 
+### The wetland (2026-08-09, water proximity)
+
+Three things that could each have cost a tick, and none of them did:
+
+- a per-cell **growth-rate multiplier** inside `VegetationGrid.grow`, which is
+  the largest cell loop in the simulation (invariant 16);
+- a **second grid read per sample** in `habitatGradient`, for the four grazers
+  that now declare a `wetPreference` — 16 extra O(1) reads per animal per
+  evaluation, at `migration.updateInterval: 10`;
+- one exact Euclidean distance transform over the map at **world construction**,
+  which is not a per-tick cost at all and is recorded here only so nobody looks
+  for it later.
+
+Interleaved tree / HEAD / tree / HEAD in one session, per this file's protocol:
+
+| scenario | tree | HEAD |
+| --- | ---: | ---: |
+| demo-default | 2.76, 2.83 | 2.89, 2.92 |
+| small-100 | 1.73, 1.75 | 1.74, 1.74 |
+| medium-1k | 23.53, 24.19 | 24.06, 22.43 |
+| large-5k | 152.74, 153.90 | 156.81, 138.03 |
+
+**Flat.** Every range overlaps or leans the tree's way, and large-5k's HEAD arm
+(138–157) is the machine drifting under itself rather than a result — which is
+the whole reason this file insists on distributions.
+
+⚠ **And the mature-world reading CLAUDE.md requires**, because a cold 1000 ticks
+misses cost that only appears once groups form. Demo, step 3000 first, then time
+1000 ticks, interleaved:
+
+| arm | ms/tick at t3000 |
+| --- | ---: |
+| tree | 3.47, 3.43, 3.37 |
+| HEAD | 3.39, 3.43, 3.73 |
+
+Fully overlapping: **flat**. The reason the growth-rate multiplier is free is that
+it is *precomputed* — `grow` reads a `Float32Array` and multiplies, rather than
+deriving a falloff per cell per call — and the reason the habitat reads are free
+is the interval: 16 reads every 10 ticks is under two reads per animal per tick,
+against a perception scan that does hundreds.
+
+⚠ **Null, not an array of ones**, when a world has no water or the term is off.
+That is why the suite's hand-built sandboxes pay literally nothing rather than
+paying one array read per cell per regrowth, and it is worth stating because the
+"ones" version is the obvious one to write.
+
 ### Where the time goes (large-5k, measured 2026-07-21)
 
 Per-system wall clock, taken by wrapping every registered system's `update`.

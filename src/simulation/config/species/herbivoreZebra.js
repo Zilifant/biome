@@ -100,6 +100,15 @@ export const herbivoreZebra = Object.freeze({
   forage: Object.freeze({ preferredBiomass: 9, span: 5 }),
   // Open plain and water, in that order.
   habitat: Object.freeze({ ground: 1.15, cover: 0.75, water: 1.2, thicket: 0.3 }),
+  // ⚠ **Dry, but the mildest of the three** (2026-08-09; see `habitat/habitat.js`).
+  // 0.8 against the gazelle's and wildebeest's 0.7, for the reason the header
+  // above already gives: this is the bulk feeder of the plains
+  // (`forage.preferredBiomass: 9`), so the tall sward that grows on damp ground is
+  // the one thing in the wetland it can actually use. ⚠ It is still **below 1**,
+  // and deliberately, because the file's own line — "what separates the zebra from
+  // the buffalo is water, mobbing, and 300 kg" — was until now carried entirely by
+  // the other two. This is the water half finally being said in data.
+  wetPreference: 0.8,
   behavior: Object.freeze({
     // Tighter than the wildebeest's, because a band is a small thing that stays
     // together — and because `groups.joinRadius` is 6, so a band whose members

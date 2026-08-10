@@ -152,6 +152,7 @@ export class SimulationEngine {
       terrain: this.config.terrain,
       vegetationSeed: deriveSeed(this.seed, 'vegetation'),
       vegetation: this.config.vegetation,
+      wetness: this.config.wetness,
       territory: this.config.territory,
       engineering: this.config.engineering,
       groups: this.config.groups,

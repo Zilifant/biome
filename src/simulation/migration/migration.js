@@ -54,7 +54,7 @@
  */
 
 import { forageQuality } from '../habitat/forage.js';
-import { habitatWeightForCode } from '../habitat/habitat.js';
+import { habitatWeightForCode, wetnessWeight } from '../habitat/habitat.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -214,21 +214,38 @@ export function forageGradient(world, entity, { cueRadius, reference, forage = n
  * one that does not, since the caller does not call this at all. Still no spatial
  * query, still no randomness.
  *
+ * ⚠ **Since 2026-08-09 the ground is judged on two axes, not one**: which terrain
+ * code it is, and how *wet* it is (`world.wetnessAt`, a static field flooded from
+ * the map's water — see `world/wetness.js`). That is what lets the roster split
+ * across a wetland gradient the terrain codes cannot express, since a marsh, a
+ * shore and an arid plain are all the same handful of codes. The second axis costs
+ * a second grid read per sample and is **skipped entirely** for a species whose
+ * `wetPreference` is the neutral 1, which is every species that says nothing.
+ *
  * @param {import('../world/World.js').World} world
  * @param {object} entity
  * @param {object} options
  * @param {number} options.cueRadius how far out the coarse cue reaches
  * @param {number} options.reference weight difference that counts as full strength
  * @param {Record<string, number>} options.weights the species' per-terrain weights
+ * @param {number} [options.wetPreference] 1 neutral, >1 seeks wet ground, <1 dry
  * @returns {{heading: number, strength: number} | null} null when nowhere is better
  */
-export function habitatGradient(world, entity, { cueRadius, reference, weights }) {
-  if (!(cueRadius > 0) || !(reference > 0) || weights === null) return null;
+export function habitatGradient(world, entity, { cueRadius, reference, weights, wetPreference = 1 }) {
+  const readsWetness = wetPreference !== 1;
+  // ⚠ A species may now state a wetness preference and no terrain weights at all,
+  // so `weights === null` is no longer on its own a reason to have no opinion.
+  if (!(cueRadius > 0) || !(reference > 0) || (weights === null && !readsWetness)) return null;
 
   const terrain = world.terrain;
-
+  // ⚠ Scored inline at both call sites rather than through a local helper, and it
+  // is the one place in this function worth a comment: a closure here would be one
+  // allocation per animal per evaluation, in a function whose whole cost model is
+  // "16 O(1) reads and nothing else" (D28's discipline, and the reason the
+  // perception scan holds its best-so-far in plain numbers).
   const here = world.cellOf(entity.x, entity.y);
-  const hereValue = habitatWeightForCode(terrain.codeAt(here.cellX, here.cellY), weights);
+  let hereValue = habitatWeightForCode(terrain.codeAt(here.cellX, here.cellY), weights);
+  if (readsWetness) hereValue *= wetnessWeight(world.wetnessAt(here.cellX, here.cellY), wetPreference);
 
   let bestValue = hereValue;
   let bestHeading = null;
@@ -240,7 +257,9 @@ export function habitatGradient(world, entity, { cueRadius, reference, weights }
     for (let step = 1; step <= SAMPLES_PER_RAY; step += 1) {
       const distance = (cueRadius * step) / SAMPLES_PER_RAY;
       const cell = world.cellOf(entity.x + dx * distance, entity.y + dy * distance);
-      total += habitatWeightForCode(terrain.codeAt(cell.cellX, cell.cellY), weights);
+      let value = habitatWeightForCode(terrain.codeAt(cell.cellX, cell.cellY), weights);
+      if (readsWetness) value *= wetnessWeight(world.wetnessAt(cell.cellX, cell.cellY), wetPreference);
+      total += value;
     }
     const value = total / SAMPLES_PER_RAY;
     if (value > bestValue) {
