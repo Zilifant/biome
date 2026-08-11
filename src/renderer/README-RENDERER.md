@@ -420,8 +420,8 @@ ring — stay vector-drawn in both modes.
 | Click                  | Select a cell — ground included (highest-priority occupant active); grey fill marks the selected cell    |
 | Click `#123`           | Select and centre that entity, from the inspector or event log                                           |
 | Tab                    | Cycle occupants of the selected cell                                                                     |
-| F                      | Follow / unfollow the selected entity (camera-only)                                                      |
-| C                      | Recenter camera                                                                                          |
+| F                      | Follow / unfollow the selected entity (camera-only; the view holds still until it wanders off-centre)   |
+| C                      | Recenter camera — and while following, put the animal back in the middle now                            |
 | Esc                    | Clear selection                                                                                          |
 | Space                  | Pause/resume via protocol command (live mode)                                                            |
 | `[` / `]`              | Slower / faster (steps the speed ladder)                                                                 |
@@ -430,6 +430,13 @@ ring — stay vector-drawn in both modes.
 
 Following moves the camera, never the entity. Camera movement sends nothing
 to the simulation.
+
+**Following keeps the animal _roughly_ centred, not exactly centred.** The view
+stays put while it moves around inside a box in the middle of the screen, and
+eases across when it leaves — so the map holds still instead of shifting under
+the animal on every tick. Zooming, resizing, or pressing `C` re-centres
+immediately rather than sliding, and a viewer who has asked for reduced motion
+gets the move without the slide. `DOCS-RENDERER.md` §5a has the reasoning.
 
 **Numbers in the feed are short on purpose.** A ratio drops its leading zero —
 `(.63 vs .58)`, not `(0.63 vs 0.58)` — since every one of them is below one and

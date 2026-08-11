@@ -1416,6 +1416,14 @@ they are not re-opened by accident.
   region-scoped deltas; `requestSnapshot(bounds)` is isolated for when they
   exist.
 
+- **P7 — No interpolation between ticks** — entities jump cell-to-cell each
+  authoritative tick. By design for v1; `previousPosition` is already tracked, so
+  it needs no protocol or store change. ⚠ **Do not close this against the follow
+  camera** _(2026-08-10)_: "the map jitters when following" looked like this item
+  and was not — the *camera* was tracking the animal's float position while the
+  grid drew it at its floored cell, and that is fixed (DOCS-RENDERER §5a). The
+  glyph still steps, which is this item, and it is still open.
+
 - **P14 — The legend stays glyph-based in sprite mode.** `LegendPanel` is built
   once and knows nothing about sprite assignments; sprite thumbnails would need
   it to become config-aware and re-renderable.

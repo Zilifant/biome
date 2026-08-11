@@ -11,6 +11,7 @@
 import { StoreDesyncError, RendererProtocolError } from './state/RendererStore.js';
 import { Camera } from './rendering/Camera.js';
 import { createProjection, occupantsInCell, worldCellOf } from './rendering/GridProjection.js';
+import { cellCentreOf, planFollow } from './rendering/FollowCamera.js';
 import { compareOccupants, STATUS_CYCLE_MS } from './rendering/EntityAppearance.js';
 import { AsciiGridRenderer } from './rendering/AsciiGridRenderer.js';
 import { describeSocialGroups } from './rendering/SocialLayer.js';
@@ -36,6 +37,23 @@ export class RendererApp {
   #ui;
   #mode;
   #dirty = true;
+  /**
+   * The canvas needs redrawing but the panels do not — set only by the follow
+   * camera's glide.
+   *
+   * ⚠⚠ **Kept separate from `#dirty` on purpose.** `#dirty` drives the draw
+   * *and* `#updatePanels`, which §8 already had to rescue once: `EventLog.render`
+   * rebuilds up to 200 `<li>` from scratch, and a glide marks a frame dirty
+   * sixty times a second for the length of every camera move. Sharing one flag
+   * would put the whole panel set back on a 60 Hz treadmill for exactly as long
+   * as someone is following an animal.
+   */
+  #cameraDirty = false;
+  /**
+   * Whether the viewer has asked for less animation. The follow camera then
+   * snaps instead of gliding — the move still happens, it just does not slide.
+   */
+  #reducedMotion = false;
   #hasCentered = false;
   /** Which status a multi-status animal is showing: a wall-clock counter. */
   #statusPhase = 0;
@@ -145,6 +163,16 @@ export class RendererApp {
     });
     this.#transport.subscribe((event) => this.#onTransportEvent(event));
 
+    // Asked once and then watched: a viewer who turns motion down mid-session
+    // should not have to reload to stop the camera sliding.
+    if (typeof window.matchMedia === 'function') {
+      const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      this.#reducedMotion = motion.matches;
+      motion.addEventListener?.('change', (event) => {
+        this.#reducedMotion = event.matches;
+      });
+    }
+
     this.#resize();
     window.addEventListener('resize', () => this.#resize());
     // ⚠ The grid's size is no longer only the window's. Dragging a column edge
@@ -204,8 +232,18 @@ export class RendererApp {
         this.#statusPhase = phase;
         if (this.#grid.hasCyclingStatus) this.#dirty = true;
       }
-      if (this.#dirty) {
+      // The follow camera's move, eased on the wall clock exactly as the status
+      // cycle is (invariant 7). A finished glide marks the panels dirty once, so
+      // the status bar's camera readout catches up where it left off — during
+      // the move it is deliberately not updated.
+      if (this.#camera.advance(now ?? 0)) {
+        this.#cameraDirty = true;
+        if (!this.#camera.gliding) this.#dirty = true;
+      }
+      if (this.#dirty || this.#cameraDirty) {
+        const panelsDirty = this.#dirty;
         this.#dirty = false;
+        this.#cameraDirty = false;
         this.#grid.draw({
           store: this.#store,
           camera: this.#camera,
@@ -223,7 +261,7 @@ export class RendererApp {
         // The whole panel set, not just the status bar: they read the same store
         // the draw just read, and updating them anywhere else is what put DOM
         // work on the delta stream.
-        this.#updatePanels();
+        if (panelsDirty) this.#updatePanels();
       }
       requestAnimationFrame(frame);
     };
@@ -472,6 +510,9 @@ export class RendererApp {
     if (!result?.ok) return result;
     this.clearSelection();
     this.#store.setFollowedEntity(null);
+    // A move towards where an animal of the old world stood has no meaning in
+    // the new one, and the snapshot recentres on the map anyway.
+    this.#camera.cancelGlide();
     this.#hasCentered = false;
     this.#ui.controls.setSeed(result.seed);
     this.#ui.statusPanel.setCommandStatus(`restarted — seed ${result.seed}`, 'ok');
@@ -794,23 +835,48 @@ export class RendererApp {
     }
   }
 
-  #followCamera() {
+  /**
+   * Keep the followed animal in view — which on most ticks means doing nothing
+   * at all.
+   *
+   * ⚠ The camera holds still while the animal is anywhere inside the deadzone
+   * box and recentres with an eased glide when it leaves (`FollowCamera.js`
+   * explains why, and what the old per-tick `centerOn(entity.x, entity.y)` did
+   * to the map). Two overrides:
+   * @param {object} [options]
+   * @param {boolean} [options.snap] land immediately — for a change the viewer
+   *        has already seen jump (a zoom, a resize)
+   * @param {boolean} [options.force] recentre even from inside the box (`C`)
+   */
+  #followCamera({ snap = false, force = false } = {}) {
     const followedId = this.#store.followedEntityId;
     if (followedId === null) return;
     const entity = this.#store.getEntity(followedId);
     if (!entity) {
+      this.#camera.cancelGlide();
       this.#store.setFollowedEntity(null);
       this.#ui.statusPanel.setCommandStatus(`followed entity #${followedId} is gone`, 'warn');
       return;
     }
-    this.#camera.centerOn(entity.x, entity.y);
-    this.#camera.clampToWorld(this.#store.world);
+    const move = planFollow({
+      camera: this.#camera,
+      viewportWidth: this.#grid.cssWidth,
+      viewportHeight: this.#grid.cssHeight,
+      target: cellCentreOf(entity),
+      world: this.#store.world,
+      ignoreDeadzone: force,
+    });
+    if (!move) return;
+    if (snap || move.snap || this.#reducedMotion) this.#camera.centerOn(move.x, move.y);
+    else this.#camera.glideTo(move.x, move.y);
     this.#dirty = true;
   }
 
   recenter() {
     if (this.#store.followedEntityId !== null) {
-      this.#followCamera();
+      // `C` means "put it back in the middle, now" — the deadzone is exactly
+      // what the viewer is overriding by pressing it.
+      this.#followCamera({ snap: true, force: true });
       return;
     }
     if (this.#store.world) {
@@ -919,6 +985,11 @@ export class RendererApp {
         if (this.#camera.zoomAt(anchor.x, anchor.y, event.deltaY < 0 ? 1 : -1)) {
           this.#camera.clampToWorld(this.#store.world);
           this.#dirty = true;
+          // The deadzone is a share of the viewport, so a zoom resizes it in
+          // world terms and can leave the followed animal outside a box it was
+          // inside. Anchored zoom still works while following: it only snaps
+          // back when the zoom actually pushes the animal out.
+          this.#followCamera({ snap: true });
         }
       },
       { passive: false },
@@ -966,6 +1037,7 @@ export class RendererApp {
   #zoom(direction) {
     if (direction > 0 ? this.#camera.zoomIn() : this.#camera.zoomOut()) {
       this.#dirty = true;
+      this.#followCamera({ snap: true });
     }
   }
 
@@ -973,6 +1045,9 @@ export class RendererApp {
     const wrap = this.#canvas.parentElement;
     this.#grid.resize(wrap.clientWidth, wrap.clientHeight, window.devicePixelRatio || 1);
     this.#dirty = true;
+    // A narrower grid (a column drag, a folded panel) is a smaller deadzone,
+    // which can strand the followed animal outside it.
+    this.#followCamera({ snap: true });
   }
 
   // ----------------------------------------------------------------- panels

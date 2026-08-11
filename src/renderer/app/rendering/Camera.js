@@ -4,6 +4,7 @@
  * never sends anything to the simulation and never affects simulation
  * fidelity. One world unit is one grid cell.
  */
+import { clampCentreToWorld, glideAt, startGlide } from './FollowCamera.js';
 
 /**
  * Supported cell sizes in CSS pixels. The floor is 10px: below that a cell
@@ -16,6 +17,17 @@ export const ZOOM_LEVELS = Object.freeze([10, 12, 14, 16, 20, 24, 28, 32]);
 export const DEFAULT_CELL_SIZE = 16;
 
 export class Camera {
+  /**
+   * A move in progress, or null. Held here rather than in `RendererApp` for
+   * one reason: there are six places that move this camera, and a glide left
+   * running under a drag fights the pointer. State beside the mutators cannot
+   * be forgotten at one of six call sites — §11's whole theme is what "kept
+   * consistent by hand" costs later.
+   * @type {{fromX: number, fromY: number, toX: number, toY: number,
+   *         startMs: number | null, durationMs: number} | null}
+   */
+  #glide = null;
+
   /**
    * @param {object} [options]
    * @param {number} [options.centerX] world coordinate
@@ -43,6 +55,7 @@ export class Camera {
    * @param {number} dyCells
    */
   panByCells(dxCells, dyCells) {
+    this.cancelGlide();
     this.centerX += dxCells;
     this.centerY += dyCells;
   }
@@ -56,14 +69,58 @@ export class Camera {
    * @param {number} dyPixels
    */
   panByPixels(dxPixels, dyPixels) {
+    this.cancelGlide();
     this.centerX -= dxPixels / this.cellSize;
     this.centerY -= dyPixels / this.cellSize;
   }
 
   /** @param {number} x @param {number} y */
   centerOn(x, y) {
+    this.cancelGlide();
     this.centerX = x;
     this.centerY = y;
+  }
+
+  /**
+   * Ease to (x, y) instead of jumping there — the follow camera's move.
+   * Retargets from wherever the camera is *now*, so a second target arriving
+   * mid-move continues from the current position rather than restarting the
+   * curve, which reads as a hitch.
+   * @param {number} x @param {number} y
+   */
+  glideTo(x, y) {
+    // ⚠ The zoom is part of the pacing: a move is timed by how far it travels
+    // on *screen*, so the same visual move takes the same time at 10px and 32px.
+    this.#glide = startGlide(this.centerX, this.centerY, x, y, this.cellSize);
+  }
+
+  /** Whether a glide is still running. */
+  get gliding() {
+    return this.#glide !== null;
+  }
+
+  /** Stop where we are. Every mutator on this class calls it. */
+  cancelGlide() {
+    this.#glide = null;
+  }
+
+  /**
+   * Advance a glide to the frame's timestamp.
+   *
+   * ⚠ Returns false the moment there is nothing to do, and clears the glide on
+   * the frame it finishes — a still world must cost no frames at all, which is
+   * the same discipline `hasCyclingStatus` keeps for the status marks.
+   * @param {number} now milliseconds, from `requestAnimationFrame`
+   * @returns {boolean} true if the camera moved this frame
+   */
+  advance(now) {
+    if (!this.#glide) return false;
+    this.#glide.startMs ??= now;
+    const { x, y, done } = glideAt(this.#glide, now);
+    this.centerX = x;
+    this.centerY = y;
+    if (done) this.#glide = null;
+    return true;
   }
 
   /** @returns {boolean} true if the zoom level changed */
@@ -80,6 +137,9 @@ export class Camera {
     const index = ZOOM_LEVELS.indexOf(this.cellSize);
     const next = ZOOM_LEVELS[index + direction];
     if (next === undefined) return false;
+    // A zoom is already a jump; sliding on top of one reads as a fault. The
+    // follow target is re-evaluated against the new zoom by the caller.
+    this.cancelGlide();
     this.cellSize = next;
     return true;
   }
@@ -104,11 +164,16 @@ export class Camera {
 
   /**
    * Keep the camera center inside the world when bounds are known.
+   *
+   * ⚠ Deliberately does **not** cancel a glide: a glide's endpoints are clamped
+   * when it is created, so every eased point between them is already in bounds,
+   * and clamping the interpolant would bend the curve near a map edge.
    * @param {{width: number, height: number} | null} world
    */
   clampToWorld(world) {
     if (!world) return;
-    this.centerX = Math.min(Math.max(this.centerX, 0), world.width);
-    this.centerY = Math.min(Math.max(this.centerY, 0), world.height);
+    const clamped = clampCentreToWorld(this.centerX, this.centerY, world);
+    this.centerX = clamped.x;
+    this.centerY = clamped.y;
   }
 }

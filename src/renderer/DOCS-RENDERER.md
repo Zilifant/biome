@@ -46,7 +46,7 @@ version, fixture, layer and test rows and left the rest as it found them.
 |                     |                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Phases complete     | **A, B, C, F** — Phase D (stepping back) undecided                                                                                   |
-| Tests               | renderer **142** in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; **15** spec files in `tests-ui` _(2026-08-09: `inspector-press.spec.js` joined — the click a rebuild eats can only be seen in a browser)_                       |
+| Tests               | renderer **156** in `renderer-view.test.js`, plus the store/transport/sprite/editor suites; **16** spec files in `tests-ui` _(2026-08-10: `follow.spec.js` joined — a camera that holds still can only be seen against a real delta stream; 2026-08-09: `inspector-press.spec.js`, the click a rebuild eats)_. ⚠ **Seven `tests-ui` failures pre-date 2026-08-10** and were confirmed against a clean `fd1dfd7` — three in `status-marks`, two in `sprite-mode`, one each in `event-filters` and `sprite-editor`. Nobody has diagnosed them |
 | Protocol understood | **38** (`SUPPORTED_PROTOCOL_VERSION`), matching the engine _(2026-08-08)_                                                            |
 | Coverage            | every protocol layer through v33 is drawn or inspectable — `elevation` (v31) and `flying` (v32) are **status marks** (§9), `groupRecordId` (v33) is the **social layer** (§9a), and the claim grid (v37) is the **territory layer** (§9b). ⚠ **v34 is a version the renderer speaks but does not yet show**: its additions are all inspection-only (a group's derived `centre`/`leaderId`, the `social.consensus`/`rally`/`charge` commitments, `pullScale`, `bandmates`), and *displaying* them is this roadmap's item rather than the engine plan's — nothing was owed here beyond the matching constant and a regenerated fixture set |
 | Species scheme      | **all ten roster species have a glyph** (§9), **eight of them shipped** — and no renderer code was written for any of the last four  |
@@ -238,6 +238,11 @@ present** (P5).
 - **P7 — No interpolation between ticks** — entities jump cell-to-cell each
   authoritative tick. By design for v1; `previousPosition` is already tracked so
   it can be added without a protocol or store change.
+  ⚠ **Do not close this against the follow camera** _(2026-08-10, §5a)_. "The map
+  jitters when following" looked like this item and was not: the camera was
+  tracking the animal's float position while the grid drew it at its floored
+  cell, so the *camera* was the thing moving sub-cell. That is fixed. The glyph
+  still steps, which is this item, and it is still open.
 - **P2 — The 6px and 8px zoom levels are gone**, so a 128-cell world no longer
   fits the viewport at minimum zoom. Drag-to-pan is the compensation, and a
   minimap was judged not worth it for one world size.
@@ -938,6 +943,232 @@ The three panel columns share one `.panel-column` rule rather than a rule per
 id. That is what let the population panel move columns without touching its own
 styling, and it is the same reasoning as theming form controls by type (§10):
 **a panel should behave identically wherever it is put.**
+
+---
+
+## 5a. The follow camera
+
+_(2026-08-10. `rendering/FollowCamera.js`, `rendering/Camera.js`,
+`RendererApp.#followCamera`.)_
+
+### ⚠⚠ Following the reported position shook the whole map
+
+Following used to be one line — `camera.centerOn(entity.x, entity.y)` on every
+applied delta — and that line contains the defect. **The camera tracked the
+animal's authoritative float position while the grid drew that animal at its
+floored cell.** Those are two different motions:
+
+- an animal moving from x=41.4 to x=41.9 slid **the entire map** by half a cell,
+  while its own glyph did not move at all;
+- when the floor finally ticked over, the glyph jumped a whole cell **back the
+  other way**.
+
+They cancel on average and disagree on every frame. Deltas are capped at 20/s
+(§8) and a gazelle's `baseSpeed` is 1.2 cells/tick, so at speed this was up to
+twenty whole-map shifts a second around an animal that appeared to stand still.
+`tests-ui/follow.spec.js` reproduces it exactly: against the old code the camera
+readout moves on the first tick of a three-tick walk.
+
+⚠ **This is not P7 and does not fix it.** P7 is the *glyph* stepping cell to
+cell, which is untouched — what changed is that it now steps inside a still
+viewport instead of standing still inside a moving one. A single stepping glyph
+is far less noise than 40 000 cells of terrain sliding under it.
+
+### A deadzone, then a glide
+
+Both halves are pure and live in `FollowCamera.js`; `RendererApp` only decides
+between them.
+
+1. **`planFollow` answers "do not move" on most ticks.** The camera holds still
+   while the animal is anywhere inside a box around the middle of the viewport
+   (`FOLLOW_DEADZONE_FRACTION` = 0.5, so half the viewport in each axis) and
+   only recentres when it leaves.
+2. **`Camera.glideTo` eases the move** over `GLIDE_MS_PER_PIXEL` (2.2) × the
+   distance **in screen pixels**, clamped to 240–520 ms, quadratic ease-out,
+   advanced from the animation frame's own timestamp — the wall clock, exactly
+   as the status-mark cycle is (invariant 7). Beyond `GLIDE_SNAP_VIEWPORTS` (1)
+   it jumps instead: gliding across a map is a scenic tour nobody asked for.
+
+Five things about it are load-bearing:
+
+- ⚠⚠ **The target is the centre of the cell the animal is _drawn_ in**
+  (`cellCentreOf`), never `entity.x`. Aiming at the float puts the camera on a
+  fraction that is stale on the next tick — the original defect in miniature,
+  surviving the deadzone that was supposed to kill it.
+- ⚠⚠ **A move recentres fully rather than nudging the animal back to the edge of
+  the box.** Edge-nudging is the obvious cheap version and it **degenerates
+  straight back into per-tick jitter**: once the animal is against the boundary,
+  every tick moves the camera by exactly that tick's motion. Recentring buys a
+  whole half-box of runway before the next move.
+- ⚠ **The box is a share of the viewport, not a number of cells**, so it is
+  derived from the zoom and narrows in world terms as you zoom in. It is floored
+  at `FOLLOW_MIN_BOX_CELLS` and — more importantly — **capped a cell short of
+  the viewport edge**, or an animal exactly on the boundary would be half off
+  the screen.
+- ⚠ **The glide state lives in `Camera`, and every mutator on that class cancels
+  it.** Six places move this camera (drag, arrow keys, wheel, `+`/`-`, `C`, a
+  recentre) and a glide surviving any of them fights the viewer for a fifth of a
+  second. State beside the mutators cannot be forgotten at one of six call
+  sites; §11's whole theme is what "kept identical by hand" costs later.
+  `clampToWorld` is the one deliberate exception — a glide's endpoints are
+  clamped when it is created, so every eased point between them is already in
+  bounds, and cancelling there would stop the follow camera dead on the very
+  next tick, since clamping is what every other mover does immediately after
+  moving.
+- ⚠⚠ **Everything about the glide is measured in _screen pixels_, and it was
+  measured in cells first** _(fixed 2026-08-10, on the report "when zoomed far
+  out the map re-adjusts almost instantly")_. The deadzone is a share of the
+  viewport, so a recentre is always about a quarter of the screen — but that
+  same quarter-screen is 15 cells at the 10px floor and 4 at 32px. Both
+  constants were per-cell, and both were therefore a different animation at
+  every zoom level:
+  - **The snap threshold was 40 cells.** Zoomed out on a wide grid, an ordinary
+    recentre clears 40 cells, so *every routine follow move took the teleport
+    branch*. That is the reported bug exactly, and it could only appear zoomed
+    out.
+  - **The pacing was 18 ms per cell**, which made the identical on-screen move
+    take 540 ms zoomed out and 240 ms zoomed in — wrong in the opposite
+    direction, and invisible next to the snap.
+
+  One viewport is one viewport at every zoom; 300 pixels is 300 pixels. ⚠ The
+  old cell-based rule happened to be right at 16px and wrong either side, which
+  is why it survived the first round of testing.
+- ⚠ **`prefers-reduced-motion: reduce` snaps.** The move still happens; it just
+  does not slide. Watched rather than read once, so turning motion down
+  mid-session takes effect without a reload.
+
+Two overrides on the deadzone, both in `#followCamera(options)`:
+
+| override | who asks for it | why |
+| --- | --- | --- |
+| `snap` | a zoom, a resize, a column drag | the view has already jumped, and sliding on top of a jump reads as a fault |
+| `force` | the `C` key | "put it back in the middle, **now**" — the deadzone is precisely what the viewer is overriding |
+
+⚠ Anchored wheel-zoom still works while following: the zoom is re-evaluated
+against the new box and only snaps back when the zoom actually pushes the animal
+out of it.
+
+### ⚠⚠ A glide must not put the panels back on a 60 Hz treadmill
+
+`#dirty` drives the draw **and** `#updatePanels`, and a glide marks a frame dirty
+sixty times a second for the length of every camera move. Sharing one flag would
+have rebuilt the whole panel set — `EventLog.render` rebuilds up to 200 `<li>`
+from scratch — at refresh rate for as long as someone was following an animal,
+which is the exact pathology §8 measured and fixed one release earlier (48
+nodes/s at 1×, 1095/s at 32×).
+
+So there is a second flag, **`#cameraDirty`, set only by the glide**: the canvas
+redraws, the panels do not. The panels are marked dirty **once, when the glide
+settles**, so the status bar's camera readout catches up at the end rather than
+sixty times on the way. ⚠ This is the general rule stated in §10 — anything that
+can mark a frame dirty at frame rate has to say whether it is a *canvas* change
+or a *state* change.
+
+### What is and is not tested
+
+- **`renderer-view.test.js`** covers the pure half — the box, the clamp, the
+  easing endpoints, the pacing, retargeting mid-glide, and that every hand
+  mutator cancels a glide (14 tests, all sandbox-cheap). ⚠ Two of them exist
+  because of the zoom bug and are written **in screen terms on purpose**: the
+  same share of the screen must be classed as a pan at 10px, 16px and 32px
+  alike, and the same 150 pixels must take the same time at all three. Both were
+  confirmed to fail against the old per-cell rules.
+  ⚠ The pacing test picks its two distances **from the constants** rather than
+  writing them down, because the clamps leave only ~110–236px unclamped — a
+  doubling test outside that band is really a test of `GLIDE_MAX_MS` and passes
+  for the wrong reason. The first draft did exactly that.
+- **`tests-ui/follow.spec.js`** covers the half that needs a browser: a real
+  delta arriving does not move the real camera, and one that leaves the box
+  does. ⚠ Its stride is **derived from the measured canvas and then asserted**,
+  because the grid column is only ~254px at the suite's viewport — a hardcoded
+  two-cell stride walked straight out of a box under four cells wide, and a test
+  that walks out of the box is measuring the recentre it was written to rule
+  out. The spec was checked by reverting `#followCamera` to the old line and
+  watching it fail on tick 1.
+- ⛔ **Nothing asserts that the move _looks_ smooth.** The browser spec proves a
+  glide arrives exactly and terminates; whether the easing reads well is a
+  judgement for `npm run dev` at 8× and 32×, and ⛔ **nobody has made it** — the
+  sandbox this shipped from cannot bind a port, so no version of this has been
+  watched against a live host.
+
+### How often the camera actually moves — measured 2026-08-10
+
+The one thing that could be measured without a browser was: **does the deadzone
+hold still against a real animal, or does a real animal leave the box every few
+ticks anyway?** The engine runs headless and `planFollow` is pure, so following
+one animal for 2000 ticks and replaying the planner over its real positions
+answers it with no renderer at all.
+
+`smallDemo({ seed: 42 })` (160×120), 400 ticks of warm-up, then 2000 ticks; one
+animal per species; the deadzone at its default share and 16px cells. **Moves
+per 1000 ticks**, against the old code's 1000 — it moved on every tick,
+unconditionally:
+
+| species    | narrow grid (600px) | wide grid (900px) | vs. the old code |
+| ---------- | ------------------: | ----------------: | ---------------: |
+| buffalo    |                   8 |                 6 |    133× / 167× fewer |
+| zebra      |                  15 |                10 |     67× / 105× fewer |
+| wildebeest |                  16 |                11 |      65× / 95× fewer |
+| lion       |                  22 |                17 |      46× / 61× fewer |
+| hyena      |                  37 |                23 |      27× / 44× fewer |
+| leopard    |                  54 |                39 |      19× / 26× fewer |
+| gazelle    |                  55 |                41 |      18× / 24× fewer |
+| vulture    |                 102 |                83 |      10× / 12× fewer |
+
+**The worst animal in the world moves the camera once every ten ticks; most move
+it once every twenty to a hundred.** That is the claim the whole design rests
+on, and it holds by an order of magnitude at both grid widths.
+
+⚠ **Read the vulture row as the ceiling and buffalo as the floor.** A bird
+crossing open ground is the hardest thing here to follow, and at the broadcast
+cap (20 deltas/s, i.e. the fastest a client ever sees the world move) a glide is
+in flight **94%** of the wall clock for a vulture against **6%** for a buffalo
+_(re-measured after the 2026-08-10 slowdown, which doubled both)_. So at top
+speed, following a vulture is a camera that is almost always gliding — smoothly
+and in one direction, which is the point, but not still. At ordinary speeds the
+delta rate is far lower and so is that fraction.
+
+### Does the animal outrun the camera? — measured 2026-08-10
+
+The slowdown raised a fair question: a longer glide is a camera that takes longer
+to arrive, so can a fast animal reach the edge of the screen before it gets
+there? Same method, but running the **real glide** — deltas at the host's actual
+cadence (1000 ms per tick at 1×, `ticksPerBroadcast = ceil(ticksPerSecond / 20)`,
+so 32× is 2 ticks every 62.5 ms) with animation frames in between. **Worst
+distance from the middle of the screen, as a share of the half-viewport** — 1.0
+is the edge:
+
+| speed | slowest species | fastest (vulture) |
+| ----- | --------------: | ----------------: |
+| 1×    |            0.61 |              0.67 |
+| 8×    |            0.61 |              0.67 |
+| 32×   |            0.65 |          **1.01** |
+
+**At 1× and 8× nothing is close to the edge, and no snap ever fires.** At 32× the
+host sends a new position every 62.5 ms and the camera is re-targeted before the
+previous move lands, so it trails — the vulture and the leopard end up at the
+edge of the view at their worst moment. `GLIDE_MAX_MS` is the lever and it was
+chosen from that table (see the constant's own note): at 640 ms the vulture went
+**1.19**, properly off screen; 520 brings it back to the edge while leaving every
+ordinary recentre at the full doubled duration.
+
+⚠⚠ **The first version of this measurement was wrong and said every animal
+escaped, buffalo included.** It advanced the glide once per delta at the same
+instant it stamped the start time, so elapsed was always zero and the camera
+never moved at all. A measurement that indicts a stationary animal is measuring
+itself — that is what gave it away, and it is worth remembering that the
+suspicious row was the one that made the tool look most alarming.
+
+⚠ **What this does not establish**, in the same breath: it is **one animal per
+species on one seed** in the *small* demo world, so the spread between
+individuals is unmeasured and these are not confidence intervals. The gazelle's
+row is 659 ticks rather than 2000 — it was eaten — so it is the shakiest of the
+eight. And none of it says anything about how the movement _looks_.
+- ⛔ **The frame cost of a glide is unmeasured**, and there is one place it could
+  matter: the social and territory layers memoize their trace on the tick *and
+  the visible cell bounds*, so a glide that crosses N cell boundaries re-traces
+  up to N times where an instant jump traced once. Both layers are off by
+  default, so this only bites a viewer following an animal with one switched on.
 
 ---
 
@@ -1783,6 +2014,13 @@ the sections above; collected here as a checklist.
   came due the moment the shape channel grew a third value — a `chevron` added to
   one copy would have drawn a diamond in the other with nothing failing. A comment
   promising two things agree is a request for a shared function.
+- ⚠ **Anything that can mark a frame dirty at _frame_ rate must say whether it
+  is a canvas change or a state change.** `#dirty` redraws the grid **and**
+  rebuilds every panel; `#cameraDirty` redraws only the grid. The follow
+  camera's glide is the first thing to need the distinction (§5a) and it will
+  not be the last — a store change is a state change, an animation is not, and
+  putting an animation on the shared flag rebuilds 200 `<li>` sixty times a
+  second.
 - **A per-tick cost is a real budget, and the store notifies on every change.**
   The inspector rebuild (R3), B5's polling, and C4's snapshot flood were each one.
   `store.setFollowedEntity(null)` inside a pointermove handler re-renders every

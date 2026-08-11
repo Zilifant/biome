@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 import { Camera, ZOOM_LEVELS } from '../src/renderer/app/rendering/Camera.js';
 import { createProjection, worldCellOf, occupantsInCell } from '../src/renderer/app/rendering/GridProjection.js';
 import {
+  planFollow,
+  followBox,
+  cellCentreOf,
+  glideAt,
+  glideDuration,
+  startGlide,
+  FOLLOW_DEADZONE_FRACTION,
+  GLIDE_MIN_MS,
+  GLIDE_MAX_MS,
+  GLIDE_MS_PER_PIXEL,
+} from '../src/renderer/app/rendering/FollowCamera.js';
+import {
   resolveAppearance,
   compareOccupants,
   topOccupant,
@@ -835,6 +847,191 @@ describe('camera', () => {
     // Fractional, so a drag does not stutter cell to cell.
     zoomed.panByPixels(0, 5);
     assert.equal(zoomed.centerY, 49.75);
+  });
+});
+
+describe('the follow camera', () => {
+  // The camera used to sit on the followed animal's float position while the
+  // grid drew that animal at its floored cell, so every tick slid the whole map
+  // by a fraction of a cell and jumped the glyph back the other way. These are
+  // the two halves of the fix: a deadzone that answers "do not move" on most
+  // ticks, and an eased glide for when it does.
+  const VIEWPORT = { width: 800, height: 600 };
+  const plan = (camera, target, options = {}) =>
+    planFollow({
+      camera,
+      viewportWidth: VIEWPORT.width,
+      viewportHeight: VIEWPORT.height,
+      target,
+      ...options,
+    });
+
+  test('an animal inside the box does not move the camera at all', () => {
+    const camera = new Camera({ centerX: 50, centerY: 50, cellSize: 16 });
+    // 800px / 16px = 50 cells across, so the box is 25 cells and its half is
+    // 12.5. Anything nearer than that is the common case: no move.
+    assert.equal(plan(camera, { x: 55.5, y: 45.5 }), null);
+    assert.equal(plan(camera, { x: 62.4, y: 50.5 }), null);
+  });
+
+  test('an animal outside the box recentres on the cell it is drawn in', () => {
+    const camera = new Camera({ centerX: 50, centerY: 50, cellSize: 16 });
+    const move = plan(camera, cellCentreOf({ x: 63.2, y: 50.9 }));
+    // The centre of cell 63, not 63.2 — following the float is what made the
+    // map shift by a fraction of a cell on every single tick.
+    assert.deepEqual([move.x, move.y], [63.5, 50.5]);
+    assert.equal(move.snap, false);
+  });
+
+  test('the box is a share of the viewport, so zooming in narrows it', () => {
+    const near = new Camera({ centerX: 50, centerY: 50, cellSize: 16 });
+    const far = new Camera({ centerX: 50, centerY: 50, cellSize: 32 });
+    const target = { x: 58.5, y: 50.5 }; // 8 cells out
+    assert.equal(plan(near, target), null, '8 cells is inside the box at 16px');
+    assert.ok(plan(far, target), '…and outside it at 32px, where half as much world is visible');
+    assert.ok(followBox(32, VIEWPORT.width, VIEWPORT.height).halfX < followBox(16, VIEWPORT.width, VIEWPORT.height).halfX);
+  });
+
+  test('the box never reaches the edge of the viewport', () => {
+    // A box the full width of the screen would let the animal sit half off it.
+    const halfViewportCells = VIEWPORT.width / 16 / 2;
+    assert.ok(followBox(16, VIEWPORT.width, VIEWPORT.height).halfX <= halfViewportCells - 1);
+    // And the share is what it claims to be, at a zoom where nothing clamps.
+    assert.equal(followBox(16, VIEWPORT.width, VIEWPORT.height).halfX, (VIEWPORT.width / 16) * FOLLOW_DEADZONE_FRACTION / 2);
+  });
+
+  test('a target beyond the world is clamped, and a move that clamps to nothing is not a move', () => {
+    const camera = new Camera({ centerX: 0, centerY: 0, cellSize: 16 });
+    const world = { width: 128, height: 128 };
+    const move = plan(camera, { x: 200, y: 40 }, { world });
+    assert.equal(move.x, 128, 'clamped to the world, not to where the target claimed to be');
+    // Forcing a recentre when the camera is already on the target is the `C`
+    // key pressed twice: no glide, no wasted frames.
+    const centred = new Camera({ centerX: 10.5, centerY: 10.5, cellSize: 16 });
+    assert.equal(plan(centred, { x: 10.5, y: 10.5 }, { world, ignoreDeadzone: true }), null);
+  });
+
+  test('a forced plan ignores the deadzone', () => {
+    const camera = new Camera({ centerX: 50, centerY: 50, cellSize: 16 });
+    assert.equal(plan(camera, { x: 52.5, y: 50.5 }), null);
+    assert.deepEqual(
+      (({ x, y }) => [x, y])(plan(camera, { x: 52.5, y: 50.5 }, { ignoreDeadzone: true })),
+      [52.5, 50.5],
+    );
+  });
+
+  test('a long jump is a snap, not a glide — measured on screen, not in cells', () => {
+    // ⚠⚠ The regression this exists for: the threshold was 40 *cells*, so at the
+    // 10px zoom floor an ordinary recentre cleared it and every routine follow
+    // move took the teleport branch. The reported symptom was "zoomed far out,
+    // the map re-adjusts almost instantly".
+    // A move of a given share of the screen must be classed the same way at
+    // every zoom, because that is the same move as far as anyone watching is
+    // concerned. 0.6 of an 800px viewport is 48 cells at the 10px floor and 15
+    // at 32px — under the old rule the first jumped and the second glided.
+    const snapsAcrossScreen = (cellSize, screenFraction) => {
+      const camera = new Camera({ centerX: 10, centerY: 10, cellSize });
+      const cells = (VIEWPORT.height * screenFraction) / cellSize;
+      return plan(camera, { x: 10.5, y: 10 + cells }).snap;
+    };
+    for (const cellSize of [10, 16, 32]) {
+      assert.equal(snapsAcrossScreen(cellSize, 0.6), false, `half a screen is a pan, not a jump (${cellSize}px)`);
+      assert.equal(snapsAcrossScreen(cellSize, 1.5), true, `a screen and a half is a jump (${cellSize}px)`);
+    }
+  });
+
+  test('the same move on screen takes the same time at every zoom', () => {
+    // A recentre is always about a quarter of the viewport, whatever the zoom —
+    // so if it is paced per *cell* it is a different animation at every zoom
+    // level. 150 screen pixels is 15 cells at the 10px floor and 4.7 at 32px.
+    // ⚠ Deliberately inside both clamps: two durations that agree only because
+    // they both hit `GLIDE_MAX_MS` would pass this test while proving nothing.
+    const at10 = glideDuration(150 / 10, 10);
+    const at32 = glideDuration(150 / 32, 32);
+    assert.ok(at10 > GLIDE_MIN_MS && at10 < GLIDE_MAX_MS, `${at10}ms should be clear of the clamps`);
+    assert.ok(Math.abs(at10 - at32) < 1, `${at10}ms vs ${at32}ms for the same 150px`);
+    // …and twice the screen distance takes twice as long. ⚠ The band between
+    // the clamps is narrow, so the two distances are derived from the constants
+    // rather than written down: a doubling test that strays outside the band is
+    // really a test of `GLIDE_MAX_MS`, and passes for the wrong reason.
+    const shortPx = (GLIDE_MIN_MS / GLIDE_MS_PER_PIXEL) * 1.05;
+    assert.ok(shortPx * 2 * GLIDE_MS_PER_PIXEL < GLIDE_MAX_MS, 'the clamps leave no room to test doubling');
+    assert.ok(Math.abs(glideDuration((shortPx * 2) / 16, 16) - 2 * glideDuration(shortPx / 16, 16)) < 1);
+  });
+
+  test('a glide starts at its origin and ends exactly on its target', () => {
+    const glide = startGlide(0, 0, 10, 20, 16);
+    const start = glideAt(glide, 1000);
+    assert.deepEqual([start.x, start.y, start.done], [0, 0, false]);
+    const mid = glideAt({ ...glide, startMs: 1000 }, 1000 + glide.durationMs / 2);
+    assert.ok(mid.x > 5, 'eased out: more than half the distance is covered in the first half');
+    assert.ok(mid.x < 10);
+    const end = glideAt({ ...glide, startMs: 1000 }, 1000 + glide.durationMs);
+    // Exactly, not interpolated to within a rounding error: a camera stopping a
+    // millionth of a cell short leaves the pixel offset one off forever.
+    assert.deepEqual([end.x, end.y, end.done], [10, 20, true]);
+  });
+
+  test('a glide is paced by distance, within bounds', () => {
+    assert.equal(glideDuration(0.5, 16), GLIDE_MIN_MS, 'a short hop does not crawl');
+    assert.equal(glideDuration(1000, 16), GLIDE_MAX_MS, 'a long one does not become a tour');
+    assert.ok(glideDuration(12, 16) > GLIDE_MIN_MS && glideDuration(12, 16) < GLIDE_MAX_MS);
+  });
+
+  test('the camera advances a glide on the frame clock, then stops costing frames', () => {
+    const camera = new Camera({ centerX: 0, centerY: 0, cellSize: 16 });
+    camera.glideTo(10, 0);
+    assert.equal(camera.gliding, true);
+    assert.equal(camera.advance(1000), true, 'the first frame stamps the start');
+    assert.equal(camera.centerX, 0);
+    camera.advance(1100);
+    assert.ok(camera.centerX > 0 && camera.centerX < 10);
+    camera.advance(2000);
+    assert.equal(camera.centerX, 10);
+    assert.equal(camera.gliding, false);
+    assert.equal(camera.advance(3000), false, 'a settled camera costs no frames at all');
+  });
+
+  test('retargeting mid-glide continues from where the camera is now', () => {
+    const camera = new Camera({ centerX: 0, centerY: 0, cellSize: 16 });
+    camera.glideTo(10, 0);
+    camera.advance(1000);
+    camera.advance(1060);
+    const midway = camera.centerX;
+    assert.ok(midway > 0 && midway < 10);
+    camera.glideTo(20, 0);
+    camera.advance(1060);
+    assert.equal(camera.centerX, midway, 'a restart from the original origin would jerk backwards');
+    camera.advance(9000);
+    assert.equal(camera.centerX, 20);
+  });
+
+  test('every way of moving the camera by hand cancels the glide', () => {
+    // Six call sites move this camera; a glide surviving any of them fights the
+    // viewer for the next fifth of a second.
+    for (const move of [
+      (camera) => camera.panByPixels(10, 0),
+      (camera) => camera.panByCells(1, 0),
+      (camera) => camera.centerOn(1, 1),
+      (camera) => camera.zoomIn(),
+      (camera) => camera.zoomOut(),
+      (camera) => camera.zoomAt(5, 5, 1),
+    ]) {
+      const camera = new Camera({ centerX: 0, centerY: 0, cellSize: 16 });
+      camera.glideTo(50, 50);
+      move(camera);
+      assert.equal(camera.gliding, false, `${move} left a glide running`);
+    }
+  });
+
+  test('clamping to the world does not cancel a glide', () => {
+    // Its endpoints are already clamped, so every eased point between them is
+    // in bounds; cancelling here would stop the follow camera dead every tick,
+    // since clamping is what every other camera mover does next.
+    const camera = new Camera({ centerX: 5, centerY: 5, cellSize: 16 });
+    camera.glideTo(20, 20);
+    camera.clampToWorld({ width: 128, height: 128 });
+    assert.equal(camera.gliding, true);
   });
 });
 
