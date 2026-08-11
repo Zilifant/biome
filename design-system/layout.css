@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Layout — the app frame, panel columns, and resizable column handles.
+
+   The shape: a full-height grid of `header / main / footer`, where main is a
+   row of columns — any number of panel columns around a central content
+   area. Two conventions here are load-bearing and both cost real debugging
+   time in the source system:
+
+   1. ⚠ Every child of the main grid is placed EXPLICITLY (`grid-column` and
+      `grid-row`). The drag handles overlay columns rather than taking tracks
+      of their own, and a grid with *some* items placed by hand auto-places
+      the rest into whatever cells are left — the page still looks roughly
+      right while half of it cannot be clicked.
+
+   2. Column widths ride on custom properties whose FALLBACKS ARE THE
+      MINIMUMS. Each column is sized to the narrowest thing it must show
+      without wrapping, so a drag only ever widens. If a script also states
+      these widths, the two must agree or the first drag jumps.
+   ========================================================================== */
+
+/* ---- app frame ---- */
+.ds-app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2);
+}
+
+/* ---- main column row ----
+   Declare the template in the consuming page — column count is the page's
+   decision, not the system's:
+
+     .ds-main { grid-template-columns:
+       var(--left-width, 260px) 1fr var(--right-width, 300px); }
+
+   and place every child explicitly. */
+.ds-main {
+  display: grid;
+  gap: var(--ds-space-2);
+  min-height: 0;
+}
+
+.ds-main > * {
+  grid-row: 1;
+}
+
+/* ---- panel column ----
+   A vertical stack of panels. Style a panel by what it is, not where it is:
+   this one class covers every column, so a panel can move between columns
+   without a CSS change. */
+.ds-panel-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* ---- central content well ----
+   The main stage (a canvas, a document, a table). `position: relative` so
+   popovers can anchor inside it; `overflow: hidden` so it clips rather than
+   grows. */
+.ds-viewport {
+  position: relative;
+  background: var(--ds-surface-viewport);
+  border: 1px solid var(--ds-border);
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ---- column drag handles ----
+   A handle shares a grid track with the column it resizes and is pulled half
+   over the gap, so it overlays that column's inner edge without taking a
+   track of its own. Invisible until hovered: it is a target, not a
+   decoration. Give it `grid-column` in the page, plus `justify-self:
+   end; margin-right: -5px` (left-side column) or `justify-self: start;
+   margin-left: -5px` (right-side column).
+
+   Make it a real widget: role="separator", aria-orientation="vertical",
+   tabindex="0", arrow keys to nudge, double-click to reset. */
+.ds-col-resizer {
+  width: 7px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.ds-col-resizer:hover,
+.ds-col-resizer:focus-visible,
+.ds-col-resizer.dragging {
+  background: var(--ds-border-strong);
+  outline: none;
+}

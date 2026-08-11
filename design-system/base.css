@@ -1,0 +1,111 @@
+/* ==========================================================================
+   Base — reset, typography, and form controls themed by TYPE.
+
+   Load order: tokens.css → base.css → layout.css → components.css.
+
+   The load-bearing convention here: form controls are themed by *type*
+   (`input[type="text"]`, `button`, `select`), never by id or one-off class,
+   so a new control is themed the moment it is added. Reach for a per-id rule
+   only for something genuinely specific to one control (a fixed width),
+   never for the base look.
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ds-surface-page);
+  color: var(--ds-text);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-size);
+  line-height: var(--ds-line-height);
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
+
+/* ---- headings ----
+   Two levels are all a dense UI needs. A panel title is uppercase, tracked,
+   and accent-colored; a subheading is small and secondary. Anything deeper
+   belongs in a disclosure section, not a smaller heading. */
+h1,
+h2 {
+  margin: 0 0 var(--ds-space-3);
+  font-size: var(--ds-font-size);
+  text-transform: uppercase;
+  letter-spacing: var(--ds-heading-tracking);
+  color: var(--ds-heading);
+  font-weight: bold;
+}
+
+h3 {
+  margin: var(--ds-space-4) 0 var(--ds-space-2);
+  font-size: var(--ds-font-size-small);
+  color: var(--ds-text-secondary);
+  font-weight: bold;
+}
+
+a {
+  color: var(--ds-link);
+}
+
+a:hover {
+  color: var(--ds-link-hover);
+}
+
+/* ---- form controls, by type ---- */
+input[type="number"],
+input[type="text"],
+input[type="search"] {
+  font: inherit;
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  border: 1px solid var(--ds-border);
+  padding: var(--ds-space-1) var(--ds-space-2);
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--ds-text);
+  background: var(--ds-surface-raised);
+  border: 1px solid var(--ds-border);
+  padding: var(--ds-space-1) var(--ds-space-4);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-surface-hover);
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  color: var(--ds-text-secondary);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--ds-accent);
+}
+
+/* One focus treatment for every focusable thing. Visible, offset, and in the
+   accent color — never removed without an equivalent on-surface replacement. */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ds-focus);
+  outline-offset: 1px;
+}

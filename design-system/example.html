@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>design system — component gallery</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="base.css" />
+    <link rel="stylesheet" href="layout.css" />
+    <link rel="stylesheet" href="components.css" />
+    <style>
+      /* Page-owned layout decisions: the column template and explicit
+         placement, per layout.css's contract. */
+      #gallery-main {
+        grid-template-columns: 300px 1fr 300px;
+      }
+      #left-col { grid-column: 1; }
+      #center { grid-column: 2; }
+      #right-col { grid-column: 3; }
+      .swatch-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+      .swatch { width: 48px; height: 32px; border: 1px solid var(--ds-border); display: grid; place-items: end start; padding: 2px; font-size: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="ds-app">
+      <!-- status bar: readings, badges, a trailing command result -->
+      <header class="ds-status-bar">
+        <span><span class="ds-status-label">mode</span> <span class="ds-badge">LIVE</span></span>
+        <span><span class="ds-status-label">state</span> <span class="ds-badge ds-badge--warn">PAUSED</span></span>
+        <span><span class="ds-status-label">tick</span> 3042</span>
+        <span><span class="ds-status-label">items</span> 256</span>
+        <span><span class="ds-status-label">link</span> <span class="ds-ok">connected</span></span>
+        <span class="ds-status-end ds-dim">step ×500 ok</span>
+      </header>
+
+      <div id="gallery-main" class="ds-main">
+        <aside id="left-col" class="ds-panel-column">
+          <section class="ds-panel ds-panel--collapsible ds-panel--fill">
+            <h2>Feed</h2>
+            <details class="ds-section">
+              <summary><span class="ds-section-title">Filters</span> <span class="ds-section-badge">2 of 32</span></summary>
+              <div class="ds-section-body">
+                <div class="ds-group-label">Lifecycle</div>
+                <label class="ds-toggle-row"><input type="checkbox" checked /> <span>created</span></label>
+                <label class="ds-toggle-row"><input type="checkbox" checked /> <span>removed</span></label>
+                <div class="ds-group-label">Routine</div>
+                <label class="ds-toggle-row"><input type="checkbox" /> <span>moved <span class="ds-dim">frequent · kept briefly</span></span></label>
+              </div>
+            </details>
+            <ul class="ds-feed">
+              <li class="ds-feed--ok">+ t3040 <button class="ds-ref">#412</button> created</li>
+              <li class="ds-feed--danger">x t3038 <button class="ds-ref" style="--ds-ref-color: var(--ds-palette-yellow)">g97</button> died — starvation</li>
+              <li class="ds-feed--warn">% t3035 <button class="ds-ref">#65</button> removed</li>
+              <li class="ds-feed--info">= t3031 <button class="ds-ref">#12</button> fed &lt;until t3205&gt;</li>
+              <li class="ds-feed--special">? t3030 <button class="ds-ref">#88</button> courtship</li>
+              <li class="ds-feed--muted">&gt; t3029 <button class="ds-ref">#7</button> moved</li>
+            </ul>
+          </section>
+        </aside>
+
+        <div id="center" class="ds-viewport">
+          <div style="padding: 12px">
+            <h2>Palette roles</h2>
+            <div class="swatch-row">
+              <div class="swatch" style="background: var(--ds-surface-page)">page</div>
+              <div class="swatch" style="background: var(--ds-surface-panel)">panel</div>
+              <div class="swatch" style="background: var(--ds-surface-raised)">raised</div>
+              <div class="swatch" style="background: var(--ds-surface-hover)">hover</div>
+              <div class="swatch" style="background: var(--ds-border)">border</div>
+            </div>
+            <div class="swatch-row">
+              <div class="swatch" style="background: var(--ds-ok); color: var(--ds-surface-page)">ok</div>
+              <div class="swatch" style="background: var(--ds-warn); color: var(--ds-surface-page)">warn</div>
+              <div class="swatch" style="background: var(--ds-danger); color: var(--ds-surface-page)">danger</div>
+              <div class="swatch" style="background: var(--ds-info); color: var(--ds-surface-page)">info</div>
+              <div class="swatch" style="background: var(--ds-accent); color: var(--ds-surface-page)">accent</div>
+              <div class="swatch" style="background: var(--ds-highlight); color: var(--ds-surface-page)">highlight</div>
+            </div>
+            <p class="ds-hint">The viewport is the stage: the darkest bordered well, position: relative so popovers anchor inside it.</p>
+          </div>
+
+          <!-- the one floating element, with the one shadow -->
+          <div class="ds-popover" style="right: 12px; top: 12px">
+            <div class="ds-popover-header">
+              <span class="ds-popover-grip">⣿⣿</span>
+              <span class="ds-popover-title">Inspector</span>
+              <button class="ds-popover-button active" title="pin">▪</button>
+              <button class="ds-popover-button" title="dock">⇥</button>
+              <button class="ds-popover-button" title="close">×</button>
+            </div>
+            <div class="ds-popover-body">
+              <div class="ds-field"><span>id</span><span><button class="ds-ref">#412</button></span></div>
+              <div class="ds-field"><span>state</span><span class="ds-ok">healthy</span></div>
+              <div class="ds-field"><span>energy</span><span>0.82</span></div>
+              <details class="ds-section" open>
+                <summary><span class="ds-section-title">Trend</span> <span class="ds-section-badge">120 samples</span></summary>
+                <div class="ds-section-body">
+                  <span class="ds-figure">▁▂▂▃▄▅▅▆▇█▇▆▆▅▄▄▃▃▄▅▆▆▇▇█▇▆▅▄▃</span>
+                </div>
+              </details>
+              <details class="ds-section">
+                <summary><span class="ds-section-title">Details</span></summary>
+                <div class="ds-section-body ds-dim">Collapsed by default; the open-set is remembered.</div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <aside id="right-col" class="ds-panel-column">
+          <section class="ds-panel">
+            <h2>Controls</h2>
+            <div class="ds-control-row">
+              <button style="min-width: 6.5em; text-align: left">Resume</button>
+              <button>Step</button>
+              <input type="number" value="1" style="width: 5em" aria-label="step count" />
+            </div>
+            <div class="ds-control-row">
+              <button>-</button>
+              <span class="ds-value-fixed">2×</span>
+              <button>+</button>
+              <select aria-label="preset"><option>default</option><option>sparse</option></select>
+            </div>
+            <div class="ds-control-row">
+              <input type="text" placeholder="seed" style="width: 8em" aria-label="seed" />
+              <button>Restart</button>
+              <button disabled>Rewind</button>
+            </div>
+            <p class="ds-hint">Buttons, selects and inputs are themed by type — a new control is themed the moment it is added.</p>
+          </section>
+
+          <section class="ds-panel ds-panel--collapsible collapsed">
+            <h2>Collapsed panel</h2>
+            <p>You should not see this.</p>
+          </section>
+
+          <section class="ds-panel">
+            <h2>Key</h2>
+            <div class="ds-key-grid">
+              <span class="ds-key-symbol" style="color: var(--ds-palette-yellow)">g/G</span><span class="ds-key-label">young / grown</span>
+              <span class="ds-key-symbol" style="color: var(--ds-palette-cyan)">~</span><span class="ds-key-label">water</span>
+              <span class="ds-key-symbol" style="color: var(--ds-palette-orange)">%</span><span class="ds-key-label">warning state</span>
+              <span class="ds-key-symbol" style="color: var(--ds-palette-green)">"</span><span class="ds-key-label">growth</span>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="ds-help-bar">
+        drag panel edges to resize · <a href="README.md">read the system docs</a> · click a <button class="ds-ref">#reference</button> to navigate
+      </footer>
+    </div>
+  </body>
+</html>

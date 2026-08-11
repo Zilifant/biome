@@ -1,0 +1,423 @@
+/* ==========================================================================
+   Components — panels, badges, controls, fields, disclosures, feeds,
+   popovers, references, and character-drawn figures.
+
+   House style throughout: information-dense, minimal decoration, monospace-
+   honest. Markers are text (`+` / `-`), never icon fonts; charts are drawn
+   with characters; the only shadow belongs to the one floating element.
+   ========================================================================== */
+
+/* ---- status bar ----
+   A single wrapping row of label/value readings across the top. Pin a
+   trailing item (e.g. the last command's result) with `margin-left: auto`
+   so it stays clear of readings that change width. */
+.ds-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-5);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  background: var(--ds-surface-panel);
+  border: 1px solid var(--ds-border);
+}
+
+.ds-status-bar .ds-status-end {
+  margin-left: auto;
+  text-align: right;
+  min-height: 1.4em;
+}
+
+.ds-status-label {
+  color: var(--ds-text-secondary);
+}
+
+/* ---- badge ----
+   Inverted (dark text on a status color) so it reads as a STATE, not a
+   reading. Default is the ok state; add a modifier for warn/danger. Badge
+   text should say the state in a word — color is never the only channel. */
+.ds-badge {
+  padding: 0 var(--ds-space-3);
+  background: var(--ds-ok);
+  color: var(--ds-surface-page);
+  font-weight: bold;
+}
+
+.ds-badge--warn {
+  background: var(--ds-warn);
+}
+
+.ds-badge--danger {
+  background: var(--ds-danger);
+}
+
+.ds-badge--info {
+  background: var(--ds-info);
+}
+
+/* ---- inline status text ---- */
+.ds-ok {
+  color: var(--ds-ok);
+}
+.ds-warn {
+  color: var(--ds-warn);
+}
+.ds-bad {
+  color: var(--ds-danger);
+}
+.ds-dim {
+  color: var(--ds-text-secondary);
+}
+
+.ds-hint {
+  color: var(--ds-text-secondary);
+  margin: 0;
+}
+
+/* ---- panel ----
+   The basic surface: a bordered section with an uppercase accent heading.
+   Works in any panel column (style by what it is, not where it is). */
+.ds-panel {
+  background: var(--ds-surface-panel);
+  border: 1px solid var(--ds-border);
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+
+/* A panel that fills its column and scrolls inside itself (a feed's home).
+   Collapsed, it shrinks back to just its header. */
+.ds-panel--fill {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-panel--fill.collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+/* ---- collapsible panel ----
+   The heading is the toggle; a text `+` / `-` marker keeps it monospace-
+   honest. Script contract: clicking the heading toggles `.collapsed` on the
+   panel and remembers the set (e.g. in localStorage). */
+.ds-panel--collapsible > h2 {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-panel--collapsible > h2::before {
+  content: "- ";
+}
+
+.ds-panel--collapsible.collapsed > h2::before {
+  content: "+ ";
+}
+
+/* Collapsed: keep the header, hide everything else. */
+.ds-panel--collapsible.collapsed > :not(h2) {
+  display: none;
+}
+
+.ds-panel--collapsible.collapsed > h2 {
+  margin-bottom: 0;
+}
+
+/* ---- control row ----
+   A wrapping row of buttons and small inputs. Give a control whose label
+   changes with state (Pause/Resume) a fixed `min-width` so the row does not
+   shift every time it is used; same for a numeric readout that changes
+   width (`.ds-value-fixed`). */
+.ds-control-row {
+  display: flex;
+  gap: var(--ds-space-2);
+  align-items: center;
+  margin-bottom: var(--ds-space-2);
+  flex-wrap: wrap;
+}
+
+.ds-value-fixed {
+  min-width: 3em;
+  text-align: center;
+  color: var(--ds-highlight);
+}
+
+/* ---- toggle row ----
+   One checkbox/radio per line, clickable across the whole row rather than
+   only on the box — these get flipped while watching something else. Every
+   toggle looks the same wherever it appears. */
+.ds-toggle-row {
+  display: flex;
+  gap: var(--ds-space-3);
+  align-items: baseline;
+  cursor: pointer;
+  padding: 1px 0;
+}
+
+.ds-toggle-row:hover {
+  background: var(--ds-surface-raised);
+}
+
+/* ---- field ----
+   A label/value pair on one line, label secondary, value right-aligned,
+   separated by a faint rule. The unit of every readout panel. */
+.ds-field {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-border-faint);
+  padding: 1px 0;
+}
+
+.ds-field > :first-child {
+  color: var(--ds-text-secondary);
+}
+
+/* ---- list rows ----
+   A plain list where one row can be the active one. The highlight color is
+   reserved for exactly this. */
+.ds-list {
+  list-style: none;
+  margin: 0 0 var(--ds-space-3);
+  padding: 0;
+}
+
+.ds-list li.active {
+  background: var(--ds-palette-selection);
+  color: var(--ds-highlight);
+}
+
+/* ---- disclosure section ----
+   A `<details>` with a text `+` / `-` marker. Sections collapsed by default;
+   remember the open-set per section id if it should survive reloads.
+   The summary browses secondary until hovered. */
+.ds-section {
+  border-top: 1px solid var(--ds-border-faint);
+}
+
+.ds-section > summary {
+  cursor: pointer;
+  padding: var(--ds-space-1) 0;
+  color: var(--ds-text-secondary);
+  list-style: none;
+}
+
+.ds-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ds-section > summary::before {
+  content: "+ ";
+  color: var(--ds-accent);
+}
+
+.ds-section[open] > summary::before {
+  content: "- ";
+}
+
+.ds-section > summary:hover .ds-section-title {
+  color: var(--ds-text);
+}
+
+.ds-section-title {
+  color: var(--ds-accent);
+}
+
+.ds-section-badge {
+  color: var(--ds-text-secondary);
+}
+
+.ds-section-body {
+  padding: 0 0 var(--ds-space-2) 10px;
+}
+
+/* ---- group label ----
+   A small uppercase divider inside a long list (filter groups, categories). */
+.ds-group-label {
+  margin: var(--ds-space-3) 0 1px;
+  color: var(--ds-accent);
+  text-transform: uppercase;
+  letter-spacing: var(--ds-label-tracking);
+}
+
+.ds-group-label:first-child {
+  margin-top: 0;
+}
+
+/* ---- popover ----
+   The one floating element, and the one shadow. Anchored inside a
+   `position: relative` container (.ds-viewport). Header is the drag grip;
+   body scrolls inside itself. Not a modal: no focus trap, the page behind
+   it stays live. */
+.ds-popover {
+  position: absolute;
+  z-index: 10;
+  width: 320px;
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ds-surface-panel);
+  border: 1px solid var(--ds-accent);
+  box-shadow: var(--ds-shadow-float);
+}
+
+.ds-popover[hidden] {
+  display: none;
+}
+
+.ds-popover-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-1) var(--ds-space-3);
+  background: var(--ds-surface-raised);
+  border-bottom: 1px solid var(--ds-border);
+  cursor: grab;
+  user-select: none;
+}
+
+.ds-popover.dragging .ds-popover-header {
+  cursor: grabbing;
+}
+
+.ds-popover-grip {
+  color: var(--ds-text-secondary);
+  letter-spacing: -2px;
+}
+
+.ds-popover-title {
+  flex: 1;
+  color: var(--ds-heading);
+  text-transform: uppercase;
+  letter-spacing: var(--ds-heading-tracking);
+}
+
+/* Quiet header button: transparent until hovered, highlight when active. */
+.ds-popover-button {
+  padding: 0 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ds-text-secondary);
+}
+
+.ds-popover-button:hover:not(:disabled) {
+  color: var(--ds-text);
+  border-color: var(--ds-border);
+}
+
+.ds-popover-button.active {
+  color: var(--ds-highlight);
+  border-color: var(--ds-border);
+}
+
+.ds-popover-body {
+  overflow-y: auto;
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+
+/* ---- inline reference ----
+   A `<button>` styled as text, so a dense panel does not become a field of
+   controls; it earns its underline on hover.
+
+   ⚠ The color rides on a custom property set per reference in the markup
+   (`style="--ds-ref-color: var(--ds-palette-yellow)"`), NOT on an inline
+   `color` — an inline declaration outranks any stylesheet rule, and the
+   hover color would never fire. */
+.ds-ref {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ds-ref-color, var(--ds-link));
+  cursor: pointer;
+}
+
+.ds-ref:hover {
+  color: var(--ds-link-hover);
+  text-decoration: underline;
+}
+
+/* ---- key grid ----
+   A legend: symbol/label pairs in two columns that wrap. Generate it from
+   the same registry that draws the symbols, so it cannot drift from what is
+   actually shown. */
+.ds-key-grid {
+  display: grid;
+  grid-template-columns: 2.5em 1fr;
+  gap: 0 var(--ds-space-3);
+  align-items: baseline;
+}
+
+.ds-key-grid--dense {
+  grid-template-columns: auto 1fr auto 1fr;
+}
+
+.ds-key-symbol {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ds-key-label {
+  color: var(--ds-text);
+}
+
+/* ---- feed ----
+   A scrolling log of one-line entries, newest visible, each line headed by a
+   one-character mark and colored by what happened. One line = one entry:
+   nowrap + ellipsis, never wrapping into two. */
+.ds-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ds-feed li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-feed .ds-feed--danger {
+  color: var(--ds-danger);
+}
+.ds-feed .ds-feed--ok {
+  color: var(--ds-ok);
+}
+.ds-feed .ds-feed--warn {
+  color: var(--ds-warn);
+}
+.ds-feed .ds-feed--info {
+  color: var(--ds-info);
+}
+.ds-feed .ds-feed--special {
+  color: var(--ds-special);
+}
+.ds-feed .ds-feed--muted {
+  color: var(--ds-text-secondary);
+}
+
+/* ---- character-drawn figure ----
+   A sparkline or histogram drawn with block characters (▁▂▃▄▅▆▇█). Rules
+   that came from real defects:
+   - Pad with U+00A0, never an ordinary space — a space inside the figure is
+     a line-break opportunity and a wrapped bar reads as two bars.
+   - Resample to the space available rather than truncating; measure the
+     width in characters with a probe, don't assume the font.
+   - A sparkline's ramp has no blank rung (a flat series must read as "no
+     change", not as nothing); a histogram's may (an empty bin is empty).
+   `overflow: hidden` is the backstop: a mis-measurement costs a clipped
+   chart, not a broken layout. */
+.ds-figure {
+  display: block;
+  white-space: pre;
+  overflow: hidden;
+  line-height: 1.2;
+}
+
+/* ---- help bar ---- */
+.ds-help-bar {
+  padding: var(--ds-space-1) var(--ds-space-4);
+  color: var(--ds-text-secondary);
+  background: var(--ds-surface-panel);
+  border: 1px solid var(--ds-border);
+}

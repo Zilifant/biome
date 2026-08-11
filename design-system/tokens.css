@@ -1,0 +1,106 @@
+/* ==========================================================================
+   Design tokens — the single source of visual truth.
+
+   Two tiers, and the split is the whole theming story:
+
+   1. PALETTE — raw color values (Dracula Classic by default). Components
+      never reference these directly.
+   2. ROLES — semantic aliases (`--ds-surface-panel`, `--ds-danger`, …) that
+      components actually use. Retheme a project by overriding the role
+      layer — or swap the palette wholesale — without touching component CSS.
+
+   Rule inherited from the source system: derived shades may only mix these
+   values or apply opacity to them. No new hex values downstream.
+   ========================================================================== */
+
+:root {
+  /* ---- tier 1: palette (Dracula Classic) ---- */
+  --ds-palette-background: #282a36;
+  --ds-palette-current-line: #6272a4;
+  --ds-palette-selection: #44475a;
+  --ds-palette-foreground: #f8f8f2;
+  --ds-palette-comment: #6272a4;
+
+  --ds-palette-red: #ff5555;
+  --ds-palette-orange: #ffb86c;
+  --ds-palette-yellow: #f1fa8c;
+  --ds-palette-green: #50fa7b;
+  --ds-palette-cyan: #8be9fd;
+  --ds-palette-purple: #bd93f9;
+  --ds-palette-pink: #ff79c6;
+
+  --ds-palette-background-lighter: #424450;
+  --ds-palette-background-light: #343746;
+  --ds-palette-background-dark: #21222c;
+  --ds-palette-background-darker: #191a21;
+
+  --ds-palette-bright-red: #ff6e6e;
+  --ds-palette-bright-green: #69ff94;
+  --ds-palette-bright-yellow: #ffffa5;
+  --ds-palette-bright-purple: #d6acff;
+  --ds-palette-bright-pink: #ff92df;
+  --ds-palette-bright-cyan: #a4ffff;
+  --ds-palette-bright-white: #ffffff;
+
+  /* ---- tier 2: roles ----
+     Surfaces step darker as they get further from the content: the page is
+     the darkest thing on screen, a panel sits above it, a raised control
+     above that. Hover is one step lighter again. */
+  --ds-surface-page: var(--ds-palette-background-darker);
+  --ds-surface-panel: var(--ds-palette-background-dark);
+  --ds-surface-viewport: var(--ds-palette-background);
+  --ds-surface-raised: var(--ds-palette-background-light);
+  --ds-surface-hover: var(--ds-palette-background-lighter);
+
+  --ds-border: var(--ds-palette-selection);
+  --ds-border-strong: var(--ds-palette-current-line);
+  /* Hairline for rows inside a panel — quieter than a panel border. */
+  --ds-border-faint: var(--ds-palette-background-light);
+
+  --ds-text: var(--ds-palette-foreground);
+  --ds-text-secondary: var(--ds-palette-comment);
+  --ds-heading: var(--ds-palette-purple);
+
+  /* Status semantics, inherited verbatim from the source system:
+     green = success/running, orange = warning/degraded, red = danger/failure.
+     Status color is never the only channel — pair it with a word or a mark. */
+  --ds-ok: var(--ds-palette-green);
+  --ds-warn: var(--ds-palette-orange);
+  --ds-danger: var(--ds-palette-red);
+  --ds-info: var(--ds-palette-cyan);
+  --ds-special: var(--ds-palette-pink);
+
+  --ds-link: var(--ds-palette-cyan);
+  --ds-link-hover: var(--ds-palette-bright-cyan);
+  --ds-focus: var(--ds-palette-purple);
+  /* The one highlight color: the thing currently selected or currently
+     changing. Reserved — using it for decoration devalues the selection. */
+  --ds-highlight: var(--ds-palette-bright-yellow);
+  --ds-accent: var(--ds-palette-purple);
+
+  /* ---- typography ----
+     Monospace everywhere. Density is the point: 12px body, 11px small.
+     Ligatures off so glyphs and character-drawn figures stay one-to-one. */
+  --ds-font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  --ds-font-size: 12px;
+  --ds-font-size-small: 11px;
+  --ds-line-height: 1.45;
+  --ds-heading-tracking: 0.08em;
+  --ds-label-tracking: 0.06em;
+
+  /* ---- spacing ----
+     A 2px-based scale. The page breathes in 4px gaps; panels pad 6px/8px. */
+  --ds-space-1: 2px;
+  --ds-space-2: 4px;
+  --ds-space-3: 6px;
+  --ds-space-4: 8px;
+  --ds-space-5: 16px;
+
+  /* ---- elevation ----
+     One shadow in the whole system, for the one element that must read as
+     floating *above* the page rather than drawn into it (the popover).
+     Everything else is flat by design. */
+  --ds-shadow-float: 0 4px 16px rgb(0 0 0 / 55%);
+}
